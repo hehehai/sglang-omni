@@ -170,6 +170,29 @@ class OmniXPCPackagingTests(unittest.TestCase):
         self.assertFalse((ROOT / "VoxtTests/OmniXPCProtocolTests.swift").exists())
         self.assertTrue((ROOT / "Packages/OmniXPCContracts/Tests/OmniXPCContractsTests/OmniXPCProtocolTests.swift").is_file())
 
+    def test_artifact_validation_is_linked_without_download_inference(self) -> None:
+        package_identifier = "A0BE00000000000000000001"
+        product_identifier = "A0BE00000000000000000002"
+        build_identifier = "A0BE00000000000000000003"
+        self.assertIn("relativePath = Packages/OmniModelArtifacts;", self.project_object(package_identifier))
+        self.assertIn(package_identifier, self.project_object("31F19CC52F4D76D200E96913"))
+        self.assertIn(product_identifier, self.project_object("31F19CCC2F4D76D200E96913"))
+        self.assertIn(build_identifier, self.project_object("31F19CCA2F4D76D200E96913"))
+        self.assertIn(f"package = {package_identifier}", self.project_object(product_identifier))
+        self.assertIn("productName = OmniModelArtifacts;", self.project_object(product_identifier))
+        self.assertNotIn(product_identifier, self.project_object("A0BC00000000000000000001"))
+        for source in ("Voxt/Meeting/Capture/SileroVADModelProvisioner.swift",
+                       "Voxt/Meeting/SpeakerAnalysis/MeetingDiarizationModelManager.swift"):
+            text = (ROOT / source).read_text()
+            self.assertIn("import OmniModelArtifacts", text)
+            self.assertIn("OmniModelArtifactValidation.validateSafetensorsDirectory(at:", text)
+            self.assertNotRegex(text, r"import MLX(?:AudioVAD)?\b|\.fromModelDirectory\(|SileroVADModelSupport\.loadModel\(")
+        loader = (ROOT / "Voxt/Meeting/Capture/SileroVADModelLoader.swift").read_text()
+        self.assertIn("try withError", loader)
+        self.assertIn("SileroVAD.fromModelDirectory", loader)
+        workflow = (ROOT.parent / ".github/workflows/voxt-mac-ci.yaml").read_text()
+        self.assertIn("swift test --package-path Voxt/Packages/OmniModelArtifacts", workflow)
+
     def test_ci_runs_contracts_standalone_without_removed_app_selector(self) -> None:
         workflow = (ROOT.parent / ".github/workflows/voxt-mac-ci.yaml").read_text()
         self.assertIn("swift test --package-path Voxt/Packages/OmniXPCContracts", workflow)

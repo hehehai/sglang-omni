@@ -133,6 +133,16 @@ final class MLXModelManagerStorageTests: MLXModelManagerTestCase {
         }
     }
 
+    func testSileroProvisionerKeepsCachedDirectoryPresenceBehavior() async throws {
+        try await withIsolatedModelStorageRoot { root in
+            try seedValidMLXModelDirectory(repo: SileroVADModelSupport.repo, root: root)
+            let cachedDirectory = try XCTUnwrap(MeetingVADModelStorage.writeModelDirectory())
+            let provisioner = SileroVADModelProvisioner()
+            let directory = try await provisioner.ensureModelDirectory()
+            XCTAssertEqual(directory, cachedDirectory)
+        }
+    }
+
     func testStateForUnknownRepoDefaultsToNotDownloaded() async {
         await withIsolatedModelStorageRoot { _ in
             let manager = MLXModelManager(modelRepo: MLXModelManager.defaultModelRepo)

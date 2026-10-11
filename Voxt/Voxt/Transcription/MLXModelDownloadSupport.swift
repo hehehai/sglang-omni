@@ -4,6 +4,7 @@
 import Foundation
 import CFNetwork
 import HuggingFace
+import OmniModelArtifacts
 
 enum MLXModelDownloadSupport {
     private static let modelEntryAllowedExtensions: Set<String> = ["safetensors", "json", "txt", "wav", "jinja", "model", "mvn"]
@@ -302,6 +303,9 @@ enum MLXModelDownloadSupport {
 
         if !hasRequiredAuxiliaryFiles(at: url, repo: repo, files: files, fileManager: fileManager) {
             throw DownloadValidationError.missingFiles
+        }
+        if repo == SileroVADModelSupport.repo {
+            try OmniModelArtifactValidation.validateSafetensorsDirectory(at: url)
         }
 
         if case .ready(let expectedBytes, _) = sizeState,

@@ -4,7 +4,7 @@
 import Combine
 import Foundation
 import HuggingFace
-import MLXAudioVAD
+import OmniModelArtifacts
 
 @MainActor
 final class MeetingDiarizationModelManager: ObservableObject {
@@ -178,6 +178,7 @@ final class MeetingDiarizationModelManager: ObservableObject {
         let installed = await Task.detached(priority: .utility) {
             MeetingSortformerModelStorage.isValidModelDirectory(modelDir)
         }.value
+        try Task.checkCancellation()
         if installed { return modelDir }
 
         let token = ProcessInfo.processInfo.environment["HF_TOKEN"]
@@ -276,16 +277,25 @@ final class MeetingDiarizationModelManager: ObservableObject {
             )
         }
 
-        try await Task.detached(priority: .userInitiated) {
+        try Task.checkCancellation()
+        let publicationTask = Task.detached(priority: .userInitiated) {
+            try Task.checkCancellation()
             guard MeetingSortformerModelStorage.isValidModelDirectory(tempDir) else {
                 throw MLXModelDownloadSupport.DownloadValidationError.missingFiles
             }
+            try OmniModelArtifactValidation.validateSafetensorsDirectory(at: tempDir)
+            try Task.checkCancellation()
             if FileManager.default.fileExists(atPath: modelDir.path) {
                 try FileManager.default.removeItem(at: modelDir)
             }
             try FileManager.default.moveItem(at: tempDir, to: modelDir)
-            _ = try SortformerModel.fromModelDirectory(modelDir)
-        }.value
+        }
+        try await withTaskCancellationHandler {
+            try await publicationTask.value
+        } onCancel: {
+            publicationTask.cancel()
+        }
+        try Task.checkCancellation()
         return modelDir
     }
 

@@ -256,8 +256,10 @@ jobs:
           fi
           xcrun metal --version
 
-      - name: Standalone Omni XPC contracts tests
-        run: swift test --package-path Voxt/Packages/OmniXPCContracts
+      - name: Standalone Omni Foundation package tests
+        run: |
+          swift test --package-path Voxt/Packages/OmniXPCContracts
+          swift test --package-path Voxt/Packages/OmniModelArtifacts
 
       - name: Build for testing
         working-directory: Voxt

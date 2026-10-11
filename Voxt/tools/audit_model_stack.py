@@ -36,8 +36,9 @@ def source_errors(root):
     local_packages = re.findall(
         r"isa = XCLocalSwiftPackageReference;\s*relativePath = ([^;]+);", project
     )
+    allowed_local_packages = {"Packages/OmniXPCContracts", "Packages/OmniModelArtifacts"}
     if (len(local_packages) != project.count("isa = XCLocalSwiftPackageReference;")
-            or any(path.strip('"') != "Packages/OmniXPCContracts" for path in local_packages)):
+            or any(path.strip('"') not in allowed_local_packages for path in local_packages)):
         errors.append("Local package override in shared release project")
     else:
         pass

@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4a 已开始抽离 auxiliary model 的非推理下载校验，T4 的 VAD/Sortformer XPC 与完整目录生命周期及 T5 以后仍待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -692,4 +692,20 @@ T3b2b 的 opt-in XPC/ASRStreamingSession 接入见下节。完整签名 Mac smok
 - Native ABI 43 + typed engine/真实旧新 HTTP source replay 42，Clang ASan/UBSan 85 项通过；32 项工具测试、model source/lockfile 审计通过。Swift parse/strict platform-stand-in typechecks 与全仓库 pre-commit 重跑通过。
 - 两轮只读审查发现并修复 local failure 提前终态、保留 AsyncStream 早退不清理两处生命周期问题；复查在已声明的 owner/consumer/Native contract 下未发现具体剩余问题，不能代替 Mac acceptance。
 
-下一工作：优先运行 signed Apple Silicon XPC final/realtime/model smoke 与完整 App/Intel/HTTP/MOSS/golden 回归；再推进 T4 Native VAD/Sortformer、缓存迁移/授权/lease-delete 协调。未经这些验证，不将该 30 秒 opt-in validation session 当作生产长会议 backend，也不提前删除 MLX Audio 或切换 production routing。
+下一工作：优先运行 signed Apple Silicon XPC final/realtime/model smoke 与完整 App/Intel/HTTP/MOSS/golden 回归；继续 T4 Native VAD/Sortformer、缓存迁移/授权/lease-delete 协调。未经这些验证，不将该 30 秒 opt-in validation session 当作生产长会议 backend，也不提前删除 MLX Audio 或切换 production routing。
+
+### T4a：将 auxiliary model 下载校验与推理解耦
+
+状态：T4 的部分代码检查点，非完整 T4 验收。production VAD/Sortformer 推理与选择、Remote ASR/LLM、本地 LLM/VLM、现有缓存路径均未切换。
+
+- 新增独立 Foundation-only OmniModelArtifacts package。只读 root config.json 与 Native 实际读取的 top-level safetensors，单个 artifact 最多读取 16 MiB config/length-prefix/header，不读取权重 payload 或实例化 MLX/Audio/model。
+- 校验 JSON object/UTF-8、tensor schema/dtype/unsigned shape、overflow、offset 数量/范围/相邻覆盖、payload 文件长度；拒绝损坏、截断、重叠、gap、未知 dtype 等结构错误，兼容标量、空 tensor、metadata 和普通 HF cache symlink。仅支持已声明 dtype，不是任意未来 safetensors 格式自动兼容。
+- Silero 的实际 inference loader 原样移到 SileroVADModelLoader，多处 runtime inference 仍使用 scoped MLX withError；provisioner 不再 import MLX/MLXAudioVAD，不通过加载 GPU 模型来“验证下载”。
+- MLXModelDownloadSupport 对 Silero repo 在临时下载目录发布前调用 artifact validator；provisioner 对返回目录也进行后台结构检查，取消/退出仍等待已有 owner task。
+- Sortformer 保留原 presence/shard-index 检查，新增 temp artifact 检查后才允许原目录 remove/move，不再发布后调用 SortformerModel.fromModelDirectory；取消传到 detached publication task，只在破坏性 remove/move pair 之前检查，避免旧目录已删却因新增取消点跳过 move。
+- 存量 cached-directory presence fast path 保持原语义，不自动删除或迁移旧权重；实际 inference 仍负责 tensor keys、config semantic 与模型兼容检查。新结构检查不表示 GPU/model 正确，也不实现跨连接 lease-delete/原子 publication/TOCTOU-safe cache。
+- App 实际链接 artifact package，helper 暂无调用因此不增加无用 dependency。依赖审计仅允许两个明确的 Foundation package path，仍拒绝未审查 local model override；gated Mac CI 增加 standalone artifact tests，未开启 gates。
+
+验证：真实 package 的 authentic safetensors 二进制 fixture（含结构损坏/超限/8 GiB 稀疏 payload）独立 Debug/Release 各 34 项通过；主助手实际 Silero provisioner + artifact validator 的隔离 harness 覆盖 cached-presence、有效/损坏下载、并发 coalescing、取消/退出 barrier（下载/storage/runtime 为明确替身，非 GPU/真实 Mac 验证）。已有 OmniXPCContracts 37 项（1 filesystem skip）、T0 69 项 policy 回归和 33 项 tools/audits 通过。完整 App typecheck/macOS XCTest、真实 Silero/Sortformer checkpoint/GPU/网络与性能验收仍需 Mac 补证；Native ABI/HTTP 未修改。独立审查发现 Foundation 接受 trailing commas，已将 UTF-8/重复字段/逗号 token 检查抽成 config/header 共用实现并增加回归；修复后重跑真实 package 与 provisioner harness。全仓库 pre-commit 重跑通过。
+
+下一检查点仍是 Native VAD/Sortformer 状态与 C ABI/XPC 接入及缓存迁移、授权、模型 lease/下载/删除协调；本检查点不等于移除 MLX Audio 的条件已经满足。

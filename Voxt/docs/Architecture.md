@@ -23,6 +23,7 @@ Voxt is a macOS 26.2+ menu bar application, built with the shared `Voxt` Xcode s
 | `Voxt/Resources/`, `*.lproj`, assets | Bundled prompts, runtimes, localization and visual resources |
 | `VoxtTests/` | App tests; `TestSupport/` contains shared fixtures, doubles and model-test gates |
 | `Packages/OmniXPCContracts/` | Dependency-free Foundation contracts, bounded wire codecs and standalone package tests shared by the app and helper |
+| `Packages/OmniModelArtifacts/` | Dependency-free bounded config/safetensors structure checks used by auxiliary model provisioning; no model loading or XPC dependency |
 | `OmniInference/` | Opt-in XPC service, connection/model lifecycle, final/realtime sessions and Native C ABI leases |
 | `tools/`, `Config/`, `packaging/` | Validation/build scripts, signing configuration and packaging inputs |
 
@@ -56,7 +57,9 @@ The opt-in XPC helper retains one connection-owned model and admits one final or
 
 OmniXPCStreamingSession implements the existing ASRStreamingSession seam with bounded audio and latest-state presentation. Successful/failed results follow Native drain/cleanup; cancellation can finish presentation without a result, but only waitUntilClosed or closeAndWait is the resource barrier. Structured consumeEvents drains on early exit, error or cancellation; raw AsyncStream consumers must explicitly closeAndWait after breaking early. This validation path remains capped at 30 seconds and is not yet production routing or a long-meeting backend. The production Native HTTP path and LLM/VLM paths remain unchanged.
 
-Run swift test --package-path Voxt/Packages/OmniXPCContracts without building the app or installing models. Portable package/app-lifecycle tests and CPU Native integration do not certify macOS NSXPC, signing, Metal or model inference; see the current [migration gates and evidence](../plan/OmniXPCIntegrationPlan.zh-CN.md).
+Auxiliary model download verification is separate from inference. Silero and Sortformer provisioning use OmniModelArtifacts to check config and safetensors headers without instantiating MLX models or reading tensor payloads; malformed newly downloaded artifacts fail before cache publication. The real Silero inference loader remains in SileroVADModelLoader with its scoped MLX error conversion, and existing cached-directory presence scans retain their semantics. Structural checks do not prove model-key/config compatibility, GPU correctness, checksums or atomic/lease-safe replacement. Actual Native VAD/Sortformer XPC and shared cache/delete coordination remain pending.
+
+Run swift test --package-path Voxt/Packages/OmniXPCContracts or swift test --package-path Voxt/Packages/OmniModelArtifacts without building the app or installing models. Portable package/app-lifecycle tests and CPU Native integration do not certify macOS NSXPC, signing, Metal or model inference; see the current [migration gates and evidence](../plan/OmniXPCIntegrationPlan.zh-CN.md).
 
 Keep framework/UI work at presentation and integration boundaries; prefer pure value/planning logic for testable decisions. Reuse existing managers and stores before adding abstractions. Split by ownership or protocol responsibility, not arbitrary line counts. Do not broaden every `private` member merely to enable file splitting.
 

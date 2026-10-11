@@ -26,7 +26,8 @@ class ModelStackAuditTests(unittest.TestCase):
             project_path = root / "Voxt.xcodeproj/project.pbxproj"
             project = project_path.read_text()
             self.assertEqual(audit.source_errors(root), [])
-            for package_path in ("../mlx-audio-swift", "Packages/OmniXPCContracts/../../mlx-swift"):
+            for package_path in ("../mlx-audio-swift", "Packages/OmniXPCContracts/../../mlx-swift",
+                                 "Packages/OmniModelArtifacts/../mlx-audio-swift", "Packages/UnreviewedModelRuntime"):
                 project_path.write_text(project + "\nisa = XCLocalSwiftPackageReference;\n"
                                         + f"relativePath = {package_path};\n")
                 self.assertIn("Local package override in shared release project", audit.source_errors(root))
