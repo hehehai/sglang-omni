@@ -86,21 +86,38 @@ extension AppDelegate {
                     let modelDirectory = "Models/OmniXPCSmoke/\(id.uuidString)"
                     let language = environment["VOXT_OMNI_XPC_SMOKE_LANGUAGE"]
                     let started = Date()
-                    let result = try await connected.transcribeQwen(
-                        modelDirectory: modelDirectory, audio: audio, language: language,
+                    let model = try await connected.loadQwen(modelDirectory: modelDirectory, timeout: .seconds(timeoutSeconds))
+                    let cancelled = try await connected.startFinalSession(
+                        model: model, language: language, maximumTokenCount: maximumTokenCount
+                    )
+                    let firstChunk = audio.prefix(OmniXPCProtocolLimits.maximumChunkAudioByteCount)
+                    try await connected.pushFinalAudio(Data(firstChunk), to: cancelled, sequence: 1)
+                    try await connected.cancelFinalSession(cancelled)
+                    let result = try await connected.transcribeFinal(
+                        model: model, audio: audio, language: language,
                         maximumTokenCount: maximumTokenCount, timeout: .seconds(timeoutSeconds)
                     )
                     try Self.validateOmniSmokeTranscript(result, expected: expected)
+                    let reused = try await connected.transcribeFinal(
+                        model: model, audio: audio, language: language,
+                        maximumTokenCount: maximumTokenCount, timeout: .seconds(timeoutSeconds)
+                    )
+                    try Self.validateOmniSmokeTranscript(reused, expected: expected)
+                    try await connected.unloadQwen(model)
                     try await connected.terminateForValidation()
                     let restarted = try await connected.probe()
                     guard restarted.serviceProcessIdentifier != probe.serviceProcessIdentifier else {
                         throw OmniXPCFailure.error(.incompatibleService, "The XPC service did not restart after the diagnostic exit.")
                     }
-                    let recovered = try await connected.transcribeQwen(
-                        modelDirectory: modelDirectory, audio: audio, language: language,
+                    let recoveredModel = try await connected.loadQwen(
+                        modelDirectory: modelDirectory, timeout: .seconds(timeoutSeconds)
+                    )
+                    let recovered = try await connected.transcribeFinal(
+                        model: recoveredModel, audio: audio, language: language,
                         maximumTokenCount: maximumTokenCount, timeout: .seconds(timeoutSeconds)
                     )
                     try Self.validateOmniSmokeTranscript(recovered, expected: expected)
+                    try await connected.unloadQwen(recoveredModel)
                     try Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(
                         status: .passed, abiVersion: restarted.abiVersion,
                         hostProcessIdentifier: ProcessInfo.processInfo.processIdentifier,

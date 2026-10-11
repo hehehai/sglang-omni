@@ -15,6 +15,7 @@ extern "C" {
 #endif
 
 typedef struct OmniQwenHandle OmniQwenHandle;
+typedef struct OmniQwenRequest OmniQwenRequest;
 typedef struct OmniQwenResult {
   char *text;
   char *language;
@@ -42,6 +43,33 @@ omni_qwen_transcribe(OmniQwenHandle *handle, const float *samples,
                      size_t sample_count, const char *language,
                      const char *context, int maximum_token_count,
                      OmniQwenResult *result, char **error_message);
+
+// ABI v2: independent, single-use cancellation token; NULL on allocation
+// failure. Tokens are not bound to a model until transcription is attempted.
+OMNI_CORE_EXPORT OmniQwenRequest *omni_qwen_request_create(void);
+
+// Durable even before submission; never cancels the model or another token.
+// Repeated calls and NULL are safe. Cancellation is cooperative, not a rollback
+// of a result already completed by the worker.
+OMNI_CORE_EXPORT void omni_qwen_request_cancel(OmniQwenRequest *request);
+
+// Cancels and releases the token without joining the model worker. An already-
+// submitted transcription is safe: the worker retains cancellation ownership.
+// Callers must prevent new token calls once destruction begins and synchronize
+// with other token calls or transcriptions not yet submitted. Destroy exactly
+// once; NULL is safe. Only live tokens returned by create may be used.
+OMNI_CORE_EXPORT void omni_qwen_request_destroy(OmniQwenRequest *request);
+
+// Same input/output ownership and limits as omni_qwen_transcribe. A non-NULL
+// token is required and consumed by the first attempt, even on invalid input,
+// cancellation, or failure. Concurrent/repeated use fails without cancelling
+// the first attempt. Fresh tokens reuse the loaded model without another load.
+// Model-wide cancellation remains sticky and applies to both transcription
+// APIs.
+OMNI_CORE_EXPORT int omni_qwen_transcribe_request(
+    OmniQwenHandle *handle, OmniQwenRequest *request, const float *samples,
+    size_t sample_count, const char *language, const char *context,
+    int maximum_token_count, OmniQwenResult *result, char **error_message);
 
 // Cancels queued/running requests and prevents later submissions on this
 // handle. Create a new handle after cancellation; repeated calls and NULL are

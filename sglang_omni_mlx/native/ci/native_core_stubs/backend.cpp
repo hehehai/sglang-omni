@@ -37,6 +37,10 @@ void clear_cache() {}
 namespace qwen3_asr {
 
 std::optional<std::string> NormalizeLanguage(const std::string &language) {
+  auto &state = omni_test::State();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  ++state.normalization_count;
+  state.changed.notify_all();
   if (language.empty() || language == " ") {
     return std::nullopt;
   } else {
@@ -50,6 +54,7 @@ Qwen3ASRTranscriber::Qwen3ASRTranscriber(
   auto &state = omni_test::State();
   std::lock_guard<std::mutex> lock(state.mutex);
   state.loading_thread = loading_thread_;
+  ++state.load_count;
   assert(std::filesystem::is_directory(model_directory));
   if (state.load_failure == omni_test::Failure::kStandard) {
     throw std::runtime_error("PRIVATE model /private/path transcript");

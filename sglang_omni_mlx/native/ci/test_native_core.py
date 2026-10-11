@@ -22,6 +22,17 @@ CASES = (
     "cancel_before_submission",
     "destroy_active",
     "concurrent_requests",
+    "request_cancel_before_submission",
+    "request_invalid",
+    "request_cancel_active",
+    "request_destroy_active",
+    "request_model_cancel_active",
+    "request_model_destroy_active",
+    "request_cancel_queued",
+    "request_destroy_queued",
+    "request_model_cancel_queued",
+    "request_concurrent_reuse",
+    "request_failures",
 )
 C_CLIENT = """
 #include "omni_native_core.h"
@@ -43,7 +54,13 @@ int main(void) {
     void (*destroy)(OmniQwenHandle *) = omni_qwen_destroy;
     void (*result_free)(OmniQwenResult *) = omni_qwen_result_free;
     void (*string_free)(char *) = omni_string_free;
-    assert(version() == 1);
+    OmniQwenRequest *(*request_create)(void) = omni_qwen_request_create;
+    void (*request_cancel)(OmniQwenRequest *) = omni_qwen_request_cancel;
+    void (*request_destroy)(OmniQwenRequest *) = omni_qwen_request_destroy;
+    int (*transcribe_request)(OmniQwenHandle *, OmniQwenRequest *, const float *,
+                              size_t, const char *, const char *, int,
+                              OmniQwenResult *, char **) = omni_qwen_transcribe_request;
+    assert(version() == 2);
     char *error = NULL;
     assert(create(NULL, &error) == NULL);
     assert(strcmp(error, "Invalid model directory.") == 0);
@@ -55,6 +72,18 @@ int main(void) {
     result_free(&result);
     cancel(NULL);
     destroy(NULL);
+    OmniQwenRequest *request = request_create();
+    assert(request != NULL);
+    request_cancel(request);
+    assert(transcribe_request(NULL, request, NULL, 0, NULL, NULL, 1, &result, &error) == 0);
+    assert(strcmp(error, "Invalid transcription input.") == 0);
+    string_free(error);
+    assert(transcribe_request(NULL, request, NULL, 0, NULL, NULL, 1, &result, &error) == 0);
+    assert(strcmp(error, "Request already used.") == 0);
+    string_free(error);
+    request_destroy(request);
+    request_cancel(NULL);
+    request_destroy(NULL);
     return 0;
 }
 """
@@ -116,6 +145,7 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
             *include_flags,
             *wrap_flags,
             str(NATIVE_DIRECTORY / "ci/test_native_core.cpp"),
+            str(NATIVE_DIRECTORY / "ci/native_core_stubs/request_cases.cpp"),
             "-L",
             str(build),
             "-lOmniCore",
@@ -169,3 +199,27 @@ def test_public_abi_with_backend_mlx_stubs(abi_build: Path, case: str) -> None:
 
 def test_pure_c_header_and_linkage(abi_build: Path) -> None:
     subprocess.run([str(abi_build / "c_client")], check=True, timeout=15)
+
+
+def test_exported_c_symbols(abi_build: Path) -> None:
+    if sys.platform == "darwin":
+        command = ["nm", "-gU", str(abi_build / "libOmniCore.dylib")]
+    else:
+        command = ["nm", "-D", "--defined-only", str(abi_build / "libOmniCore.so")]
+    symbols = subprocess.run(
+        command, check=True, capture_output=True, text=True, timeout=15
+    ).stdout
+    exported = {line.split()[-1].removeprefix("_") for line in symbols.splitlines()}
+    assert {symbol for symbol in exported if symbol.startswith("omni_")} == {
+        "omni_core_abi_version",
+        "omni_qwen_create",
+        "omni_qwen_transcribe",
+        "omni_qwen_cancel",
+        "omni_qwen_destroy",
+        "omni_qwen_result_free",
+        "omni_string_free",
+        "omni_qwen_request_create",
+        "omni_qwen_request_cancel",
+        "omni_qwen_request_destroy",
+        "omni_qwen_transcribe_request",
+    }

@@ -300,7 +300,7 @@ void ConcurrentRequests() {
 } // namespace
 
 int main(int argument_count, char **arguments) {
-  assert(argument_count == 2 && omni_core_abi_version() == 1);
+  assert(argument_count == 2 && omni_core_abi_version() == 2);
   const std::string test = arguments[1];
   if (test == "invalid_directories") {
     InvalidDirectories();
@@ -321,7 +321,7 @@ int main(int argument_count, char **arguments) {
   } else if (test == "concurrent_requests") {
     ConcurrentRequests();
   } else {
-    assert(false);
+    omni_test::RunRequestCase(test);
   }
   std::cout << "PASS " << test << " (backend/MLX stubs; real native worker)\n";
 }

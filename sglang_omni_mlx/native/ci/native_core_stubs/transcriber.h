@@ -84,6 +84,8 @@ struct BackendState {
   bool return_language = true;
   bool return_empty_text = false;
   qwen3_asr::FinishReason finish_reason = qwen3_asr::FinishReason::kStop;
+  int load_count = 0;
+  int normalization_count = 0;
   int inference_count = 0;
   int active_count = 0;
   int destruction_count = 0;
@@ -95,5 +97,6 @@ struct BackendState {
 };
 
 __attribute__((visibility("default"))) BackendState &State();
+void RunRequestCase(const std::string &test);
 
 } // namespace omni_test

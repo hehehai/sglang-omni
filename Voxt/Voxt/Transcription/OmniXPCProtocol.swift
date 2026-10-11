@@ -2,11 +2,13 @@
 import Foundation
 
 nonisolated enum OmniXPCProtocolLimits {
-    static let abiVersion = 1
+    static let abiVersion = 2
     static let sampleRate = 16_000
     static let maximumAudioSeconds = 30
     static let maximumSampleCount = sampleRate * maximumAudioSeconds
     static let maximumAudioByteCount = maximumSampleCount * MemoryLayout<UInt32>.size
+    static let maximumChunkAudioByteCount = sampleRate * 2 * MemoryLayout<UInt32>.size
+    static let maximumRequestsPerModel = 256
     static let maximumTokenCount = 4096
     static let maximumPromptByteCount = 16_384
     static let maximumLanguageByteCount = 128
@@ -115,14 +117,20 @@ nonisolated enum OmniXPCRequestValidation {
         return candidate
     }
 
-    static func samples(audio: Data, language: String?, context: String?, maximumTokenCount: Int) throws -> [Float] {
-        guard !audio.isEmpty, audio.count <= OmniXPCProtocolLimits.maximumAudioByteCount,
-              audio.count % MemoryLayout<UInt32>.size == 0,
-              maximumTokenCount > 0, maximumTokenCount <= OmniXPCProtocolLimits.maximumTokenCount,
+    static func options(language: String?, context: String?, maximumTokenCount: Int) throws {
+        guard maximumTokenCount > 0, maximumTokenCount <= OmniXPCProtocolLimits.maximumTokenCount,
               (language?.utf8.count ?? 0) <= OmniXPCProtocolLimits.maximumLanguageByteCount,
               (context?.utf8.count ?? 0) <= OmniXPCProtocolLimits.maximumPromptByteCount,
               language?.contains("\0") != true, context?.contains("\0") != true else {
-            throw OmniXPCFailure.error(.invalidRequest, "The XPC transcription request is invalid or exceeds validation limits.")
+            throw OmniXPCFailure.error(.invalidRequest, "The XPC transcription options exceed validation limits.")
+        }
+    }
+
+    static func samples(audio: Data, language: String?, context: String?, maximumTokenCount: Int) throws -> [Float] {
+        try options(language: language, context: context, maximumTokenCount: maximumTokenCount)
+        guard !audio.isEmpty, audio.count <= OmniXPCProtocolLimits.maximumAudioByteCount,
+              audio.count % MemoryLayout<UInt32>.size == 0 else {
+            throw OmniXPCFailure.error(.invalidRequest, "The XPC audio message exceeds validation limits.")
         }
         let samples = audio.withUnsafeBytes { bytes in
             stride(from: 0, to: audio.count, by: MemoryLayout<UInt32>.size).map { offset in
@@ -139,14 +147,24 @@ nonisolated enum OmniXPCRequestValidation {
 #if os(macOS)
 @objc nonisolated protocol OmniInferenceXPCProtocol {
     func probe(withReply reply: @escaping @Sendable (Int, String, Int32, NSError?) -> Void)
-    func transcribeQwen(
-        modelDirectory: String,
-        audio: Data,
-        language: String?,
-        context: String?,
-        maximumTokenCount: Int,
-        withReply reply: @escaping @Sendable (String?, String?, Int, Bool, NSError?) -> Void
+    func loadQwen(
+        operationID: String, modelDirectory: String,
+        withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
     )
+    func unloadQwen(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func startFinalSession(
+        sessionID: String, modelID: String, language: String?, context: String?, maximumTokenCount: Int,
+        withReply reply: @escaping @Sendable (String?, NSError?) -> Void
+    )
+    func pushFinalAudio(
+        sessionID: String, modelID: String, sequence: Int, audio: Data,
+        withReply reply: @escaping @Sendable (Int, NSError?) -> Void
+    )
+    func finishFinalSession(
+        sessionID: String, modelID: String,
+        withReply reply: @escaping @Sendable (String?, String?, String?, String?, Int, Bool, NSError?) -> Void
+    )
+    func cancelRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func terminateForValidation(withReply reply: @escaping @Sendable (NSError?) -> Void)
 }
 #endif

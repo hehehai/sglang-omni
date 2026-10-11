@@ -78,7 +78,9 @@ set_target_properties(OmniCore PROPERTIES
   INSTALL_RPATH "@loader_path")
 if(APPLE)
   foreach(symbol omni_core_abi_version omni_qwen_create omni_qwen_transcribe
-      omni_qwen_cancel omni_qwen_destroy omni_qwen_result_free omni_string_free)
+      omni_qwen_cancel omni_qwen_destroy omni_qwen_result_free omni_string_free
+      omni_qwen_request_create omni_qwen_request_cancel omni_qwen_request_destroy
+      omni_qwen_transcribe_request)
     target_link_options(OmniCore PRIVATE "LINKER:-exported_symbol,_${symbol}")
   endforeach()
 endif()

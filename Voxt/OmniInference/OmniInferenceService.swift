@@ -1,170 +1,40 @@
-/// Single-flight Qwen validation host backed directly by the Native C ABI.
+/// Connection-scoped XPC entry points for the persistent Native Qwen validation host.
 import Foundation
 
 #if os(macOS)
 import Darwin
 
-private struct QwenReply: Sendable {
-    let text: String
-    let language: String?
-    let generatedTokenCount: Int
-    let hitLengthLimit: Bool
-}
-
-private final class QwenCoreModel {
-    private(set) var handle: OpaquePointer?
-
-    init(directory: URL) throws {
-        var errorMessage: UnsafeMutablePointer<CChar>?
-        handle = omni_qwen_create(directory.path, &errorMessage)
-        defer { omni_string_free(errorMessage) }
-        guard handle != nil else {
-            throw OmniXPCFailure.error(.nativeFailure, "The Native Qwen model could not be loaded.")
-        }
+nonisolated final class OmniConnectionLifetime: @unchecked Sendable {
+    enum OperationState {
+        case active
+        case cancelled
+        case completed
     }
 
-    func transcribe(samples: [Float], language: String?, context: String?, maximumTokenCount: Int) throws -> QwenReply {
-        guard let handle else { throw OmniXPCFailure.error(.cancelled, "The Native Qwen model is closed.") }
-        var result = OmniQwenResult()
-        var errorMessage: UnsafeMutablePointer<CChar>?
-        defer {
-            omni_qwen_result_free(&result)
-            omni_string_free(errorMessage)
-        }
-        let success = withOptionalCString(language) { languagePointer in
-            withOptionalCString(context) { contextPointer in
-                samples.withUnsafeBufferPointer { buffer in
-                    omni_qwen_transcribe(
-                        handle, buffer.baseAddress, buffer.count,
-                        languagePointer, contextPointer, Int32(maximumTokenCount), &result, &errorMessage
-                    )
-                }
-            }
-        }
-        guard success == 1, let textPointer = result.text,
-              result.generated_token_count >= 0, Int(result.generated_token_count) <= maximumTokenCount,
-              result.hit_length_limit == 0 || result.hit_length_limit == 1 else {
-            throw OmniXPCFailure.error(.nativeFailure, "Native Qwen transcription failed.")
-        }
-        return QwenReply(
-            text: String(cString: textPointer),
-            language: result.language.map { String(cString: $0) },
-            generatedTokenCount: Int(result.generated_token_count),
-            hitLengthLimit: result.hit_length_limit == 1
-        )
-    }
-
-    private func withOptionalCString(_ value: String?, operation: (UnsafePointer<CChar>?) -> Int32) -> Int32 {
-        if let value {
-            return value.withCString(operation)
-        } else {
-            return operation(nil)
-        }
-    }
-
-    func close() {
-        if let handle {
-            self.handle = nil
-            omni_qwen_destroy(handle)
-        }
-    }
-
-    deinit { close() }
-}
-
-private final class ConnectionLifetime: @unchecked Sendable {
     let id = UUID()
-    private let lock = NSLock()
-    private var active = true
+    // note (assistant): The engine lock protects connection state and its bounded operation history.
+    var isActive = true
+    var operations: [UUID: OperationState] = [:]
+    private var operationOrder: [UUID] = []
 
-    var isActive: Bool { lock.withLock { active } }
-    func invalidate() { lock.withLock { active = false } }
-}
-
-private final class OmniInferenceEngine: @unchecked Sendable {
-    let configuration: OmniXPCConfiguration
-    private let queue = DispatchQueue(label: "Voxt.Omni.XPC.inference")
-    private let lock = NSLock()
-    private var activeOwner: UUID?
-    private var activeHandle: OpaquePointer?
-
-    init(configuration: OmniXPCConfiguration) { self.configuration = configuration }
-
-    func groupContainer() throws -> URL {
-        guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: configuration.appGroupIdentifier
-        ) else {
-            throw OmniXPCFailure.error(.configuration, "The XPC service cannot access its configured App Group.")
+    func recordOperation(_ operationID: UUID) throws {
+        guard operations[operationID] == nil else {
+            throw OmniXPCFailure.error(.invalidRequest, "The operation ID has already been used.")
         }
-        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-        return container
-    }
-
-    var isBusy: Bool { lock.withLock { activeOwner != nil } }
-
-    func cancel(owner: UUID) {
-        lock.withLock {
-            if activeOwner == owner, let activeHandle { omni_qwen_cancel(activeHandle) }
-        }
-    }
-
-    func transcribe(
-        modelDirectory: String, audio: Data, language: String?, context: String?, maximumTokenCount: Int,
-        lifetime: ConnectionLifetime,
-        reply: @escaping @Sendable (String?, String?, Int, Bool, NSError?) -> Void
-    ) {
-        let accepted = lock.withLock {
-            if activeOwner == nil, lifetime.isActive {
-                activeOwner = lifetime.id
-                return true
-            } else {
-                return false
-            }
-        }
-        guard accepted else {
-            reply(nil, nil, 0, false, OmniXPCFailure.error(.busy, "The validation service already has an active request."))
-            return
-        }
-        queue.async { [self] in
-            var model: QwenCoreModel?
-            let outcome: Result<QwenReply, Error>
-            do {
-                let directory = try OmniXPCRequestValidation.modelDirectory(
-                    relativePath: modelDirectory, container: groupContainer()
-                )
-                let samples = try OmniXPCRequestValidation.samples(
-                    audio: audio, language: language, context: context, maximumTokenCount: maximumTokenCount
-                )
-                guard lifetime.isActive else { throw OmniXPCFailure.error(.cancelled, "The XPC request was cancelled.") }
-                let loaded = try QwenCoreModel(directory: directory)
-                model = loaded
-                lock.withLock { activeHandle = loaded.handle }
-                guard lifetime.isActive else { throw OmniXPCFailure.error(.cancelled, "The XPC request was cancelled.") }
-                outcome = .success(try loaded.transcribe(
-                    samples: samples, language: language, context: context, maximumTokenCount: maximumTokenCount
-                ))
-            } catch {
-                outcome = .failure(error)
-            }
-            lock.withLock { activeHandle = nil }
-            model?.close()
-            lock.withLock { activeOwner = nil }
-            guard lifetime.isActive else { return }
-            switch outcome {
-            case .success(let result):
-                reply(result.text, result.language, result.generatedTokenCount, result.hitLengthLimit, nil)
-            case .failure(let error):
-                reply(nil, nil, 0, false, error as NSError)
-            }
-        }
+        operationOrder.append(operationID)
+        operations[operationID] = .active
+        guard operationOrder.count > OmniXPCProtocolLimits.maximumRequestsPerModel else { return }
+        let oldest = operationOrder.removeFirst()
+        precondition(operations[oldest] != .active)
+        operations.removeValue(forKey: oldest)
     }
 }
 
-private final class OmniInferenceSession: NSObject, OmniInferenceXPCProtocol {
-    private let engine: OmniInferenceEngine
-    private let lifetime: ConnectionLifetime
+nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPCProtocol {
+    private let engine: OmniFinalSessionEngine
+    private let lifetime: OmniConnectionLifetime
 
-    init(engine: OmniInferenceEngine, lifetime: ConnectionLifetime) {
+    init(engine: OmniFinalSessionEngine, lifetime: OmniConnectionLifetime) {
         self.engine = engine
         self.lifetime = lifetime
     }
@@ -181,36 +51,81 @@ private final class OmniInferenceSession: NSObject, OmniInferenceXPCProtocol {
         }
     }
 
-    func transcribeQwen(
-        modelDirectory: String, audio: Data, language: String?, context: String?, maximumTokenCount: Int,
-        withReply reply: @escaping @Sendable (String?, String?, Int, Bool, NSError?) -> Void
+    func loadQwen(
+        operationID: String, modelDirectory: String,
+        withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
     ) {
-        engine.transcribe(
-            modelDirectory: modelDirectory, audio: audio, language: language, context: context,
-            maximumTokenCount: maximumTokenCount, lifetime: lifetime, reply: reply
-        )
+        engine.load(operationID: operationID, modelDirectory: modelDirectory, lifetime: lifetime, reply: reply)
+    }
+
+    func unloadQwen(
+        operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    ) {
+        engine.unload(operationID: operationID, modelID: modelID, lifetime: lifetime, reply: reply)
+    }
+
+    func startFinalSession(
+        sessionID: String, modelID: String, language: String?, context: String?, maximumTokenCount: Int,
+        withReply reply: @escaping @Sendable (String?, NSError?) -> Void
+    ) {
+        do {
+            try engine.start(
+                sessionID: sessionID, modelID: modelID, language: language, context: context,
+                maximumTokenCount: maximumTokenCount, lifetime: lifetime
+            )
+            reply(OmniFinalSessionEngine.serviceInstanceID.uuidString, nil)
+        } catch {
+            reply(nil, error as NSError)
+        }
+    }
+
+    func pushFinalAudio(
+        sessionID: String, modelID: String, sequence: Int, audio: Data, withReply reply: @escaping @Sendable (Int, NSError?) -> Void
+    ) {
+        do {
+            reply(try engine.push(sessionID: sessionID, modelID: modelID, sequence: sequence, audio: audio, lifetime: lifetime), nil)
+        } catch {
+            reply(0, error as NSError)
+        }
+    }
+
+    func finishFinalSession(
+        sessionID: String, modelID: String,
+        withReply reply: @escaping @Sendable (String?, String?, String?, String?, Int, Bool, NSError?) -> Void
+    ) {
+        engine.finish(sessionID: sessionID, modelID: modelID, lifetime: lifetime, reply: reply)
+    }
+
+    func cancelRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void) {
+        do {
+            try engine.cancel(requestID: requestID, modelID: modelID, lifetime: lifetime)
+            reply(nil)
+        } catch {
+            reply(error as NSError)
+        }
     }
 
     func terminateForValidation(withReply reply: @escaping @Sendable (NSError?) -> Void) {
 #if VOXT_OMNI_XPC_VALIDATION
-        guard !engine.isBusy else {
-            reply(OmniXPCFailure.error(.busy, "A running Native request cannot be interrupted by the diagnostic endpoint."))
-            return
+        do {
+            try engine.reserveValidationTermination(lifetime: lifetime)
+            reply(nil)
+            let replyDeliveryDelaySeconds = 0.1
+            DispatchQueue.global().asyncAfter(deadline: .now() + replyDeliveryDelaySeconds) { exit(86) }
+        } catch {
+            reply(error as NSError)
         }
-        reply(nil)
-        let replyDeliveryDelaySeconds = 0.1
-        DispatchQueue.global().asyncAfter(deadline: .now() + replyDeliveryDelaySeconds) { exit(86) }
 #else
         reply(OmniXPCFailure.error(.configuration, "The diagnostic endpoint is disabled."))
 #endif
     }
 }
 
-final class OmniInferenceListenerDelegate: NSObject, NSXPCListenerDelegate {
-    private let engine: OmniInferenceEngine
+nonisolated final class OmniInferenceListenerDelegate: NSObject, NSXPCListenerDelegate {
+    private let engine: OmniFinalSessionEngine
 
     init(configuration: OmniXPCConfiguration) {
-        engine = OmniInferenceEngine(configuration: configuration)
+        engine = OmniFinalSessionEngine(configuration: configuration)
     }
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
@@ -218,13 +133,11 @@ final class OmniInferenceListenerDelegate: NSObject, NSXPCListenerDelegate {
             connection.setCodeSigningRequirement(try engine.configuration.signingRequirement(
                 for: engine.configuration.hostBundleIdentifier
             ))
-            let lifetime = ConnectionLifetime()
+            let lifetime = OmniConnectionLifetime()
             connection.exportedInterface = NSXPCInterface(with: OmniInferenceXPCProtocol.self)
             connection.exportedObject = OmniInferenceSession(engine: engine, lifetime: lifetime)
-            connection.invalidationHandler = { [engine] in
-                lifetime.invalidate()
-                engine.cancel(owner: lifetime.id)
-            }
+            connection.interruptionHandler = { [engine] in engine.disconnect(lifetime: lifetime) }
+            connection.invalidationHandler = { [engine] in engine.disconnect(lifetime: lifetime) }
             connection.resume()
             return true
         } catch {

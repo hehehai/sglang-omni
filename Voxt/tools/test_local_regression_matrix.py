@@ -132,6 +132,7 @@ class OmniXPCPackagingTests(unittest.TestCase):
         sources = self.project_object("A0BC00000000000000000030")
         self.assertEqual(re.findall(r"/\* (\S+) in Sources \*/", sources), [
             "OmniInferenceService.swift", "main.swift", "OmniXPCProtocol.swift",
+            "QwenCoreModel.swift", "OmniFinalSessionEngine.swift", "OmniXPCFinalSessionBuffer.swift",
         ])
         for identifier in ("31F19CD92F4D76D300E96913", "31F19CDA2F4D76D300E96913", "31F19CDB2F4D76D300E96913"):
             configuration = self.project_object(identifier)

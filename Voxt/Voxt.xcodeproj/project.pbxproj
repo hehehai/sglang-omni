@@ -26,6 +26,9 @@
 		A0BC00000000000000000011 /* OmniInferenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC00000000000000000021 /* OmniInferenceService.swift */; };
 		A0BC00000000000000000012 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC00000000000000000022 /* main.swift */; };
 		A0BC00000000000000000013 /* OmniXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC00000000000000000023 /* OmniXPCProtocol.swift */; };
+		A0BC00000000000000000014 /* QwenCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC0000000000000000002B /* QwenCoreModel.swift */; };
+		A0BC00000000000000000015 /* OmniFinalSessionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */; };
+		A0BC00000000000000000016 /* OmniXPCFinalSessionBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC0000000000000000002D /* OmniXPCFinalSessionBuffer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +77,9 @@
 		A0BC00000000000000000028 /* OmniXPCApp.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = OmniXPCApp.xcconfig; sourceTree = "<group>"; };
 		A0BC00000000000000000029 /* OmniXPCService.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = OmniXPCService.xcconfig; sourceTree = "<group>"; };
 		A0BC0000000000000000002A /* OmniXPCApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OmniXPCApp.entitlements; sourceTree = "<group>"; };
+		A0BC0000000000000000002B /* QwenCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenCoreModel.swift; sourceTree = "<group>"; };
+		A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniFinalSessionEngine.swift; sourceTree = "<group>"; };
+		A0BC0000000000000000002D /* OmniXPCFinalSessionBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OmniXPCFinalSessionBuffer.swift; path = Voxt/Transcription/OmniXPCFinalSessionBuffer.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -267,8 +273,11 @@
 			isa = PBXGroup;
 			children = (
 				A0BC00000000000000000021 /* OmniInferenceService.swift */,
+				A0BC0000000000000000002B /* QwenCoreModel.swift */,
+				A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */,
 				A0BC00000000000000000022 /* main.swift */,
 				A0BC00000000000000000023 /* OmniXPCProtocol.swift */,
+				A0BC0000000000000000002D /* OmniXPCFinalSessionBuffer.swift */,
 				A0BC00000000000000000024 /* Info.plist */,
 				A0BC00000000000000000025 /* OmniInference.entitlements */,
 				A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */,
@@ -484,6 +493,9 @@
 				A0BC00000000000000000011 /* OmniInferenceService.swift in Sources */,
 				A0BC00000000000000000012 /* main.swift in Sources */,
 				A0BC00000000000000000013 /* OmniXPCProtocol.swift in Sources */,
+				A0BC00000000000000000014 /* QwenCoreModel.swift in Sources */,
+				A0BC00000000000000000015 /* OmniFinalSessionEngine.swift in Sources */,
+				A0BC00000000000000000016 /* OmniXPCFinalSessionBuffer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

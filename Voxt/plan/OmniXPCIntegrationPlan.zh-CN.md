@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1 和 T2 验证链路的实现进展见第 13 节；T2 的真实签名/macOS 验收仍待补，T3 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补，T3b realtime 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -587,3 +587,28 @@ bash Voxt/tools/run_omni_xpc_smoke.sh \
 - Native model create 仍是同步加载，加载中无法立即抢占取消；断连后会在加载返回时检查状态并释放，不继续推理。T3 需明确完整 loading 取消/超时恢复和常驻资源状态机。
 - T2 只支持 Qwen final 的验证接口，不支持 streaming、其他 ASR、VAD/Sortformer 或正式客户端切换。T0/T1 的 macOS 全 App 回归仍需补齐。
 - 仅本地真实签名结构检查不是公证/Gatekeeper/干净机器安装认证。发布与历史缓存迁移继续由 T4/T7 验收。
+
+### T3a：常驻 Qwen 模型与 final-only session
+
+状态：T3 的第一个可回归子阶段；不等于 T3 完成。实际 realtime/preview 仍由既有 HTTP 路径提供，T3b 才抽离其消息耦合并接入 XPC。此阶段只在 finish 后推理，不将分块接收称作 realtime。
+
+实现范围：
+
+- Native Core ABI 升为 2；保留旧函数/result 布局和 model-wide sticky cancel，新增独立的 single-use request token。请求取消在 Submit 前锁存，已提交 worker 持有共享 cancellation flag；取消/销毁一个 token 不污染常驻模型或其他请求。
+- XPC 新增显式 load/unload、startFinalSession、pushFinalAudio、finishFinalSession、cancelRequest。模型只由一个连接拥有，model UUID 每次加载更新；session 与后续消息共同绑定 model ID，返回还带 service-instance ID。
+- 客户端模型引用绑定创建它的 connection ID；旧请求的清理不重连、不关闭替换连接。取消 RPC 的业务拒绝不被当作 transport failure，避免取消被拒绝的请求时误终止另一个活动 session。
+- 每个模型最多一个 receiving/finishing session；chunk 最大 2 秒，ACK sequence 从 1 递增，重复/乱序/非有限值/超预算音频不改变已接收状态。总验证音频预算仍为 30 秒；用户音频不自动重放。
+- final session 状态覆盖 receiving、finishing、cancelling、completed、cancelled、failed。finishing 的取消等待 Native 结果归并为 cancelled；一次终态不能被后续 complete/cancel 改写。模型卸载在活动 session 下拒绝，断连则取消并排入释放 barrier。
+- 模型保留在 ready 状态供多个 final session 使用。load/unload 和 Native 计算/销毁串行执行；session/operation 历史有明确上限，不能无界增长。
+- load/unload Task 取消关闭原连接以避免未消费的 model ID 留下资源；final session 使用请求级取消。同步模型加载仍不能立即抢占，加载返回后检查取消/断连并释放，硬超时通过连接恢复，不宣称已经实现完整可抢占 loader。
+- opt-in smoke 升级为 ABI 2：取消一个 receiving session，复用同一 model ID 完成两个 final，显式 unload，随后服务退出/reconnect 并重新加载推理。新 dylib 与 App/service 必须一起重建，不能沿用 ABI 1 artifact。
+
+验证与限制：
+
+- Native public ABI/实际 worker + 明确的模型/MLX stub：GCC 22 项、Clang ASan/UBSan 同组 22 项通过，包含预取消、single-use、排队取消、token 销毁、模型复用与旧 API 回归。
+- 实际 Foundation policy/final-buffer XCTest：24 项，23 通过、1 case-insensitive filesystem 用例跳过、0 failures。覆盖序号/预算、空 finish、取消/finish 竞争和一次终态；不代表 NSXPC 或模型推理通过。
+- 使用实际服务 engine、Native C ABI、worker 的隔离 host harness 跑过 ownership、常驻模型复用、receiving/native 取消、活动 work 禁止 unload、重复 finish、模型重载后的旧引用隔离与断连释放。平台和模型使用替身，明确不是真实 XPC/GPU 证明。
+- Swift helper/platform-stand-in typecheck、frontend parse、29 项工具/结构测试、源码/lockfile 审计及全仓库 pre-commit 重新执行通过。T0 的 69 项隔离门禁检查、T1 的 20 项隔离 XCTest 与 6 项 adapter/分段场景也重新通过；SDK Objective-C 编码、签名/App Group、Metal、真实模型回放仍需 Mac 验证。
+- 三轮只读审查发现取消业务拒绝误断连接、旧清理影响替换连接、重载模型后的 session ID 混用及同连接新模型被旧清理误重置。已增加 connection/model 双重绑定，cleanup 不再为业务拒绝重置连接；one-shot convenience 改为显式 load/transcribeFinal/unload。最终静态复查未发现具体剩余错误，不能代替 Mac 运行验收。
+- 当前 cancel ACK 表示请求取消已受理，不是 Native work 已全部退出；finishing 的 barrier 完成前，新 session/unload 会拒绝。T3b 的 event/session 客户端需明确展示和等待 terminal/drain。
+- 保留生产 HTTP routing 和其 API；没有运行真实 HTTP/golden GPU 测试，不把源代码未修改解释为 golden 已通过。T3b 的真正 realtime 抽离应在这些测试基线上验收。
