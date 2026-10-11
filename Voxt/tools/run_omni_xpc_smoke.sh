@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Runs the opt-in signed App, stages fixture data, then checks Native inference and restart.
+set -euo pipefail
+
+[[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || {
+  echo "Apple Silicon macOS is required for XPC/Metal validation." >&2
+  exit 1
+}
+[[ $# -eq 4 ]] || {
+  echo "usage: run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file>" >&2
+  exit 2
+}
+app="$1"
+model="$2"
+audio="$3"
+expected="$4"
+[[ -d "$app/Contents/XPCServices/OmniInference.xpc" ]] || {
+  echo "The app does not contain OmniInference.xpc." >&2
+  exit 1
+}
+[[ -f "$model/config.json" && -f "$audio" && -f "$expected" ]] || {
+  echo "The model or fixture inputs are missing." >&2
+  exit 1
+}
+command -v python3 >/dev/null || { echo "python3 is required only by this validation tool." >&2; exit 1; }
+codesign --verify --deep --strict "$app"
+executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+[[ -x "$app/Contents/MacOS/$executable" ]] || { echo "The signed app executable is missing." >&2; exit 1; }
+scratch="$(mktemp -d)"
+trap 'rm -rf "$scratch"' EXIT
+afconvert "$audio" -f WAVE -d LEI16@16000 -c 1 "$scratch/input.wav"
+
+python3 - "$app/Contents/MacOS/$executable" "$model" "$scratch/input.wav" "$expected" <<'PY'
+import array
+import json
+import os
+import pathlib
+import shutil
+import struct
+import subprocess
+import sys
+import uuid
+import wave
+
+executable, model, audio, expected = sys.argv[1:]
+environment = {
+    key: value for key, value in os.environ.items()
+    if not key.startswith(('DYLD_', '__XPC_DYLD_', 'VOXT_OMNI_XPC_SMOKE_'))
+    and key not in {'VOXT_OMNI_RUNTIME', 'VOXT_ASR_BACKEND', 'MLX_METAL_PATH'}
+}
+
+def run(mode, run_id=None):
+    overrides = dict(environment, VOXT_OMNI_XPC_SMOKE_MODE=mode)
+    if run_id is not None:
+        overrides['VOXT_OMNI_XPC_SMOKE_RUN_ID'] = run_id
+    completed = subprocess.run(
+        [executable], env=overrides, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, timeout=600, check=False,
+    )
+    reports = [line[len('VOXT_OMNI_XPC_RESULT '):] for line in completed.stdout.splitlines()
+               if line.startswith('VOXT_OMNI_XPC_RESULT ')]
+    if completed.returncode != 0 or len(reports) != 1:
+        raise RuntimeError('The signed XPC smoke process failed; inspect macOS signing/service logs.')
+    return json.loads(reports[0])
+
+prepared = run('prepare')
+if prepared.get('status') != 'prepared' or prepared.get('abi_version') != 1:
+    raise RuntimeError('The signed service did not complete its ABI/container probe.')
+container = pathlib.Path(prepared['group_container'])
+if not container.is_absolute() or not container.is_dir():
+    raise RuntimeError('The service returned an invalid App Group container.')
+run_id = str(uuid.uuid4()).upper()
+model_destination = container / 'Models' / 'OmniXPCSmoke' / run_id
+artifacts = container / 'OmniXPCSmoke' / run_id
+for destination in (model_destination, artifacts):
+    if not destination.resolve().is_relative_to(container.resolve()):
+        raise RuntimeError('The smoke fixture destination is outside the shared container.')
+    if destination.exists():
+        raise RuntimeError('The smoke run directory already exists.')
+passed = False
+try:
+    artifacts.mkdir(parents=True)
+    shutil.copytree(model, model_destination, symlinks=False)
+    with wave.open(audio, 'rb') as source:
+        if source.getnchannels() != 1 or source.getframerate() != 16000 or source.getsampwidth() != 2:
+            raise RuntimeError('The converted fixture must be mono 16 kHz PCM16.')
+        if source.getnframes() == 0 or source.getnframes() > 16000 * 30:
+            raise RuntimeError('The validation fixture must contain between one sample and 30 seconds.')
+        pcm = array.array('h', source.readframes(source.getnframes()))
+    if sys.byteorder != 'little':
+        pcm.byteswap()
+    (artifacts / 'audio.f32').write_bytes(b''.join(struct.pack('<f', sample / 32768.0) for sample in pcm))
+    expected_text = pathlib.Path(expected).read_text(encoding='utf-8').strip()
+    if not expected_text:
+        raise RuntimeError('A non-empty expected transcript is required.')
+    (artifacts / 'expected.txt').write_text(expected_text, encoding='utf-8')
+    report = run('infer', run_id)
+    if report.get('status') != 'passed' or report.get('first_service_process_id') == report.get('restarted_service_process_id'):
+        raise RuntimeError('Native inference or service restart did not pass.')
+    passed = True
+    print(json.dumps(report, sort_keys=True))
+finally:
+    if passed:
+        shutil.rmtree(model_destination)
+        shutil.rmtree(artifacts)
+    else:
+        print('Smoke fixture data retained after failure; remove only after the XPC service is idle:', file=sys.stderr)
+        print(model_destination, artifacts, sep='\n', file=sys.stderr)
+PY

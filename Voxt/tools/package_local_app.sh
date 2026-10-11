@@ -244,6 +244,7 @@ xcodebuild \
   "${BUILD_OVERRIDES[@]}"
 
 [[ -d "$APP_PATH" ]] || die "built app not found: $APP_PATH"
+[[ ! -e "$APP_PATH/Contents/XPCServices/OmniInference.xpc" ]] || die "Release packaging must not contain the opt-in OmniInference validation service; use build_omni_xpc_smoke.sh"
 
 if [[ -n "$NATIVE_RUNTIME_DIR" ]]; then
   log "Embedding Omni native runtime"
@@ -289,21 +290,17 @@ if [[ "$SIGN_APP" == "true" && -n "$APP_SIGN_IDENTITY" ]]; then
     local target="$1"
     if [[ -e "$target" ]]; then
       echo "Signing: $target"
-      codesign --force --options runtime --timestamp --sign "$APP_SIGN_IDENTITY" "$target"
+      local signing_arguments=(--force --options runtime --timestamp --sign "$APP_SIGN_IDENTITY")
+      if codesign --display "$target" >/dev/null 2>&1; then
+        signing_arguments+=(--preserve-metadata=entitlements)
+      else
+        :
+      fi
+      codesign "${signing_arguments[@]}" "$target"
+    else
+      :
     fi
   }
-
-  SPARKLE_FRAMEWORK="$APP_PATH/Contents/Frameworks/Sparkle.framework"
-  sign_if_exists "$SPARKLE_FRAMEWORK/Versions/B/XPCServices/Installer.xpc"
-  sign_if_exists "$SPARKLE_FRAMEWORK/Versions/B/XPCServices/InstallerLauncher.xpc"
-  sign_if_exists "$SPARKLE_FRAMEWORK/Versions/B/XPCServices/Downloader.xpc"
-  sign_if_exists "$SPARKLE_FRAMEWORK/Versions/B/Autoupdate"
-  sign_if_exists "$SPARKLE_FRAMEWORK/Versions/B/Updater.app"
-  sign_if_exists "$SPARKLE_FRAMEWORK"
-
-  while IFS= read -r dylib; do
-    sign_if_exists "$dylib"
-  done < <(find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -type f -name '*.dylib' 2>/dev/null | sort)
 
   if [[ -n "$NATIVE_RUNTIME_DIR" ]]; then
     while IFS= read -r native_runtime_file; do
@@ -321,11 +318,11 @@ if [[ "$SIGN_APP" == "true" && -n "$APP_SIGN_IDENTITY" ]]; then
     else
       echo "Skipping non-code framework resource: $framework_code"
     fi
-  done < <(find "$APP_PATH/Contents/Frameworks" -type f -print | sort)
+  done < <(find "$APP_PATH/Contents/Frameworks" -type f ! -name '*.metallib' -print | sort)
 
   while IFS= read -r framework_bundle; do
     sign_if_exists "$framework_bundle"
-  done < <(find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -type d -name '*.framework' -print | sort)
+  done < <(find "$APP_PATH/Contents/Frameworks" -depth -type d \( -name '*.xpc' -o -name '*.app' -o -name '*.framework' \) -print)
 
   codesign \
     --force \
@@ -337,13 +334,16 @@ if [[ "$SIGN_APP" == "true" && -n "$APP_SIGN_IDENTITY" ]]; then
 
   rm -f "$SIGNING_ENTITLEMENTS"
 elif [[ "$SIGN_APP" == "true" ]]; then
-  echo "warning: no Developer ID Application identity found; app will remain unsigned" >&2
+  die "no Developer ID Application identity found; use --no-sign only for unsigned inspection"
+else
+  :
 fi
 
-if codesign --verify --strict --verbose=2 "$APP_PATH"; then
+if [[ "$SIGN_APP" == "true" ]]; then
+  codesign --verify --deep --strict --verbose=2 "$APP_PATH" || die "codesign verification failed; refusing to package"
   echo "codesign verification passed"
 else
-  echo "warning: codesign verification failed; artifact was still packaged for local inspection" >&2
+  echo "warning: unsigned inspection artifacts, not signed validation proof" >&2
 fi
 
 log "Creating artifacts in $OUTPUT_DIR"

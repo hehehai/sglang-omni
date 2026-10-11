@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1 的实现和验证进展见第 13 节，其余任务待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1 和 T2 验证链路的实现进展见第 13 节；T2 的真实签名/macOS 验收仍待补，T3 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -536,4 +536,54 @@ xcodebuild build -project Voxt/Voxt.xcodeproj -scheme Voxt \
 - pre-commit run --all-files：通过。
 - 两个实施 subagent 分别处理上层调用方与 batch/planning；最终只读审查发现一个旧测试的 endTime 字段引用，已更新为 endSeconds。未把审查或 Linux 子集通过解释成 GPU/签名验证通过。
 
-macOS 待补：第 13 节的 Debug/TestDebug、Intel 构建和完整 XCTest；重点关注 MLXNativeLiveRuntimeTests、MLXInferenceConfigurationTests、SenseVoiceMetadataTests、ASRHintSettingsTests、MeetingLiveSessionSupportTests、MeetingMLXNativeFeedSchedulerTests、OmniTranscriptionRequestTests，以及真实 Native final/realtime/会议回放。下一任务为 T2 最小真实签名 XPC + Qwen/MLX/Metal smoke；已定义的 Swift Codable 值不能直接当作 NSXPC 安全编码协议使用。
+macOS 待补：第 13 节的 Debug/TestDebug、Intel 构建和完整 XCTest；重点关注 MLXNativeLiveRuntimeTests、MLXInferenceConfigurationTests、SenseVoiceMetadataTests、ASRHintSettingsTests、MeetingLiveSessionSupportTests、MeetingMLXNativeFeedSchedulerTests、OmniTranscriptionRequestTests，以及真实 Native final/realtime/会议回放。已定义的 Swift Codable 值不能直接当作 NSXPC 安全编码协议使用；T2 的具体实现与平台验证边界见下节。
+
+### T2：最小 XPC/Qwen 验证链路
+
+状态：代码和构建/运行工具已实现，Linux 契约、C ABI 与结构检查通过；真实 macOS XPC/Metal、签名和 App Group 授权尚未验证。此阶段不能勾选为完整验收通过，也未切换生产 backend。
+
+实现范围：
+
+- 新增 OmniInference XPC target、OmniXPCDebug 配置和 VoxtOmniXPCSmoke scheme。新 scheme 顺序构建服务与 App；普通 Debug/TestDebug/Release、原 Voxt scheme 与 Intel 路径不依赖此 target，也不嵌入验证服务。
+- libOmniCore.dylib 以 C ABI 调用已有 Qwen transcriber/worker，不启动 HTTP server，不把 MLX 模板类型暴露给 Swift。头文件明确 malloc 结果/错误的释放方法，模型 load/infer/destroy 保持在同一 Native worker 线程。
+- XPC 使用 Foundation 可编码的 Data、String、整数、Bool 和 NSError；音频为单声道 16 kHz little-endian Float32，验证版限制 30 秒、4096 tokens，并检查有限值、消息/文本长度、相对模型目录及 Native 会读取的文件 symlink 范围。
+- 单服务只接受一个活动推理，不积压排队音频。每次验证请求加载并在 reply 前释放模型。断连取消已提交工作；C ABI 的取消状态会锁存，避免断连发生在 Swift 活跃检查后、Native Submit 前时漏掉取消。取消后的 handle 必须销毁，新请求创建新 handle；它不是 T3 的模型常驻/逐 session 取消协议。
+- App 与服务必须配置同一真实 App Group，彼此用 bundle ID + Apple generic anchor + signing team 的代码签名 requirement 校验。NSXPCConnection.setCodeSigningRequirement 的公开 API 已核对，macOS 13.0 起可用；实际授权与消息运行只能在 Mac 上验证。
+- Runtime dylib 和 sibling mlx.metallib 放入服务 Frameworks，嵌入工具检查 arm64、install name、rpath 和依赖 allowlist。只签 Mach-O，从 dylib 到 XPC 到 App；签名验证失败不能继续作为签名包交付。
+- App 的 smoke 入口仅在显式验证构建启用，在普通启动服务之前执行。prepare 返回经检查的共享容器；infer 从独立 fixture 目录读音频/预期文本，验证首次转写，主动结束服务，重连后再次转写并核对预期。诊断退出接口不作为生产功能。
+- 构建与执行工具分离。build_omni_xpc_smoke.sh 只证明构建/签名结构，不能代替 run_omni_xpc_smoke.sh 的真实运行。--no-sign 仅用于结构检查，不算签名、共享授权或可运行证明。
+
+已执行：
+
+- 实际 OmniXPCProtocolTests 在 Linux Foundation 模块运行：16 项，15 通过、1 跳过、0 failures。跳过的大小写变体 symlink 用例需要 case-insensitive 文件系统，留待 Mac 验证。没有使用模型或 XPC 平台 stub；只证明配置、路径和音频契约。
+- Native 公共 C ABI、实际 worker 与明确标注的模型/MLX stub：GCC 10 项通过；Clang ASan/UBSan 同组 10 项通过。覆盖纯 C 头文件/linkage、无效输入、内存所有权、分配失败、运行中取消、提交前取消、并发与销毁线程。
+- 29 项 Voxt/tools 工具测试通过，其中新增的打包结构场景使用 fake lipo/otool/codesign，不代表 Mach-O 或真实签名通过。
+- T0 的 69 项隔离门禁检查、T1 的 20 项隔离 XCTest 与 6 项 adapter/分段场景重新运行通过。
+- Swift frontend parse 与 C interop/客户端/服务 helper 的平台替身 typecheck 通过；后者移除了 Objective-C 平台声明并使用 compile-only Foundation XPC stand-in，仅用于检查 Swift/C 指针和数值类型，不证明真实 NSXPC 编码、SDK 编译或运行成功。
+- Shell/内嵌 Python 语法、plist/scheme/工程结构、源码/lockfile 审计、git diff --check 和全仓库 pre-commit：通过。
+- 两轮审查指出提交前取消竞态、模型文件 symlink 越界及大小写不敏感卷的文件名绕过，均已补检查并增加回归测试。固定文件按 Native 实际打开的路径检查，不依赖目录项拼写；并未把预加载检查视作跨进程文件更新的原子性保证。T4 仍需完整发布/删除/lease 协调。
+
+Mac 上的执行步骤（使用自己已经授权的真实值，不要提交个人 Signing.local.xcconfig）：
+
+```bash
+export VOXT_OMNI_TEAM_IDENTIFIER="<your-team-id>"
+export VOXT_OMNI_HOST_BUNDLE_IDENTIFIER="<your-validation-host-id>"
+export VOXT_OMNI_XPC_SERVICE_ID="<your-validation-service-id>"
+export VOXT_OMNI_APP_GROUP_ID="<your-authorized-app-group>"
+export VOXT_OMNI_NATIVE_RUNTIME_DIR="<absolute-runtime-output-directory>"
+bash sglang_omni_mlx/native/scripts/build_runtime.sh "$VOXT_OMNI_NATIVE_RUNTIME_DIR"
+bash Voxt/tools/build_omni_xpc_smoke.sh \
+  --app-sign-identity "<Apple Development or Developer ID Application identity>"
+bash Voxt/tools/run_omni_xpc_smoke.sh \
+  "<app-path-printed-by-build-tool>" "<Qwen-checkpoint-directory>" \
+  "<short-speech-audio-fixture>" "<expected-transcript-text-file>"
+```
+
+运行工具使用 Mac 自带 afconvert 和 Python 标准库准备 fixture；这些不是 App 推理的运行依赖。模型权重复制并解引用到独立 App Group smoke 目录，原权重不修改；失败时保留副本，确认服务空闲/退出后再手工删除，避免超时加载尚未结束时误删。成功时清理副本。工具不会输出转写内容，也不会自动修改生产模型路径或迁移用户缓存。
+
+剩余验收/限制：
+
+- 在 Apple Silicon macOS 26.2+ 完成实际 App/服务编译、双向 signing requirement、共享目录读写、bundled MLX/metallib 定位，以及两次真实 Qwen 转写与服务崩溃恢复；记录 SHA、机器、体积和运行结果。
+- Native model create 仍是同步加载，加载中无法立即抢占取消；断连后会在加载返回时检查状态并释放，不继续推理。T3 需明确完整 loading 取消/超时恢复和常驻资源状态机。
+- T2 只支持 Qwen final 的验证接口，不支持 streaming、其他 ASR、VAD/Sortformer 或正式客户端切换。T0/T1 的 macOS 全 App 回归仍需补齐。
+- 仅本地真实签名结构检查不是公证/Gatekeeper/干净机器安装认证。发布与历史缓存迁移继续由 T4/T7 验收。

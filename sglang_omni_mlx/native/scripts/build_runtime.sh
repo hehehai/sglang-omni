@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the native Qwen3-ASR runtime into a self-contained directory.
+# Builds the native Qwen3-ASR runtime and C ABI library into one directory.
 # Note (Jiaxin Deng): MLX comes from the pinned mlx wheel, the same build the
 # Python reference server uses.
 set -euo pipefail
@@ -8,7 +8,9 @@ output="${1:?usage: build_runtime.sh <output-directory> [<work-directory>]}"
 work="${2:-$output/.build}"
 native_dir="$(cd "$(dirname "$0")/.." && pwd)"
 
-test "$(uname -m)" = arm64 || { echo "Apple Silicon is required" >&2; exit 1; }
+test "$(uname -s)" = Darwin && test "$(uname -m)" = arm64 || {
+  echo "Apple Silicon macOS is required" >&2; exit 1;
+}
 command -v uv >/dev/null || { echo "uv is required" >&2; exit 1; }
 
 mkdir -p "$work"
@@ -22,4 +24,9 @@ cmake -S "$native_dir" -B "$work/cmake" -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_OSX_ARCHITECTURES=arm64
 cmake --build "$work/cmake"
 cmake --install "$work/cmake"
+test -f "$output/bin/libOmniCore.dylib"
+test -f "$output/bin/libmlx.dylib"
+test -f "$output/bin/mlx.metallib"
+test -f "$output/include/omni_native_core.h"
 echo "VOXT_OMNI_RUNTIME=$output/bin/qwen3_asr_server"
+echo "VOXT_OMNI_CORE_LIBRARY=$output/bin/libOmniCore.dylib"

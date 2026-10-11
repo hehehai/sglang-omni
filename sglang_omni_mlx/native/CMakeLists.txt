@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Native MLX runtime for Voxt (Qwen3-ASR, Silero VAD): one binary, no Python.
+# Native MLX runtime for Voxt: server/tool binaries and an in-process C ABI.
 cmake_minimum_required(VERSION 3.24)
 project(sglang_omni_mlx_native LANGUAGES C CXX)
 
@@ -61,6 +61,29 @@ target_include_directories(qwen3_asr PUBLIC src)
 target_link_libraries(qwen3_asr PUBLIC mlx nlohmann_json::nlohmann_json pcre2-8-static
   "-framework CoreFoundation")
 target_compile_options(qwen3_asr PUBLIC ${MLX_CXX_FLAGS} PRIVATE -Wall -Wextra)
+
+add_library(OmniCore SHARED src/native_core.cpp)
+target_include_directories(OmniCore PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>")
+target_link_libraries(OmniCore PRIVATE qwen3_asr)
+target_compile_options(OmniCore PRIVATE -Wall -Wextra)
+set_target_properties(OmniCore PROPERTIES
+  CXX_VISIBILITY_PRESET hidden
+  VISIBILITY_INLINES_HIDDEN YES
+  MACOSX_RPATH YES
+  INSTALL_NAME_DIR "@rpath"
+  BUILD_WITH_INSTALL_NAME_DIR YES
+  BUILD_RPATH "${MLX_LIBRARY_DIRS};@loader_path"
+  INSTALL_RPATH "@loader_path")
+if(APPLE)
+  foreach(symbol omni_core_abi_version omni_qwen_create omni_qwen_transcribe
+      omni_qwen_cancel omni_qwen_destroy omni_qwen_result_free omni_string_free)
+    target_link_options(OmniCore PRIVATE "LINKER:-exported_symbol,_${symbol}")
+  endforeach()
+endif()
+install(TARGETS OmniCore LIBRARY DESTINATION bin)
+install(FILES include/omni_native_core.h DESTINATION include)
 
 add_library(silero_vad STATIC src/silero_vad.cpp)
 target_include_directories(silero_vad PUBLIC src)
