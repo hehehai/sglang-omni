@@ -133,6 +133,7 @@ class OmniXPCPackagingTests(unittest.TestCase):
             "OmniInferenceService.swift", "main.swift", "QwenCoreModel.swift", "OmniFinalSessionEngine.swift",
             "OmniSessionLifecycle.swift", "QwenCoreRealtimeLease.swift", "OmniRealtimeSession.swift",
             "OmniRealtimeSessionEngine.swift", "SileroCoreModel.swift", "OmniSileroInferenceEngine.swift",
+            "SileroCoreStreamLease.swift", "OmniSileroOfflineInference.swift", "OmniSileroStream.swift", "OmniSileroStreamingEngine.swift",
         ]
         self.assertEqual(re.findall(r"/\* (\S+) in Sources \*/", sources), expected_sources)
         self.assertEqual({path.name for path in (ROOT / "OmniInference").glob("*.swift")}, set(expected_sources))

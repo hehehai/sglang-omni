@@ -150,6 +150,33 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
         )
     }
 
+    func startSileroStream(
+        streamID: String, modelID: String, withReply reply: @escaping @Sendable (String?, NSError?) -> Void
+    ) {
+        sileroEngine.startStream(streamID: streamID, modelID: modelID, lifetime: sileroLifetime, reply: reply)
+    }
+
+    func pushSileroAudio(
+        streamID: String, modelID: String, sequence: Int, audio: Data,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    ) {
+        sileroEngine.pushStream(
+            streamID: streamID, modelID: modelID, sequence: sequence, audio: audio, lifetime: sileroLifetime, reply: reply
+        )
+    }
+
+    func finishSileroStream(
+        streamID: String, modelID: String, withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    ) {
+        sileroEngine.finishStream(streamID: streamID, modelID: modelID, lifetime: sileroLifetime, reply: reply)
+    }
+
+    func closeSileroStream(
+        streamID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    ) {
+        sileroEngine.closeStream(streamID: streamID, modelID: modelID, lifetime: sileroLifetime, reply: reply)
+    }
+
     func cancelSileroRequest(
         requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void
     ) {

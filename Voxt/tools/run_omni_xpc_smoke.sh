@@ -116,8 +116,8 @@ try:
     report = run('infer', run_id)
     if report.get('status') != 'passed' or report.get('first_service_process_id') == report.get('restarted_service_process_id'):
         raise RuntimeError('Native inference or service restart did not pass.')
-    if silero and report.get('silero_request_count') != 4:
-        raise RuntimeError('The optional Silero reuse/reconnect validation did not run.')
+    if silero and (report.get('silero_request_count') != 4 or report.get('silero_stream_count') != 2):
+        raise RuntimeError('The optional Silero offline/stream reuse/reconnect validation did not run.')
     else:
         pass
     passed = True

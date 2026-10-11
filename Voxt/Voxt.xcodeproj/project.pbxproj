@@ -36,6 +36,10 @@
 		A0BE00000000000000000003 /* OmniModelArtifacts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BE00000000000000000002 /* OmniModelArtifacts */; };
 		A0BF00000000000000000020 /* SileroCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BF00000000000000000010 /* SileroCoreModel.swift */; };
 		A0BF00000000000000000021 /* OmniSileroInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */; };
+		A0C000000000000000000020 /* SileroCoreStreamLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000010 /* SileroCoreStreamLease.swift */; };
+		A0C000000000000000000021 /* OmniSileroOfflineInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000011 /* OmniSileroOfflineInference.swift */; };
+		A0C000000000000000000022 /* OmniSileroStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000012 /* OmniSileroStream.swift */; };
+		A0C000000000000000000023 /* OmniSileroStreamingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -91,6 +95,10 @@
 		A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniRealtimeSessionEngine.swift; sourceTree = "<group>"; };
 		A0BF00000000000000000010 /* SileroCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SileroCoreModel.swift; sourceTree = "<group>"; };
 		A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroInferenceEngine.swift; sourceTree = "<group>"; };
+		A0C000000000000000000010 /* SileroCoreStreamLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SileroCoreStreamLease.swift; sourceTree = "<group>"; };
+		A0C000000000000000000011 /* OmniSileroOfflineInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroOfflineInference.swift; sourceTree = "<group>"; };
+		A0C000000000000000000012 /* OmniSileroStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroStream.swift; sourceTree = "<group>"; };
+		A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroStreamingEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -296,6 +304,10 @@
 				A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */,
 				A0BF00000000000000000010 /* SileroCoreModel.swift */,
 				A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */,
+				A0C000000000000000000010 /* SileroCoreStreamLease.swift */,
+				A0C000000000000000000011 /* OmniSileroOfflineInference.swift */,
+				A0C000000000000000000012 /* OmniSileroStream.swift */,
+				A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */,
 				A0BC00000000000000000024 /* Info.plist */,
 				A0BC00000000000000000025 /* OmniInference.entitlements */,
 				A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */,
@@ -523,6 +535,10 @@
 				A0BD00000000000000000023 /* OmniRealtimeSessionEngine.swift in Sources */,
 				A0BF00000000000000000020 /* SileroCoreModel.swift in Sources */,
 				A0BF00000000000000000021 /* OmniSileroInferenceEngine.swift in Sources */,
+				A0C000000000000000000020 /* SileroCoreStreamLease.swift in Sources */,
+				A0C000000000000000000021 /* OmniSileroOfflineInference.swift in Sources */,
+				A0C000000000000000000022 /* OmniSileroStream.swift in Sources */,
+				A0C000000000000000000023 /* OmniSileroStreamingEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

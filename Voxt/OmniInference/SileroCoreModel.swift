@@ -1,4 +1,4 @@
-/// Retained ABI4 Silero model with independently cancellable offline request tokens.
+/// Retained ABI4 Silero model with independently cancellable requests and registered stream leases.
 import Foundation
 import OmniXPCContracts
 
@@ -8,6 +8,7 @@ nonisolated final class SileroCoreModel: @unchecked Sendable {
     private var handle: OpaquePointer?
     private var request: OpaquePointer?
     private var requestID: UUID?
+    private var streamLeaseCount = 0
 
     init(directory: URL) throws {
         guard Int(omni_core_abi_version()) == OmniXPCProtocolLimits.abiVersion else {
@@ -102,9 +103,24 @@ nonisolated final class SileroCoreModel: @unchecked Sendable {
         }
     }
 
+    func registerStreamLease() -> OpaquePointer {
+        lock.withLock {
+            precondition(handle != nil && streamLeaseCount < OmniXPCSileroLimits.maximumStreamCount)
+            streamLeaseCount += 1
+            return handle!
+        }
+    }
+
+    func releaseStreamLease() {
+        lock.withLock {
+            precondition(streamLeaseCount > 0)
+            streamLeaseCount -= 1
+        }
+    }
+
     func close() {
         let releasedHandle = lock.withLock {
-            precondition(request == nil)
+            precondition(request == nil && streamLeaseCount == 0)
             let releasedHandle = handle
             handle = nil
             return releasedHandle

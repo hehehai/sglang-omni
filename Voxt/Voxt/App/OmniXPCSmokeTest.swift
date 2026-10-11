@@ -21,6 +21,7 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
     var realtimeSessionCount: Int? = nil
     var realtimeCancellationDrained: Bool? = nil
     var sileroRequestCount: Int? = nil
+    var sileroStreamCount: Int? = nil
     var errorDomain: String? = nil
     var errorCode: Int? = nil
 
@@ -38,6 +39,7 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
         case realtimeSessionCount = "realtime_session_count"
         case realtimeCancellationDrained = "realtime_cancellation_drained"
         case sileroRequestCount = "silero_request_count"
+        case sileroStreamCount = "silero_stream_count"
         case errorDomain = "error_domain"
         case errorCode = "error_code"
     }
@@ -175,7 +177,8 @@ extension AppDelegate {
                         generatedTokenCount: recovered.generationMetadata?.generatedTokenCount,
                         elapsedSeconds: Date().timeIntervalSince(started),
                         realtimeSessionCount: 3, realtimeCancellationDrained: true,
-                        sileroRequestCount: sileroDirectory == nil ? nil : 4
+                        sileroRequestCount: sileroDirectory == nil ? nil : 4,
+                        sileroStreamCount: sileroDirectory == nil ? nil : 2
                     ))
                 }
                 connected.invalidate()
@@ -209,6 +212,13 @@ extension AppDelegate {
         let reused = try await client.sileroSpeechTimestamps(samples16k: samples, settings: settings, model: model, timeout: timeout)
         guard first == reused else {
             throw OmniXPCFailure.error(.nativeFailure, "Silero same-model reuse returned inconsistent sample ranges.")
+        }
+        try await client.withSileroVoiceActivityStream(model: model, timeout: timeout) { stream in
+            for offset in stride(from: 0, to: samples.count, by: OmniXPCSileroLimits.maximumChunkSampleCount) {
+                let end = min(offset + OmniXPCSileroLimits.maximumChunkSampleCount, samples.count)
+                _ = try await stream.probability(samples16k: Array(samples[offset..<end]))
+            }
+            _ = try await stream.finish()
         }
         try await client.unloadSilero(model)
     }

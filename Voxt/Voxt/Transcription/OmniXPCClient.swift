@@ -33,6 +33,8 @@ final class OmniXPCClient {
     private var connection: Connection?
     private var pending: [UUID: Pending] = [:]
     var realtimeSession: OmniXPCRealtimeClientState?
+    var sileroStreams: [UUID: OmniXPCSileroStreamState] = [:]
+    var closedSileroStreams: [UUID: OmniXPCSileroStreamReference] = [:]
     var connectionIdentifier: UUID? { connection?.id }
 
     func requireConnection(_ id: UUID) throws {
@@ -138,6 +140,8 @@ final class OmniXPCClient {
         let transport = connection?.transport
         connection = nil
         realtimeSession = nil
+        sileroStreams.removeAll()
+        closedSileroStreams.removeAll()
         let calls = Array(pending.values)
         pending.removeAll()
         transport?.invalidate()
@@ -239,6 +243,8 @@ final class OmniXPCClient {
         let transport = connection?.transport
         connection = nil
         realtimeSession = nil
+        sileroStreams.removeAll()
+        closedSileroStreams.removeAll()
         transport?.invalidate()
         let ids = pending.filter { $0.value.connectionID == id }.map(\.key)
         for requestID in ids {

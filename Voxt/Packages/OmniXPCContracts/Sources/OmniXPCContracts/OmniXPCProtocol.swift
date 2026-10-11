@@ -177,6 +177,19 @@ public nonisolated enum OmniXPCRequestValidation {
         requestID: String, modelID: String, audio: Data, settings: Data,
         withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
     )
+    func startSileroStream(
+        streamID: String, modelID: String, withReply reply: @escaping @Sendable (String?, NSError?) -> Void
+    )
+    func pushSileroAudio(
+        streamID: String, modelID: String, sequence: Int, audio: Data,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func finishSileroStream(
+        streamID: String, modelID: String, withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func closeSileroStream(
+        streamID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    )
     func cancelSileroRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func startFinalSession(
         sessionID: String, modelID: String, language: String?, context: String?, maximumTokenCount: Int,

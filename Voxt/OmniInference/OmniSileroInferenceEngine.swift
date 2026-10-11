@@ -1,4 +1,4 @@
-/// Connection-owned offline Silero admission, request reuse, and drain-before-release lifecycle.
+/// Connection-owned Silero model admission and cancellation with drain-before-release cleanup.
 import Foundation
 import OmniXPCContracts
 
@@ -26,22 +26,25 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
         }
     }
 
-    private enum ModelState { case unloaded, loading, ready, unloading }
-    private struct Request {
+    enum ModelState { case unloaded, loading, ready, unloading }
+    enum RequestKind { case offline, stream }
+    struct Request {
         let id: UUID
         var isCancelled = false
     }
 
     private let configuration: OmniXPCConfiguration
-    private let queue = DispatchQueue(label: "Voxt.Omni.XPC.silero")
-    private let lock = NSLock()
-    private var modelState: ModelState = .unloaded
-    private var owner: ConnectionLifetime?
-    private var modelID: UUID?
-    private var loadOperationID: UUID?
-    private var model: SileroCoreModel?
-    private var activeRequest: Request?
-    private var requestIDs: Set<UUID> = []
+    let queue = DispatchQueue(label: "Voxt.Omni.XPC.silero")
+    let lock = NSLock()
+    var modelState: ModelState = .unloaded
+    var owner: ConnectionLifetime?
+    var modelID: UUID?
+    var loadOperationID: UUID?
+    var model: SileroCoreModel?
+    var activeRequest: Request?
+    var requestIDs: [UUID: RequestKind] = [:]
+    var streams: [UUID: OmniSileroStream] = [:]
+    var lastCompletedStream: OmniSileroStream.CompletedReply?
 
     init(configuration: OmniXPCConfiguration) { self.configuration = configuration }
 
@@ -107,8 +110,8 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
                     let cancelled = lock.withLock {
                         let cancelled = !lifetime.isActive || lifetime.operations[operation] == .cancelled
                         lifetime.operations[operation] = cancelled ? .cancelled : .completed
-                        // note (assistant): Disconnect owns the queued cleanup barrier and releases admission last.
-                        if lifetime.isActive { clearModel() }
+                        // note (assistant): Disconnect owns its queued cleanup barrier and releases admission last.
+                        if lifetime.isActive, owner?.id == lifetime.id, loadOperationID == operation { clearModel() }
                         return cancelled
                     }
                     reply(nil, nil, cancelled
@@ -127,10 +130,10 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
             let requestedModelID = try identifier(modelID)
             try lock.withLock {
                 try requireOwner(lifetime, modelID: requestedModelID)
-                guard activeRequest == nil else {
-                    throw OmniXPCFailure.error(.busy, "Wait for the Silero request to finish before unloading.")
+                guard activeRequest == nil, streams.isEmpty else {
+                    throw OmniXPCFailure.error(.busy, "Close Silero streams and finish the offline request before unloading.")
                 }
-                guard !requestIDs.contains(operation) else {
+                guard requestIDs[operation] == nil else {
                     throw OmniXPCFailure.error(.invalidRequest, "The operation ID has already been used for a request.")
                 }
                 try lifetime.recordOperation(operation)
@@ -141,7 +144,7 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
                     let cancelled = lock.withLock {
                         let cancelled = !lifetime.isActive || lifetime.operations[operation] == .cancelled
                         lifetime.operations[operation] = cancelled ? .cancelled : .completed
-                        clearModel()
+                        if owner?.id == lifetime.id, self.modelID == requestedModelID { clearModel() }
                         return cancelled
                     }
                     reply(cancelled ? OmniXPCFailure.error(.cancelled, "The Silero unload was cancelled.") : nil)
@@ -152,80 +155,25 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
         }
     }
 
-    func speechTimestamps(
-        requestID: String, modelID: String, audio: Data, settings: Data, lifetime: ConnectionLifetime,
-        reply: @escaping @Sendable (Data?, NSError?) -> Void
-    ) {
-        do {
-            let requestedID = try identifier(requestID)
-            let requestedModelID = try identifier(modelID)
-            let options = try OmniXPCSileroSettings.decode(settings)
-            try lock.withLock {
-                try requireOwner(lifetime, modelID: requestedModelID)
-                guard !requestIDs.contains(requestedID), lifetime.operations[requestedID] == nil else {
-                    throw OmniXPCFailure.error(.invalidRequest, "The Silero request ID has already been used.")
-                }
-                guard requestIDs.count < OmniXPCProtocolLimits.maximumRequestsPerModel else {
-                    throw OmniXPCFailure.error(.invalidRequest, "The Silero request ledger is full; unload the model.")
-                }
-                guard activeRequest == nil else {
-                    throw OmniXPCFailure.error(.busy, "The Silero model already has an active request.")
-                }
-                let samples = try OmniXPCRequestValidation.audioSamples(
-                    audio: audio, maximumSampleCount: OmniXPCProtocolLimits.maximumSampleCount
-                )
-                let loaded = model!
-                try loaded.prepareRequest(requestID: requestedID)
-                // note (assistant): Only successful admission consumes history, including cancellation before execution.
-                requestIDs.insert(requestedID)
-                activeRequest = Request(id: requestedID)
-                queue.async { [self] in
-                    var response: Data?
-                    var failure: NSError?
-                    do {
-                        let timestamps = try loaded.speechTimestamps(
-                            requestID: requestedID, samples: samples, settings: options
-                        )
-                        response = try OmniXPCSileroTimestampBatch(
-                            serviceInstanceID: OmniServiceIdentity.instanceID, modelID: requestedModelID,
-                            requestID: requestedID, sampleCount: samples.count, timestamps: timestamps
-                        ).encoded()
-                    } catch {
-                        failure = error as NSError
-                    }
-                    let cancelled = lock.withLock {
-                        precondition(activeRequest?.id == requestedID)
-                        let cancelled = !lifetime.isActive || activeRequest!.isCancelled
-                        activeRequest = nil
-                        return cancelled
-                    }
-                    if cancelled {
-                        reply(nil, OmniXPCFailure.error(.cancelled, "The Silero request was cancelled."))
-                    } else {
-                        reply(response, failure)
-                    }
-                }
-            }
-        } catch {
-            reply(nil, error as NSError)
-        }
-    }
-
     func cancel(requestID: String, modelID: String?, lifetime: ConnectionLifetime) throws {
         let requestedID = try identifier(requestID)
         let requestedModelID = try modelID.map(identifier)
         var cancellingModel: SileroCoreModel?
         var cancellingRequestID: UUID?
+        var cancellingLeases: [SileroCoreStreamLease] = []
         try lock.withLock {
             guard lifetime.isActive else {
                 throw OmniXPCFailure.error(.disconnected, "The XPC connection is closing.")
             }
             if let requestedModelID {
                 try requireOwner(lifetime, modelID: requestedModelID)
-                guard requestIDs.contains(requestedID) else {
+                guard requestIDs[requestedID] != nil else {
                     throw OmniXPCFailure.error(.invalidRequest, "The Silero request ID has not been registered.")
                 }
-                if activeRequest?.id == requestedID {
+                if let stream = streams[requestedID] {
+                    stream.state = .cancelled
+                    cancellingLeases = [stream.lease]
+                } else if activeRequest?.id == requestedID {
                     activeRequest!.isCancelled = true
                     cancellingModel = model
                     cancellingRequestID = requestedID
@@ -237,6 +185,7 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
                     activeRequest?.isCancelled = true
                     cancellingModel = model
                     cancellingRequestID = activeRequest?.id
+                    cancellingLeases = cancelOwnedStreams()
                     enqueueCleanup(lifetime: lifetime, loadOperationID: requestedID)
                 }
             } else if let operation = lifetime.operations[requestedID] {
@@ -246,11 +195,13 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
             }
         }
         if let cancellingRequestID { cancellingModel?.cancelRequest(requestID: cancellingRequestID) }
+        for lease in cancellingLeases { lease.cancel() }
     }
 
     func disconnect(lifetime: ConnectionLifetime) {
         var cancellingModel: SileroCoreModel?
         var cancellingRequestID: UUID?
+        var cancellingLeases: [SileroCoreStreamLease] = []
         lock.withLock {
             guard lifetime.isActive else { return }
             lifetime.isActive = false
@@ -259,10 +210,12 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
             activeRequest?.isCancelled = true
             cancellingModel = model
             cancellingRequestID = activeRequest?.id
+            cancellingLeases = cancelOwnedStreams()
             enqueueCleanup(lifetime: lifetime, loadOperationID: loadOperationID!)
         }
-        // note (assistant): Token cancellation must bypass the queue that may be blocked waiting for Native GPU work.
+        // note (assistant): Token cancellation must bypass the queue that may be waiting for Native GPU work.
         if let cancellingRequestID { cancellingModel?.cancelRequest(requestID: cancellingRequestID) }
+        for lease in cancellingLeases { lease.cancel() }
     }
 
     func requireValidationIdle(lifetime: ConnectionLifetime) throws {
@@ -270,20 +223,38 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
             guard lifetime.isActive else {
                 throw OmniXPCFailure.error(.disconnected, "The XPC connection is closing.")
             }
-            guard modelState == .unloaded, owner == nil, activeRequest == nil else {
+            guard modelState == .unloaded, owner == nil, activeRequest == nil, streams.isEmpty else {
                 throw OmniXPCFailure.error(.busy, "Unload the Silero model before using the diagnostic endpoint.")
             }
         }
     }
 
+    private func cancelOwnedStreams() -> [SileroCoreStreamLease] {
+        streams.values.map { stream in
+            stream.state = .cancelled
+            return stream.lease
+        }
+    }
+
     private func enqueueCleanup(lifetime: ConnectionLifetime, loadOperationID: UUID) {
         queue.async { [self] in
-            let loaded = lock.withLock { () -> SileroCoreModel? in
-                guard owner?.id == lifetime.id, self.loadOperationID == loadOperationID else { return nil }
+            let owned = lock.withLock { () -> (SileroCoreModel?, [OmniSileroStream]) in
+                guard owner?.id == lifetime.id, self.loadOperationID == loadOperationID else { return (nil, []) }
                 precondition(activeRequest == nil)
-                return model
+                return (model, Array(streams.values))
             }
-            loaded?.close()
+            for stream in owned.1 {
+                do {
+                    stream.lease.cancel()
+                    try stream.lease.drainAndDestroy()
+                    lock.withLock { _ = streams.removeValue(forKey: stream.id) }
+                } catch {
+                    // note (assistant): Failed barriers retain the lease and model instead of claiming safe release.
+                    NSLog("Native Silero cleanup barrier failed; model retained.")
+                }
+            }
+            guard lock.withLock({ streams.isEmpty }) else { return }
+            owned.0?.close()
             lock.withLock {
                 guard owner?.id == lifetime.id, self.loadOperationID == loadOperationID else { return }
                 clearModel()
@@ -291,14 +262,14 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
         }
     }
 
-    private func identifier(_ value: String) throws -> UUID {
+    func identifier(_ value: String) throws -> UUID {
         guard value.utf8.count == 36, let identifier = UUID(uuidString: value) else {
             throw OmniXPCFailure.error(.invalidRequest, "Model, request and operation IDs must be UUIDs.")
         }
         return identifier
     }
 
-    private func requireOwner(_ lifetime: ConnectionLifetime, modelID requestedModelID: UUID) throws {
+    func requireOwner(_ lifetime: ConnectionLifetime, modelID requestedModelID: UUID) throws {
         guard lifetime.isActive, owner?.id == lifetime.id, modelID == requestedModelID else {
             throw OmniXPCFailure.error(.invalidRequest, "The Silero model ID is stale or belongs to another connection.")
         }
@@ -307,13 +278,23 @@ nonisolated final class OmniSileroInferenceEngine: @unchecked Sendable {
         }
     }
 
+    func requireUnusedRequestID(_ requestedID: UUID, lifetime: ConnectionLifetime) throws {
+        guard requestIDs[requestedID] == nil, lifetime.operations[requestedID] == nil else {
+            throw OmniXPCFailure.error(.invalidRequest, "The Silero request ID has already been used.")
+        }
+        guard requestIDs.count < OmniXPCProtocolLimits.maximumRequestsPerModel else {
+            throw OmniXPCFailure.error(.invalidRequest, "The Silero request ledger is full; unload the model.")
+        }
+    }
+
     private func clearModel() {
+        precondition(activeRequest == nil && streams.isEmpty)
         model = nil
         modelID = nil
         owner = nil
         loadOperationID = nil
-        activeRequest = nil
         requestIDs.removeAll(keepingCapacity: false)
+        lastCompletedStream = nil
         modelState = .unloaded
     }
 }

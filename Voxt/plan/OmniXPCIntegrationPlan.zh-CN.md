@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4a 已抽离 auxiliary model 的非推理下载校验，T4b1 已新增 Silero Core ABI4、T4b2a 已接 opt-in offline Silero XPC，T4 的 streaming VAD/Sortformer XPC 与完整目录生命周期及 T5 以后仍待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4a 已抽离 auxiliary model 的非推理下载校验，T4b1 已新增 Silero Core ABI4、T4b2a 已接 opt-in offline Silero XPC、T4b2b 已接 bounded streaming Silero XPC，T4 的 Sortformer XPC 与完整目录生命周期及 T5 以后仍待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -756,4 +756,27 @@ Silero offline XPC 的独立闭环见 T4b2a；streaming VAD RPC/调用者与 Sor
 
 Mac 复现：在第 13 节原 build_omni_xpc_smoke.sh 签名流程后，可调用 run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file> <silero-model-directory>。可选 VAD 检查尚未在真实 Mac 执行；发布/缓存迁移与 GPU 并行、范围准确性/性能/长会议验收不得由 CPU harness 或 compile-only evidence 代替。
 
-下一检查点 T4b2b：bounded Silero streaming RPC 与 VAD stream owner/stop/cancel/drain；之后继续 Sortformer 状态/ABI/XPC，以及目录授权/缓存迁移、shared lease-delete 协调。
+T4b2b 的 streaming 接入见下节；之后继续 Sortformer 状态/ABI/XPC，以及目录授权/缓存迁移、shared lease-delete 协调。
+
+### T4b2b：bounded Silero streaming XPC 与 VAD owner
+
+状态：opt-in 实现检查点，production HTTP/Swift VAD/会议/Remote ASR 与 LLM/VLM 路由仍不切换，Core 仍 ABI4。实际 Mac NSXPC/Metal/model/concurrent-GPU 验收待补；不是完整 T4 或长会议平台认证。
+
+- 新增 startSileroStream、pushSileroAudio、finishSileroStream、closeSileroStream 四个实际 RPC；继续用 scoped cancelSileroRequest，不增加 model-wide stream cancellation。Foundation typed stream reference/probability batch 按 model/service/stream/connection identity 校验，结果最多 4 KiB/63 probabilities、finish 最多 1 个；counter 是含 padding 的 whole-frame samples。
+- Helper 同一 Silero 模型至多 16 streams，各自保持独立 recurrence/pending samples，单 stream 最多一个排队/执行 command；copy/decoder 在 owner/history/busy 检查后执行。offline + stream 共用最多 256 IDs/model，不能与 operation/retired/offline UUID alias；持续 streaming 不受 ASR 30 秒 cap 限制。
+- 每 push 最多 32000 samples。只保留一个 last successful audio/reply，最后同 sequence+完全相同 bytes 重试返回原 encoded Data，不再次调用 Native；改 bytes、未来/过旧 sequence 明确拒绝，client 不自动 replay。失败发生在 admission 后则锁定 failed/cancelled，只允许显式 cleanup。
+- SileroCoreStreamLease 保留模型、登记 live lease、检查/复制/释放 C owned arrays；model token lock 不包 Native create/drain/destroy，避免 GPU Feed 阻塞独立取消。finish 只有真实 Native finish→drain→destroy 后才释放 active slot/回复 final；一条 scoped completed batch 可重试。close 取消绕过 inference queue，barrier 仍在队列等待 work，失败保留资源而非提前 free。
+- load-OP cancel/disconnect 清理该 owner 的所有 streams/offline，先独立 cancel、后全部 drain/destroy、最后关闭模型。模型 unload/replacement 在 pending stream/cleanup 时 busy；旧模型/连接回调不能误伤 replacement，健康 Qwen 不受 VAD cancellation/deadline 影响。
+- App MainActor client 维护 bounded stream records、精确 sequence/累计 samples/processed delta/identity/terminal 校验；actor 只允许一个 feed/finish，无 unbounded tail-task 链。probability 返回最新实际整 frame probability/nil，finish 显式补尾；structured scope 在 return/throw/cancel 后等待 close。Raw actor/ref 必须显式 close，不声称 deinit 或 callback早退自动成为 barrier。
+- 审查发现并修复 rejected start 留 provisional slot（16 次拒绝会阻止健康模型）与 actor close 失败永久缓存不可重试两项问题。只识别来自 start RPC 的确定 pre-admission invalidRequest/busy 错误释放 provisional binding；timeout/nativefailure/ambiguous error 仍保留 owner 等待 cleanup。actor 失败 close 可重试且保留 terminal/coalescing，不伪造已 drain。
+- 既有 optional Silero signed smoke 增加 structured streamed chunks/finish，helper reconnect 前后各一个 stream；报告验证 4 offline requests + 2 streams。此模式尚未在真实 Mac 执行，不是 VAD accuracy/concurrent-GPU golden 证据。
+
+验证：
+
+- 真实 Package Debug/Release 70 项：69 passed、1 filesystem-specific skipped、0 failure，包含全部 61 旧用例与 9 项 bounded stream DTO 用例。
+- 实际 portable client state 8 项 + 实际 client/actor ownership 14 项通过，共 22 项；有明确 controlled transport peer/macOS-gate stripping，非并行 fake state machine。新增用例修复前失败、修复后 Debug/Release 与重复运行通过；ownership suite 不是未执行的真实 macOS NSXPC XCTest，gated Mac CI 仅选择实际可编译的 client state suite。
+- 主助手实际 client→exported service→ABI4/worker 的 two-endpoint 进程内 harness，通过 byte-identical lost-reply/no-reinfer、改变 payload 拒绝、两个 recurrence state 隔离、finish/drain/retry、持续 >30 秒、blocked Feed cancel/close/unload barrier、健康 Qwen、structured disposal；另覆盖 transient RPC close rejection 后同 actor 重试、older completed ref close、16 次 stale starts 后同连接健康模型、disconnect 拒绝早替换并在 Native release 后重连。三个重复全链路回放通过。
+- client-fix agent另以 test-only drain fault interposer 回放真实 helper/Core：barrier error保留模型且 unload busy、同 actor coalesced retry 到真实 Core drain成功；不是自然 Core/GPU fault 验收。独立复查重跑 22 portable 与最新 whole streaming harness，声明 lifetime/worker contract 下未发现具体剩余问题。
+- 既有 Qwen final/realtime 与 offline Silero 整体 harness 回归通过；Core/HTTP source 未修改，Native Clang ASan/UBSan116 通过；33 项工具/source/resolved audits 通过。helper/client/smoke parse 与 supplemental Linux platform-stand-in typecheck 通过，全仓库 pre-commit 重跑通过。
+
+下一工作：Sortformer typed state/Core/XPC；共享目录授权/迁移/atomic publication/model lease-delete 与 actual ASR+VAD+diarization GPU 并行、内存/长会议/性能/范围 golden、Mac App/Intel/signing/notarization acceptance 仍须补齐。此 checkpoint 不删除 MLX Audio，也不提前切换 production factory。
