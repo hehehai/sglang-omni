@@ -1,0 +1,1374 @@
+{
+  "protocol_errors": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          -1.0,
+          -3.0517578125e-05,
+          0.0,
+          3.0517578125e-05,
+          0.999969482421875
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "error": {
+          "code": "unsupported_session",
+          "message": "Only manual turns are supported.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 1,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "unsupported_session",
+          "message": "Only manual turns are supported.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 2,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "unsupported_session",
+          "message": "Only manual turns are supported.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 3,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "unsupported_session",
+          "message": "Only manual turns are supported.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 4,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "unsupported_session",
+          "message": "Only manual turns are supported.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 5,
+        "type": "error"
+      },
+      {
+        "event_index": 6,
+        "type": "transcription_session.updated"
+      },
+      {
+        "event_index": 7,
+        "type": "transcription_session.updated"
+      },
+      {
+        "error": {
+          "code": "invalid_event",
+          "message": "Unknown event type.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 8,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_event",
+          "message": "Unknown event type.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 9,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_event",
+          "message": "Unknown event type.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 10,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 11,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 12,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 13,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 14,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 15,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 16,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 17,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 18,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "invalid_audio",
+          "message": "Audio must be base64 PCM16.",
+          "type": "invalid_request_error"
+        },
+        "event_index": 19,
+        "type": "error"
+      },
+      {
+        "event_index": 20,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "pcm verified",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 21,
+        "text": "pcm verified",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "empty_finish": {
+    "calls": [],
+    "events": [
+      {
+        "event_index": 1,
+        "text": "",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      false
+    ]
+  },
+  "silent_finish": {
+    "calls": [],
+    "events": [
+      {
+        "event_index": 1,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 2,
+        "text": "",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      true,
+      false
+    ]
+  },
+  "manual_turns": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030548095703125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.03057861328125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030609130859375
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.0306396484375
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "event_index": 1,
+        "is_final": true,
+        "segment_id": 0,
+        "text": " \t hello \n",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 2,
+        "is_final": true,
+        "segment_id": 1,
+        "text": "world",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 3,
+        "is_final": true,
+        "segment_id": 2,
+        "text": "　你好　",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 4,
+        "is_final": true,
+        "segment_id": 3,
+        "text": "世界",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 5,
+        "is_final": true,
+        "segment_id": 4,
+        "text": " again ",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 6,
+        "text": "hello world你好世界again",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "cadence": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.0,
+          0.0,
+          0.030517578125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.0,
+          0.0,
+          0.030517578125,
+          0.06103515625,
+          0.091552734375
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.0,
+          0.0,
+          0.030517578125,
+          0.06103515625,
+          0.091552734375,
+          0.1220703125,
+          0.152587890625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.0,
+          0.0,
+          0.030517578125,
+          0.06103515625,
+          0.091552734375,
+          0.1220703125,
+          0.152587890625,
+          0.18310546875,
+          0.213623046875
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.0,
+          0.0,
+          0.030517578125,
+          0.06103515625,
+          0.091552734375,
+          0.1220703125,
+          0.152587890625,
+          0.18310546875,
+          0.213623046875
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "event_index": 1,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "first",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 2,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "replacement",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 3,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "latest",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 4,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "final",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 5,
+        "text": "final",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "automatic_cuts": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625,
+          0.091552734375
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.1220703125,
+          0.152587890625,
+          0.18310546875
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.213623046875,
+          0.244140625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "event_index": 1,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "one",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 2,
+        "is_final": true,
+        "segment_id": 1,
+        "text": "two",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 3,
+        "is_final": true,
+        "segment_id": 2,
+        "text": "三",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 4,
+        "text": "one two三",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      false
+    ]
+  },
+  "exact_boundary": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625,
+          0.091552734375
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.1220703125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "event_index": 1,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "boundary",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 2,
+        "is_final": true,
+        "segment_id": 1,
+        "text": "tail",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 3,
+        "text": "boundary tail",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "language_snapshots": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "German",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625,
+          0.091552734375,
+          0.1220703125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "German",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "cont",
+        "prefix_token_ids": [
+          99,
+          111,
+          110,
+          116
+        ],
+        "samples": [
+          0.030517578125,
+          0.06103515625,
+          0.091552734375,
+          0.1220703125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "Chinese",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.152587890625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.18310546875
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "event_index": 1,
+        "type": "transcription_session.updated"
+      },
+      {
+        "event_index": 2,
+        "type": "transcription_session.updated"
+      },
+      {
+        "event_index": 3,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "detected",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 4,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "continued",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 5,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "first final",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 6,
+        "type": "transcription_session.updated"
+      },
+      {
+        "event_index": 7,
+        "is_final": true,
+        "segment_id": 1,
+        "text": "第二",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 8,
+        "is_final": true,
+        "segment_id": 2,
+        "text": "auto",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 9,
+        "text": "first final第二auto",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [
+      {
+        "prefix_text": "cont",
+        "rollback_token_count": 5,
+        "text": "continued",
+        "token_ids": [
+          99,
+          111,
+          110,
+          116
+        ]
+      }
+    ],
+    "returns": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "prefix_rollback": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.030548095703125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "retained abc",
+        "prefix_token_ids": [
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          32,
+          97,
+          98,
+          99
+        ],
+        "samples": [
+          0.030517578125,
+          0.030548095703125,
+          0.03057861328125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "corrected abc",
+        "prefix_token_ids": [
+          99,
+          111,
+          114,
+          114,
+          101,
+          99,
+          116,
+          101,
+          100,
+          32,
+          97,
+          98,
+          99
+        ],
+        "samples": [
+          0.030517578125,
+          0.030548095703125,
+          0.03057861328125,
+          0.030609130859375
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.030548095703125,
+          0.03057861328125,
+          0.030609130859375
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "event_index": 1,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "first draft",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 2,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "retained abcdefgh",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 3,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "corrected abcdefgh",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 4,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "short",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 5,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "final",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 6,
+        "text": "final",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [
+      {
+        "prefix_text": "retained abc",
+        "rollback_token_count": 5,
+        "text": "retained abcdefgh",
+        "token_ids": [
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          32,
+          97,
+          98,
+          99
+        ]
+      },
+      {
+        "prefix_text": "corrected abc",
+        "rollback_token_count": 5,
+        "text": "corrected abcdefgh",
+        "token_ids": [
+          99,
+          111,
+          114,
+          114,
+          101,
+          99,
+          116,
+          101,
+          100,
+          32,
+          97,
+          98,
+          99
+        ]
+      },
+      {
+        "prefix_text": "",
+        "rollback_token_count": 5,
+        "text": "short",
+        "token_ids": []
+      }
+    ],
+    "returns": [
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "prefix_after_failure": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "retained abc",
+        "prefix_token_ids": [
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          32,
+          97,
+          98,
+          99
+        ],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "event_index": 1,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "retained abcdefgh",
+        "type": "transcription.segment"
+      },
+      {
+        "error": {
+          "code": "transcription_failed",
+          "message": "Transcription failed.",
+          "type": "server_error"
+        },
+        "event_index": 2,
+        "type": "error"
+      },
+      {
+        "event_index": 3,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "recovered",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 4,
+        "text": "recovered",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [
+      {
+        "prefix_text": "retained abc",
+        "rollback_token_count": 5,
+        "text": "retained abcdefgh",
+        "token_ids": [
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          32,
+          97,
+          98,
+          99
+        ]
+      }
+    ],
+    "returns": [
+      true,
+      true,
+      false
+    ]
+  },
+  "decode_failure": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.091552734375
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "error": {
+          "code": "transcription_failed",
+          "message": "Transcription failed.",
+          "type": "server_error"
+        },
+        "event_index": 1,
+        "type": "error"
+      },
+      {
+        "error": {
+          "code": "transcription_failed",
+          "message": "Transcription failed.",
+          "type": "server_error"
+        },
+        "event_index": 2,
+        "type": "error"
+      },
+      {
+        "event_index": 3,
+        "is_final": true,
+        "segment_id": 1,
+        "text": "survived",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 4,
+        "text": "survived",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "blocked_commit": {
+    "calls": [
+      {
+        "cancelled": false,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      },
+      {
+        "cancelled": false,
+        "context": null,
+        "language": "English",
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [
+      {
+        "event_index": 1,
+        "is_final": false,
+        "segment_id": 0,
+        "text": "preview",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 2,
+        "is_final": true,
+        "segment_id": 0,
+        "text": "final",
+        "type": "transcription.segment"
+      },
+      {
+        "event_index": 3,
+        "text": "final",
+        "type": "transcription.completed"
+      }
+    ],
+    "prefixes": [],
+    "returns": [
+      true,
+      true,
+      false
+    ]
+  },
+  "blocked_close": {
+    "calls": [
+      {
+        "cancelled": true,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [],
+    "prefixes": [],
+    "returns": [
+      true
+    ]
+  },
+  "late_success": {
+    "calls": [
+      {
+        "cancelled": true,
+        "context": null,
+        "language": null,
+        "layout": "reference",
+        "max_new_tokens": null,
+        "prefix_text": "",
+        "prefix_token_ids": [],
+        "samples": [
+          0.030517578125,
+          0.06103515625
+        ],
+        "stop_at_end_of_text": false,
+        "stop_on_token_loop": false
+      }
+    ],
+    "events": [],
+    "prefixes": [],
+    "returns": [
+      true
+    ]
+  }
+}

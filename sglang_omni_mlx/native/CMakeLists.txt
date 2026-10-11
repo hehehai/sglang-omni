@@ -55,6 +55,7 @@ add_library(qwen3_asr STATIC
   src/tokenizer.cpp
   src/transcriber.cpp
   src/worker.cpp
+  src/realtime_engine.cpp
   src/realtime.cpp
   src/form.cpp)
 target_include_directories(qwen3_asr PUBLIC src)

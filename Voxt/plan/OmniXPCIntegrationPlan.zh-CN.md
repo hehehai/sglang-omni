@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补，T3b realtime 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2 的 realtime C ABI/XPC 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -612,3 +612,28 @@ bash Voxt/tools/run_omni_xpc_smoke.sh \
 - 三轮只读审查发现取消业务拒绝误断连接、旧清理影响替换连接、重载模型后的 session ID 混用及同连接新模型被旧清理误重置。已增加 connection/model 双重绑定，cleanup 不再为业务拒绝重置连接；one-shot convenience 改为显式 load/transcribeFinal/unload。最终静态复查未发现具体剩余错误，不能代替 Mac 运行验收。
 - 当前 cancel ACK 表示请求取消已受理，不是 Native work 已全部退出；finishing 的 barrier 完成前，新 session/unload 会拒绝。T3b 的 event/session 客户端需明确展示和等待 terminal/drain。
 - 保留生产 HTTP routing 和其 API；没有运行真实 HTTP/golden GPU 测试，不把源代码未修改解释为 golden 已通过。T3b 的真正 realtime 抽离应在这些测试基线上验收。
+
+### T3b1：transport-independent Qwen realtime engine
+
+状态：T3b 的第一个代码检查点，仍不是 realtime 已跨 XPC，也不是完整 T3 验收。ABI 保持 2，App/XPC final 路由未改变。
+
+实现范围：
+
+- 将现有 Qwen segment/preview/final 状态机抽为 RealtimeEngine；接收 mono 16 kHz float 样本，使用 typed updated/segment/completed/failure event，不处理 JSON、base64、socket 或 XPC。
+- 保留 RealtimeSession 作为 HTTP adapter：原 manual-turn、PCM16/base64、session/error 字段、segment ID/final flag、event ID/index 和完成文本不改变。RealtimeConnection base 与 MOSS 的算法/adapter 均未修改。
+- 沿用实际 TranscriptionWorker 和原算法：两次尝试后使用前缀，回退 5 tokens；保留 preview cadence、leading silence、分段语言快照/推断语言继承、自动 cut、English/CJK 拼接及失败恢复。
+- 修复 preview 发布与 final 之间的原有竞争：worker 在 preview event 发布后才解除 refreshing，final/completed 不再抢到 preview 之前。新增 typed engine 的 Finish 只产生一次 completed，完成后不再接收新命令。
+- engine 持有独立 cancellation flag；HTTP adapter 共享其原 flag。Close 可与命令并行，等待活动 event sink 返回、抑制晚到事件，但不把取消当作 Native work 已 drain。同步等待的 Commit/Finish 使用同一状态 mutex 与取消唤醒，避免丢失 notification。
+- engine/HTTP callback 使用 weak ownership，不捕获已销毁 adapter 的裸指针。命令必须串行，event sink 不得抛错或重入命令（Close 除外）；worker/model 必须活到所有排队/运行 work drain 后。后续 Core ABI 必须实现资源 barrier，不能直接销毁借用的 model。
+- 验证 cadence/segment settings 的正数、有限值、换算溢出，避免除零/整数溢出；有效 settings 的原截断行为保留。
+
+验证：
+
+- 新增可独立复现的 CPU 合约 suite 与 README：14 项 HTTP recorded-baseline、14 项真实旧/新源码 live replay、14 项直接 float/typed engine，共 42 项；显式使用 scripted model/audio/Unicode/tokenizer/MLX 替身，不重写 production 源码。
+- baseline 取自 f2e2cf4 的真实 realtime.cpp/.h，记录并校验完整 public event、返回值和 decode inputs/options，只有随机 event ID 在验证格式后移除；不是手写模拟旧实现。无 baseline 源码时 14 项 live BEFORE replay 明确 skip，但 recorded AFTER 和 engine checks 仍运行。
+- 更新后 realtime 42 项 + ABI/实际 worker 22 项，GCC 64 项通过，Clang ASan/UBSan 同组 64 项通过。覆盖 Close 在不配合取消的 preview 仍阻塞时唤醒 Commit/Finish，以及之后释放/drain 不发布晚到 success。
+- 29 项 Voxt 工具测试、6 项 golden 工具单元测试、源码/lockfile 审计通过。全仓库 pre-commit 重跑通过；不把 CPU 合约、golden 工具单测或静态代码审查称作 GPU golden 已通过。
+- 两轮只读审查发现并修复 Close 的丢失唤醒；复查独立重跑 GCC 和 Clang sanitizer 各 64 项通过，在已说明的调用/借用生命周期契约下未发现具体剩余错误。
+- 已在现有 gated Mac CI 中添加 Core/realtime CPU 合约和 OmniXPCProtocolTests；使用 runtime build 已 provision 的 JSON headers，不在 test 中下载。没有启用 CI gate、签名发布、公证或任何生产 XPC routing；CI 本身仍待真实 runner 执行。
+
+下一检查点 T3b2：在该 engine 上实现 opaque realtime handle、model/session/request/event identity、有限音频/事件队列与 ACK/backpressure、poll/drain 或安全 callback 生命周期、finish/cancel/断连唯一终态，再接 Foundation XPC 和 ASRStreamingSession。真实 Mac signed smoke、模型 realtime/golden、HTTP/WebSocket 与 MOSS 回归必须补齐，才能将 T3 标为验收完成。
