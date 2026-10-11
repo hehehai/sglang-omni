@@ -2,7 +2,7 @@
 import Foundation
 
 public nonisolated enum OmniXPCProtocolLimits {
-    public static let abiVersion = 3
+    public static let abiVersion = 4
     public static let sampleRate = 16_000
     public static let maximumAudioSeconds = 30
     public static let maximumSampleCount = sampleRate * maximumAudioSeconds

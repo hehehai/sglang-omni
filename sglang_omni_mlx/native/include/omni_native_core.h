@@ -190,6 +190,114 @@ OMNI_CORE_EXPORT void omni_qwen_realtime_destroy(OmniQwenRealtime *session);
 OMNI_CORE_EXPORT void
 omni_qwen_realtime_event_free(OmniQwenRealtimeEvent *event);
 
+// ABI4: bounded Silero VAD, mono 16 kHz Float32. No callbacks or borrowed
+// outputs. All calls contain exceptions; errors are sanitized, optional, and
+// cleared first. Free old results/errors before reuse (omni_string_free).
+#define OMNI_SILERO_SAMPLE_RATE 16000
+#define OMNI_SILERO_FRAME_SAMPLES 512
+#define OMNI_SILERO_MAX_OFFLINE_SAMPLES 480000
+#define OMNI_SILERO_MAX_CHUNK_SAMPLES 32000
+#define OMNI_SILERO_MAX_STREAMS 16
+#define OMNI_SILERO_MAX_OPTION_MILLISECONDS 30000
+
+typedef struct OmniSileroHandle OmniSileroHandle;
+typedef struct OmniSileroRequest OmniSileroRequest;
+typedef struct OmniSileroStream OmniSileroStream;
+typedef struct OmniSileroSettings {
+  float threshold;
+  int32_t minimum_speech_milliseconds;
+  int32_t minimum_silence_milliseconds;
+  int32_t speech_padding_milliseconds;
+} OmniSileroSettings;
+typedef struct OmniSileroTimestamp {
+  int64_t start_sample;
+  int64_t end_sample;
+} OmniSileroTimestamp;
+typedef struct OmniSileroResult {
+  OmniSileroTimestamp *timestamps;
+  size_t timestamp_count;
+} OmniSileroResult;
+typedef struct OmniSileroStreamResult {
+  float *probabilities;
+  size_t probability_count;
+  uint64_t processed_sample_count;
+} OmniSileroStreamResult;
+
+// Synchronous, nonpreemptible config/weights load; NULL on failure. A dedicated
+// persistent worker owns the model and all native MLX stream states, including
+// their destruction. All inference is serialized; at most one command and its
+// bounded audio copy are queued/running per model. Call inputs stay valid until
+// return. Cancellation checks surround each 512-sample Feed, not GPU execution.
+OMNI_CORE_EXPORT OmniSileroHandle *
+omni_silero_create(const char *model_directory, char **error_message);
+// Sticky stop-admission/cancellation of offline and live stream work, not
+// drain. Repeated calls and NULL are safe; completed streams remain completed.
+OMNI_CORE_EXPORT void omni_silero_cancel(OmniSileroHandle *handle);
+// Cancel + drain. May overlap submitted operations; callers prevent new raw
+// model calls and synchronize stream creation with model destroy.
+// Live stream leases retain the worker/model until destroyed; never free early.
+// Destroy exactly once; NULL safe. Never call from the model worker.
+OMNI_CORE_EXPORT void omni_silero_destroy(OmniSileroHandle *handle);
+
+// Required single-use token; NULL on allocation failure. Consumed on the first
+// timestamp attempt, including invalid input/failure/cancellation. Cancellation
+// is durable before submission and independent of other requests/the model.
+OMNI_CORE_EXPORT OmniSileroRequest *omni_silero_request_create(void);
+OMNI_CORE_EXPORT void omni_silero_request_cancel(OmniSileroRequest *request);
+// Cancel without draining; submitted work retains cancellation ownership.
+// Synchronize raw token calls/destruction and prevent new calls after destroy.
+// Both token cancel/destroy are NULL safe; repeated cancel is safe.
+OMNI_CORE_EXPORT void omni_silero_request_destroy(OmniSileroRequest *request);
+// Returns 1/0 success/error. Settings/result required; result cleared first.
+// Finite threshold 0..1; all millisecond options 0..30000. Finite samples,
+// count 1..480000. Final partial frame is zero-padded; timestamps use real
+// sample positions bounded by input length. A fresh token reuses the model.
+OMNI_CORE_EXPORT int omni_silero_speech_timestamps(
+    OmniSileroHandle *handle, OmniSileroRequest *request, const float *samples,
+    size_t sample_count, const OmniSileroSettings *settings,
+    OmniSileroResult *result, char **error_message);
+OMNI_CORE_EXPORT void omni_silero_result_free(OmniSileroResult *result);
+
+// Independent stream state, no model load. At most 16 live leases, including
+// terminal/drained leases until destroyed. No session-total audio duration cap.
+OMNI_CORE_EXPORT OmniSileroStream *
+omni_silero_stream_create(OmniSileroHandle *handle, char **error_message);
+// Synchronous; returns 1/0 success/error. Sequence starts at 1. ACK and result
+// required, cleared first. Finite samples, count 1..32000. Invalid input,
+// sequence/bounds or pre-admission copy allocation failure leaves
+// state/sequence unchanged (retry allowed). Success ACK consumes sequence.
+// After admission, inference/output allocation failure or cancellation is
+// terminal: ACK may be zero but NEVER replay. Returned probabilities are finite
+// 0..1, at most ceil(chunk sample count / 512), with fewer than 512 pending
+// samples retained. processed_sample_count counts inferred whole frames in
+// samples (multiples of 512), not received audio. Counter/sequence overflow
+// rejects admission.
+OMNI_CORE_EXPORT int
+omni_silero_stream_push(OmniSileroStream *stream, uint64_t audio_sequence,
+                        const float *samples, size_t sample_count,
+                        uint64_t *accepted_audio_sequence,
+                        OmniSileroStreamResult *result, char **error_message);
+// Pads pending samples; returns 0/1 probabilities and final processed count.
+// Completed state is immutable: repeated finish succeeds with empty output and
+// the same count; push rejects. Cancelled/failed finish returns 0.
+OMNI_CORE_EXPORT int omni_silero_stream_finish(OmniSileroStream *stream,
+                                               OmniSileroStreamResult *result,
+                                               char **error_message);
+// Idempotent independent cancellation bypasses command serialization; no drain.
+OMNI_CORE_EXPORT void omni_silero_stream_cancel(OmniSileroStream *stream);
+// Requires completed/cancelled/failed; waits for commands and clears native MLX
+// state on the worker. Returns 1/0 drained/error. Never call from that worker.
+OMNI_CORE_EXPORT int omni_silero_stream_drain(OmniSileroStream *stream,
+                                              char **error_message);
+// Cancel + drain + release lease. Synchronize raw stream destruction against
+// all stream calls. Push/finish/drain serialize; cancel can overlap them.
+// A live lease after model destroy remains drainable, never accepts more audio.
+OMNI_CORE_EXPORT void omni_silero_stream_destroy(OmniSileroStream *stream);
+// Owned arrays only for nonempty successes. Both result free functions clear
+// all fields, are repeated/NULL safe; stream cancel/destroy are NULL safe too.
+OMNI_CORE_EXPORT void
+omni_silero_stream_result_free(OmniSileroStreamResult *result);
+
 #ifdef __cplusplus
 }
 #endif

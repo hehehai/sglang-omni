@@ -3,9 +3,9 @@
 
 #include <memory>
 #include <mutex>
-#include <string_view>
 #include <vector>
 
+#include "native_error.h"
 #include "worker.h"
 
 namespace omni_native {
@@ -21,9 +21,6 @@ struct ModelState {
 
   void Stop(bool drain);
 };
-
-char *CopyString(std::string_view string);
-void SetError(char **error_message, const char *message) noexcept;
 
 } // namespace omni_native
 

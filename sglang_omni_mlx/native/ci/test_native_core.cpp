@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Public ABI tests against the real worker and explicitly stubbed backend/MLX.
+#include "native_core_stubs/silero_backend.h"
 #include "omni_native_core.h"
 #include "transcriber.h"
 
@@ -18,15 +19,17 @@
 
 namespace omni_test {
 std::atomic<size_t> new_failure_byte_count{0};
-}
+std::atomic<bool> fail_next_new{false};
+} // namespace omni_test
 
 #ifdef OMNI_ABI_WRAP_MALLOC
 // Note (Codex): interposition also covers string copies inside the C++ runtime.
 void *operator new(size_t byte_count) {
   auto &failure_byte_count = omni_test::new_failure_byte_count;
   size_t expected_byte_count = byte_count;
-  if (byte_count != 0 &&
-      failure_byte_count.compare_exchange_strong(expected_byte_count, 0)) {
+  if (omni_test::fail_next_new.exchange(false) ||
+      (byte_count != 0 &&
+       failure_byte_count.compare_exchange_strong(expected_byte_count, 0))) {
     throw std::bad_alloc();
   } else {
     void *allocation = std::malloc(byte_count == 0 ? 1 : byte_count);
@@ -334,7 +337,7 @@ void ConcurrentRequests() {
 } // namespace
 
 int main(int argument_count, char **arguments) {
-  assert(argument_count == 2 && omni_core_abi_version() == 3);
+  assert(argument_count == 2 && omni_core_abi_version() == 4);
   const std::string test = arguments[1];
   if (test == "invalid_directories") {
     InvalidDirectories();
@@ -354,10 +357,25 @@ int main(int argument_count, char **arguments) {
     CancellationAndDestruction(true);
   } else if (test == "concurrent_requests") {
     ConcurrentRequests();
+  } else if (test.starts_with("silero_offline_")) {
+    omni_test::RunSileroOfflineCase(test);
+  } else if (test.starts_with("silero_stream_")) {
+    omni_test::RunSileroStreamCase(test);
+  } else if (test.starts_with("silero_lifecycle_")) {
+    omni_test::RunSileroLifecycleCase(test);
+  } else if (test.starts_with("silero_failure_")) {
+    omni_test::RunSileroFailureCase(test);
   } else if (test.starts_with("realtime_")) {
     omni_test::RunRealtimeCase(test);
   } else {
     omni_test::RunRequestCase(test);
+  }
+  if (test.starts_with("silero_")) {
+    const auto &backend = omni_test::SileroState();
+    assert(backend.load_count == backend.destruction_count);
+    assert(backend.live_array_count == 0 && backend.active_count == 0);
+    assert(backend.loading_thread == backend.destruction_thread);
+  } else {
   }
   std::cout << "PASS " << test << " (backend/MLX stubs; real native worker)\n";
 }
