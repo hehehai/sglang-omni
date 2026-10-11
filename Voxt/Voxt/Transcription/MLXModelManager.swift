@@ -168,6 +168,7 @@ class MLXModelManager: ObservableObject {
     func ensureModelDirectory(repo: String) async throws -> URL {
         guard !isShuttingDownForApplicationTermination else { throw CancellationError() }
         let canonicalRepo = Self.canonicalModelRepo(repo)
+        try checkDownloadAvailability(for: canonicalRepo)
         let installation = try await refreshInstallation(repo: canonicalRepo)
         if let modelDir = installation.directory {
             return modelDir
@@ -459,7 +460,23 @@ class MLXModelManager: ObservableObject {
         await performDownload(forRepo: modelRepo)
     }
 
+    private func checkDownloadAvailability(for repo: String) throws {
+        if repo == SileroVADModelSupport.repo {
+            return
+        } else if let unavailable = OmniASRBackend.unavailability(for: repo) {
+            throw unavailable
+        } else {
+            return
+        }
+    }
+
     private func performDownload(forRepo canonicalRepo: String) async {
+        do {
+            try checkDownloadAvailability(for: canonicalRepo)
+        } catch {
+            setState(.error(error.localizedDescription), for: canonicalRepo)
+            return
+        }
         if downloadTasksByRepo[canonicalRepo] != nil || deletingRepos.contains(canonicalRepo) { return }
         do {
             let installation = try await refreshInstallation(repo: canonicalRepo)
@@ -598,7 +615,12 @@ class MLXModelManager: ObservableObject {
     func loadModel() async throws -> LoadedASRModel {
         guard !isShuttingDownForApplicationTermination else { throw CancellationError() }
         guard !deletingRepos.contains(modelRepo) else { throw CancellationError() }
-        cancelIdleUnloadTask()
+        if modelLoadingOverride == nil, let unavailable = OmniASRBackend.unavailability(for: modelRepo) {
+            setState(.error(unavailable.localizedDescription), for: modelRepo)
+            throw unavailable
+        } else {
+            cancelIdleUnloadTask()
+        }
         if let model = loadedModel, loadedRepo == modelRepo {
             if let runtime = model.omniRuntime, await !runtime.isServing {
                 // The server died or was killed: start a new one rather than fail
@@ -808,9 +830,15 @@ class MLXModelManager: ObservableObject {
     private func loadSTTModel(for repo: String) async throws -> LoadedASRModel {
         if let modelLoadingOverride {
             return try await modelLoadingOverride(repo).loaded
+        } else if let unavailable = OmniASRBackend.unavailability(for: repo) {
+            throw unavailable
+        } else {
+            try Task.checkCancellation()
         }
-        try Task.checkCancellation()
-        let lower = repo.lowercased()
+        guard let kind = OmniASRBackend.nativeModelKind(for: repo),
+              let configuration = OmniASRBackend.configuration(for: kind) else {
+            throw OmniASRBackend.Unavailability.runtimeUnavailable
+        }
         let sourceModelDir: URL
         let installation = try await refreshInstallation(repo: repo)
         if let validDirectory = installation.directory {
@@ -839,43 +867,26 @@ class MLXModelManager: ObservableObject {
             )
         }
         try Task.checkCancellation()
-        if let kind = OmniASRBackend.modelKind(for: repo),
-           let configuration = OmniASRBackend.configuration(for: kind) {
-            // One server at a time: earlier runtimes stop before this one starts.
-            await omniLedger.waitForRetirements()
-            try Task.checkCancellation()
-            let runtime = OmniASRRuntime(kind: kind, modelDirectory: sourceModelDir, configuration: configuration)
-            omniLedger.track(runtime)
-            do {
-                let ledger = omniLedger
-                _ = try await withTaskCancellationHandler {
-                    try await runtime.prepare()
-                } onCancel: {
-                    // Every waiter left: stop the launch instead of finishing it.
-                    Task { @MainActor in ledger.release(runtime) }
-                }
-                try Task.checkCancellation()
-            } catch {
-                omniLedger.release(runtime)
-                throw error
+        // One server at a time: earlier runtimes stop before this one starts.
+        await omniLedger.waitForRetirements()
+        try Task.checkCancellation()
+        let runtime = OmniASRRuntime(kind: kind, modelDirectory: sourceModelDir, configuration: configuration)
+        omniLedger.track(runtime)
+        do {
+            let ledger = omniLedger
+            _ = try await withTaskCancellationHandler {
+                try await runtime.prepare()
+            } onCancel: {
+                // Every waiter left: stop the launch instead of finishing it.
+                Task { @MainActor in ledger.release(runtime) }
             }
-            VoxtLog.modelInfo("Omni ASR server ready. repo=\(repo), kind=\(kind.rawValue)")
-            return .omni(runtime)
+            try Task.checkCancellation()
+        } catch {
+            omniLedger.release(runtime)
+            throw error
         }
-        let modelDir = try await writableLoadDirectoryIfNeeded(
-            for: repo,
-            sourceDirectory: sourceModelDir,
-            lowercasedRepo: lower
-        )
-        let modelLoadTask = Task.detached(priority: .userInitiated) {
-            try await MLXSTTModelLoader.load(repo: repo, directory: modelDir)
-        }
-        let loaded = try await withTaskCancellationHandler {
-            try await modelLoadTask.value
-        } onCancel: {
-            modelLoadTask.cancel()
-        }
-        return loaded.loaded
+        VoxtLog.modelInfo("Omni ASR server ready. repo=\(repo), kind=\(kind.rawValue)")
+        return .omni(runtime)
     }
 
     private func writeCacheDirectory(for repo: String) -> URL? {
@@ -1109,6 +1120,7 @@ class MLXModelManager: ObservableObject {
     }
 
     private func performDownloadWithFallback(for repo: String) async throws -> URL {
+        try checkDownloadAvailability(for: repo)
         _ = try ModelStorageDirectoryManager.requireWriteRootURL()
         let selection = try await ModelDownloadSourceSelector.select(
             candidates: downloadSourceCandidates(),

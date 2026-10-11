@@ -1330,6 +1330,9 @@
 "Translation Model" = "翻译模型";
 "Translation will keep using the best compatible model automatically." = "翻译会继续自动使用最兼容的模型。";
 "Unavailable" = "不可用";
+"This model is temporarily unavailable while Native Omni support is being added. Choose another ASR model." = "此模型暂不可用，Native Omni 支持正在开发中。请选择其他语音识别模型。";
+"Local Native Omni models require Apple Silicon. Choose a Remote ASR provider or Direct Dictation." = "本地 Native Omni 模型需要 Apple Silicon。请选择远程语音识别服务或系统听写。";
+"The Native Omni runtime is unavailable. Reinstall Voxt or configure the development runtime." = "Native Omni 运行时不可用。请重新安装 Voxt 或配置开发运行时。";
 "Uninstall" = "卸载";
 "Usage" = "使用位置";
 "Use" = "使用";

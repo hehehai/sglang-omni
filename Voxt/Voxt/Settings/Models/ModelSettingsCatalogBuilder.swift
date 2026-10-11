@@ -276,6 +276,10 @@ struct ModelCatalogBuilder {
             featureSettings.rewrite.llmSelectionID == selectionID {
             labels.append(localizedModelCatalog("Rewrite"))
         }
+        if featureSettings.meeting.asrSelectionID == selectionID ||
+            featureSettings.meeting.summaryModelSelectionID == selectionID {
+            labels.append(localizedModelCatalog("Meeting"))
+        }
         return labels
     }
 

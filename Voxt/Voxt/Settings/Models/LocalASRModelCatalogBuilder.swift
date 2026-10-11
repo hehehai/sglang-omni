@@ -56,7 +56,7 @@ extension ModelCatalogBuilder {
                 ratingText: MLXModelManager.ratingText(for: repo),
                 filterTags: decoration.filterTags,
                 displayTags: decoration.displayTags,
-                statusText: installSnapshot.statusText,
+                statusText: OmniASRBackend.unavailabilityReason(for: repo) ?? installSnapshot.statusText,
                 usageLocations: decoration.usageLocations,
                 badgeText: installSnapshot.badgeText ?? ModelCatalogBadgeSupport.recommendedBadgeText(forMLXRepo: repo),
                 primaryAction: catalogPrimaryAction(installSnapshot),

@@ -44,7 +44,7 @@ extension ModelSettingsView {
             state: state,
             isInstalled: catalogSnapshot.isDownloaded,
             isCurrentSelection: isCurrentModel(canonicalRepo),
-            statusText: mlxInstallStatusText(
+            statusText: OmniASRBackend.unavailabilityReason(for: canonicalRepo) ?? mlxInstallStatusText(
                 for: catalogSnapshot,
                 isUninstalling: isUninstalling,
                 isCancelling: isCancellationPending(for: target)

@@ -61,14 +61,22 @@ extension ModelSettingsView {
                 .font(.subheadline.weight(.medium))
 
             HStack(alignment: .center, spacing: 12) {
-                SettingsMenuPicker(
-                    selection: $modelRepo,
-                    options: mlxModelManager.displayModelsIncludingInstalled().map { model in
-                        SettingsMenuOption(value: model.id, title: model.title)
-                    },
-                    selectedTitle: mlxModelManager.displayTitle(for: modelRepo),
-                    width: 260
-                )
+                Menu {
+                    ForEach(mlxModelManager.displayModelsIncludingInstalled()) { model in
+                        let reason = OmniASRBackend.unavailabilityReason(for: model.id)
+                        Button(reason.map { "\(model.title) · \($0)" } ?? model.title) {
+                            guard reason == nil else { return }
+                            useModel(model.id)
+                        }
+                        .disabled(reason != nil)
+                    }
+                } label: {
+                    Text(mlxModelManager.displayTitle(for: modelRepo))
+                        .lineLimit(1)
+                }
+                .menuStyle(.borderlessButton)
+                .frame(width: 260)
+                .settingsFieldSurface()
 
                 Spacer()
 
@@ -78,7 +86,7 @@ extension ModelSettingsView {
                 .buttonStyle(SettingsPillButtonStyle())
             }
 
-            Text(modelLocalizedDescription(for: modelRepo))
+            Text(OmniASRBackend.unavailabilityReason(for: modelRepo) ?? modelLocalizedDescription(for: modelRepo))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

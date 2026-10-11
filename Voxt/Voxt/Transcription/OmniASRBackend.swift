@@ -19,9 +19,8 @@ nonisolated enum LoadedASRModel: @unchecked Sendable {
 
 /// Which checkpoints run on the local Omni server, fixed per process.
 ///
-/// Only the listed checkpoints are eligible; every other model keeps its Swift
-/// backend. The choice is read once so a running process never switches the
-/// backend of a checkpoint.
+/// Only the listed checkpoints are eligible. Other models remain in the
+/// catalog but cannot load while Native support is pending.
 nonisolated enum OmniASRBackend {
     static let modelKindsByRepo: [String: OmniASRModelKind] = [
         "mlx-community/Qwen3-ASR-0.6B-4bit": .qwen3ASR,
@@ -33,6 +32,52 @@ nonisolated enum OmniASRBackend {
         "beshkenadze/cohere-transcribe-03-2026-mlx-fp16": .cohereTranscribe,
         "OpenMOSS-Team/MOSS-Transcribe-Diarize": .mossTranscribeDiarize,
     ]
+
+    static var isAppleSilicon: Bool {
+#if arch(arm64)
+        true
+#else
+        false
+#endif
+    }
+
+    enum Unavailability: Error, LocalizedError, Equatable, Sendable {
+        case unsupportedModel
+        case unsupportedPlatform
+        case runtimeUnavailable
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedModel:
+                return AppLocalization.localizedString("This model is temporarily unavailable while Native Omni support is being added. Choose another ASR model.")
+            case .unsupportedPlatform:
+                return AppLocalization.localizedString("Local Native Omni models require Apple Silicon. Choose a Remote ASR provider or Direct Dictation.")
+            case .runtimeUnavailable:
+                return AppLocalization.localizedString("The Native Omni runtime is unavailable. Reinstall Voxt or configure the development runtime.")
+            }
+        }
+    }
+
+    static func nativeModelKind(for repo: String) -> OmniASRModelKind? {
+        modelKindsByRepo[MLXModelCatalog.canonicalModelRepo(repo)]
+    }
+
+    static func unavailability(
+        for repo: String,
+        isAppleSilicon: Bool = OmniASRBackend.isAppleSilicon
+    ) -> Unavailability? {
+        if !isAppleSilicon {
+            return .unsupportedPlatform
+        } else if nativeModelKind(for: repo) == nil {
+            return .unsupportedModel
+        } else {
+            return nil
+        }
+    }
+
+    static func unavailabilityReason(for repo: String) -> String? {
+        unavailability(for: repo)?.errorDescription
+    }
 
     static let launchSettings: LaunchSettings? = LaunchSettings(
         environment: ProcessInfo.processInfo.environment,
@@ -72,7 +117,7 @@ nonisolated enum OmniASRBackend {
 
     static func modelKind(for repo: String) -> OmniASRModelKind? {
         guard launchSettings != nil else { return nil }
-        return modelKindsByRepo[repo]
+        return nativeModelKind(for: repo)
     }
 
     /// Returns whether the checkpoint is assigned to the Omni runtime.
@@ -81,7 +126,7 @@ nonisolated enum OmniASRBackend {
     /// process having a packaged runtime available.
     static func usesOmniRuntime(for repo: String) -> Bool {
 #if arch(arm64)
-        modelKindsByRepo[repo] != nil
+        nativeModelKind(for: repo) != nil
 #else
         false
 #endif

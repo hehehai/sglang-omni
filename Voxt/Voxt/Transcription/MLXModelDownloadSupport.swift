@@ -60,7 +60,7 @@ enum MLXModelDownloadSupport {
     /// the Omni runtime also loads from weights.npz, the only weights some
     /// mlx-community repos ship.
     nonisolated static func weightExtensions(for repo: String?) -> Set<String> {
-        guard let repo, OmniASRBackend.modelKind(for: repo) == .whisper else { return ["safetensors"] }
+        guard let repo, OmniASRBackend.nativeModelKind(for: repo) == .whisper else { return ["safetensors"] }
         return ["safetensors", "npz"]
     }
 

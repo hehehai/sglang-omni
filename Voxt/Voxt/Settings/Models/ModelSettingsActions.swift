@@ -177,12 +177,14 @@ extension ModelSettingsView {
     }
 
     func useModel(_ repo: String) {
+        guard OmniASRBackend.unavailabilityReason(for: repo) == nil else { return }
         let canonicalRepo = MLXModelManager.canonicalModelRepo(repo)
         modelRepo = canonicalRepo
         mlxModelManager.updateModel(repo: canonicalRepo)
     }
 
     func downloadModel(_ repo: String) {
+        guard OmniASRBackend.unavailabilityReason(for: repo) == nil else { return }
         clearPresentedModelError(targetID: "mlx:\(MLXModelManager.canonicalModelRepo(repo))")
         Task {
             await mlxModelManager.downloadModel(repo: repo)

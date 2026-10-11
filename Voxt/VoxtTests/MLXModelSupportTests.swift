@@ -5,6 +5,12 @@ import XCTest
 @testable import Voxt
 
 final class MLXModelSupportTests: XCTestCase {
+    func testWhisperInstalledWeightFormatsDoNotDependOnRuntimeDiscovery() {
+        XCTAssertEqual(MLXModelDownloadSupport.weightExtensions(for: "mlx-community/whisper-small-mlx"), ["safetensors", "npz"])
+        XCTAssertEqual(MLXModelDownloadSupport.weightExtensions(for: "mlx-community/whisper-base-mlx"), ["safetensors", "npz"])
+        XCTAssertEqual(MLXModelDownloadSupport.weightExtensions(for: MLXModelManager.defaultModelRepo), ["safetensors"])
+    }
+
     func testDownloadValidationSizeIsBoundToRequestedRepo() throws {
         let smallRepo = "mlx-community/Qwen3-ASR-0.6B-4bit"
         let largeRepo = "beshkenadze/cohere-transcribe-03-2026-mlx-fp16"
@@ -39,41 +45,41 @@ final class MLXModelSupportTests: XCTestCase {
     }
 
     func testRealtimeCapabilityUsesCanonicalizedRepo() {
-        XCTAssertFalse(
-            MLXModelCatalog.isRealtimeCapableModelRepo("mlx-community/Voxtral-Mini-4B-Realtime-2602")
-        )
-        XCTAssertFalse(
-            MLXModelCatalog.isRealtimeCapableModelRepo("mlx-community/Voxtral-Mini-4B-Realtime-6bit")
-        )
-        XCTAssertFalse(
-            MLXModelCatalog.isRealtimeCapableModelRepo("mlx-community/Qwen3-ASR-0.6B-4bit")
-        )
+        for repo in [
+            "mlx-community/Voxtral-Mini-4B-Realtime-2602",
+            "mlx-community/Voxtral-Mini-4B-Realtime-6bit",
+            "mlx-community/Qwen3-ASR-0.6B-4bit",
+        ] {
+            XCTAssertEqual(MLXModelCatalog.isRealtimeCapableModelRepo(repo), OmniASRBackend.isAppleSilicon)
+        }
+        XCTAssertFalse(MLXModelCatalog.isRealtimeCapableModelRepo("mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit"))
+        XCTAssertFalse(MLXModelCatalog.isRealtimeCapableModelRepo("beshkenadze/cohere-transcribe-03-2026-mlx-fp16"))
     }
 
     func testLiveModeUsesNativeSessionForSupportedRealtimeFamilies() {
         XCTAssertEqual(
             MLXModelCatalog.liveMode(for: "mlx-community/Qwen3-ASR-0.6B-4bit"),
-            .nativeQwenLive
+            OmniASRBackend.isAppleSilicon ? .nativeQwenLive : .batchPreview
         )
         XCTAssertEqual(
             MLXModelCatalog.liveMode(for: "mlx-community/Qwen3-ASR-1.7B-6bit"),
-            .nativeQwenLive
+            OmniASRBackend.isAppleSilicon ? .nativeQwenLive : .batchPreview
         )
         XCTAssertEqual(
             MLXModelCatalog.liveMode(for: "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit"),
-            .nativeNemotronLive
+            .batchPreview
         )
         XCTAssertEqual(
             MLXModelCatalog.liveMode(for: "beshkenadze/cohere-transcribe-03-2026-mlx-fp16"),
-            .nativeStreamingLive
+            .batchPreview
         )
         XCTAssertEqual(
             MLXModelCatalog.liveMode(for: "OpenMOSS-Team/MOSS-Transcribe-Diarize"),
-            .nativeStreamingLive
+            OmniASRBackend.isAppleSilicon ? .nativeStreamingLive : .batchPreview
         )
         XCTAssertEqual(
             MLXModelCatalog.liveMode(for: "mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit"),
-            .nativeQwenLive
+            OmniASRBackend.isAppleSilicon ? .nativeQwenLive : .batchPreview
         )
     }
 

@@ -172,6 +172,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
     /// mic startup. Does not change UI or session lifecycle — load is shared with later
     /// `loadModel()` calls via the model manager coordinator.
     func prewarmModelForUpcomingSession() {
+        guard OmniASRBackend.unavailability(for: modelManager.currentModelRepo) == nil else { return }
         guard modelManager.currentTranscriptionBehavior.preloadsOnRecordingStart else {
             return
         }
@@ -206,8 +207,12 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
     @discardableResult
     func startRecordingSession() async -> String? {
         guard !isRecording else { return nil }
-
-        cancelActiveTasks()
+        if let reason = OmniASRBackend.unavailabilityReason(for: modelManager.currentModelRepo) {
+            discardPreparedSessionModelUse()
+            return reason
+        } else {
+            cancelActiveTasks()
+        }
         removeCompletedAudioArchiveIfNeeded()
         resetTransientState()
         sessionRevision += 1

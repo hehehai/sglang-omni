@@ -105,8 +105,31 @@ final class OmniASRRuntimeLaunchTests: XCTestCase {
         XCTAssertFalse(OmniASRBackend.usesOmniRuntime(for: "mlx-community/parakeet-tdt-0.6b-v3"))
     }
 
-    /// Every Qwen3-ASR checkpoint the native runtime is checked against runs on it;
-    /// other sizes and quantizations keep the Swift backend.
+    func testNativeAvailabilityRejectsUnsupportedCheckpointsWithoutFamilyInference() {
+        for repo in [
+            "mlx-community/parakeet-tdt-0.6b-v3",
+            "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
+            "mlx-community/SenseVoiceSmall",
+            "mlx-community/Qwen3-ASR-1.7B-3bit",
+            "unknown/model",
+        ] {
+            XCTAssertEqual(OmniASRBackend.unavailability(for: repo, isAppleSilicon: true), .unsupportedModel)
+        }
+        for repo in OmniASRBackend.modelKindsByRepo.keys {
+            XCTAssertNil(OmniASRBackend.unavailability(for: repo, isAppleSilicon: true))
+            XCTAssertEqual(OmniASRBackend.unavailability(for: repo, isAppleSilicon: false), .unsupportedPlatform)
+        }
+    }
+
+    func testNativeAvailabilityCanonicalizesLegacyAliases() {
+        XCTAssertEqual(OmniASRBackend.nativeModelKind(for: "mlx-community/whisper-base-mlx"), .whisper)
+        XCTAssertEqual(
+            OmniASRBackend.unavailability(for: "mlx-community/Parakeet-0.6B", isAppleSilicon: true),
+            .unsupportedModel
+        )
+    }
+
+    /// Only the checkpoints validated against the native runtime are eligible.
     func testQwen3ASRCheckpointsWithGoldenOutputsRunOnTheNativeRuntime() {
         XCTAssertEqual(OmniASRBackend.modelKindsByRepo.filter { $0.value == .qwen3ASR }, [
             "mlx-community/Qwen3-ASR-0.6B-4bit": .qwen3ASR,

@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-所有下列任务均待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0 的实现和验证进展见第 13 节，其余任务待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -471,4 +471,45 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 - 打包：真实签名 App 在无 Python/uv/开发环境变量的机器运行 XPC 与 Metal；测 App/XPC/MLX/模型体积、首次加载、preview 延迟、峰值内存与长会议内存趋势。
 - CI：继续跑 HTTP Native golden/API，再新增 XPC 契约与真实签名 packaged-app smoke。unsigned build 和 codesign verify 都不能单独代替运行验证。
 
-本轮仅在 Linux 环境完成文档和源码静态核对，没有执行 Xcode、XPC、签名或模型回放。第 10、11 节的本机验证记录为原分支历史证据，应在执行 T2/T7 时针对新的提交与产物重新验证。
+第 10、11 节的本机验证记录为原分支历史证据，应在执行 T2/T7 时针对新的提交与产物重新验证。当前各阶段的实际验证范围见第 13 节。
+
+## 13. 实施与验证记录
+
+### T0：Native ASR 能力门禁
+
+状态：代码实现与 Linux 检查完成，macOS App 构建/运行验收待补。不将此阶段视作 XPC 或 MLX Audio 依赖移除完成。
+
+实现范围：
+
+- 保留完整 ASR catalog 和暂不可用模型的已下载文件；Native eligibility 与 catalog membership 分离，保存/读取 feature 设置不会将 Parakeet、Nemotron、SenseVoice 改为默认模型或云端。
+- 所有实际 ASR 加载必须进入 Native runtime；runtime 缺失或开发配置关闭 Native 时返回明确错误，移除生产 Swift loader fallthrough。既有测试注入 loader 仅用于生命周期测试。
+- 下载、恢复下载、模型选择、录音启动、会议和文件导入加入门禁；设置、引导、调试和 feature selector 显示禁用原因，保留取消、卸载与目录查看。
+- Qwen/MOSS 的 Native live 能力与 Whisper/Cohere 的 batch preview 分开；Cohere 不再显示 Native realtime 标签，Nemotron 不再创建 live session。
+- Whisper 的 npz 权重识别不再依赖 runtime 发现，保证未配置 runtime/Intel 环境仍能管理已下载数据。
+- 保留本地 LLM、Remote ASR/LLM 与辅助 VAD 的既有路径；VAD/Sortformer 的 Swift 依赖在 T4/T6 处理。
+
+已执行：
+
+- git diff --check：通过。
+- pre-commit run --all-files：通过；pre-commit 与 Rust 检查工具安装在仓库外的临时目录，没有修改项目依赖或跳过 hook。
+- Swift 6.2.3 frontend parse：当前阶段修改的 Swift 文件全部通过语法检查。
+- 实际 catalog、Native backend、RecordingStartPlanner 和安装 action resolver 源码的 Linux 隔离 harness：69 项断言通过；外部 MLX/SwiftUI/Hub 和资源依赖使用 stub，仅证明这些策略代码的编译及行为，不证明完整 App 或 GPU 推理通过。
+- python3 -m unittest discover -s Voxt/tools -p 'test_*.py'：20 项现有工具测试通过。
+- 在 Voxt 目录运行 tools/audit_model_stack.py 的源码审计与 --resolved lockfile 审计：均通过；未做实际 App/link map 产物审计。
+- 分工：主线程负责 runtime/执行边界，subagent 负责 UI/设置；另行做只读入口审查和最终 diff 审查。已补充入口审查指出的录音/文件导入与权重识别遗漏；最终审查未发现具体代码错误，不代表 macOS 编译或运行验证通过。
+
+macOS 待执行的验收：
+
+```bash
+xcodebuild build -project Voxt/Voxt.xcodeproj -scheme Voxt \
+  -configuration TestDebug -destination 'platform=macOS,arch=arm64' \
+  CODE_SIGNING_ALLOWED=NO
+xcodebuild test -project Voxt/Voxt.xcodeproj -scheme Voxt \
+  -configuration TestDebug -destination 'platform=macOS,arch=arm64' \
+  CODE_SIGNING_ALLOWED=NO
+xcodebuild build -project Voxt/Voxt.xcodeproj -scheme Voxt \
+  -configuration TestDebug -destination 'platform=macOS,arch=x86_64' \
+  ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO
+```
+
+此外，在实际 App 中检查已有禁用模型配置、安装/恢复/选择禁用、卸载/查看目录、会议/文件/调试入口、Native runtime 缺失提示，以及 Remote 与本地 LLM 不受影响。T1 可在当前契约基础上继续拆除上层 Audio 类型；T2 必须在 Apple Silicon 上完成真实签名 XPC/Metal 验证，不能以 Linux 检查替代。

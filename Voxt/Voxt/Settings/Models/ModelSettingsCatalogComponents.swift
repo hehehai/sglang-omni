@@ -225,6 +225,7 @@ struct ModelCatalogRow: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
+                            .help(trimmedStatusText)
                     }
 
                     Spacer(minLength: 0)

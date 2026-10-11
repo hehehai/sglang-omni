@@ -66,15 +66,15 @@ extension ASRDebugModelOption {
             selectionID: selectionID,
             title: title,
             engine: subtitle,
-            sizeText: modelDebugLocalized("Ready"),
+            sizeText: modelDebugLocalized(isSelectable ? "Ready" : "Unavailable"),
             ratingText: "—",
-            filterTags: [locationTag, modelDebugLocalized("Installed"), modelDebugLocalized("Configured")],
-            displayTags: [locationTag, modelDebugLocalized("Installed")],
-            statusText: "",
+            filterTags: [locationTag] + (isInstalled ? [modelDebugLocalized("Installed"), modelDebugLocalized("Configured")] : []),
+            displayTags: [locationTag] + (isInstalled ? [modelDebugLocalized("Installed")] : []),
+            statusText: disabledReason ?? "",
             usageLocations: [],
             badgeText: nil,
-            isSelectable: true,
-            disabledReason: nil
+            isSelectable: isSelectable,
+            disabledReason: disabledReason
         )
     }
 }
@@ -205,6 +205,7 @@ final class ASRDebugViewModel: ObservableObject {
     private let mlxTranscriber: MLXTranscriber
     private let remoteTranscriber = RemoteASRTranscriber()
     private var toastDismissTask: Task<Void, Never>?
+    private var installationSubscription: AnyCancellable?
 
     init(appDelegate: AppDelegate) {
         let useMirror = UserDefaults.standard.bool(forKey: AppPreferenceKey.useHfMirror)
@@ -231,6 +232,14 @@ final class ASRDebugViewModel: ObservableObject {
         )
         refreshOptions()
         selectedModelID = preferredModelID()
+        installationSubscription = mlxModelManager.$installationRevision
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.refreshOptions()
+                }
+            }
     }
 
     func refreshOptions() {
@@ -241,9 +250,17 @@ final class ASRDebugViewModel: ObservableObject {
             mlxModelManager: mlxModelManager,
             remoteASRConfigurations: remoteConfigurations
         )
-        if !options.contains(where: { $0.id == selectedModelID }) {
-            selectedModelID = options.first?.id ?? ""
+        if selectedModelID.isEmpty {
+            selectedModelID = preferredModelID()
         }
+    }
+
+    var canRunSelectedModel: Bool {
+        options.first(where: { $0.id == selectedModelID })?.isSelectable == true
+    }
+
+    var selectedModelDisabledReason: String? {
+        options.first(where: { $0.id == selectedModelID })?.disabledReason
     }
 
     var selectedModelTitle: String {
@@ -294,8 +311,8 @@ final class ASRDebugViewModel: ObservableObject {
     }
 
     func generateSelectedClip() {
-        guard !options.isEmpty, options.contains(where: { $0.id == selectedModelID }) else {
-            showToast(modelDebugLocalized("No available model."))
+        guard canRunSelectedModel else {
+            showToast(selectedModelDisabledReason ?? modelDebugLocalized("No available model."))
             return
         }
         guard let clipItem = selectedClipItem else {
@@ -354,6 +371,10 @@ final class ASRDebugViewModel: ObservableObject {
     }
 
     private func startRecording() {
+        guard canRunSelectedModel else {
+            showToast(selectedModelDisabledReason ?? modelDebugLocalized("No available model."))
+            return
+        }
         do {
             try recorder.start()
             isRecording = true
@@ -396,6 +417,11 @@ final class ASRDebugViewModel: ObservableObject {
         source: ASRDebugResult.Source
     ) async {
         guard let option = options.first(where: { $0.id == selectedModelID }) else { return }
+        if let reason = option.disabledReason {
+            statusMessage = reason
+            showToast(reason)
+            return
+        }
         let needsInitialization = requiresInitialization(for: option)
         isRunning = true
         isModelInitializing = needsInitialization
