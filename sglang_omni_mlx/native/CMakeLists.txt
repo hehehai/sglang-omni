@@ -63,7 +63,8 @@ target_link_libraries(qwen3_asr PUBLIC mlx nlohmann_json::nlohmann_json pcre2-8-
   "-framework CoreFoundation")
 target_compile_options(qwen3_asr PUBLIC ${MLX_CXX_FLAGS} PRIVATE -Wall -Wextra)
 
-add_library(OmniCore SHARED src/native_core.cpp)
+add_library(OmniCore SHARED src/native_core.cpp src/native_realtime.cpp
+  src/native_realtime_state.cpp)
 target_include_directories(OmniCore PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include>")
@@ -81,7 +82,10 @@ if(APPLE)
   foreach(symbol omni_core_abi_version omni_qwen_create omni_qwen_transcribe
       omni_qwen_cancel omni_qwen_destroy omni_qwen_result_free omni_string_free
       omni_qwen_request_create omni_qwen_request_cancel omni_qwen_request_destroy
-      omni_qwen_transcribe_request)
+      omni_qwen_transcribe_request omni_qwen_realtime_create
+      omni_qwen_realtime_push omni_qwen_realtime_finish omni_qwen_realtime_poll
+      omni_qwen_realtime_cancel omni_qwen_realtime_drain omni_qwen_realtime_destroy
+      omni_qwen_realtime_event_free)
     target_link_options(OmniCore PRIVATE "LINKER:-exported_symbol,_${symbol}")
   endforeach()
 endif()

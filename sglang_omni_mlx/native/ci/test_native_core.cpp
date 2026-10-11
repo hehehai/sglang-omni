@@ -6,13 +6,47 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <future>
 #include <iostream>
 #include <limits>
+#include <new>
 #include <string>
 #include <vector>
+
+namespace omni_test {
+std::atomic<size_t> new_failure_byte_count{0};
+}
+
+#ifdef OMNI_ABI_WRAP_MALLOC
+// Note (Codex): interposition also covers string copies inside the C++ runtime.
+void *operator new(size_t byte_count) {
+  auto &failure_byte_count = omni_test::new_failure_byte_count;
+  size_t expected_byte_count = byte_count;
+  if (byte_count != 0 &&
+      failure_byte_count.compare_exchange_strong(expected_byte_count, 0)) {
+    throw std::bad_alloc();
+  } else {
+    void *allocation = std::malloc(byte_count == 0 ? 1 : byte_count);
+    if (allocation == nullptr) {
+      throw std::bad_alloc();
+    } else {
+      return allocation;
+    }
+  }
+}
+void *operator new[](size_t byte_count) { return ::operator new(byte_count); }
+void operator delete(void *allocation) noexcept { std::free(allocation); }
+void operator delete[](void *allocation) noexcept { std::free(allocation); }
+void operator delete(void *allocation, size_t) noexcept {
+  std::free(allocation);
+}
+void operator delete[](void *allocation, size_t) noexcept {
+  std::free(allocation);
+}
+#endif
 
 namespace {
 
@@ -300,7 +334,7 @@ void ConcurrentRequests() {
 } // namespace
 
 int main(int argument_count, char **arguments) {
-  assert(argument_count == 2 && omni_core_abi_version() == 2);
+  assert(argument_count == 2 && omni_core_abi_version() == 3);
   const std::string test = arguments[1];
   if (test == "invalid_directories") {
     InvalidDirectories();
@@ -320,6 +354,8 @@ int main(int argument_count, char **arguments) {
     CancellationAndDestruction(true);
   } else if (test == "concurrent_requests") {
     ConcurrentRequests();
+  } else if (test.starts_with("realtime_")) {
+    omni_test::RunRealtimeCase(test);
   } else {
     omni_test::RunRequestCase(test);
   }

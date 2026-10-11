@@ -57,7 +57,8 @@ public:
   RealtimeEngine(TranscriptionWorker &worker,
                  const Qwen3ASRTranscriber &transcriber,
                  RealtimeSettings settings, EventSink sink,
-                 CancelFlag cancel = NewCancelFlag());
+                 CancelFlag cancel = NewCancelFlag(),
+                 TranscriptionOptions base_options = {});
   ~RealtimeEngine();
 
   void UpdateLanguage(std::optional<std::string> language);
@@ -97,6 +98,10 @@ private:
   TranscriptionWorker &worker_;
   const Qwen3ASRTranscriber &transcriber_;
   const RealtimeSettings settings_;
+  const TranscriptionOptions base_options_;
+  // Note (OpenAI): failure reporting must not allocate after a refresh runs out
+  // of memory.
+  const RealtimeEvent failure_event_ = RealtimeFailure{};
   EventSink sink_;
   CancelFlag cancel_;
   std::recursive_mutex send_mutex_;

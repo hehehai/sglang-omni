@@ -80,9 +80,11 @@ std::string JoinTranscriptParts(const std::vector<std::string> &parts) {
 RealtimeEngine::RealtimeEngine(TranscriptionWorker &worker,
                                const Qwen3ASRTranscriber &transcriber,
                                RealtimeSettings settings, EventSink sink,
-                               CancelFlag cancel)
+                               CancelFlag cancel,
+                               TranscriptionOptions base_options)
     : worker_(worker), transcriber_(transcriber), settings_(settings),
-      sink_(std::move(sink)), cancel_(std::move(cancel)) {
+      base_options_(std::move(base_options)), sink_(std::move(sink)),
+      cancel_(std::move(cancel)), language_(base_options_.language) {
   if (settings_.decode_interval_samples <= 0 ||
       settings_.first_decode_samples <= 0 ||
       settings_.max_segment_samples <= 0) {
@@ -124,7 +126,7 @@ void RealtimeEngine::ReportDecodeFailure(std::exception_ptr error) {
   } catch (...) {
     std::cerr << "realtime decode failed\n";
   }
-  Send(RealtimeFailure{});
+  Send(failure_event_);
 }
 
 void RealtimeEngine::UpdateLanguage(std::optional<std::string> language) {
@@ -217,7 +219,7 @@ std::vector<float> RealtimeEngine::SegmentSamples(const Segment &segment,
 }
 
 TranscriptionOptions RealtimeEngine::DecodeOptions(Segment &segment) {
-  TranscriptionOptions options;
+  TranscriptionOptions options = base_options_;
   options.language = segment.language;
   const bool use_prefix = segment.decode_count >= kPrefixAfterRefreshCount &&
                           !segment.transcript.empty() &&
@@ -291,33 +293,42 @@ void RealtimeEngine::MaybeStartRefresh() {
           return;
         } else {
         }
-        std::optional<std::string> preview;
-        {
-          std::lock_guard<std::mutex> lock(self->mutex_);
-          if (result.has_value() && self->segment_.has_value() &&
-              self->segment_->segment_id == segment_id) {
-            self->ApplyResult(*self->segment_, *result);
-            if (result->text != self->segment_->last_text) {
-              self->segment_->last_text = result->text;
-              preview = result->text;
+        try {
+          std::optional<std::string> preview;
+          {
+            std::lock_guard<std::mutex> lock(self->mutex_);
+            if (result.has_value() && self->segment_.has_value() &&
+                self->segment_->segment_id == segment_id) {
+              self->ApplyResult(*self->segment_, *result);
+              if (result->text != self->segment_->last_text) {
+                self->segment_->last_text = result->text;
+                preview = result->text;
+              } else {
+              }
             } else {
             }
+          }
+          if (error) {
+            self->ReportDecodeFailure(error);
+          } else if (preview.has_value()) {
+            self->Send(RealtimeSegment{segment_id, *preview, false});
           } else {
           }
+          {
+            // Note (Codex): finalization must not overtake preview publication.
+            std::lock_guard<std::mutex> lock(self->mutex_);
+            self->refreshing_ = false;
+          }
+          self->refresh_done_.notify_all();
+          self->MaybeStartRefresh();
+        } catch (...) {
+          self->ReportDecodeFailure(std::current_exception());
+          {
+            std::lock_guard<std::mutex> lock(self->mutex_);
+            self->refreshing_ = false;
+          }
+          self->refresh_done_.notify_all();
         }
-        if (error) {
-          self->ReportDecodeFailure(error);
-        } else if (preview.has_value()) {
-          self->Send(RealtimeSegment{segment_id, *preview, false});
-        } else {
-        }
-        {
-          // Note (Codex): finalization must not overtake preview publication.
-          std::lock_guard<std::mutex> lock(self->mutex_);
-          self->refreshing_ = false;
-        }
-        self->refresh_done_.notify_all();
-        self->MaybeStartRefresh();
       });
 }
 

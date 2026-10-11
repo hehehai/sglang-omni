@@ -4,12 +4,16 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace mlx::core {
@@ -54,6 +58,9 @@ public:
 };
 
 std::optional<std::string> NormalizeLanguage(const std::string &language);
+bool IsUnicodeSpace(uint32_t code_point);
+std::vector<uint32_t> CodePoints(const std::string &text);
+std::string StripUnicodeWhitespace(const std::string &text);
 
 class Qwen3ASRTranscriber {
 public:
@@ -62,6 +69,8 @@ public:
   TranscriptionResult Transcribe(const std::vector<float> &samples,
                                  const TranscriptionOptions &options,
                                  const std::atomic<bool> &cancel) const;
+  std::pair<std::vector<int>, std::string>
+  RetainedPrefix(const std::string &text, int rollback_token_count) const;
 
 private:
   std::thread::id loading_thread_;
@@ -83,6 +92,11 @@ struct BackendState {
   bool cancellation_seen = false;
   bool return_language = true;
   bool return_empty_text = false;
+  bool ignores_cancellation = false;
+  std::deque<std::string> scripted_texts;
+  std::unordered_set<const qwen3_asr::Qwen3ASRTranscriber *> live_models;
+  std::vector<size_t> inference_sample_counts;
+  int prefix_count = 0;
   qwen3_asr::FinishReason finish_reason = qwen3_asr::FinishReason::kStop;
   int load_count = 0;
   int normalization_count = 0;
@@ -96,7 +110,11 @@ struct BackendState {
   qwen3_asr::TranscriptionOptions options;
 };
 
+extern std::atomic<size_t> new_failure_byte_count;
 __attribute__((visibility("default"))) BackendState &State();
 void RunRequestCase(const std::string &test);
+void RunRealtimeCase(const std::string &test);
+void RunRealtimeLifecycleCase(const std::string &test);
+void RunRealtimeQueueCase(const std::string &test);
 
 } // namespace omni_test

@@ -18,15 +18,9 @@
 #include <utility>
 #include <vector>
 
+#include "native_core_internal.h"
 #include "transcriber.h"
 #include "worker.h"
-
-struct OmniQwenHandle {
-  std::mutex mutex;
-  bool is_cancelled = false;
-  qwen3_asr::Qwen3ASRTranscriber *transcriber = nullptr;
-  std::unique_ptr<qwen3_asr::TranscriptionWorker> worker;
-};
 
 struct OmniQwenRequest {
   std::mutex mutex;
@@ -34,17 +28,15 @@ struct OmniQwenRequest {
   qwen3_asr::CancelFlag cancel = qwen3_asr::NewCancelFlag();
 };
 
-namespace {
+namespace omni_native {
 
-constexpr size_t MAXIMUM_SAMPLE_COUNT = 16000 * 30;
-constexpr int MAXIMUM_TOKEN_COUNT = 4096;
-
-char *CopyString(const std::string &string) {
+char *CopyString(std::string_view string) {
   char *copy = static_cast<char *>(std::malloc(string.size() + 1));
   if (copy == nullptr) {
     throw std::bad_alloc();
   } else {
-    std::memcpy(copy, string.c_str(), string.size() + 1);
+    std::memcpy(copy, string.data(), string.size());
+    copy[string.size()] = '\0';
     return copy;
   }
 }
@@ -61,9 +53,12 @@ void SetError(char **error_message, const char *message) noexcept {
   }
 }
 
-} // namespace
+} // namespace omni_native
 
-unsigned int omni_core_abi_version(void) { return 2; }
+using omni_native::CopyString;
+using omni_native::SetError;
+
+unsigned int omni_core_abi_version(void) { return 3; }
 
 OmniQwenHandle *omni_qwen_create(const char *model_directory,
                                  char **error_message) {
@@ -78,10 +73,11 @@ OmniQwenHandle *omni_qwen_create(const char *model_directory,
       return nullptr;
     } else {
       auto handle = std::make_unique<OmniQwenHandle>();
+      handle->state = std::make_shared<omni_native::ModelState>();
       // Note (Codex): Run retains load until worker exit; only that callback
       // owns the model, so its last release stays on the loading thread.
-      handle->worker = std::make_unique<qwen3_asr::TranscriptionWorker>(
-          [pointer = handle.get(),
+      handle->state->worker = std::make_unique<qwen3_asr::TranscriptionWorker>(
+          [pointer = handle->state.get(),
            directory = std::filesystem::path(model_directory),
            transcriber =
                std::shared_ptr<qwen3_asr::Qwen3ASRTranscriber>()]() mutable {
@@ -98,6 +94,9 @@ OmniQwenHandle *omni_qwen_create(const char *model_directory,
 }
 
 namespace {
+
+constexpr size_t MAXIMUM_SAMPLE_COUNT = 16000 * 30;
+constexpr int MAXIMUM_TOKEN_COUNT = 4096;
 
 int Transcribe(OmniQwenHandle *handle, OmniQwenRequest *request,
                const float *samples, size_t sample_count, const char *language,
@@ -135,8 +134,9 @@ int Transcribe(OmniQwenHandle *handle, OmniQwenRequest *request,
         SetError(error_message, "Invalid transcription input.");
         return 0;
       } else {
-        std::lock_guard<std::mutex> lock(handle->mutex);
-        if (handle->is_cancelled || cancel->load()) {
+        auto *const state = handle->state.get();
+        std::lock_guard<std::mutex> lock(state->mutex);
+        if (state->is_cancelled || cancel->load()) {
           throw qwen3_asr::TranscriptionCancelled();
         } else {
         }
@@ -161,8 +161,8 @@ int Transcribe(OmniQwenHandle *handle, OmniQwenRequest *request,
         future = promise->get_future();
         // Note (Codex): locks cover submission; afterwards only the future
         // is used, so model/token destruction cannot invalidate caller state.
-        handle->worker->Submit(
-            [transcriber = handle->transcriber,
+        state->worker->Submit(
+            [transcriber = state->transcriber,
              audio_samples =
                  std::vector<float>(samples, samples + sample_count),
              options = std::move(options)](const std::atomic<bool> &cancel) {
@@ -273,9 +273,7 @@ int omni_qwen_transcribe_request(OmniQwenHandle *handle,
 void omni_qwen_cancel(OmniQwenHandle *handle) {
   try {
     if (handle != nullptr) {
-      std::lock_guard<std::mutex> lock(handle->mutex);
-      handle->is_cancelled = true;
-      handle->worker->CancelAll();
+      handle->state->Stop(false);
     } else {
     }
   } catch (...) {
@@ -286,10 +284,7 @@ void omni_qwen_cancel(OmniQwenHandle *handle) {
 void omni_qwen_destroy(OmniQwenHandle *handle) {
   try {
     if (handle != nullptr) {
-      {
-        std::lock_guard<std::mutex> lock(handle->mutex);
-        handle->worker.reset();
-      }
+      handle->state->Stop(true);
       delete handle;
     } else {
     }

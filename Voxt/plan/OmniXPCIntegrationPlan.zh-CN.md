@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2 的 realtime C ABI/XPC 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI；T3b2b XPC realtime 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -636,4 +636,29 @@ bash Voxt/tools/run_omni_xpc_smoke.sh \
 - 两轮只读审查发现并修复 Close 的丢失唤醒；复查独立重跑 GCC 和 Clang sanitizer 各 64 项通过，在已说明的调用/借用生命周期契约下未发现具体剩余错误。
 - 已在现有 gated Mac CI 中添加 Core/realtime CPU 合约和 OmniXPCProtocolTests；使用 runtime build 已 provision 的 JSON headers，不在 test 中下载。没有启用 CI gate、签名发布、公证或任何生产 XPC routing；CI 本身仍待真实 runner 执行。
 
-下一检查点 T3b2：在该 engine 上实现 opaque realtime handle、model/session/request/event identity、有限音频/事件队列与 ACK/backpressure、poll/drain 或安全 callback 生命周期、finish/cancel/断连唯一终态，再接 Foundation XPC 和 ASRStreamingSession。真实 Mac signed smoke、模型 realtime/golden、HTTP/WebSocket 与 MOSS 回归必须补齐，才能将 T3 标为验收完成。
+后续 T3b2 拆成 Native C ABI 和 Foundation XPC 两个独立代码检查点，进展见下节。真实 Mac signed smoke、模型 realtime/golden、HTTP/WebSocket 与 MOSS 回归必须补齐，才能将 T3 标为验收完成。
+
+### T3b2a：Native realtime C ABI、背压与资源 drain
+
+状态：实现阶段完成，真实平台/模型验收未完成。Native Core ABI 升为 3，旧 final/result/request 函数和布局保留；App/service probe 与 smoke artifact 检查同步升级，必须一起重建，不能混用 ABI 2 artifact。没有新增 XPC realtime RPC，没有改变生产路由。
+
+实现范围：
+
+- 新增 opaque OmniQwenRealtime 与 create/push/finish/poll/cancel/drain/destroy/event_free；由已加载模型的实际 RealtimeEngine 产生 typed event，ABI 不传 JSON/socket 或裸 C callback。nonzero session identity、严格 audio sequence/ACK 和无 gap 的 event sequence 贯穿 owned poll output。
+- Native 参数覆盖语言/context/token budget，使用 kVoxtSwift、EOS/token-loop stopping；HTTP 构造的默认 options 不变。音频 chunk 最大 32000 samples，session admission 最大 480000 samples，非有限值/空/过量/重复/乱序输入被拒绝，不消耗序号。
+- 每个 session 事件队列最多 64 项，预留一个唯一 terminal；单个输出最多 64 KiB、排队字符串最多 4 MiB。背压拒绝未 admission 的 audio，不静默丢音频；已 admission 的处理失败通过 FAILED terminal 返回，ACK 不冒充推理成功。
+- 除 poll queue 外，限制 Core 常驻 committed transcript：最多 512 个 final segment，最多 64 KiB committed text（保守包含可能的连接空格）。即使消费者不断 poll，也不能绕过 session 内部文本/空段存储预算。
+- poll 的字符串由 ABI 单独拥有，event_free 清空、可重复调用；输出/错误在调用前清空，原 allocation 需调用者先 free。poll allocation failure 不弹出 head，重试不会丢事件。错误使用固定的 sanitized message，不泄露音频/文本/模型路径。
+- model state 与 realtime lease 共享所有权；model handle destroy 阻止 admission、取消并 drain session，不会提前销毁 engine 借用的 model/worker。已存活的 realtime handle 可保留模型直到最后一个 session destroy；最终 model 释放仍在 loading/worker thread。没有 realtime lease 时保留旧 shutdown 行为。
+- 取消绕过 push/finish command mutex；状态/队列/model 锁不在等待 worker/sink/join 时持有。drain 仅接受已 latched terminal，关闭 engine 后使用两次 completion barrier，覆盖 Close 与 worker callback 的晚到 refresh Submit，且 model cancel 不能使 barrier 提前跳过 completion。
+- 原异步 engine completion 的字符串 copy/后续 refresh allocation failure 现已捕获、发布预分配 failure event、清理 refreshing 并唤醒 waiter；不会让异常越过 worker completion 导致 std::terminate。
+
+验证：
+
+- 公共 ABI suite 扩到 43 项，含既有 22 项回归及 realtime identity/limits/options/ownership、预取消/活动/排队取消、finish/cancel、model cancel/destroy、poll allocation、queue terminal reserve、持续 poll 的 committed transcript 上限。
+- 特别加入 deterministic operator-new fault：预先构造的 model output 通过 move 返回，其 4098-byte preview copy 在 worker completion 内失败；验证 FAILED、drain、无晚到事件及后续 final 复用模型。此项和 malloc injection 在非 Linux 平台明确 skip。
+- ABI 43 项 + typed engine/真实旧新 HTTP replay 42 项，共 85 项，GCC 与 Clang ASan/UBSan 各通过。复查独立执行 ABI 两组 43 项、HTTP 42 项，在已说明的 raw-handle 同步与调用契约下未发现具体剩余问题；不是实际模型 golden。
+- Swift 导入并链接实际 ABI3/Core/worker/engine + model stub 的 smoke 通过：create/push/owned event/finish/drain/destroy；Foundation policy XCTest 24 项中 23 通过、1 case-insensitive filesystem 用例跳过。不是 macOS SDK/NSXPC 验证。
+- Voxt 工具 29 项、源码/lockfile 审计、frontend parse、smoke shell syntax 和全仓库 pre-commit 重跑通过。
+
+下一检查点 T3b2b：在 helper 内封装上述 realtime lease，接带 model/service/connection/session identity 的 NSXPC RPC、bounded poll/event ACK 和 ASRStreamingSession；取消/断连等待 drain 后才能卸载或允许 replacement，拒绝 stale cleanup 误伤新模型。完整签名 Mac smoke、Metal/model inference、HTTP/MOSS network/golden 及原 App/Intel 回归仍需验收。
