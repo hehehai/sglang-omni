@@ -132,7 +132,7 @@ class OmniXPCPackagingTests(unittest.TestCase):
         expected_sources = [
             "OmniInferenceService.swift", "main.swift", "QwenCoreModel.swift", "OmniFinalSessionEngine.swift",
             "OmniSessionLifecycle.swift", "QwenCoreRealtimeLease.swift", "OmniRealtimeSession.swift",
-            "OmniRealtimeSessionEngine.swift",
+            "OmniRealtimeSessionEngine.swift", "SileroCoreModel.swift", "OmniSileroInferenceEngine.swift",
         ]
         self.assertEqual(re.findall(r"/\* (\S+) in Sources \*/", sources), expected_sources)
         self.assertEqual({path.name for path in (ROOT / "OmniInference").glob("*.swift")}, set(expected_sources))
@@ -369,7 +369,7 @@ class OmniXPCPackagingTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_packaging_shell_and_embedded_python_parse(self) -> None:
-        for filename in ("embed_omni_xpc.sh", "build_omni_xpc_smoke.sh", "package_local_app.sh"):
+        for filename in ("embed_omni_xpc.sh", "build_omni_xpc_smoke.sh", "run_omni_xpc_smoke.sh", "package_local_app.sh"):
             script = ROOT / "tools" / filename
             result = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)

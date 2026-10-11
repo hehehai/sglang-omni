@@ -114,13 +114,13 @@ nonisolated extension OmniFinalSessionEngine {
                             return cancelled
                         }
                         if cancelled {
-                            reply(sessionID, Self.serviceInstanceID.uuidString, nil, nil, 0, false,
+                            reply(sessionID, OmniServiceIdentity.instanceID.uuidString, nil, nil, 0, false,
                                   OmniXPCFailure.error(.cancelled, "The final session was cancelled."))
                         } else if let result {
-                            reply(sessionID, Self.serviceInstanceID.uuidString, result.text, result.language,
+                            reply(sessionID, OmniServiceIdentity.instanceID.uuidString, result.text, result.language,
                                   result.generatedTokenCount, result.hitLengthLimit, nil)
                         } else {
-                            reply(sessionID, Self.serviceInstanceID.uuidString, nil, nil, 0, false, failure)
+                            reply(sessionID, OmniServiceIdentity.instanceID.uuidString, nil, nil, 0, false, failure)
                         }
                     } catch {
                         reply(nil, nil, nil, nil, 0, false, error as NSError)

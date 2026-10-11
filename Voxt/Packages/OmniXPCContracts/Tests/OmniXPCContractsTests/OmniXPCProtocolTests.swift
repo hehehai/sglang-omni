@@ -176,6 +176,70 @@ final class OmniXPCProtocolTests: XCTestCase {
         XCTAssertTrue(samples.allSatisfy { $0 == 0 })
     }
 
+    func testSharedAudioParserUsesLittleEndianFloat32WithoutASROptions() throws {
+        let audio = Data([0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80, 0x3E, 0x00, 0x00, 0x80, 0x3F])
+        let expected: [Float] = [-1, 0.25, 1]
+        XCTAssertEqual(try OmniXPCRequestValidation.audioSamples(audio: audio, maximumSampleCount: 3), expected)
+        XCTAssertEqual(
+            try OmniXPCRequestValidation.samples(audio: audio, language: nil, context: nil, maximumTokenCount: 1), expected
+        )
+        var unaligned = Data([0xFF])
+        unaligned.append(audio)
+        XCTAssertEqual(try OmniXPCRequestValidation.audioSamples(audio: unaligned.dropFirst(), maximumSampleCount: 3), expected)
+    }
+
+    func testSharedAudioParserPreservesFiniteFloat32BitPatterns() throws {
+        let samples: [Float] = [0, -0.0, .leastNonzeroMagnitude, -.leastNonzeroMagnitude, .greatestFiniteMagnitude]
+        let decoded = try OmniXPCRequestValidation.audioSamples(audio: encoded(samples), maximumSampleCount: samples.count)
+        XCTAssertEqual(decoded.map(\.bitPattern), samples.map(\.bitPattern))
+    }
+
+    func testSharedAudioParserRejectsInvalidLimitsWithoutIntegerOverflow() {
+        for maximumSampleCount in [Int.min, -1, 0, OmniXPCProtocolLimits.maximumSampleCount + 1, Int.max] {
+            XCTAssertThrowsError(try OmniXPCRequestValidation.audioSamples(audio: encoded([0]), maximumSampleCount: maximumSampleCount)) { error in
+                XCTAssertEqual((error as NSError).domain, "Voxt.Omni.XPC")
+                XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.invalidRequest.rawValue)
+            }
+        }
+    }
+
+    func testSharedAudioParserRejectsByteAndFiniteViolations() {
+        for audio in [Data(), Data([0, 0, 0]), encoded([0, 0]), encoded([.nan]), encoded([.infinity]), encoded([-.infinity])] {
+            XCTAssertThrowsError(try OmniXPCRequestValidation.audioSamples(audio: audio, maximumSampleCount: 1)) { error in
+                XCTAssertEqual((error as NSError).domain, "Voxt.Omni.XPC")
+                XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.invalidRequest.rawValue)
+            }
+        }
+        XCTAssertThrowsError(try OmniXPCRequestValidation.audioSamples(
+            audio: Data(count: OmniXPCProtocolLimits.maximumAudioByteCount + 4),
+            maximumSampleCount: OmniXPCProtocolLimits.maximumSampleCount
+        ))
+    }
+
+    func testSharedAudioParserAcceptsInclusiveSampleLimits() throws {
+        for maximumSampleCount in [1, OmniXPCProtocolLimits.maximumSampleCount] {
+            let decoded = try OmniXPCRequestValidation.audioSamples(
+                audio: Data(count: maximumSampleCount * MemoryLayout<UInt32>.size), maximumSampleCount: maximumSampleCount
+            )
+            XCTAssertEqual(decoded.count, maximumSampleCount)
+            XCTAssertTrue(decoded.allSatisfy { $0 == 0 })
+        }
+    }
+
+    func testQwenAudioParserStillValidatesOptionsBeforeAudio() {
+        XCTAssertThrowsError(try OmniXPCRequestValidation.samples(audio: Data(), language: nil, context: nil, maximumTokenCount: 0)) { error in
+            XCTAssertEqual((error as NSError).domain, "Voxt.Omni.XPC")
+            XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.invalidRequest.rawValue)
+            XCTAssertEqual(error.localizedDescription, "The XPC transcription options exceed validation limits.")
+        }
+        XCTAssertThrowsError(try OmniXPCRequestValidation.samples(audio: Data(), language: nil, context: nil, maximumTokenCount: 1)) { error in
+            XCTAssertEqual(error.localizedDescription, "The XPC audio message exceeds validation limits.")
+        }
+        XCTAssertThrowsError(try OmniXPCRequestValidation.samples(audio: encoded([.nan]), language: nil, context: nil, maximumTokenCount: 1)) { error in
+            XCTAssertEqual(error.localizedDescription, "Audio samples must be finite Float32 values.")
+        }
+    }
+
     func testFinalSessionRequiresSequentialChunksAndDoesNotReplayRejectedAudio() throws {
         var session = try makeFinalSession()
         XCTAssertThrowsError(try session.append(audio: encoded([9]), sequence: 0))

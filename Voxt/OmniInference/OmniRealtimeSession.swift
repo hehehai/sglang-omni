@@ -127,7 +127,7 @@ nonisolated final class OmniRealtimeSession: @unchecked Sendable {
 
     private func encode(events: [OmniXPCRealtimeEvent], isDrained: Bool) throws -> Data {
         try OmniXPCRealtimeCodec.encode(OmniXPCRealtimeBatch(
-            sessionID: sessionID, modelID: modelID, serviceInstanceID: OmniFinalSessionEngine.serviceInstanceID,
+            sessionID: sessionID, modelID: modelID, serviceInstanceID: OmniServiceIdentity.instanceID,
             events: events, isDrained: isDrained
         ))
     }

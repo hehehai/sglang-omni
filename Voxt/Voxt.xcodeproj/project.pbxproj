@@ -34,6 +34,8 @@
 		A0BD00000000000000000022 /* OmniRealtimeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000012 /* OmniRealtimeSession.swift */; };
 		A0BD00000000000000000023 /* OmniRealtimeSessionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */; };
 		A0BE00000000000000000003 /* OmniModelArtifacts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BE00000000000000000002 /* OmniModelArtifacts */; };
+		A0BF00000000000000000020 /* SileroCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BF00000000000000000010 /* SileroCoreModel.swift */; };
+		A0BF00000000000000000021 /* OmniSileroInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +89,8 @@
 		A0BD00000000000000000011 /* QwenCoreRealtimeLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenCoreRealtimeLease.swift; sourceTree = "<group>"; };
 		A0BD00000000000000000012 /* OmniRealtimeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniRealtimeSession.swift; sourceTree = "<group>"; };
 		A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniRealtimeSessionEngine.swift; sourceTree = "<group>"; };
+		A0BF00000000000000000010 /* SileroCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SileroCoreModel.swift; sourceTree = "<group>"; };
+		A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroInferenceEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -290,6 +294,8 @@
 				A0BD00000000000000000011 /* QwenCoreRealtimeLease.swift */,
 				A0BD00000000000000000012 /* OmniRealtimeSession.swift */,
 				A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */,
+				A0BF00000000000000000010 /* SileroCoreModel.swift */,
+				A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */,
 				A0BC00000000000000000024 /* Info.plist */,
 				A0BC00000000000000000025 /* OmniInference.entitlements */,
 				A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */,
@@ -515,6 +521,8 @@
 				A0BD00000000000000000021 /* QwenCoreRealtimeLease.swift in Sources */,
 				A0BD00000000000000000022 /* OmniRealtimeSession.swift in Sources */,
 				A0BD00000000000000000023 /* OmniRealtimeSessionEngine.swift in Sources */,
+				A0BF00000000000000000020 /* SileroCoreModel.swift in Sources */,
+				A0BF00000000000000000021 /* OmniSileroInferenceEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

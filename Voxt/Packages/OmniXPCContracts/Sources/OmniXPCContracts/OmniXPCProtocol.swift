@@ -139,7 +139,12 @@ public nonisolated enum OmniXPCRequestValidation {
 
     public static func samples(audio: Data, language: String?, context: String?, maximumTokenCount: Int) throws -> [Float] {
         try options(language: language, context: context, maximumTokenCount: maximumTokenCount)
-        guard !audio.isEmpty, audio.count <= OmniXPCProtocolLimits.maximumAudioByteCount,
+        return try audioSamples(audio: audio, maximumSampleCount: OmniXPCProtocolLimits.maximumSampleCount)
+    }
+
+    public static func audioSamples(audio: Data, maximumSampleCount: Int) throws -> [Float] {
+        guard (1...OmniXPCProtocolLimits.maximumSampleCount).contains(maximumSampleCount),
+              !audio.isEmpty, audio.count <= maximumSampleCount * MemoryLayout<UInt32>.size,
               audio.count % MemoryLayout<UInt32>.size == 0 else {
             throw OmniXPCFailure.error(.invalidRequest, "The XPC audio message exceeds validation limits.")
         }
@@ -163,6 +168,16 @@ public nonisolated enum OmniXPCRequestValidation {
         withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
     )
     func unloadQwen(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func loadSilero(
+        operationID: String, modelDirectory: String,
+        withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
+    )
+    func unloadSilero(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func sileroSpeechTimestamps(
+        requestID: String, modelID: String, audio: Data, settings: Data,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func cancelSileroRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func startFinalSession(
         sessionID: String, modelID: String, language: String?, context: String?, maximumTokenCount: Int,
         withReply reply: @escaping @Sendable (String?, NSError?) -> Void

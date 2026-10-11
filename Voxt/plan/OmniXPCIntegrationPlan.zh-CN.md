@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4a 已抽离 auxiliary model 的非推理下载校验，T4b1 已新增 Silero Core ABI4，T4 的 VAD/Sortformer XPC 与完整目录生命周期及 T5 以后仍待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4a 已抽离 auxiliary model 的非推理下载校验，T4b1 已新增 Silero Core ABI4、T4b2a 已接 opt-in offline Silero XPC，T4 的 streaming VAD/Sortformer XPC 与完整目录生命周期及 T5 以后仍待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -731,4 +731,29 @@ T4b1 的 Silero Core 接入见下节；Native VAD/Sortformer XPC、缓存迁移�
 - Swift 导入/链接实际 ABI4 header/Core，与明确 model/MLX 替身回放 owned probability/timestamp/free、stream terminal drain 与同模型 offline reuse。真实 Qwen client→exported service→Core/worker→ASRStreamingSession 的既有 in-process RPC harness 在 ABI4 上重跑通过，仍不等于 NSXPC/签名/Metal 验收。
 - OmniXPCContracts 37 项（1 filesystem skip）、33 项 tools/source/resolved audits 与全仓库 pre-commit 重跑通过。Native test suite 已在现有 gated Mac CI 选择范围内，不启用 gates，也不声称该 runner 已执行。
 
-下一检查点：封装 Silero Core lease、VAD XPC RPC 与既有 streaming/offline VAD 调用者，继续 Sortformer typed state/Core/XPC；完整 cached-directory 授权/迁移/lease-delete 与实际 ASR+VAD+diarization GPU 并行安全性、内存/长会议/性能/golden/Mac App 与 Intel 回归验收仍待补。
+Silero offline XPC 的独立闭环见 T4b2a；streaming VAD RPC/调用者与 Sortformer typed state/Core/XPC 继续待实施。完整 cached-directory 授权/迁移/lease-delete 与实际 ASR+VAD+diarization GPU 并行安全性、内存/长会议/性能/golden/Mac App 与 Intel 回归验收仍待补。
+
+### T4b2a：opt-in offline Silero XPC 模型与 request 复用
+
+状态：部分 T4 代码检查点，尚未切换 production VAD/ASR/diarization，也不是完整 T4/平台验收。Core 仍 ABI4；此步只有 load/offline sample ranges/scoped cancel/unload，不添加未来 streaming/Sortformer stub 或删除 MLX Audio。
+
+- OmniXPCContracts 新增 typed settings、独立 Silero model reference 与 sample-unit timestamp batch；配置最多 1 KiB、结果最多 64 KiB/938 ranges，strict keys/UUID/整数/range顺序与边界检查。公共 bounded Float32 LE parser 由既有 Qwen 与新 VAD 共用，不伪装成 ASR token/options。
+- 四个实际 NSXPC RPC：loadSilero、unloadSilero、sileroSpeechTimestamps、cancelSileroRequest。SileroCoreModel 直接调用真实 ABI4、保留同一模型和 UUID-scoped single-use request，copy 前检查 Native count/ranges并 free owned outputs/errors。
+- Silero engine 只保留一个活动 offline request，最多 256 request IDs/model；无效或 busy/foreign admission 不占历史、不复制大型 audio array。decoder/copy 在 owner/history/busy 检查后进行，Native inference 不在 engine/service lock 下执行。
+- Qwen/Silero 各有独立 lifetime/lock/queue/token ownership，不能在两个锁下共享同一 mutable connection flag/history。共同 service UUID 与 container/admission policy 抽到现有 helper service 边界；ASR engine 不扩成巨型 VAD state holder。
+- Shared admission gate 只串行化两种 model load 的同步登记与诊断 idle reservation，固定 service→engine→token lock 顺序；只有两个模型均卸载且无法再登记新 load 时才能诊断退出。诊断拒绝不永久禁用后续加载。
+- cancel request/model reference/operation ID 严格 scoped；completed current-load operation 也可清理 response-lost model，只影响该 Silero load，不关闭健康 Qwen或后来的 replacement。取消 ACK 不等于 drain，pending/cancelling request 的 unload/replacement 明确 busy；disconnect 按先取消 token、队列等待 Native 返回、后 close 模型顺序清理。
+- App 明确 load→timestamps→unload，验证 originating connection + model/service/request identity + sample count；reuse 既有 LE encoder，不自动 replay audio、替换模型、走 Swift/cloud 或更改生产 factory。parent cancel、Silero deadline 走 typed Silero cancel RPC，不把健康 Qwen ownership 一并 invalidation；真正 transport failure 仍影响同连接两个模型。
+- 原 signed smoke 保留四参数，新增可选第五参数 Silero model directory：只复制到独立 shared Models run 目录，在 Qwen model 已加载时两次 VAD 请求，crash/reconnect 后再两次，卸载后才成功清理。只检查 ranges 合法/同模型重复一致（允许合法无 speech），不冒充 VAD range accuracy golden 或 GPU 并行安全验收。
+
+验证：
+
+- 真实 SwiftPM Debug/Release 各 61 项：60 passed、1 case-insensitive filesystem skipped、0 failure，包含 18 项 Silero wire/options 与 6 项 shared audio regression；独立 reviewer 也重跑两配置。
+- 主助手实际 client→exported service methods→ABI4/worker 的进程内 harness 通过 ranges/no-speech/model reuse、foreign/stale ownership拒绝、Native blocked Feed cancellation/unload barrier、健康同时加载 Qwen final、VAD-only diagnostic busy、response-lost load cleanup与 stale operation isolation。五次重复回放通过；NSXPC/signing/container/model 为明确替身，不是跨进程/GPU证明。
+- 独立审查发现 Silero deadline 原先沿用 transport timeout invalidation 会误伤健康 Qwen；已抽到 typed scoped cancel 路径。新增 50 ms blocked Native deadline 回放：连接和 Qwen final 保留、VAD unload 仍 busy，release 后才允许卸载；独立复查重跑 VAD/Qwen harness，未发现具体剩余问题。
+- 实际既有 Qwen final/realtime client/service/Core/ASRStreamingSession harness 回归通过；Native ABI74 + typed/旧新 HTTP replay42 的 Clang ASan/UBSan116 通过，Core/HTTP source 未修改。
+- source/resolved model-stack audits 与 33 项 tools 检查通过；改动后 helper/client/smoke 的 Swift parse、补充 Linux platform-stand-in typecheck 通过，完整 App/macOS XCTest 与实际 ObjC NSXPC/Metal 尚待验收。全仓库 pre-commit 重跑通过。
+
+Mac 复现：在第 13 节原 build_omni_xpc_smoke.sh 签名流程后，可调用 run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file> <silero-model-directory>。可选 VAD 检查尚未在真实 Mac 执行；发布/缓存迁移与 GPU 并行、范围准确性/性能/长会议验收不得由 CPU harness 或 compile-only evidence 代替。
+
+下一检查点 T4b2b：bounded Silero streaming RPC 与 VAD stream owner/stop/cancel/drain；之后继续 Sortformer 状态/ABI/XPC，以及目录授权/缓存迁移、shared lease-delete 协调。

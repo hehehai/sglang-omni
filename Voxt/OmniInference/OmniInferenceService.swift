@@ -1,9 +1,52 @@
-/// Connection-scoped XPC entry points for the persistent Native Qwen validation host.
+/// Connection-scoped XPC entry points and shared admission for the Native validation host.
 import Foundation
 import OmniXPCContracts
 
 #if os(macOS)
 import Darwin
+
+nonisolated enum OmniServiceIdentity {
+    static let instanceID = UUID()
+
+    static func groupContainer(configuration: OmniXPCConfiguration) throws -> URL {
+        guard let container = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: configuration.appGroupIdentifier
+        ) else {
+            throw OmniXPCFailure.error(.configuration, "The XPC service cannot access its configured App Group.")
+        }
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        return container
+    }
+}
+
+nonisolated final class OmniServiceAdmission: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isTerminating = false
+
+    // note (assistant): Lock order is service admission -> engine -> model token; engines never acquire this lock.
+    func admitLoad(_ admission: () throws -> Void) throws {
+        try lock.withLock {
+            guard !isTerminating else {
+                throw OmniXPCFailure.error(.disconnected, "The XPC service is terminating.")
+            }
+            try admission()
+        }
+    }
+
+    func reserveValidationTermination(
+        engine: OmniFinalSessionEngine, lifetime: OmniConnectionLifetime,
+        sileroEngine: OmniSileroInferenceEngine, sileroLifetime: OmniSileroInferenceEngine.ConnectionLifetime
+    ) throws {
+        try lock.withLock {
+            guard !isTerminating else {
+                throw OmniXPCFailure.error(.disconnected, "The XPC service is terminating.")
+            }
+            try sileroEngine.requireValidationIdle(lifetime: sileroLifetime)
+            try engine.reserveValidationTermination(lifetime: lifetime)
+            isTerminating = true
+        }
+    }
+}
 
 nonisolated final class OmniConnectionLifetime: @unchecked Sendable {
     enum OperationState {
@@ -34,10 +77,20 @@ nonisolated final class OmniConnectionLifetime: @unchecked Sendable {
 nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPCProtocol {
     private let engine: OmniFinalSessionEngine
     private let lifetime: OmniConnectionLifetime
+    private let sileroEngine: OmniSileroInferenceEngine
+    private let sileroLifetime: OmniSileroInferenceEngine.ConnectionLifetime
+    private let admission: OmniServiceAdmission
 
-    init(engine: OmniFinalSessionEngine, lifetime: OmniConnectionLifetime) {
+    init(
+        engine: OmniFinalSessionEngine, lifetime: OmniConnectionLifetime,
+        sileroEngine: OmniSileroInferenceEngine, sileroLifetime: OmniSileroInferenceEngine.ConnectionLifetime,
+        admission: OmniServiceAdmission
+    ) {
         self.engine = engine
         self.lifetime = lifetime
+        self.sileroEngine = sileroEngine
+        self.sileroLifetime = sileroLifetime
+        self.admission = admission
     }
 
     func probe(withReply reply: @escaping @Sendable (Int, String, Int32, NSError?) -> Void) {
@@ -56,7 +109,56 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
         operationID: String, modelDirectory: String,
         withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
     ) {
-        engine.load(operationID: operationID, modelDirectory: modelDirectory, lifetime: lifetime, reply: reply)
+        do {
+            try admission.admitLoad {
+                try engine.admitLoad(
+                    operationID: operationID, modelDirectory: modelDirectory, lifetime: lifetime, reply: reply
+                )
+            }
+        } catch {
+            reply(nil, nil, error as NSError)
+        }
+    }
+
+    func loadSilero(
+        operationID: String, modelDirectory: String,
+        withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
+    ) {
+        do {
+            try admission.admitLoad {
+                try sileroEngine.admitLoad(
+                    operationID: operationID, modelDirectory: modelDirectory, lifetime: sileroLifetime, reply: reply
+                )
+            }
+        } catch {
+            reply(nil, nil, error as NSError)
+        }
+    }
+
+    func unloadSilero(
+        operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    ) {
+        sileroEngine.unload(operationID: operationID, modelID: modelID, lifetime: sileroLifetime, reply: reply)
+    }
+
+    func sileroSpeechTimestamps(
+        requestID: String, modelID: String, audio: Data, settings: Data,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    ) {
+        sileroEngine.speechTimestamps(
+            requestID: requestID, modelID: modelID, audio: audio, settings: settings, lifetime: sileroLifetime, reply: reply
+        )
+    }
+
+    func cancelSileroRequest(
+        requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void
+    ) {
+        do {
+            try sileroEngine.cancel(requestID: requestID, modelID: modelID, lifetime: sileroLifetime)
+            reply(nil)
+        } catch {
+            reply(error as NSError)
+        }
     }
 
     func unloadQwen(
@@ -74,7 +176,7 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
                 sessionID: sessionID, modelID: modelID, language: language, context: context,
                 maximumTokenCount: maximumTokenCount, lifetime: lifetime
             )
-            reply(OmniFinalSessionEngine.serviceInstanceID.uuidString, nil)
+            reply(OmniServiceIdentity.instanceID.uuidString, nil)
         } catch {
             reply(nil, error as NSError)
         }
@@ -151,7 +253,9 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
     func terminateForValidation(withReply reply: @escaping @Sendable (NSError?) -> Void) {
 #if VOXT_OMNI_XPC_VALIDATION
         do {
-            try engine.reserveValidationTermination(lifetime: lifetime)
+            try admission.reserveValidationTermination(
+                engine: engine, lifetime: lifetime, sileroEngine: sileroEngine, sileroLifetime: sileroLifetime
+            )
             reply(nil)
             let replyDeliveryDelaySeconds = 0.1
             DispatchQueue.global().asyncAfter(deadline: .now() + replyDeliveryDelaySeconds) { exit(86) }
@@ -166,9 +270,12 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
 
 nonisolated final class OmniInferenceListenerDelegate: NSObject, NSXPCListenerDelegate {
     private let engine: OmniFinalSessionEngine
+    private let sileroEngine: OmniSileroInferenceEngine
+    private let admission = OmniServiceAdmission()
 
     init(configuration: OmniXPCConfiguration) {
         engine = OmniFinalSessionEngine(configuration: configuration)
+        sileroEngine = OmniSileroInferenceEngine(configuration: configuration)
     }
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
@@ -177,10 +284,20 @@ nonisolated final class OmniInferenceListenerDelegate: NSObject, NSXPCListenerDe
                 for: engine.configuration.hostBundleIdentifier
             ))
             let lifetime = OmniConnectionLifetime()
+            let sileroLifetime = OmniSileroInferenceEngine.ConnectionLifetime()
             connection.exportedInterface = NSXPCInterface(with: OmniInferenceXPCProtocol.self)
-            connection.exportedObject = OmniInferenceSession(engine: engine, lifetime: lifetime)
-            connection.interruptionHandler = { [engine] in engine.disconnect(lifetime: lifetime) }
-            connection.invalidationHandler = { [engine] in engine.disconnect(lifetime: lifetime) }
+            connection.exportedObject = OmniInferenceSession(
+                engine: engine, lifetime: lifetime, sileroEngine: sileroEngine,
+                sileroLifetime: sileroLifetime, admission: admission
+            )
+            connection.interruptionHandler = { [engine, sileroEngine] in
+                sileroEngine.disconnect(lifetime: sileroLifetime)
+                engine.disconnect(lifetime: lifetime)
+            }
+            connection.invalidationHandler = { [engine, sileroEngine] in
+                sileroEngine.disconnect(lifetime: sileroLifetime)
+                engine.disconnect(lifetime: lifetime)
+            }
             connection.resume()
             return true
         } catch {

@@ -6,14 +6,19 @@ set -euo pipefail
   echo "Apple Silicon macOS is required for XPC/Metal validation." >&2
   exit 1
 }
-[[ $# -eq 4 ]] || {
-  echo "usage: run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file>" >&2
+[[ $# -eq 4 || $# -eq 5 ]] || {
+  echo "usage: run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file> [silero-model-directory]" >&2
   exit 2
 }
 app="$1"
 model="$2"
 audio="$3"
 expected="$4"
+silero="${5:-}"
+if [[ -n "$silero" && ! -f "$silero/config.json" ]]; then
+  echo "The optional Silero model is missing config.json." >&2
+  exit 1
+fi
 [[ -d "$app/Contents/XPCServices/OmniInference.xpc" ]] || {
   echo "The app does not contain OmniInference.xpc." >&2
   exit 1
@@ -30,7 +35,7 @@ scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 afconvert "$audio" -f WAVE -d LEI16@16000 -c 1 "$scratch/input.wav"
 
-python3 - "$app/Contents/MacOS/$executable" "$model" "$scratch/input.wav" "$expected" <<'PY'
+python3 - "$app/Contents/MacOS/$executable" "$model" "$scratch/input.wav" "$expected" "$silero" <<'PY'
 import array
 import json
 import os
@@ -42,7 +47,7 @@ import sys
 import uuid
 import wave
 
-executable, model, audio, expected = sys.argv[1:]
+executable, model, audio, expected, silero = sys.argv[1:]
 environment = {
     key: value for key, value in os.environ.items()
     if not key.startswith(('DYLD_', '__XPC_DYLD_', 'VOXT_OMNI_XPC_SMOKE_'))
@@ -53,6 +58,10 @@ def run(mode, run_id=None):
     overrides = dict(environment, VOXT_OMNI_XPC_SMOKE_MODE=mode)
     if run_id is not None:
         overrides['VOXT_OMNI_XPC_SMOKE_RUN_ID'] = run_id
+        if silero:
+            overrides['VOXT_OMNI_XPC_SMOKE_SILERO_DIRECTORY'] = f'Models/OmniXPCSileroSmoke/{run_id}'
+        else:
+            pass
     completed = subprocess.run(
         [executable], env=overrides, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True, timeout=600, check=False,
@@ -72,7 +81,13 @@ if not container.is_absolute() or not container.is_dir():
 run_id = str(uuid.uuid4()).upper()
 model_destination = container / 'Models' / 'OmniXPCSmoke' / run_id
 artifacts = container / 'OmniXPCSmoke' / run_id
-for destination in (model_destination, artifacts):
+silero_destination = container / 'Models' / 'OmniXPCSileroSmoke' / run_id
+destinations = [model_destination, artifacts]
+if silero:
+    destinations.append(silero_destination)
+else:
+    pass
+for destination in destinations:
     if not destination.resolve().is_relative_to(container.resolve()):
         raise RuntimeError('The smoke fixture destination is outside the shared container.')
     if destination.exists():
@@ -81,6 +96,10 @@ passed = False
 try:
     artifacts.mkdir(parents=True)
     shutil.copytree(model, model_destination, symlinks=False)
+    if silero:
+        shutil.copytree(silero, silero_destination, symlinks=False)
+    else:
+        pass
     with wave.open(audio, 'rb') as source:
         if source.getnchannels() != 1 or source.getframerate() != 16000 or source.getsampwidth() != 2:
             raise RuntimeError('The converted fixture must be mono 16 kHz PCM16.')
@@ -97,13 +116,17 @@ try:
     report = run('infer', run_id)
     if report.get('status') != 'passed' or report.get('first_service_process_id') == report.get('restarted_service_process_id'):
         raise RuntimeError('Native inference or service restart did not pass.')
+    if silero and report.get('silero_request_count') != 4:
+        raise RuntimeError('The optional Silero reuse/reconnect validation did not run.')
+    else:
+        pass
     passed = True
     print(json.dumps(report, sort_keys=True))
 finally:
     if passed:
-        shutil.rmtree(model_destination)
-        shutil.rmtree(artifacts)
+        for destination in destinations:
+            shutil.rmtree(destination)
     else:
         print('Smoke fixture data retained after failure; remove only after the XPC service is idle:', file=sys.stderr)
-        print(model_destination, artifacts, sep='\n', file=sys.stderr)
+        print(*destinations, sep='\n', file=sys.stderr)
 PY

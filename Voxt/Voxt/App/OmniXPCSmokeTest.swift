@@ -20,6 +20,7 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
     var elapsedSeconds: Double? = nil
     var realtimeSessionCount: Int? = nil
     var realtimeCancellationDrained: Bool? = nil
+    var sileroRequestCount: Int? = nil
     var errorDomain: String? = nil
     var errorCode: Int? = nil
 
@@ -36,6 +37,7 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
         case elapsedSeconds = "elapsed_seconds"
         case realtimeSessionCount = "realtime_session_count"
         case realtimeCancellationDrained = "realtime_cancellation_drained"
+        case sileroRequestCount = "silero_request_count"
         case errorDomain = "error_domain"
         case errorCode = "error_code"
     }
@@ -134,6 +136,12 @@ extension AppDelegate {
                         client: connected, model: model, samples: samples, language: language,
                         maximumTokenCount: maximumTokenCount, expected: expected, timeout: .seconds(timeoutSeconds)
                     )
+                    let sileroDirectory = environment["VOXT_OMNI_XPC_SMOKE_SILERO_DIRECTORY"]
+                    if let sileroDirectory {
+                        try await Self.validateOmniSileroSmoke(
+                            client: connected, modelDirectory: sileroDirectory, samples: samples, timeout: .seconds(timeoutSeconds)
+                        )
+                    }
                     try await connected.unloadQwen(model)
                     try await connected.terminateForValidation()
                     let restarted = try await connected.probe()
@@ -152,6 +160,11 @@ extension AppDelegate {
                         client: connected, model: recoveredModel, samples: samples, language: language,
                         maximumTokenCount: maximumTokenCount, expected: expected, timeout: .seconds(timeoutSeconds)
                     )
+                    if let sileroDirectory {
+                        try await Self.validateOmniSileroSmoke(
+                            client: connected, modelDirectory: sileroDirectory, samples: samples, timeout: .seconds(timeoutSeconds)
+                        )
+                    }
                     try await connected.unloadQwen(recoveredModel)
                     try Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(
                         status: .passed, abiVersion: restarted.abiVersion,
@@ -161,7 +174,8 @@ extension AppDelegate {
                         textCharacterCount: recovered.text.count,
                         generatedTokenCount: recovered.generationMetadata?.generatedTokenCount,
                         elapsedSeconds: Date().timeIntervalSince(started),
-                        realtimeSessionCount: 3, realtimeCancellationDrained: true
+                        realtimeSessionCount: 3, realtimeCancellationDrained: true,
+                        sileroRequestCount: sileroDirectory == nil ? nil : 4
                     ))
                 }
                 connected.invalidate()
@@ -184,6 +198,21 @@ extension AppDelegate {
     }
 
 #if VOXT_OMNI_XPC_VALIDATION
+    private static func validateOmniSileroSmoke(
+        client: OmniXPCClient, modelDirectory: String, samples: [Float], timeout: Duration
+    ) async throws {
+        let model = try await client.loadSilero(modelDirectory: modelDirectory, timeout: timeout)
+        let settings = OmniXPCSileroSettings(
+            threshold: 0.5, minimumSpeechMilliseconds: 250, minimumSilenceMilliseconds: 100, speechPaddingMilliseconds: 30
+        )
+        let first = try await client.sileroSpeechTimestamps(samples16k: samples, settings: settings, model: model, timeout: timeout)
+        let reused = try await client.sileroSpeechTimestamps(samples16k: samples, settings: settings, model: model, timeout: timeout)
+        guard first == reused else {
+            throw OmniXPCFailure.error(.nativeFailure, "Silero same-model reuse returned inconsistent sample ranges.")
+        }
+        try await client.unloadSilero(model)
+    }
+
     private static func omniSmokeInteger(_ value: String?, defaultValue: Int, maximum: Int) throws -> Int {
         guard let value else { return defaultValue }
         guard let number = Int(value), number > 0, number <= maximum else {

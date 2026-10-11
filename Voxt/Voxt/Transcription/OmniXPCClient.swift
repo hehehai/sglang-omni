@@ -11,6 +11,8 @@ nonisolated struct OmniXPCProbeResult: Equatable, Sendable {
 
 @MainActor
 final class OmniXPCClient {
+    enum CancellationTarget { case qwen, silero }
+
     private struct Connection {
         let id: UUID
         let transport: NSXPCConnection
@@ -20,6 +22,7 @@ final class OmniXPCClient {
         let connectionID: UUID
         let nativeRequestID: String?
         let cancellationModelID: String?
+        let cancellationTarget: CancellationTarget
         let resetConnectionOnCancel: Bool
         let timeout: Task<Void, Never>
         let fail: @MainActor (Error) -> Void
@@ -73,6 +76,7 @@ final class OmniXPCClient {
         requiredConnectionID: UUID? = nil,
         nativeRequestID: String? = nil,
         cancellationModelID: String? = nil,
+        cancellationTarget: CancellationTarget = .qwen,
         resetConnectionOnCancel: Bool = false,
         invoke: @MainActor (any OmniInferenceXPCProtocol, @escaping @Sendable (Result<Value, Error>) -> Void) -> Void
     ) async throws -> Value {
@@ -84,7 +88,7 @@ final class OmniXPCClient {
                     let proxy = try begin(
                         id: id, timeout: timeout, requiredConnectionID: requiredConnectionID, nativeRequestID: nativeRequestID,
                         cancellationModelID: cancellationModelID, resetConnectionOnCancel: resetConnectionOnCancel,
-                        fail: { continuation.resume(throwing: $0) }
+                        cancellationTarget: cancellationTarget, fail: { continuation.resume(throwing: $0) }
                     )
                     invoke(proxy) { [weak self] outcome in
                         Task { @MainActor in
@@ -160,6 +164,7 @@ final class OmniXPCClient {
     private func begin(
         id: UUID, timeout: Duration, requiredConnectionID: UUID? = nil,
         nativeRequestID: String?, cancellationModelID: String?, resetConnectionOnCancel: Bool,
+        cancellationTarget: CancellationTarget = .qwen,
         fail: @escaping @MainActor (Error) -> Void,
         disconnectedSuccessfully: (@MainActor () -> Void)? = nil
     ) throws -> any OmniInferenceXPCProtocol {
@@ -170,13 +175,18 @@ final class OmniXPCClient {
         let state = try connected()
         let timer = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: timeout) } catch { return }
-            guard let self, self.pending[id] != nil else { return }
-            self.fail(id, error: OmniXPCFailure.error(.timedOut, "The XPC request timed out."))
-            self.invalidate()
+            guard let self, let call = self.pending[id] else { return }
+            let error = OmniXPCFailure.error(.timedOut, "The XPC request timed out.")
+            if call.cancellationTarget == .silero {
+                self.cancel(id, error: error)
+            } else {
+                self.fail(id, error: error)
+                self.invalidate()
+            }
         }
         pending[id] = Pending(
             connectionID: state.id, nativeRequestID: nativeRequestID, cancellationModelID: cancellationModelID,
-            resetConnectionOnCancel: resetConnectionOnCancel, timeout: timer,
+            cancellationTarget: cancellationTarget, resetConnectionOnCancel: resetConnectionOnCancel, timeout: timer,
             fail: fail, disconnectedSuccessfully: disconnectedSuccessfully
         )
         guard let proxy = state.transport.remoteObjectProxyWithErrorHandler({ [weak self] error in
@@ -201,10 +211,10 @@ final class OmniXPCClient {
         if let call = take(id) { call.fail(error) } else { fallback?(error) }
     }
 
-    private func cancel(_ id: UUID) {
+    private func cancel(_ id: UUID, error: Error = CancellationError()) {
         guard let call = pending[id] else { return }
         if call.resetConnectionOnCancel {
-            fail(id, error: CancellationError())
+            fail(id, error: error)
             invalidate()
             return
         }
@@ -212,11 +222,15 @@ final class OmniXPCClient {
            let proxy = state.transport.remoteObjectProxyWithErrorHandler({ [weak self] _ in
                Task { @MainActor in self?.disconnected(call.connectionID) }
            }) as? any OmniInferenceXPCProtocol {
-            proxy.cancelRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
-
-            fail(id, error: CancellationError())
+            switch call.cancellationTarget {
+            case .qwen:
+                proxy.cancelRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
+            case .silero:
+                proxy.cancelSileroRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
+            }
+            fail(id, error: error)
         } else {
-            fail(id, error: CancellationError())
+            fail(id, error: error)
         }
     }
 

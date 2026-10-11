@@ -41,7 +41,7 @@ nonisolated extension OmniFinalSessionEngine {
                     }
                     let isActive = lock.withLock { lifetime.isActive }
                     if isActive {
-                        reply(Self.serviceInstanceID.uuidString, nil)
+                        reply(OmniServiceIdentity.instanceID.uuidString, nil)
                     } else {
                         reply(nil, OmniXPCFailure.error(.cancelled, "The realtime connection was closed during creation."))
                     }

@@ -6,7 +6,6 @@ import OmniXPCContracts
 nonisolated final class OmniFinalSessionEngine: @unchecked Sendable {
     enum ModelState { case unloaded, loading, ready, unloading }
 
-    static let serviceInstanceID = UUID()
     let configuration: OmniXPCConfiguration
     let queue = DispatchQueue(label: "Voxt.Omni.XPC.inference")
     let lock = NSLock()
@@ -25,13 +24,7 @@ nonisolated final class OmniFinalSessionEngine: @unchecked Sendable {
     init(configuration: OmniXPCConfiguration) { self.configuration = configuration }
 
     func groupContainer() throws -> URL {
-        guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: configuration.appGroupIdentifier
-        ) else {
-            throw OmniXPCFailure.error(.configuration, "The XPC service cannot access its configured App Group.")
-        }
-        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-        return container
+        try OmniServiceIdentity.groupContainer(configuration: configuration)
     }
 
     func load(
@@ -39,56 +32,63 @@ nonisolated final class OmniFinalSessionEngine: @unchecked Sendable {
         reply: @escaping @Sendable (String?, String?, NSError?) -> Void
     ) {
         do {
-            let operation = try identifier(operationID)
-            try lock.withLock {
-                guard lifetime.isActive, !validationTerminationPending else {
-                    throw OmniXPCFailure.error(.disconnected, "The XPC connection is closing.")
-                }
-                guard modelState == .unloaded else {
-                    throw OmniXPCFailure.error(.busy, "Unload the current model before loading another model.")
-                }
-                try lifetime.recordOperation(operation)
-                owner = lifetime
-                modelState = .loading
-                // note (assistant): Enqueue under the lock so disconnect cannot overtake admitted work.
-                queue.async { [self] in
-                    do {
-                        let directory = try OmniXPCRequestValidation.modelDirectory(
-                            relativePath: modelDirectory, container: groupContainer()
-                        )
-                        guard lock.withLock({ lifetime.isActive && lifetime.operations[operation] != .cancelled }) else {
-                            throw OmniXPCFailure.error(.cancelled, "The model load was cancelled.")
-                        }
-                        let loaded = try QwenCoreModel(directory: directory)
-                        let newModelID = UUID()
-                        let published = lock.withLock {
-                            guard lifetime.isActive, lifetime.operations[operation] != .cancelled else { return false }
-                            model = loaded
-                            modelID = newModelID
-                            modelState = .ready
-                            lifetime.operations[operation] = .completed
-                            return true
-                        }
-                        if published {
-                            reply(newModelID.uuidString, Self.serviceInstanceID.uuidString, nil)
-                        } else {
-                            loaded.close()
-                            throw OmniXPCFailure.error(.cancelled, "The model load was cancelled.")
-                        }
-                    } catch {
-                        let cancelled = lock.withLock {
-                            let cancelled = !lifetime.isActive || lifetime.operations[operation] == .cancelled
-                            lifetime.operations[operation] = cancelled ? .cancelled : .completed
-                            clearModel()
-                            return cancelled
-                        }
-                        reply(nil, nil, cancelled
-                              ? OmniXPCFailure.error(.cancelled, "The model load was cancelled.") : error as NSError)
-                    }
-                }
-            }
+            try admitLoad(operationID: operationID, modelDirectory: modelDirectory, lifetime: lifetime, reply: reply)
         } catch {
             reply(nil, nil, error as NSError)
+        }
+    }
+
+    func admitLoad(
+        operationID: String, modelDirectory: String, lifetime: OmniConnectionLifetime,
+        reply: @escaping @Sendable (String?, String?, NSError?) -> Void
+    ) throws {
+        let operation = try identifier(operationID)
+        try lock.withLock {
+            guard lifetime.isActive, !validationTerminationPending else {
+                throw OmniXPCFailure.error(.disconnected, "The XPC connection is closing.")
+            }
+            guard modelState == .unloaded else {
+                throw OmniXPCFailure.error(.busy, "Unload the current model before loading another model.")
+            }
+            try lifetime.recordOperation(operation)
+            owner = lifetime
+            modelState = .loading
+            // note (assistant): Enqueue under the lock so disconnect cannot overtake admitted work.
+            queue.async { [self] in
+                do {
+                    let directory = try OmniXPCRequestValidation.modelDirectory(
+                        relativePath: modelDirectory, container: groupContainer()
+                    )
+                    guard lock.withLock({ lifetime.isActive && lifetime.operations[operation] != .cancelled }) else {
+                        throw OmniXPCFailure.error(.cancelled, "The model load was cancelled.")
+                    }
+                    let loaded = try QwenCoreModel(directory: directory)
+                    let newModelID = UUID()
+                    let published = lock.withLock {
+                        guard lifetime.isActive, lifetime.operations[operation] != .cancelled else { return false }
+                        model = loaded
+                        modelID = newModelID
+                        modelState = .ready
+                        lifetime.operations[operation] = .completed
+                        return true
+                    }
+                    if published {
+                        reply(newModelID.uuidString, OmniServiceIdentity.instanceID.uuidString, nil)
+                    } else {
+                        loaded.close()
+                        throw OmniXPCFailure.error(.cancelled, "The model load was cancelled.")
+                    }
+                } catch {
+                    let cancelled = lock.withLock {
+                        let cancelled = !lifetime.isActive || lifetime.operations[operation] == .cancelled
+                        lifetime.operations[operation] = cancelled ? .cancelled : .completed
+                        clearModel()
+                        return cancelled
+                    }
+                    reply(nil, nil, cancelled
+                          ? OmniXPCFailure.error(.cancelled, "The model load was cancelled.") : error as NSError)
+                }
+            }
         }
     }
 
