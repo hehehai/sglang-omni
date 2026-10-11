@@ -5,8 +5,6 @@ import Foundation
 import Combine
 import CFNetwork
 import MLX
-import MLXAudioCore
-import MLXAudioSTT
 import HuggingFace
 
 @MainActor

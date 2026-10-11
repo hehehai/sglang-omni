@@ -1,9 +1,8 @@
 import Foundation
-import MLXAudioSTT
 
 /// A loaded local ASR model: an in-process MLXAudio model or an owned Omni server.
 nonisolated enum LoadedASRModel: @unchecked Sendable {
-    case mlx(any STTGenerationModel)
+    case mlx(MLXSwiftASRModel)
     case omni(OmniASRRuntime)
 
     var omniRuntime: OmniASRRuntime? {
@@ -11,7 +10,7 @@ nonisolated enum LoadedASRModel: @unchecked Sendable {
         return nil
     }
 
-    var mlxModel: (any STTGenerationModel)? {
+    var mlxModel: MLXSwiftASRModel? {
         if case .mlx(let model) = self { return model }
         return nil
     }

@@ -1,18 +1,14 @@
 import Foundation
-import MLXAudioSTT
 
-nonisolated protocol MLXNativeStreamingSession: AnyObject, Sendable {
-    var events: AsyncStream<TranscriptionEvent> { get }
+nonisolated protocol ASRStreamingSession: AnyObject, Sendable {
+    var events: AsyncStream<ASRStreamingEvent> { get }
     func feedAudio(samples: [Float])
     func stop()
     func cancel()
 }
 
-extension StreamingInferenceSession: MLXNativeStreamingSession {}
-extension NemotronASRStreamingSession: MLXNativeStreamingSession {}
-
 nonisolated struct MLXMeetingNativeStreamingConfiguration: Sendable {
-    let session: any MLXNativeStreamingSession
+    let session: any ASRStreamingSession
     let liveMode: MLXLiveMode
     let qwenUsesAutomaticLanguageProtocol: Bool
     let mossVisibleOutputMode: MossASROutputMode?
@@ -26,7 +22,7 @@ nonisolated struct MLXMeetingNativeStreamingConfiguration: Sendable {
 final class MLXNativeLiveRuntime {
     private struct Active {
         let id: UUID
-        let session: any MLXNativeStreamingSession
+        let session: any ASRStreamingSession
         let eventTask: Task<Void, Never>
         let feedTask: Task<Void, Never>
         let releaseModel: @MainActor () -> Void
@@ -34,15 +30,15 @@ final class MLXNativeLiveRuntime {
 
     private var active: Active?
     private var retirementTasks: [UUID: Task<Void, Never>] = [:]
-    var session: (any MLXNativeStreamingSession)? { active?.session }
+    var session: (any ASRStreamingSession)? { active?.session }
     var hasPendingWork: Bool { active != nil || !retirementTasks.isEmpty }
 
     func install(
-        _ session: any MLXNativeStreamingSession,
+        _ session: any ASRStreamingSession,
         pollInterval: Duration,
         nextSamples: @escaping @MainActor () -> [Float],
         shouldContinue: @escaping @MainActor () -> Bool,
-        onEvent: @escaping @MainActor (TranscriptionEvent) -> Void,
+        onEvent: @escaping @MainActor (ASRStreamingEvent) -> Void,
         releaseModel: @escaping @MainActor () -> Void
     ) {
         release(cancelSession: true)

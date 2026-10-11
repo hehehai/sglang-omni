@@ -711,7 +711,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
             applyCandidate(candidate, stage: stage)
             let elapsedMs = Int(Date().timeIntervalSince(passStartedAt) * 1000)
             VoxtLog.asr(
-                "MLX correction pass completed. repo=\(repo), stage=\(stageLabel(for: stage)), audioSec=\(String(format: "%.2f", audioSeconds)), elapsedMs=\(elapsedMs), prepareMs=\(prepareElapsedMs), inferenceMs=\(inferenceElapsedMs), maxTokens=\(inferenceConfiguration.generationParameters.maxTokens), textChars=\(candidate.count)",
+                "MLX correction pass completed. repo=\(repo), stage=\(stageLabel(for: stage)), audioSec=\(String(format: "%.2f", audioSeconds)), elapsedMs=\(elapsedMs), prepareMs=\(prepareElapsedMs), inferenceMs=\(inferenceElapsedMs), maxTokens=\(inferenceConfiguration.generationParameters.maximumTokenCount), textChars=\(candidate.count)",
                 verbose: true
             )
             return .success(candidate)
@@ -983,7 +983,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         if let runtime = loaded.omniRuntime {
             return try await makeOmniMeetingStreamingConfiguration(runtime: runtime, liveMode: liveMode)
         }
-        guard let loadedModel = loaded.mlxModel else { throw CancellationError() }
+        guard let loadedModel = loaded.mlxModel?.libraryModel else { throw CancellationError() }
 
         switch liveMode {
         case .nativeQwenLive:
@@ -999,7 +999,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                 for: modelManager.currentModelRepo
             ).kvCachePolicy
             return MLXMeetingNativeStreamingConfiguration(
-                session: StreamingInferenceSession(
+                session: MLXAudioStreamingSessionAdapter(session: StreamingInferenceSession(
                     model: model,
                     config: StreamingConfig(
                         language: language,
@@ -1009,7 +1009,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                         kvGroupSize: kvCachePolicy?.groupSize ?? 64,
                         quantizedKVStart: kvCachePolicy?.quantizedStart ?? 0
                     )
-                ),
+                )),
                 liveMode: liveMode,
                 qwenUsesAutomaticLanguageProtocol: language == nil,
                 mossVisibleOutputMode: nil
@@ -1025,16 +1025,16 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
             let inferenceConfiguration = resolvedInferenceConfiguration(for: .intermediate)
             let isMoss = loadedModel is MossTranscribeDiarizeModel
             return MLXMeetingNativeStreamingConfiguration(
-                session: StreamingInferenceSession(
+                session: MLXAudioStreamingSessionAdapter(session: StreamingInferenceSession(
                     model: loadedModel,
                     config: StreamingConfig(
                         language: inferenceConfiguration.languageHint,
                         temperature: inferenceConfiguration.generationParameters.temperature,
-                        maxTokensPerPass: inferenceConfiguration.generationParameters.maxTokens,
+                        maxTokensPerPass: inferenceConfiguration.generationParameters.maximumTokenCount,
                         prompt: isMoss ? inferenceConfiguration.mossPrompt : nil,
                         usePunctuation: inferenceConfiguration.generationParameters.usePunctuation
                     )
-                ),
+                )),
                 liveMode: liveMode,
                 qwenUsesAutomaticLanguageProtocol: false,
                 // The final offline MOSS pass preserves structured speaker/timestamp output.
@@ -1057,7 +1057,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                 defaultLanguage: model.defaultLanguage
             )
             return MLXMeetingNativeStreamingConfiguration(
-                session: NemotronASRStreamingSession(
+                session: MLXAudioStreamingSessionAdapter(session: NemotronASRStreamingSession(
                     model: model,
                     config: StreamingConfig(
                         decodeIntervalSeconds: Double(chunkMilliseconds) / 1000,
@@ -1068,7 +1068,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                         temperature: 0,
                         maxTokensPerPass: 1024
                     )
-                ),
+                )),
                 liveMode: liveMode,
                 qwenUsesAutomaticLanguageProtocol: false,
                 mossVisibleOutputMode: nil
@@ -1143,7 +1143,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                     VoxtLog.asr("Omni live session ready. repo=\(manager.currentModelRepo), mode=\(String(describing: expectedMode)), elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))", verbose: true)
                     return
                 }
-                guard let model = loaded.mlxModel else { return }
+                guard let model = loaded.mlxModel?.libraryModel else { return }
                 defer {
                     if !transferredModelUse {
                         VoxtLog.asrWarning("MLX native live requested for incompatible model. repo=\(manager.currentModelRepo), mode=\(String(describing: expectedMode))")
@@ -1225,7 +1225,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                 quantizedKVStart: kvCachePolicy?.quantizedStart ?? 0
             )
         )
-        installNativeLiveSession(session, revision: revision, releaseModel: releaseModel)
+        installNativeLiveSession(MLXAudioStreamingSessionAdapter(session: session), revision: revision, releaseModel: releaseModel)
     }
 
     private func installNativeStreamingLiveSession(_ model: any STTGenerationModel, revision: Int, releaseModel: @escaping @MainActor () -> Void) {
@@ -1236,12 +1236,12 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
             config: StreamingConfig(
                 language: inferenceConfiguration.languageHint,
                 temperature: inferenceConfiguration.generationParameters.temperature,
-                maxTokensPerPass: inferenceConfiguration.generationParameters.maxTokens,
+                maxTokensPerPass: inferenceConfiguration.generationParameters.maximumTokenCount,
                 prompt: model is MossTranscribeDiarizeModel ? inferenceConfiguration.mossPrompt : nil,
                 usePunctuation: inferenceConfiguration.generationParameters.usePunctuation
             )
         )
-        installNativeLiveSession(session, revision: revision, releaseModel: releaseModel)
+        installNativeLiveSession(MLXAudioStreamingSessionAdapter(session: session), revision: revision, releaseModel: releaseModel)
     }
 
     private func installNativeNemotronLiveSession(_ model: NemotronASRModel, revision: Int, releaseModel: @escaping @MainActor () -> Void) {
@@ -1265,11 +1265,11 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                 maxTokensPerPass: 1024
             )
         )
-        installNativeLiveSession(session, revision: revision, releaseModel: releaseModel)
+        installNativeLiveSession(MLXAudioStreamingSessionAdapter(session: session), revision: revision, releaseModel: releaseModel)
     }
 
     private func installNativeLiveSession(
-        _ session: any MLXNativeStreamingSession,
+        _ session: any ASRStreamingSession,
         revision: Int,
         releaseModel: @escaping @MainActor () -> Void
     ) {
@@ -1364,7 +1364,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         return pending.samples
     }
 
-    private func handleNativeLiveEvent(_ event: TranscriptionEvent, revision: Int) {
+    private func handleNativeLiveEvent(_ event: ASRStreamingEvent, revision: Int) {
         guard revision == sessionRevision else { return }
 
         switch event {
@@ -1428,8 +1428,6 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                 "MLX native streaming session failed. repo=\(modelManager.currentModelRepo), error=\(failure.localizedDescription)"
             )
             releaseNativeLiveSession(cancelSession: false)
-        case .confirmed, .provisional, .stats:
-            break
         }
     }
 
@@ -1737,7 +1735,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
                 inferenceTask.cancel()
             }
         case .mlx(let mlxModel):
-            model = mlxModel
+            model = mlxModel.libraryModel
         }
         let longFormVADModel = try await resolvedLongFormVADModelIfNeeded(
             model: model,

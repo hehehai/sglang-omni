@@ -7,7 +7,7 @@ import MLXAudioSTT
 import MLXAudioVAD
 
 private struct SenseVoiceInferenceResult {
-    let output: STTOutput
+    let output: ASRTranscriptionResult
     let metadata: SenseVoiceTranscriptMetadata?
 }
 
@@ -43,7 +43,7 @@ enum MLXStructuredTranscriptionError: LocalizedError {
 extension MLXTranscriber {
     struct ResolvedInferenceConfiguration: Sendable {
         let family: MLXModelFamily
-        let generationParameters: STTGenerateParameters
+        let generationParameters: ASRGenerationOptions
         let languageHint: String?
         let timingGranularity: MLXASRTimingGranularity
         let qwenContextBias: String
@@ -82,22 +82,22 @@ extension MLXTranscriber {
         try Task.checkCancellation()
         let audioArray = MLXArray(audioSamples)
         var streamedText = ""
-        var finalOutput: STTOutput?
+        var finalOutput: ASRTranscriptionResult?
 
         let stream: AsyncThrowingStream<STTGeneration, Error>
-        let generationParameters = inferenceConfiguration.generationParameters
+        let options = inferenceConfiguration.generationParameters
         if let qwenModel = model as? Qwen3ASRModel {
             stream = qwenModel.generateStream(
                 audio: audioArray,
-                maxTokens: generationParameters.maxTokens,
-                temperature: generationParameters.temperature,
+                maxTokens: options.maximumTokenCount,
+                temperature: options.temperature,
                 context: inferenceConfiguration.qwenContextBias,
                 language: inferenceConfiguration.languageHint,
-                chunkDuration: generationParameters.chunkDuration,
-                minChunkDuration: generationParameters.minChunkDuration,
-                kvBits: generationParameters.kvBits,
-                kvGroupSize: generationParameters.kvGroupSize,
-                quantizedKVStart: generationParameters.quantizedKVStart
+                chunkDuration: options.chunkDurationSeconds,
+                minChunkDuration: options.minimumChunkDurationSeconds,
+                kvBits: options.kvCacheBitWidth,
+                kvGroupSize: options.kvCacheGroupSize,
+                quantizedKVStart: options.kvCacheQuantizedStartTokenCount
             )
         } else if let senseVoiceModel = model as? SenseVoiceModel {
             let result = try runSenseVoiceInferenceDetached(
@@ -105,7 +105,7 @@ extension MLXTranscriber {
                 audioSamples: audioSamples,
                 languageHint: inferenceConfiguration.languageHint,
                 useITN: inferenceConfiguration.senseVoiceUseITN,
-                verbose: generationParameters.verbose,
+                verbose: options.verbose,
                 vadModel: longFormVADModel,
                 targetSampleRate: targetSampleRate,
                 directPassMaximumDurationSeconds: directPassMaximumDurationSeconds,
@@ -124,14 +124,14 @@ extension MLXTranscriber {
         } else if let mossModel = model as? MossTranscribeDiarizeModel {
             stream = mossModel.generateStream(
                 audio: audioArray,
-                generationParameters: generationParameters,
+                generationParameters: options.mlxParameters,
                 prompt: inferenceConfiguration.mossPrompt
             )
         } else if let cohereModel = model as? CohereTranscribeModel,
                   let longFormVADModel {
-            let output = try cohereModel.generateWithVAD(
+            let mlxOutput = try cohereModel.generateWithVAD(
                 audio: audioArray,
-                generationParameters: generationParameters,
+                generationParameters: options.mlxParameters,
                 vad: (
                     model: longFormVADModel,
                     config: longFormSpeechSegmentConfig(
@@ -143,9 +143,10 @@ extension MLXTranscriber {
                     )
                 )
             )
+            let output = ASRTranscriptionResult(mlxOutput: mlxOutput)
             return MLXDetachedInferenceResult(rawText: output.text, senseVoiceMetadata: nil, structuredSegments: [])
         } else {
-            stream = model.generateStream(audio: audioArray, generationParameters: generationParameters)
+            stream = model.generateStream(audio: audioArray, generationParameters: options.mlxParameters)
         }
 
         for try await event in stream {
@@ -156,8 +157,8 @@ extension MLXTranscriber {
                 await Task.yield()
             case .info:
                 break
-            case .result(let output):
-                finalOutput = output
+            case .result(let mlxOutput):
+                finalOutput = ASRTranscriptionResult(mlxOutput: mlxOutput)
             }
         }
 
@@ -169,7 +170,7 @@ extension MLXTranscriber {
                     outputMode: inferenceConfiguration.mossOutputMode
                 ),
                 senseVoiceMetadata: nil,
-                structuredSegments: mossStructuredSegments(from: finalOutput?.segments)
+                structuredSegments: mossStructuredSegments(from: finalOutput?.segments ?? [])
             )
         }
 
@@ -177,7 +178,7 @@ extension MLXTranscriber {
             rawText: finalOutput?.text ?? streamedText,
             senseVoiceMetadata: nil,
             structuredSegments: reliableStructuredSegments(
-                from: finalOutput?.segments,
+                from: finalOutput?.segments ?? [],
                 timingGranularity: inferenceConfiguration.timingGranularity
             )
         )
@@ -193,7 +194,7 @@ extension MLXTranscriber {
         speechSegments: OmniSpeechSegments?
     ) async throws -> MLXDetachedInferenceResult {
         try Task.checkCancellation()
-        let parameters = inferenceConfiguration.generationParameters
+        let options = inferenceConfiguration.generationParameters
         let text: String
         switch runtime.kind {
         case .qwen3ASR:
@@ -202,28 +203,28 @@ extension MLXTranscriber {
                 sampleRate: targetSampleRate,
                 language: inferenceConfiguration.languageHint,
                 context: inferenceConfiguration.qwenContextBias,
-                maxTokens: parameters.maxTokens,
-                chunkDurationSeconds: parameters.chunkDuration,
-                minChunkDurationSeconds: parameters.minChunkDuration
+                maxTokens: options.maximumTokenCount,
+                chunkDurationSeconds: options.chunkDurationSeconds,
+                minChunkDurationSeconds: options.minimumChunkDurationSeconds
             ).text
         case .whisper:
             text = try await runtime.transcribe(OmniASRRuntime.whisperFinalRequest(
                 samples: audioSamples,
                 sampleRate: targetSampleRate,
                 language: inferenceConfiguration.languageHint,
-                maxNewTokens: parameters.maxTokens,
-                temperature: parameters.temperature
+                maxNewTokens: options.maximumTokenCount,
+                temperature: options.temperature
             )).text
         case .cohereTranscribe:
             text = try await runtime.transcribe(OmniASRRuntime.cohereFinalRequest(
                 samples: audioSamples,
                 sampleRate: targetSampleRate,
                 language: inferenceConfiguration.languageHint,
-                usePunctuation: parameters.usePunctuation,
-                maxNewTokens: parameters.maxTokens,
-                temperature: parameters.temperature,
-                chunkDuration: parameters.chunkDuration,
-                minChunkDuration: parameters.minChunkDuration,
+                usePunctuation: options.usePunctuation,
+                maxNewTokens: options.maximumTokenCount,
+                temperature: options.temperature,
+                chunkDuration: options.chunkDurationSeconds,
+                minChunkDuration: options.minimumChunkDurationSeconds,
                 speechSegments: speechSegments
             )).text
         case .mossTranscribeDiarize:
@@ -231,7 +232,7 @@ extension MLXTranscriber {
                 samples: audioSamples,
                 sampleRate: targetSampleRate,
                 prompt: inferenceConfiguration.mossPrompt,
-                maxTokens: parameters.maxTokens
+                maxTokens: options.maximumTokenCount
             )
             return MLXDetachedInferenceResult(
                 rawText: MossASRTranscriptRendering.renderedText(
@@ -291,12 +292,13 @@ extension MLXTranscriber {
             sampleRate: targetSampleRate,
             directPassMaximumDurationSeconds: directPassMaximumDurationSeconds
         ) else {
-            let output = model.generate(
+            let mlxOutput = model.generate(
                 audio: MLXArray(audioSamples),
                 language: resolvedLanguage,
                 useITN: useITN,
                 verbose: verbose
             )
+            let output = ASRTranscriptionResult(mlxOutput: mlxOutput)
             return SenseVoiceInferenceResult(
                 output: output,
                 metadata: SenseVoiceTranscriptMetadata.fromOutput(
@@ -352,12 +354,13 @@ extension MLXTranscriber {
             try Task.checkCancellation()
             let chunkSamples = Array(audioSamples[range])
             guard !chunkSamples.isEmpty else { continue }
-            let output = model.generate(
+            let mlxOutput = model.generate(
                 audio: MLXArray(chunkSamples),
                 language: resolvedLanguage,
                 useITN: useITN,
                 verbose: verbose
             )
+            let output = ASRTranscriptionResult(mlxOutput: mlxOutput)
             let chunkText = output.text.trimmingCharacters(in: .whitespacesAndNewlines)
             mergedText = MLXTranscriptionPlanning.mergeSequentialTranscript(base: mergedText, next: chunkText)
             if let metadata = SenseVoiceTranscriptMetadata.fromOutput(
@@ -377,13 +380,13 @@ extension MLXTranscriber {
             segments: metadataSegments,
             usedVADSegmentation: true
         )
-        let output = STTOutput(
+        let output = ASRTranscriptionResult(
             text: mergedText,
             segments: metadataSegments.map { segment in
-                STTTranscriptSegment(
+                ASRTranscriptSegment(
                     text: segment.text,
-                    startTime: segment.startSeconds,
-                    endTime: segment.endSeconds,
+                    startSeconds: segment.startSeconds,
+                    endSeconds: segment.endSeconds,
                     language: segment.language,
                     emotion: segment.emotion,
                     event: segment.event

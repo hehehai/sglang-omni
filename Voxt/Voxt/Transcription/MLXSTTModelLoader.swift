@@ -3,6 +3,10 @@ import MLX
 import MLXAudioCore
 import MLXAudioSTT
 
+nonisolated struct MLXSwiftASRModel: @unchecked Sendable {
+    let libraryModel: any STTGenerationModel
+}
+
 struct MLXLoadedModelBox: @unchecked Sendable {
     let loaded: LoadedASRModel
 
@@ -11,7 +15,7 @@ struct MLXLoadedModelBox: @unchecked Sendable {
     }
 
     nonisolated init(model: any STTGenerationModel) {
-        self.loaded = .mlx(model)
+        self.loaded = .mlx(MLXSwiftASRModel(libraryModel: model))
     }
 }
 

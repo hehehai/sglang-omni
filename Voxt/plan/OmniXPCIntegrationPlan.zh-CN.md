@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0 的实现和验证进展见第 13 节，其余任务待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1 的实现和验证进展见第 13 节，其余任务待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -512,4 +512,28 @@ xcodebuild build -project Voxt/Voxt.xcodeproj -scheme Voxt \
   ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO
 ```
 
-此外，在实际 App 中检查已有禁用模型配置、安装/恢复/选择禁用、卸载/查看目录、会议/文件/调试入口、Native runtime 缺失提示，以及 Remote 与本地 LLM 不受影响。T1 可在当前契约基础上继续拆除上层 Audio 类型；T2 必须在 Apple Silicon 上完成真实签名 XPC/Metal 验证，不能以 Linux 检查替代。
+此外，在实际 App 中检查已有禁用模型配置、安装/恢复/选择禁用、卸载/查看目录、会议/文件/调试入口、Native runtime 缺失提示，以及 Remote 与本地 LLM 不受影响。T2 必须在 Apple Silicon 上完成真实签名 XPC/Metal 验证，不能以 Linux 检查替代。
+
+### T1：Voxt 自有转写契约与兼容边界
+
+状态：结果/事件/生成配置类型迁移和 Linux 子集验证完成；完整 macOS App 编译、XCTest 和模型回放仍待补。
+
+实现范围：
+
+- 新增 ASRTranscriptionTypes：自有结果、可选时间戳分段、语言来源、生成元数据、流式事件、错误和带单位的生成选项。结果/分段可 Codable 往返；缺失分段统一为空数组，不根据语言字符串臆测语言来源。
+- ASRStreamingSession 不再暴露 MLX Audio 事件。Native streaming、会议、可靠分段和 SenseVoice 元数据消费自有类型，保留 MOSS 标签清理、零时长 speaker segment、时间偏移与替换已有 partial ID 的语义。
+- MLXAudioASRAdapter 是临时兼容转换边界：映射旧输出及语言来源，过滤上层原本忽略的 confirmed/provisional/stats，只传 display/ended/failed；生成选项仅在真实 Swift 模型调用处转换回包类型。旧输出没有提供停止原因时，hitLengthLimit 保持未知而非假设 false。
+- LoadedASRModel 保存 app-owned 兼容模型包装，Native backend 文件不再直接导入 STT 包；主模型管理器和会议转写处理也去掉不再需要的 Audio 导入。T0 的实际加载门禁继续生效，兼容包装不恢复生产 Swift fallback。
+- 此阶段不删除 SwiftPM Audio products，也不重写音频重采样、VAD/Sortformer 或权重验证。HTTP 的 wire request/result 仍在 HTTP adapter 路径中；XPC DTO、Core ABI、权限和签名不是此阶段已交付内容。
+
+已执行：
+
+- git diff --check、全部修改/新增 Swift 文件的 frontend parse：通过。
+- Linux Swift 6.2.3 编译实际契约、兼容转换、live runtime、分段、MOSS 渲染和 SenseVoice 元数据代码；兼容包的数据类型/生成参数来自锁定的 Audio revision 2a6e75d，MLX array、库 streaming session、App 资源与隔离宿主依赖使用 stub。
+- 上述隔离模块运行实际 XCTest：MLXNativeLiveRuntimeTests 的 10 项与 SenseVoiceMetadataTests 的 10 项通过，共 20 项、0 failures。SenseVoice 的 UI configuration summary 测试没有纳入此子集；这不是完整 Voxt test target 编译或 macOS 测试通过。
+- 6 项额外 adapter/structured transcript 场景通过：事件过滤及顺序、取消转发、chunk timing 不升级为可靠时间戳、无效 timing 过滤、MOSS speaker/tag 处理、无分段元数据回退。
+- T0 的 69 项隔离门禁检查重新运行通过；Voxt/tools 的 20 项工具测试通过；源码与 lockfile 依赖审计通过。
+- pre-commit run --all-files：通过。
+- 两个实施 subagent 分别处理上层调用方与 batch/planning；最终只读审查发现一个旧测试的 endTime 字段引用，已更新为 endSeconds。未把审查或 Linux 子集通过解释成 GPU/签名验证通过。
+
+macOS 待补：第 13 节的 Debug/TestDebug、Intel 构建和完整 XCTest；重点关注 MLXNativeLiveRuntimeTests、MLXInferenceConfigurationTests、SenseVoiceMetadataTests、ASRHintSettingsTests、MeetingLiveSessionSupportTests、MeetingMLXNativeFeedSchedulerTests、OmniTranscriptionRequestTests，以及真实 Native final/realtime/会议回放。下一任务为 T2 最小真实签名 XPC + Qwen/MLX/Metal smoke；已定义的 Swift Codable 值不能直接当作 NSXPC 安全编码协议使用。

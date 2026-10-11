@@ -4,6 +4,75 @@ import MLXAudioSTT
 
 @MainActor
 final class MLXNativeLiveRuntimeTests: XCTestCase {
+    func testCompatibilityResultPreservesSegmentMetadataAndLanguageProvenance() {
+        let provenances: [STTLanguageProvenance] = [.detected, .requested, .outputTarget, .modelDefault, .unknown]
+        for provenance in provenances {
+            let raw = STTOutput(
+                text: "hello",
+                segments: [STTTranscriptSegment(
+                    text: "hello", startTime: 1.25, endTime: 2.5, speakerID: "speaker-1",
+                    language: "en", confidence: 0.9, emotion: "neutral", event: "speech"
+                )],
+                language: "en", languageProvenance: provenance, generationTokens: 32
+            )
+            let result = ASRTranscriptionResult(mlxOutput: raw)
+            XCTAssertEqual(result.text, raw.text)
+            XCTAssertEqual(result.language, "en")
+            XCTAssertEqual(result.languageProvenance.rawValue, provenance.rawValue)
+            XCTAssertEqual(result.segments, [ASRTranscriptSegment(
+                text: "hello", startSeconds: 1.25, endSeconds: 2.5, speakerID: "speaker-1",
+                language: "en", confidence: 0.9, emotion: "neutral", event: "speech"
+            )])
+            XCTAssertEqual(result.generationMetadata?.generatedTokenCount, 32)
+            XCTAssertNil(result.generationMetadata?.hitLengthLimit)
+        }
+        let empty = ASRTranscriptionResult(mlxOutput: STTOutput(text: ""))
+        XCTAssertEqual(empty.segments, [])
+        XCTAssertNil(empty.language)
+        XCTAssertEqual(empty.languageProvenance, .unknown)
+        XCTAssertNil(empty.generationMetadata)
+    }
+
+    func testCompatibilityStreamOnlyForwardsDisplayAndTerminalEvents() {
+        XCTAssertEqual(
+            ASRStreamingEvent(mlxEvent: .displayUpdate(confirmedText: "hello", provisionalText: " world")),
+            .displayUpdate(confirmedText: "hello", provisionalText: " world")
+        )
+        XCTAssertEqual(
+            ASRStreamingEvent(mlxEvent: .ended(STTOutput(text: "done"))),
+            .ended(ASRTranscriptionResult(text: "done"))
+        )
+        XCTAssertEqual(
+            ASRStreamingEvent(mlxEvent: .failed(StreamingFailure(message: "decode failed"))),
+            .failed(ASRStreamingFailure(message: "decode failed"))
+        )
+        XCTAssertNil(ASRStreamingEvent(mlxEvent: .confirmed(text: "hello")))
+        XCTAssertNil(ASRStreamingEvent(mlxEvent: .provisional(text: "world")))
+        XCTAssertNil(ASRStreamingEvent(mlxEvent: .stats(StreamingStats())))
+    }
+
+    func testCompatibilityGenerationOptionsPreserveDecodingControls() {
+        let options = ASRGenerationOptions(
+            maximumTokenCount: 321, temperature: 0.25, topProbabilityThreshold: 0.8,
+            topTokenCount: 12, verbose: true, language: "zh", usePunctuation: false,
+            chunkDurationSeconds: 90, minimumChunkDurationSeconds: 2.5,
+            kvCacheBitWidth: 8, kvCacheGroupSize: 32, kvCacheQuantizedStartTokenCount: 128
+        )
+        let parameters = options.mlxParameters
+        XCTAssertEqual(parameters.maxTokens, 321)
+        XCTAssertEqual(parameters.temperature, Float(0.25))
+        XCTAssertEqual(parameters.topP, Float(0.8))
+        XCTAssertEqual(parameters.topK, 12)
+        XCTAssertTrue(parameters.verbose)
+        XCTAssertEqual(parameters.language, "zh")
+        XCTAssertEqual(parameters.usePunctuation, false)
+        XCTAssertEqual(parameters.chunkDuration, 90)
+        XCTAssertEqual(parameters.minChunkDuration, 2.5)
+        XCTAssertEqual(parameters.kvBits, 8)
+        XCTAssertEqual(parameters.kvGroupSize, 32)
+        XCTAssertEqual(parameters.quantizedKVStart, 128)
+    }
+
     func testReleaseKeepsModelUseUntilOwnedTasksHaveExited() async {
         let runtime = MLXNativeLiveRuntime()
         let session = RuntimeTestStreamingSession()
@@ -123,16 +192,16 @@ final class MLXNativeLiveRuntimeTests: XCTestCase {
 }
 
 /// Counters are lock protected because the production session contract is nonisolated.
-nonisolated private final class RuntimeTestStreamingSession: MLXNativeStreamingSession, @unchecked Sendable {
-    let events: AsyncStream<TranscriptionEvent>
-    private let continuation: AsyncStream<TranscriptionEvent>.Continuation
+nonisolated private final class RuntimeTestStreamingSession: ASRStreamingSession, @unchecked Sendable {
+    let events: AsyncStream<ASRStreamingEvent>
+    private let continuation: AsyncStream<ASRStreamingEvent>.Continuation
     private let lock = NSLock()
     private var cancellations = 0
     private var feeds = 0
     private var stops = 0
 
     init() {
-        let pair = AsyncStream<TranscriptionEvent>.makeStream()
+        let pair = AsyncStream<ASRStreamingEvent>.makeStream()
         events = pair.stream
         continuation = pair.continuation
     }
