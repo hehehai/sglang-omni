@@ -16,9 +16,11 @@ Voxt.app
 
 现有 HTTP server 保留为开发、CI、CLI 和模型 golden test 的 transport adapter，不作为正式 Voxt 产品路径。
 
-## 2. 当前基线
+当前迁移目标是移除 Voxt 对 MLX Audio 的依赖，而不是等待所有模型补齐后才切换。不支持的模型或能力暂时禁用，不回退到 Swift MLX Audio；后续通过 Native 能力验收再启用。本地 LLM/VLM 使用的 mlx-swift / mlx-swift-lm 不属于本次替换范围。第 12 节为当前任务与验收依据；第 10、11 节保留历史验证记录，不代表 XPC 已实现。
 
-当前 Voxt 的 Omni 路径是：
+## 2. 初始基线
+
+编写初版方案时，Voxt 的 Omni 路径是（内嵌 runtime 的后续进展见第 11 节）：
 
 ```text
 MLXModelManager
@@ -298,17 +300,11 @@ XPC 只是 transport 替换，不会自动补齐 Parakeet、Nemotron、SenseVoic
 
 ## 9. 当前建议
 
-先完成 Phase 0 和 Phase 1，再决定是否马上进入 XPC。
+正式迁移目标确定为 XPC，不再把 Helper + HTTP 作为产品交付的替代方案。第 11 节的内嵌 HTTP runtime 是验证基线，可以用于对照测试，但不满足最终迁移验收。
 
-原因是当前最大的未知项不是 XPC API，而是：
+先做最小的真实签名 XPC + MLX/Metal + 模型目录访问验证，再逐个迁移模型。无需先抽离所有 server，也无需等待 Parakeet、Nemotron、SenseVoice 补齐。优先复用已有模型静态库，将 HTTP/session 耦合按实际需要拆开。
 
-- Native runtime 的 Release 体积；
-- MLX 依赖是否重复；
-- Xcode 能否稳定完成嵌套签名；
-- App Sandbox 下 XPC 是否能稳定读取模型缓存；
-- 当前 server 代码中哪些部分需要从 HTTP 层抽离。
-
-如果 Phase 1 证明内嵌 Native Helper 的体积和签名可接受，可以在此基础上继续迁移到 XPC；如果 Native Core 抽取成本过高，则短期先发布内嵌 Helper + HTTP，XPC 作为后续 transport 重构。
+必须将模型可用性、Voxt 自有结果类型、VAD/Sortformer 和下载验证一起纳入迁移；仅替换 ASR transport 不能移除 MLX Audio。具体任务、依赖和发布门槛见第 12 节。
 
 ## 10. Phase 0/1 前置验证记录
 
@@ -386,4 +382,93 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 - 当前 runtime 仍包含 CLI/probe binary，后续正式发布前可以继续裁剪；
 - Native runtime 和 App 的实际最低系统版本均按 macOS 26.2 处理；Intel 版本只使用 Remote backend，不启动 arm64 Native runtime。
 
-因此这一版的产品形态已经从“外部环境变量指定的开发 server”变成“App Bundle 内置 runtime、App 自动启动 localhost server、用户只安装一个 App”。XPC 仍然保留为后续隔离 Native crash 和跨进程模型访问的演进方案。
+因此这一版的产品形态已经从“外部环境变量指定的开发 server”变成“App Bundle 内置 runtime、App 自动启动 localhost server、用户只安装一个 App”。这只是内嵌 runtime 的验证版本；按当前目标，正式迁移还需要完成 XPC 和 MLX Audio 移除。
+
+## 12. 当前迁移任务方案
+
+### 12.1 范围与产品规则
+
+- 正式路径为 Voxt -> 内嵌 OmniInference.xpc -> Native Core -> MLX/Metal，不在 XPC 内另起 HTTP server。
+- 完成迁移后，App 的源码、SwiftPM 依赖图和构建产物不再依赖 MLXAudioCore、MLXAudioSTT、MLXAudioVAD。
+- 保留独立的本地 LLM/VLM 与 Remote ASR/LLM 路径；本次不迁移 LLM/VLM runtime。
+- 不支持的本地模型显示“暂不可用”，禁止下载、选择、预加载和推理；已经下载的权重保留，允许查看和删除。
+- 已保存的禁用模型配置不能绕过限制；保留原选择供后续恢复，提示用户选择可用模型或 Remote，不静默切换到云端。
+- 同一模型按 final、batch preview、native realtime、timestamps、speaker segments 分别声明能力；不能用“支持 streaming”混淆 batch preview 和真正的 realtime。
+- 不支持的选项禁用，而不是通过保留 MLX Audio 实现补齐。后续支持是路线图，当前启用必须以具体 checkpoint 和能力的验收结果为准。
+- 当前平台基线暂沿用 macOS 26.2+、Apple Silicon 本地推理、Intel Remote-only；本轮不扩展最低系统版本。Developer ID 为首条建议验证链路，App Store 支持单独验收。
+
+### 12.2 初始能力清单
+
+下表来自现有方案与 Native 路由的静态核对，不是本轮实际模型运行认证。XPC 实现后需要逐项重跑。
+
+| 模型/组件 | 本轮目标 | 暂时禁用内容 |
+|---|---|---|
+| Qwen3-ASR | 已列入 Native 路由的 checkpoint 的 final、realtime | 未验收的 checkpoint 或选项 |
+| Whisper | 已列入 Native 路由的 checkpoint 的 final、batch preview | Native realtime；不能将 batch preview 标为 realtime |
+| Cohere Transcribe | 已列入 Native 路由的 checkpoint 的 final、batch preview | 当前 Swift-only realtime |
+| MOSS Transcribe Diarize | 已列入 Native 路由的 checkpoint 的 final、realtime、speaker segments | 未验收的选项 |
+| Silero VAD | Native streaming/offline、配置和模型验证 | Swift MLX Audio 实现 |
+| Sortformer | Native realtime/final diarization、配置和模型验证 | Swift MLX Audio 实现 |
+| Parakeet / Nemotron / SenseVoice | 保留 catalog 与已下载数据 | 下载、选择、预加载、推理；待 Native 支持后启用 |
+| Remote ASR/LLM、本地 LLM/VLM | 保持既有功能 | 不因 ASR 替换而禁用 |
+
+能力表必须按 repo/checkpoint、量化格式、任务和平台维护，不能仅根据模型家族名称放行。App 的静态支持清单与 XPC 的协议版本/实际能力握手共同决定是否可运行。
+
+### 12.3 任务拆分与验收
+
+所有下列任务均待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+
+| 任务 | 主要工作 | 依赖 | 完成标准 |
+|---|---|---|---|
+| T0：能力门禁与旧配置处理 | 统一模型/功能可用性来源；覆盖设置、onboarding、debug、快捷键、会议、文件转写、下载与加载入口；禁用缺失模型/能力 | 无 | 禁用模型从任何入口都不能执行；旧配置不会回退 Swift 或自动上云；已有权重可删除 |
+| T1：Voxt 自有 ASR 类型 | 替换 STTOutput、TranscriptionEvent、STTGenerationModel 等上层依赖；统一文本、语言来源、时间戳、speaker、生成元数据与错误 | T0 | App/会议使用自有契约；在迁移期用现有 adapter 验证 final、preview 和 speaker 结果，不复制整个 MLX Audio API |
+| T2：真实签名 XPC 验证 | 新增 target、嵌入配置与最小 bridge；链接已有 Qwen 模型库；验证 MLX/Metal 资源发现、App Group 与真实模型访问 | 可与 T0/T1 并行 | 干净环境的签名 App 经 XPC 完成一次 Qwen final；XPC 崩溃不退出主 App；重连后新请求成功 |
+| T3：Core/session 与 XPC 协议 | 分离 HTTP 耦合；实现 final、load/unload、session、push/finish/cancel、event；确定 worker、资源和异常所有权 | T1、T2 | Qwen final/realtime 跨 XPC；取消/断连只产生一次终态；HTTP adapter 的原有 API/golden 不退化 |
+| T4：VAD、Sortformer 与目录生命周期 | 迁移 streaming/offline VAD、realtime/final diarization；移除 Swift 推理式下载验证；实现缓存迁移、目录授权、lease 与删除协调 | T3 | ASR + VAD + Sortformer 可共同工作且状态隔离；模型下载不在主 App 加载 Audio 模型；使用中不能误删权重 |
+| T5：其余 ASR 与客户端切换 | 接入 Whisper/Cohere/MOSS；保留其分块、prompt、语言、speaker 和 final/preview 语义；Release 全部走 XPC | T3、T4 | 所有声明支持的能力完成 App 端到端回放；runtime 缺失或失败明确报错，不回退 Swift/HTTP |
+| T6：依赖移除与构建审计 | 删除 Swift Audio loader/分支、迁移测试、移除 SPM products/package；更新 lockfile、依赖审计脚本和文档 | T5 | 严格解析和 Debug/Release 构建通过；源码与实际依赖/产物审计无 MLX Audio；本地 LLM/VLM 仍可用 |
+| T7：发布与稳定性门槛 | 将 XPC/Core/dylib/Metal 的构建、签名、公证和运行 smoke 接入 CI；运行性能与故障矩阵 | T6 | 签名、公证、干净机器安装、长会议、崩溃恢复与资源测量都有实际记录 |
+
+建议以这些可独立验收的任务拆成后续 PR；当前 PR #2683 继续定位为 Native runtime 打包验证，不宣称已经完成 XPC 或 MLX Audio 替换。
+
+### 12.4 必须提前冻结的接口与生命周期
+
+**XPC 消息与音频**
+
+- 区分 App 内部 Swift 类型和 NSXPC 可编码的 DTO；使用明确的 Objective-C 协议、NSSecureCoding/允许类型集合，并带协议版本。
+- 请求包含 request/session ID，事件包含递增序号和服务实例标识；服务重启后的旧事件不能污染新录音。
+- 固定音频格式、采样率、声道、时间基准和最大 chunk 大小。短音频使用有界 Data；长录音使用分块或明确授权的文件访问，不把整场会议塞进一次 XPC 消息。
+- XPC Data 不保证零拷贝。先测实际复制、延迟和内存，再决定是否需要共享内存；不得在录音实时回调中等待 XPC。
+- 定义 push 的接收确认、最大在途 chunk/排队音频秒数、finish 的末尾 drain、终态只发送一次，以及失败后的处理。可以合并 preview，不能静默丢失音频或 final。
+
+**资源与恢复**
+
+- 现有 Native worker 保持同一线程加载与推理的约束；XPC 回调只排队，不能直接并发调用 MLX。
+- 初版采用单 XPC host，ASR 同时只保留一个活动模型；VAD/Sortformer 使用独立状态和明确的 worker/MLX stream 所有权，并验证 GPU 并行安全性及内存。
+- 移除模型时只取消/卸载相关 session，不能照搬 HTTP 的 kill-process 逻辑杀掉整个 XPC host。单服务崩溃会影响所有本地 session，必须全部显式失败并清理 lease。
+- 区分连接 interruption 和 invalidation；为在途请求设置超时并完成其等待者。仅允许下一次新请求重连，默认不自动重放已提交音频。
+- cancel 先协作取消，释放模型前等待在途工作结束；超时恢复若需要重置服务，必须显式通知其他受影响 session。
+- 空闲时显式卸载模型并释放 MLX 缓存；macOS 按需启动 XPC 不意味着关闭连接就保证进程立即退出或显存归零。
+
+**目录、签名与发布**
+
+- App Group 标识、两侧 entitlements 和 Developer ID 授权必须在 T2 用真实签名确认；不通过给主 App 任意文件访问权限绕过。
+- 缓存迁移使用临时目录、完整性校验和原子发布；更新成功前保留旧目录，避免重复下载、磁盘不足和升级后旧版本无法读模型。
+- 外部模型目录单独验证 security-scoped bookmark/文件访问授权的跨进程语义、权限撤销和服务重启；不能只给 XPC 传路径字符串并假设可访问。
+- 主 App 负责下载与发布权重，服务负责推理；删除/替换前等待所有模型 lease 释放，加载未完成的下载目录必须失败。
+- XPC/Core 使用标准 bundle 位置和可迁移的 install name/rpath；验证 MLX 在新布局中找到 mlx.metallib。Core 优先复用已有静态库，无需强制新增动态库。
+- 从最内层 Mach-O 到 XPC 再到 App 签名；检查真实加载依赖、架构、最低 OS、Gatekeeper 和公证。Metal 文件作为 bundle 资源验证，不视作可独立 codesign 的 Mach-O。
+- 正式包不携带 HTTP server、CLI/probe 和开发覆盖入口；保留其他功能必需的网络权限，仅在审计确认后删除本地 HTTP 专用 server entitlement。
+- 移除 Audio 不会自动移除本地 LLM/VLM 所需的 Swift MLX。两套 MLX 的体积与内存分别实测，不能承诺替换后只有一套 runtime。
+
+### 12.5 回归和发布验收矩阵
+
+- 模型门禁：全新安装、已下载禁用模型、旧默认模型、不同 feature 保存的选择、Intel 和 runtime/protocol 不兼容。
+- 音频结果：固定语料的各模型 final/preview/realtime；中英混合、静音、短录音、长录音、采样率转换、语言/prompt、时间戳与 speaker 对齐。
+- 会话：load 中取消、推理中取消、finish/cancel 竞争、重复 finish、晚到事件、模型切换、并行 VAD/diarization、idle unload、退出。
+- 故障：加载中/录音中/finish 中服务崩溃、反复重连、队列满、模型文件损坏、外部目录授权撤销、下载/删除与推理竞争。
+- 产品回归：Remote ASR 的本地 VAD、会议 live/final、文件转写、历史展示、本地 LLM/VLM；移除 Audio 后不能遗漏这些跨功能调用者。
+- 打包：真实签名 App 在无 Python/uv/开发环境变量的机器运行 XPC 与 Metal；测 App/XPC/MLX/模型体积、首次加载、preview 延迟、峰值内存与长会议内存趋势。
+- CI：继续跑 HTTP Native golden/API，再新增 XPC 契约与真实签名 packaged-app smoke。unsigned build 和 codesign verify 都不能单独代替运行验证。
+
+本轮仅在 Linux 环境完成文档和源码静态核对，没有执行 Xcode、XPC、签名或模型回放。第 10、11 节的本机验证记录为原分支历史证据，应在执行 T2/T7 时针对新的提交与产物重新验证。
