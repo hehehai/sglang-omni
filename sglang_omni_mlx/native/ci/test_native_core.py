@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Test the public ABI with real realtime/worker sources and CPU model stand-ins."""
+"""Test real ABI, worker, and checkpoint/config sources with CPU model stand-ins."""
 
 from __future__ import annotations
 
@@ -81,10 +81,27 @@ CASES = (
     "silero_failure_probabilities",
     "silero_failure_allocation",
     "silero_failure_serialized_admission",
+    "sortformer_settings",
+    "sortformer_input_sequence",
+    "sortformer_ownership_isolation",
+    "sortformer_limits_finish",
+    "sortformer_cap_counters",
+    "sortformer_failure_config",
+    "sortformer_failure_exceptions",
+    "sortformer_failure_results",
+    "sortformer_failure_allocation",
+    "sortformer_failure_serialized_admission",
+    "sortformer_lifecycle_stream_cancel",
+    "sortformer_lifecycle_model_cancel",
+    "sortformer_lifecycle_model_destroy",
+    "sortformer_lifecycle_queued_cancel",
+    "sortformer_lifecycle_finish_cancel",
+    "sortformer_lifecycle_create_cancel",
+    "sortformer_lifecycle_cancel_before",
 )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
     compiler = shutil.which(os.environ.get("CXX", "c++"))
     c_compiler = shutil.which(os.environ.get("CC", "cc"))
@@ -104,6 +121,18 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
         "native_silero_stream.cpp",
         "native_silero_worker.cpp",
         "native_silero_worker.h",
+        "native_sortformer.cpp",
+        "native_sortformer_stream.cpp",
+        "native_sortformer_worker.cpp",
+        "native_sortformer_worker.h",
+        "native_sortformer_validation.cpp",
+        "native_sortformer_validation.h",
+        "sortformer.h",
+        "sortformer_features.h",
+        "sortformer_checkpoint.h",
+        "sortformer_checkpoint.cpp",
+        "sortformer_segments.h",
+        "sortformer_segments.cpp",
         "silero_timestamps.h",
         "silero_vad.h",
         "native_realtime_state.cpp",
@@ -116,7 +145,7 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
         source = NATIVE_DIRECTORY / "src" / filename
         shutil.copyfile(source, build / filename)
         assert (build / filename).read_bytes() == source.read_bytes()
-    common_flags = ["-Wall", "-Wextra", "-Werror", "-pthread"]
+    common_flags = ["-Wall", "-Wextra", "-Werror", "-pthread", "-ffp-contract=off"]
     sanitizers = os.environ.get("OMNI_ABI_SANITIZERS", "")
     if sanitizers:
         common_flags += [f"-fsanitize={sanitizers}", "-fno-omit-frame-pointer"]
@@ -136,6 +165,25 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
         "-I",
         str(NATIVE_DIRECTORY / "ci/native_core_stubs"),
     ]
+    json_directory = os.environ.get("NLOHMANN_JSON_INCLUDE_DIR")
+    if json_directory:
+        include_flags += ["-I", json_directory]
+    else:
+        pass
+    probe = subprocess.run(
+        [compiler, "-std=c++20", *include_flags, "-x", "c++", "-E", "-"],
+        input="#include <nlohmann/json.hpp>\n",
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    if probe.returncode != 0:
+        pytest.skip(
+            "Real config tests need nlohmann/json.hpp; set NLOHMANN_JSON_INCLUDE_DIR. "
+            "Tests never download dependencies. " + probe.stderr[-1000:]
+        )
+    else:
+        pass
     library_name = "libOmniCore.dylib" if sys.platform == "darwin" else "libOmniCore.so"
     library_flags = ["-dynamiclib"] if sys.platform == "darwin" else ["-shared"]
     wrap_flags = ["-DOMNI_ABI_WRAP_MALLOC"] if sys.platform == "linux" else []
@@ -156,6 +204,13 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
             str(build / "native_silero_stream.cpp"),
             str(build / "native_silero_worker.cpp"),
             str(NATIVE_DIRECTORY / "ci/native_core_stubs/silero_backend.cpp"),
+            str(build / "native_sortformer.cpp"),
+            str(build / "native_sortformer_stream.cpp"),
+            str(build / "native_sortformer_worker.cpp"),
+            str(build / "native_sortformer_validation.cpp"),
+            str(build / "sortformer_segments.cpp"),
+            str(build / "sortformer_checkpoint.cpp"),
+            str(NATIVE_DIRECTORY / "ci/native_core_stubs/sortformer_backend.cpp"),
             str(build / "native_realtime.cpp"),
             str(build / "native_realtime_state.cpp"),
             str(build / "realtime_engine.cpp"),
@@ -166,7 +221,7 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
             str(build / library_name),
         ],
         check=True,
-        timeout=60,
+        timeout=240,
     )
     subprocess.run(
         [
@@ -182,6 +237,11 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
             str(NATIVE_DIRECTORY / "ci/native_core_stubs/silero_stream_cases.cpp"),
             str(NATIVE_DIRECTORY / "ci/native_core_stubs/silero_lifecycle_cases.cpp"),
             str(NATIVE_DIRECTORY / "ci/native_core_stubs/silero_failure_cases.cpp"),
+            str(NATIVE_DIRECTORY / "ci/native_core_stubs/sortformer_cases.cpp"),
+            str(NATIVE_DIRECTORY / "ci/native_core_stubs/sortformer_failure_cases.cpp"),
+            str(
+                NATIVE_DIRECTORY / "ci/native_core_stubs/sortformer_lifecycle_cases.cpp"
+            ),
             str(NATIVE_DIRECTORY / "ci/native_core_stubs/realtime_cases.cpp"),
             str(NATIVE_DIRECTORY / "ci/native_core_stubs/realtime_cases_lifecycle.cpp"),
             str(NATIVE_DIRECTORY / "ci/native_core_stubs/realtime_cases_queue.cpp"),
@@ -193,7 +253,7 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
             str(build / "abi_cases"),
         ],
         check=True,
-        timeout=60,
+        timeout=240,
     )
     subprocess.run(
         [
@@ -239,11 +299,43 @@ def abi_build(tmp_path_factory: pytest.TempPathFactory) -> Path:
         check=True,
         timeout=60,
     )
+    subprocess.run(
+        [
+            compiler,
+            "-std=c++20",
+            *common_flags,
+            *include_flags,
+            *executable_flags,
+            str(NATIVE_DIRECTORY / "ci/native_core_stubs/sortformer_segment_cases.cpp"),
+            str(build / "sortformer_segments.cpp"),
+            "-o",
+            str(build / "segment_cases"),
+        ],
+        check=True,
+        timeout=60,
+    )
+    subprocess.run(
+        [
+            compiler,
+            "-std=c++20",
+            *common_flags,
+            *include_flags,
+            *executable_flags,
+            str(NATIVE_DIRECTORY / "ci/native_core_stubs/sortformer_config_cases.cpp"),
+            str(build / "sortformer_checkpoint.cpp"),
+            "-o",
+            str(build / "config_cases"),
+        ],
+        check=True,
+        timeout=120,
+    )
     return build
 
 
 @pytest.mark.parametrize("case", CASES)
-def test_public_abi_with_backend_mlx_stubs(abi_build: Path, case: str) -> None:
+def test_public_abi_with_backend_mlx_stubs(
+    abi_build: Path, tmp_path: Path, case: str
+) -> None:
     if (
         case
         in {
@@ -252,6 +344,8 @@ def test_public_abi_with_backend_mlx_stubs(abi_build: Path, case: str) -> None:
             "realtime_refresh_allocation",
             "silero_failure_allocation",
             "silero_failure_serialized_admission",
+            "sortformer_failure_allocation",
+            "sortformer_failure_serialized_admission",
         }
         and sys.platform != "linux"
     ):
@@ -259,6 +353,7 @@ def test_public_abi_with_backend_mlx_stubs(abi_build: Path, case: str) -> None:
     else:
         completed = subprocess.run(
             [str(abi_build / "abi_cases"), case],
+            cwd=tmp_path,
             capture_output=True,
             text=True,
             timeout=30,
@@ -275,6 +370,20 @@ def test_public_abi_with_backend_mlx_stubs(abi_build: Path, case: str) -> None:
 )
 def test_real_pure_timestamp_algorithm(abi_build: Path, case: str) -> None:
     subprocess.run([str(abi_build / "timestamp_cases"), case], check=True, timeout=15)
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        "empty_threshold",
+        "duration_before_merge",
+        "merge_boundary",
+        "overlap_stable_order",
+        "float_rounding",
+    ),
+)
+def test_real_pure_segment_algorithm(abi_build: Path, case: str) -> None:
+    subprocess.run([str(abi_build / "segment_cases"), case], check=True, timeout=15)
 
 
 def test_pure_c_header_and_linkage(abi_build: Path) -> None:
@@ -325,4 +434,14 @@ def test_exported_c_symbols(abi_build: Path) -> None:
         "omni_silero_stream_drain",
         "omni_silero_stream_destroy",
         "omni_silero_stream_result_free",
+        "omni_sortformer_create",
+        "omni_sortformer_cancel",
+        "omni_sortformer_destroy",
+        "omni_sortformer_stream_create",
+        "omni_sortformer_stream_push",
+        "omni_sortformer_stream_finish",
+        "omni_sortformer_stream_cancel",
+        "omni_sortformer_stream_drain",
+        "omni_sortformer_stream_destroy",
+        "omni_sortformer_result_free",
     }

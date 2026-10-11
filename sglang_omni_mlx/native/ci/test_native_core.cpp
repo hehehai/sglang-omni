@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Public ABI tests against the real worker and explicitly stubbed backend/MLX.
 #include "native_core_stubs/silero_backend.h"
+#include "native_core_stubs/sortformer_backend.h"
+#include "native_core_stubs/sortformer_config_fixture.h"
 #include "omni_native_core.h"
 #include "transcriber.h"
 
@@ -41,6 +43,24 @@ void *operator new(size_t byte_count) {
   }
 }
 void *operator new[](size_t byte_count) { return ::operator new(byte_count); }
+// Note (OpenAI): stable_sort uses nothrow new; pair it with this fixture's
+// malloc-backed delete instead of ASan's independent new allocator.
+void *operator new(size_t byte_count, const std::nothrow_t &) noexcept {
+  try {
+    return ::operator new(byte_count);
+  } catch (const std::bad_alloc &) {
+    return nullptr;
+  }
+}
+void *operator new[](size_t byte_count, const std::nothrow_t &tag) noexcept {
+  return ::operator new(byte_count, tag);
+}
+void operator delete(void *allocation, const std::nothrow_t &) noexcept {
+  std::free(allocation);
+}
+void operator delete[](void *allocation, const std::nothrow_t &) noexcept {
+  std::free(allocation);
+}
 void operator delete(void *allocation) noexcept { std::free(allocation); }
 void operator delete[](void *allocation) noexcept { std::free(allocation); }
 void operator delete(void *allocation, size_t) noexcept {
@@ -337,8 +357,14 @@ void ConcurrentRequests() {
 } // namespace
 
 int main(int argument_count, char **arguments) {
-  assert(argument_count == 2 && omni_core_abi_version() == 4);
+  assert(argument_count == 2 && omni_core_abi_version() == 5);
+  omni_test::SortformerState().config.modules.use_aosc = true;
   const std::string test = arguments[1];
+  if (test.starts_with("sortformer_") &&
+      !test.starts_with("sortformer_config_")) {
+    omni_test::WriteSortformerConfig(omni_test::SortformerState().config);
+  } else {
+  }
   if (test == "invalid_directories") {
     InvalidDirectories();
   } else if (test == "invalid_inputs") {
@@ -365,6 +391,13 @@ int main(int argument_count, char **arguments) {
     omni_test::RunSileroLifecycleCase(test);
   } else if (test.starts_with("silero_failure_")) {
     omni_test::RunSileroFailureCase(test);
+  } else if (test.starts_with("sortformer_failure_") ||
+             test.starts_with("sortformer_config_")) {
+    omni_test::RunSortformerFailureCase(test);
+  } else if (test.starts_with("sortformer_lifecycle_")) {
+    omni_test::RunSortformerLifecycleCase(test);
+  } else if (test.starts_with("sortformer_")) {
+    omni_test::RunSortformerCase(test);
   } else if (test.starts_with("realtime_")) {
     omni_test::RunRealtimeCase(test);
   } else {
@@ -375,7 +408,13 @@ int main(int argument_count, char **arguments) {
     assert(backend.load_count == backend.destruction_count);
     assert(backend.live_array_count == 0 && backend.active_count == 0);
     assert(backend.loading_thread == backend.destruction_thread);
+  } else if (test.starts_with("sortformer_")) {
+    const auto &backend = omni_test::SortformerState();
+    assert(backend.load_count == backend.destruction_count);
+    assert(backend.live_array_count == 0 && backend.active_count == 0);
+    assert(backend.loading_thread == backend.destruction_thread);
   } else {
   }
-  std::cout << "PASS " << test << " (backend/MLX stubs; real native worker)\n";
+  std::cout << "PASS " << test
+            << " (model/MLX stubs; real native worker and config parser)\n";
 }

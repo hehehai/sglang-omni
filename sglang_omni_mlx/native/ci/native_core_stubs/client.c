@@ -40,9 +40,11 @@ _Static_assert(OMNI_QWEN_REALTIME_MAX_CHUNK_SAMPLES == 32000 &&
                OMNI_QWEN_REALTIME_MAX_TOKEN_COUNT == 4096, "public limits");
 
 #include "silero_c_client.h"
+#include "sortformer_c_client.h"
 
 int main(void) {
     check_silero_c_abi();
+    check_sortformer_c_abi();
     unsigned int (*version)(void) = omni_core_abi_version;
     OmniQwenHandle *(*create)(const char *, char **) = omni_qwen_create;
     int (*transcribe)(OmniQwenHandle *, const float *, size_t, const char *,
@@ -57,7 +59,7 @@ int main(void) {
     int (*transcribe_request)(OmniQwenHandle *, OmniQwenRequest *, const float *,
                               size_t, const char *, const char *, int,
                               OmniQwenResult *, char **) = omni_qwen_transcribe_request;
-    assert(version() == 4);
+    assert(version() == 5);
     char *error = NULL;
     assert(create(NULL, &error) == NULL);
     assert(strcmp(error, "Invalid model directory.") == 0);

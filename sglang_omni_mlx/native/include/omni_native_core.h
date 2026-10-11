@@ -298,6 +298,101 @@ OMNI_CORE_EXPORT void omni_silero_stream_destroy(OmniSileroStream *stream);
 OMNI_CORE_EXPORT void
 omni_silero_stream_result_free(OmniSileroStreamResult *result);
 
+// ABI5: Sortformer streaming, explicit settings; no HTTP policy defaults.
+#define OMNI_SORTFORMER_SAMPLE_RATE 16000
+#define OMNI_SORTFORMER_MAX_CHUNK_SAMPLES 32000
+#define OMNI_SORTFORMER_MAX_STREAMS 16
+#define OMNI_SORTFORMER_MAX_STATE_FRAMES 4096
+#define OMNI_SORTFORMER_MAX_CHUNK_FRAMES 26
+#define OMNI_SORTFORMER_MAX_SPEAKERS 4
+#define OMNI_SORTFORMER_MAX_SEGMENTS 104
+
+typedef struct OmniSortformerHandle OmniSortformerHandle;
+typedef struct OmniSortformerStream OmniSortformerStream;
+typedef struct OmniSortformerSettings {
+  float threshold;
+  float minimum_duration_seconds;
+  float merge_gap_seconds;
+  int32_t speaker_cache_max_frames;
+  int32_t fifo_max_frames;
+} OmniSortformerSettings;
+typedef struct OmniSortformerSegment {
+  double start_seconds;
+  double end_seconds;
+  int32_t speaker_index;
+} OmniSortformerSegment;
+typedef struct OmniSortformerResult {
+  float *probabilities;
+  size_t probability_count;
+  int32_t frame_count;
+  int32_t speaker_count;
+  double frame_duration_seconds;
+  OmniSortformerSegment *segments;
+  size_t segment_count;
+  uint64_t processed_frame_count;
+} OmniSortformerResult;
+
+// Synchronous nonpreemptible load on a dedicated persistent worker. Initially
+// supports only four-speaker AOSC checkpoints with 16kHz/hop160/subsampling8
+// and validated architecture/config bounds. NULL on failure. All MLX model and
+// stream arrays are created/released on that worker. No exceptions cross C;
+// optional sanitized errors are cleared first and freed with omni_string_free.
+OMNI_CORE_EXPORT OmniSortformerHandle *
+omni_sortformer_create(const char *model_directory, char **error_message);
+// Sticky model-wide cancellation stops admission, not a worker drain.
+OMNI_CORE_EXPORT void omni_sortformer_cancel(OmniSortformerHandle *handle);
+// Cancel + drain, retaining the worker/model while any stream lease lives.
+// Synchronize stream creation/raw model calls against destroy, preventing new
+// calls once destruction begins. Submitted stream work may overlap destroy.
+OMNI_CORE_EXPORT void omni_sortformer_destroy(OmniSortformerHandle *handle);
+
+// Required settings: finite threshold 0..1, durations 0..3600 seconds, cache
+// 1..4096 and FIFO 0..4096, also constrained by the model's encoder positions
+// and compression bounds: (cache_max + 1 + silence_frames_per_speaker)*4
+// must fill the model's fixed cache length, and max_index must remain outside
+// flattened candidate indices. At most 16 live leases, including drained
+// streams.
+OMNI_CORE_EXPORT OmniSortformerStream *
+omni_sortformer_stream_create(OmniSortformerHandle *handle,
+                              const OmniSortformerSettings *settings,
+                              char **error_message);
+// Synchronous 1/0 success/error, sequence starts at 1, strictly consecutive.
+// Finite mono samples, count 1..32000, additionally <= update_period*1280-1;
+// exceeding a model-specific cap is a pre-admission error. Inputs stay valid
+// until return. ACK/result required, cleared first; free old outputs first.
+// One command/copy per model, gate BEFORE copy. Invalid input/sequence/bounds
+// or pre-admission copy failure consumes no sequence. Post-admission inference
+// or output allocation failure is terminal: NEVER replay even with ACK zero.
+// Cancellation is cooperative before/after Feed, not GPU preemption. Native
+// int frame-counter overflow rejects BEFORE Feed. No audio/output history.
+// Owned row-major probabilities are finite 0..1, at most 26x4 per feed;
+// segments use absolute stream seconds converted from the original floats.
+// processed_frame_count counts emitted frames, not samples received.
+OMNI_CORE_EXPORT int omni_sortformer_stream_push(
+    OmniSortformerStream *stream, uint64_t audio_sequence, const float *samples,
+    size_t sample_count, uint64_t *accepted_audio_sequence,
+    OmniSortformerResult *result, char **error_message);
+// No extra audio, padding or model tail. Completed is immutable; repeated
+// finish succeeds (1). Failed/cancelled finish returns 0. Drain still required.
+OMNI_CORE_EXPORT int omni_sortformer_stream_finish(OmniSortformerStream *stream,
+                                                   char **error_message);
+// Independent, durable, idempotent cancellation bypasses command serialization.
+OMNI_CORE_EXPORT void
+omni_sortformer_stream_cancel(OmniSortformerStream *stream);
+// Terminal required. Waits commands and releases arrays on the loading worker.
+// Returns 1/0 drained/error; repeated drain succeeds. Never call on that
+// worker.
+OMNI_CORE_EXPORT int omni_sortformer_stream_drain(OmniSortformerStream *stream,
+                                                  char **error_message);
+// Cancel + drain + release lease. Callers synchronize raw stream destruction
+// against all stream calls. Push/finish/drain serialize; cancel may overlap.
+// A lease after model destroy remains drainable, never accepts more audio.
+// All cancel/destroy/free functions are NULL safe; destroy exactly once.
+OMNI_CORE_EXPORT void
+omni_sortformer_stream_destroy(OmniSortformerStream *stream);
+// Frees both owned arrays and clears ALL fields; repeated/NULL safe.
+OMNI_CORE_EXPORT void omni_sortformer_result_free(OmniSortformerResult *result);
+
 #ifdef __cplusplus
 }
 #endif

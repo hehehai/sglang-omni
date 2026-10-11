@@ -91,7 +91,11 @@ mx::array RelativeShift(const mx::array &x) {
 } // namespace
 
 SortformerModel::SortformerModel(const std::filesystem::path &model_directory)
-    : config_(LoadConfig(model_directory)), features_(config_.processor),
+    : SortformerModel(model_directory, LoadConfig(model_directory)) {}
+
+SortformerModel::SortformerModel(const std::filesystem::path &model_directory,
+                                 const Config &config)
+    : config_(config), features_(config_.processor),
       weights_(LoadCheckpoint(model_directory, config_)) {}
 
 const mx::array &SortformerModel::Weight(const std::string &name) const {

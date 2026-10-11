@@ -123,6 +123,7 @@ jobs:
           test -f "$NLOHMANN_JSON_INCLUDE_DIR/nlohmann/json.hpp"
           "$VOXT_CI_ROOT/venv/bin/python" -m pytest -q -rs \
             sglang_omni_mlx/native/ci/test_native_core.py \
+            sglang_omni_mlx/native/ci/test_sortformer_config.py \
             sglang_omni_mlx/native/ci/test_realtime.py
 
       # Every golden file is checked, even after one fails, and this chip's

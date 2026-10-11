@@ -65,11 +65,13 @@ target_compile_options(qwen3_asr PUBLIC ${MLX_CXX_FLAGS} PRIVATE -Wall -Wextra)
 
 add_library(OmniCore SHARED src/native_core.cpp src/native_realtime.cpp
   src/native_realtime_state.cpp src/native_silero.cpp
-  src/native_silero_stream.cpp src/native_silero_worker.cpp)
+  src/native_silero_stream.cpp src/native_silero_worker.cpp
+  src/native_sortformer.cpp src/native_sortformer_stream.cpp
+  src/native_sortformer_worker.cpp src/native_sortformer_validation.cpp)
 target_include_directories(OmniCore PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include>")
-target_link_libraries(OmniCore PRIVATE qwen3_asr silero_vad)
+target_link_libraries(OmniCore PRIVATE qwen3_asr silero_vad sortformer)
 target_compile_options(OmniCore PRIVATE -Wall -Wextra)
 set_target_properties(OmniCore PROPERTIES
   CXX_VISIBILITY_PRESET hidden
@@ -91,7 +93,12 @@ if(APPLE)
       omni_silero_request_destroy omni_silero_speech_timestamps
       omni_silero_result_free omni_silero_stream_create omni_silero_stream_push
       omni_silero_stream_finish omni_silero_stream_cancel omni_silero_stream_drain
-      omni_silero_stream_destroy omni_silero_stream_result_free)
+      omni_silero_stream_destroy omni_silero_stream_result_free
+      omni_sortformer_create omni_sortformer_cancel omni_sortformer_destroy
+      omni_sortformer_stream_create omni_sortformer_stream_push
+      omni_sortformer_stream_finish omni_sortformer_stream_cancel
+      omni_sortformer_stream_drain omni_sortformer_stream_destroy
+      omni_sortformer_result_free)
     target_link_options(OmniCore PRIVATE "LINKER:-exported_symbol,_${symbol}")
   endforeach()
 endif()
@@ -107,7 +114,10 @@ add_library(sortformer STATIC
   src/sortformer.cpp
   src/sortformer_checkpoint.cpp
   src/sortformer_features.cpp
-  src/sortformer_state.cpp)
+  src/sortformer_state.cpp
+  src/sortformer_segments.cpp)
+set_source_files_properties(src/native_sortformer_validation.cpp
+  src/sortformer_segments.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
 target_include_directories(sortformer PUBLIC src)
 target_link_libraries(sortformer PUBLIC mlx nlohmann_json::nlohmann_json)
 target_compile_options(sortformer PUBLIC ${MLX_CXX_FLAGS} PRIVATE -Wall -Wextra)

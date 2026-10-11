@@ -14,7 +14,12 @@ namespace sortformer {
 
 // config.json with the Swift defaults for absent keys; only use_aosc (v2.1)
 // checkpoints are accepted.
+// Strict checks JSON types/ranges before narrowing; native architecture
+// validation must still precede model allocation. Legacy keeps safe coercions.
+enum class ConfigParseMode { Legacy, Strict };
 Config LoadConfig(const std::filesystem::path &model_directory);
+Config LoadConfig(const std::filesystem::path &model_directory,
+                  ConfigParseMode mode);
 
 // Every *.safetensors in the directory, sanitized as Swift does (PyTorch
 // layouts converted, num_batches_tracked dropped) and checked strictly: each

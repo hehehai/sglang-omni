@@ -138,18 +138,22 @@ FeatureExtractor::FeatureExtractor(const ProcessorConfig &config)
 mx::array
 FeatureExtractor::operator()(const std::vector<float> &samples) const {
   const int sample_count = static_cast<int>(samples.size());
-  if (sample_count < 2) {
-    throw std::invalid_argument("Sortformer needs at least two samples");
+  if (sample_count < 1) {
+    throw std::invalid_argument("Sortformer needs at least one sample");
   } else {
   }
   const mx::array waveform(samples.data(), {1, sample_count}, mx::float32);
   // Note (Jiaxin Deng): preemphasis as separate MLX ops, in Swift's op order.
   const mx::array first = mx::slice(waveform, {0, 0}, {1, 1});
-  const mx::array rest = mx::subtract(
-      mx::slice(waveform, {0, 1}, {1, sample_count}),
-      mx::multiply(mx::array(config_.preemphasis),
-                   mx::slice(waveform, {0, 0}, {1, sample_count - 1})));
-  const mx::array emphasized = mx::concatenate({first, rest}, -1);
+  mx::array emphasized = first;
+  if (sample_count > 1) {
+    const mx::array rest = mx::subtract(
+        mx::slice(waveform, {0, 1}, {1, sample_count}),
+        mx::multiply(mx::array(config_.preemphasis),
+                     mx::slice(waveform, {0, 0}, {1, sample_count - 1})));
+    emphasized = mx::concatenate({first, rest}, -1);
+  } else {
+  }
 
   const int padding = config_.fft_size / 2;
   const mx::array audio = mx::reshape(emphasized, {sample_count});
