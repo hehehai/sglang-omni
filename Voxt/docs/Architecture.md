@@ -21,10 +21,12 @@ Voxt is a macOS 26.2+ menu bar application, built with the shared `Voxt` Xcode s
 | `Voxt/Settings/` | SwiftUI settings and onboarding; `Shell/` owns navigation and shared presentation |
 | `Voxt/Windows/` | AppKit windows, overlays, detail views and their view models |
 | `Voxt/Resources/`, `*.lproj`, assets | Bundled prompts, runtimes, localization and visual resources |
-| `VoxtTests/` | Tests; `TestSupport/` contains shared fixtures, doubles and model-test gates |
+| `VoxtTests/` | App tests; `TestSupport/` contains shared fixtures, doubles and model-test gates |
+| `Packages/OmniXPCContracts/` | Dependency-free Foundation contracts, bounded wire codecs and standalone package tests shared by the app and helper |
+| `OmniInference/` | Opt-in XPC service, connection/model lifecycle, final/realtime sessions and Native C ABI leases |
 | `tools/`, `Config/`, `packaging/` | Validation/build scripts, signing configuration and packaging inputs |
 
-`Voxt/Voxt/Info.plist` is referenced by the build settings; the nested directory is not an orphan. There is no `Voxt/UI/` directory. Both targets use file-system-synchronized Xcode groups. Preserve membership exceptions and resource references when moving files.
+`Voxt/Voxt/Info.plist` is referenced by the build settings; the nested directory is not an orphan. There is no `Voxt/UI/` directory. The app and app-test targets use file-system-synchronized Xcode groups; the XPC helper has explicit source membership and shares a local package product with the app. Preserve membership exceptions, helper registrations and resource references when moving files.
 
 ## Main paths
 
@@ -48,7 +50,13 @@ Global hotkeys and shortcut recording use Accessibility-backed modifying event t
 
 ## Current limitations and maintenance rules
 
-This is one app target, not a set of independently isolated Swift modules. `AppDelegate` still owns substantial cross-feature state, and some shared preference types reside under `Settings`. Directory names do not enforce a dependency boundary.
+Most feature code remains in one app target. `AppDelegate` still owns substantial cross-feature state, and some shared preference types reside under `Settings`; directory names alone do not enforce a dependency boundary. OmniXPCContracts is an actual independent local Swift package, imported directly by both the app and helper without re-export aliases or duplicated target compilation. It owns Foundation configuration, validation, references and wire schemas, not model loading, backend selection or UI.
+
+The opt-in XPC helper retains one connection-owned model and admits one final or realtime session at a time. Model lifecycle, final commands, realtime commands, event ACK retention and C ABI leases are cohesive service units. Native commands/drain run on the helper's serial queue; cancellation bypasses it, and unload/replacement stays blocked until worker cleanup completes. One encoded event batch is retained until its complete ACK, so lost-reply retries do not silently consume output.
+
+OmniXPCStreamingSession implements the existing ASRStreamingSession seam with bounded audio and latest-state presentation. Successful/failed results follow Native drain/cleanup; cancellation can finish presentation without a result, but only waitUntilClosed or closeAndWait is the resource barrier. Structured consumeEvents drains on early exit, error or cancellation; raw AsyncStream consumers must explicitly closeAndWait after breaking early. This validation path remains capped at 30 seconds and is not yet production routing or a long-meeting backend. The production Native HTTP path and LLM/VLM paths remain unchanged.
+
+Run swift test --package-path Voxt/Packages/OmniXPCContracts without building the app or installing models. Portable package/app-lifecycle tests and CPU Native integration do not certify macOS NSXPC, signing, Metal or model inference; see the current [migration gates and evidence](../plan/OmniXPCIntegrationPlan.zh-CN.md).
 
 Keep framework/UI work at presentation and integration boundaries; prefer pure value/planning logic for testable decisions. Reuse existing managers and stores before adding abstractions. Split by ownership or protocol responsibility, not arbitrary line counts. Do not broaden every `private` member merely to enable file splitting.
 

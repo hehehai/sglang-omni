@@ -1,5 +1,6 @@
 /// Connection-scoped XPC entry points for the persistent Native Qwen validation host.
 import Foundation
+import OmniXPCContracts
 
 #if os(macOS)
 import Darwin
@@ -82,11 +83,9 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
     func pushFinalAudio(
         sessionID: String, modelID: String, sequence: Int, audio: Data, withReply reply: @escaping @Sendable (Int, NSError?) -> Void
     ) {
-        do {
-            reply(try engine.push(sessionID: sessionID, modelID: modelID, sequence: sequence, audio: audio, lifetime: lifetime), nil)
-        } catch {
-            reply(0, error as NSError)
-        }
+        engine.push(
+            sessionID: sessionID, modelID: modelID, sequence: sequence, audio: audio, lifetime: lifetime, reply: reply
+        )
     }
 
     func finishFinalSession(
@@ -94,6 +93,50 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
         withReply reply: @escaping @Sendable (String?, String?, String?, String?, Int, Bool, NSError?) -> Void
     ) {
         engine.finish(sessionID: sessionID, modelID: modelID, lifetime: lifetime, reply: reply)
+    }
+
+    func startRealtimeSession(
+        sessionID: String, modelID: String, language: String?, context: String?, maximumTokenCount: Int,
+        decodeIntervalSamples: Int, firstDecodeSamples: Int, maximumSegmentSamples: Int,
+        withReply reply: @escaping @Sendable (String?, NSError?) -> Void
+    ) {
+        engine.startRealtime(
+            sessionID: sessionID, modelID: modelID, language: language, context: context,
+            maximumTokenCount: maximumTokenCount, decodeIntervalSamples: decodeIntervalSamples,
+            firstDecodeSamples: firstDecodeSamples, maximumSegmentSamples: maximumSegmentSamples,
+            lifetime: lifetime, reply: reply
+        )
+    }
+
+    func pushRealtimeAudio(
+        sessionID: String, modelID: String, sequence: Int, audio: Data,
+        withReply reply: @escaping @Sendable (Int, NSError?) -> Void
+    ) {
+        engine.pushRealtime(
+            sessionID: sessionID, modelID: modelID, sequence: sequence, audio: audio, lifetime: lifetime, reply: reply
+        )
+    }
+
+    func finishRealtimeSession(
+        sessionID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    ) {
+        engine.finishRealtime(sessionID: sessionID, modelID: modelID, lifetime: lifetime, reply: reply)
+    }
+
+    func pollRealtimeEvents(
+        sessionID: String, modelID: String, acknowledgedEventSequence: Int, maximumEventCount: Int,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    ) {
+        engine.pollRealtime(
+            sessionID: sessionID, modelID: modelID, acknowledgedEventSequence: acknowledgedEventSequence,
+            maximumEventCount: maximumEventCount, lifetime: lifetime, reply: reply
+        )
+    }
+
+    func closeRealtimeSession(
+        sessionID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    ) {
+        engine.closeRealtime(sessionID: sessionID, modelID: modelID, lifetime: lifetime, reply: reply)
     }
 
     func cancelRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void) {

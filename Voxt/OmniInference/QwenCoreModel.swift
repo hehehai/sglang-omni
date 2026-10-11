@@ -1,5 +1,6 @@
 /// Retained Native model with a separately cancellable token for each final request.
 import Foundation
+import OmniXPCContracts
 
 #if os(macOS)
 nonisolated struct QwenReply: Sendable {
@@ -13,6 +14,7 @@ nonisolated final class QwenCoreModel: @unchecked Sendable {
     private let lock = NSLock()
     private var handle: OpaquePointer?
     private var request: OpaquePointer?
+    private var requestSessionID: UUID?
 
     init(directory: URL) throws {
         guard Int(omni_core_abi_version()) == OmniXPCProtocolLimits.abiVersion else {
@@ -26,19 +28,20 @@ nonisolated final class QwenCoreModel: @unchecked Sendable {
         }
     }
 
-    func prepareRequest() throws {
+    func prepareRequest(sessionID: UUID) throws {
         try lock.withLock {
             precondition(handle != nil && request == nil)
             guard let token = omni_qwen_request_create() else {
                 throw OmniXPCFailure.error(.nativeFailure, "The Native Qwen request could not be created.")
             }
             request = token
+            requestSessionID = sessionID
         }
     }
 
-    func cancelRequest() {
+    func cancelRequest(sessionID: UUID) {
         lock.withLock {
-            guard let request else { return }
+            guard requestSessionID == sessionID, let request else { return }
             omni_qwen_request_cancel(request)
         }
     }
@@ -52,6 +55,7 @@ nonisolated final class QwenCoreModel: @unchecked Sendable {
             lock.withLock {
                 omni_qwen_request_destroy(requestToken)
                 request = nil
+                requestSessionID = nil
             }
         }
         var result = OmniQwenResult()
@@ -91,13 +95,21 @@ nonisolated final class QwenCoreModel: @unchecked Sendable {
         }
     }
 
-    func close() {
+    var realtimeModelHandle: OpaquePointer {
         lock.withLock {
-            precondition(request == nil)
-            guard let handle else { return }
-            self.handle = nil
-            omni_qwen_destroy(handle)
+            precondition(handle != nil && request == nil)
+            return handle!
         }
+    }
+
+    func close() {
+        let releasedHandle = lock.withLock {
+            precondition(request == nil)
+            let releasedHandle = handle
+            handle = nil
+            return releasedHandle
+        }
+        if let releasedHandle { omni_qwen_destroy(releasedHandle) }
     }
 
     deinit { close() }

@@ -1,4 +1,5 @@
 import Foundation
+import OmniXPCContracts
 
 #if os(macOS)
 import Darwin

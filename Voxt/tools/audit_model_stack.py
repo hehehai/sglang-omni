@@ -33,8 +33,14 @@ def source_errors(root):
     for revision in required_revisions:
         if f"revision = {revision};" not in project:
             errors.append(f"Missing fixed model dependency revision: {revision}")
-    if "XCLocalSwiftPackageReference" in project:
+    local_packages = re.findall(
+        r"isa = XCLocalSwiftPackageReference;\s*relativePath = ([^;]+);", project
+    )
+    if (len(local_packages) != project.count("isa = XCLocalSwiftPackageReference;")
+            or any(path.strip('"') != "Packages/OmniXPCContracts" for path in local_packages)):
         errors.append("Local package override in shared release project")
+    else:
+        pass
     for path in (root / "Voxt").rglob("*.swift"):
         text = path.read_text()
         if RETIRED_API.search(text) or re.search(r"(?:import|canImport\()\s*FluidAudio", text):

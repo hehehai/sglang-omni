@@ -128,12 +128,14 @@ class OmniXPCPackagingTests(unittest.TestCase):
         self.assertRegex(host, r"dependencies = \(\s*\);")
         service = self.project_object("A0BC00000000000000000001")
         self.assertIn('productType = "com.apple.product-type.xpc-service"', service)
-        self.assertRegex(service, r"packageProductDependencies = \(\s*\);")
         sources = self.project_object("A0BC00000000000000000030")
-        self.assertEqual(re.findall(r"/\* (\S+) in Sources \*/", sources), [
-            "OmniInferenceService.swift", "main.swift", "OmniXPCProtocol.swift",
-            "QwenCoreModel.swift", "OmniFinalSessionEngine.swift", "OmniXPCFinalSessionBuffer.swift",
-        ])
+        expected_sources = [
+            "OmniInferenceService.swift", "main.swift", "QwenCoreModel.swift", "OmniFinalSessionEngine.swift",
+            "OmniSessionLifecycle.swift", "QwenCoreRealtimeLease.swift", "OmniRealtimeSession.swift",
+            "OmniRealtimeSessionEngine.swift",
+        ]
+        self.assertEqual(re.findall(r"/\* (\S+) in Sources \*/", sources), expected_sources)
+        self.assertEqual({path.name for path in (ROOT / "OmniInference").glob("*.swift")}, set(expected_sources))
         for identifier in ("31F19CD92F4D76D300E96913", "31F19CDA2F4D76D300E96913", "31F19CDB2F4D76D300E96913"):
             configuration = self.project_object(identifier)
             self.assertIn("CODE_SIGN_ENTITLEMENTS = Voxt/Voxt.entitlements;", configuration)
@@ -144,6 +146,36 @@ class OmniXPCPackagingTests(unittest.TestCase):
         default_scheme = ET.parse(ROOT / "Voxt.xcodeproj/xcshareddata/xcschemes/Voxt.xcscheme")
         self.assertEqual(default_scheme.find("TestAction").get("buildConfiguration"), "TestDebug")
         self.assertNotIn("OmniInference", ET.tostring(default_scheme.getroot()).decode())
+
+    def test_host_and_service_link_the_same_local_contracts_package(self) -> None:
+        project = (ROOT / "Voxt.xcodeproj/project.pbxproj").read_text()
+        package_identifier = "A0BD00000000000000000001"
+        package = self.project_object(package_identifier)
+        self.assertIn("isa = XCLocalSwiftPackageReference;", package)
+        self.assertIn("relativePath = Packages/OmniXPCContracts;", package)
+        self.assertIn(package_identifier, self.project_object("31F19CC52F4D76D200E96913"))
+        for target, frameworks, product, build_file in [
+            ("31F19CCC2F4D76D200E96913", "31F19CCA2F4D76D200E96913", "A0BD00000000000000000002", "A0BD00000000000000000004"),
+            ("A0BC00000000000000000001", "A0BC00000000000000000031", "A0BD00000000000000000003", "A0BD00000000000000000005"),
+        ]:
+            self.assertIn(f"{product} /* OmniXPCContracts */", self.project_object(target))
+            self.assertIn(f"package = {package_identifier}", self.project_object(product))
+            self.assertIn("productName = OmniXPCContracts;", self.project_object(product))
+            self.assertIn(f"{build_file} /* OmniXPCContracts in Frameworks */", self.project_object(frameworks))
+            self.assertRegex(project, rf"{build_file} /\* OmniXPCContracts in Frameworks \*/ = .*productRef = {product}")
+        for filename in ("OmniXPCProtocol.swift", "OmniXPCFinalSessionBuffer.swift"):
+            self.assertNotIn(filename, project)
+            self.assertFalse((ROOT / "Voxt/Transcription" / filename).exists())
+            self.assertTrue((ROOT / "Packages/OmniXPCContracts/Sources/OmniXPCContracts" / filename).is_file())
+        self.assertFalse((ROOT / "VoxtTests/OmniXPCProtocolTests.swift").exists())
+        self.assertTrue((ROOT / "Packages/OmniXPCContracts/Tests/OmniXPCContractsTests/OmniXPCProtocolTests.swift").is_file())
+
+    def test_ci_runs_contracts_standalone_without_removed_app_selector(self) -> None:
+        workflow = (ROOT.parent / ".github/workflows/voxt-mac-ci.yaml").read_text()
+        self.assertIn("swift test --package-path Voxt/Packages/OmniXPCContracts", workflow)
+        self.assertNotIn("-only-testing:VoxtTests/OmniXPCProtocolTests", workflow)
+        self.assertIn("vars.VOXT_ENABLE_MAC_CI == 'true'", workflow)
+        self.assertIn("vars.VOXT_ENABLE_CI_PACKAGE == 'true'", workflow)
 
     def test_validation_scheme_builds_service_before_host_without_parallelism(self) -> None:
         scheme = ET.parse(ROOT / "Voxt.xcodeproj/xcshareddata/xcschemes/VoxtOmniXPCSmoke.xcscheme")

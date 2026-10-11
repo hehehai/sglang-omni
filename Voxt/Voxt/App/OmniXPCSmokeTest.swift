@@ -3,6 +3,7 @@
 import AppKit
 import Darwin
 import Foundation
+import OmniXPCContracts
 
 #if VOXT_OMNI_XPC_VALIDATION
 nonisolated private struct OmniXPCSmokeReport: Encodable {
@@ -17,6 +18,8 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
     var textCharacterCount: Int? = nil
     var generatedTokenCount: Int? = nil
     var elapsedSeconds: Double? = nil
+    var realtimeSessionCount: Int? = nil
+    var realtimeCancellationDrained: Bool? = nil
     var errorDomain: String? = nil
     var errorCode: Int? = nil
 
@@ -31,6 +34,8 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
         case textCharacterCount = "text_character_count"
         case generatedTokenCount = "generated_token_count"
         case elapsedSeconds = "elapsed_seconds"
+        case realtimeSessionCount = "realtime_session_count"
+        case realtimeCancellationDrained = "realtime_cancellation_drained"
         case errorDomain = "error_domain"
         case errorCode = "error_code"
     }
@@ -103,6 +108,32 @@ extension AppDelegate {
                         maximumTokenCount: maximumTokenCount, timeout: .seconds(timeoutSeconds)
                     )
                     try Self.validateOmniSmokeTranscript(reused, expected: expected)
+                    let samples = try OmniXPCRequestValidation.samples(
+                        audio: audio, language: language, context: nil, maximumTokenCount: maximumTokenCount
+                    )
+                    let realtimeCancelled = try await OmniXPCStreamingSession.qwen(
+                        client: connected, model: model, language: language,
+                        maximumTokenCount: maximumTokenCount, settings: OmniXPCRealtimeSettings()
+                    )
+                    let cancellingSession: any ASRStreamingSession = realtimeCancelled
+                    cancellingSession.feedAudio(samples: Array(samples.prefix(OmniXPCProtocolLimits.sampleRate)))
+                    let cancellation = Task {
+                        do { try await Task.sleep(for: .milliseconds(200)) }
+                        catch { return }
+                        cancellingSession.cancel()
+                    }
+                    defer { cancellation.cancel(); cancellingSession.cancel() }
+                    try await realtimeCancelled.consumeEvents { event in
+                        switch event {
+                        case .displayUpdate: return true
+                        case .ended, .failed:
+                            throw OmniXPCFailure.error(.nativeFailure, "The cancelled realtime stream published a result.")
+                        }
+                    }
+                    try await Self.validateOmniRealtimeSmoke(
+                        client: connected, model: model, samples: samples, language: language,
+                        maximumTokenCount: maximumTokenCount, expected: expected, timeout: .seconds(timeoutSeconds)
+                    )
                     try await connected.unloadQwen(model)
                     try await connected.terminateForValidation()
                     let restarted = try await connected.probe()
@@ -117,6 +148,10 @@ extension AppDelegate {
                         maximumTokenCount: maximumTokenCount, timeout: .seconds(timeoutSeconds)
                     )
                     try Self.validateOmniSmokeTranscript(recovered, expected: expected)
+                    try await Self.validateOmniRealtimeSmoke(
+                        client: connected, model: recoveredModel, samples: samples, language: language,
+                        maximumTokenCount: maximumTokenCount, expected: expected, timeout: .seconds(timeoutSeconds)
+                    )
                     try await connected.unloadQwen(recoveredModel)
                     try Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(
                         status: .passed, abiVersion: restarted.abiVersion,
@@ -125,7 +160,8 @@ extension AppDelegate {
                         restartedServiceProcessIdentifier: restarted.serviceProcessIdentifier,
                         textCharacterCount: recovered.text.count,
                         generatedTokenCount: recovered.generationMetadata?.generatedTokenCount,
-                        elapsedSeconds: Date().timeIntervalSince(started)
+                        elapsedSeconds: Date().timeIntervalSince(started),
+                        realtimeSessionCount: 3, realtimeCancellationDrained: true
                     ))
                 }
                 connected.invalidate()
@@ -160,6 +196,55 @@ extension AppDelegate {
         guard result.text.trimmingCharacters(in: .whitespacesAndNewlines) == expected,
               result.generationMetadata?.hitLengthLimit == false else {
             throw OmniXPCFailure.error(.nativeFailure, "The XPC smoke transcript did not match its fixture or hit the token limit.")
+        }
+    }
+
+    private static func validateOmniRealtimeSmoke(
+        client: OmniXPCClient, model: OmniXPCModelReference, samples: [Float], language: String?,
+        maximumTokenCount: Int, expected: String, timeout: Duration
+    ) async throws {
+        let realtime = try await OmniXPCStreamingSession.qwen(
+            client: client, model: model, language: language, maximumTokenCount: maximumTokenCount,
+            settings: OmniXPCRealtimeSettings(), requestTimeout: timeout
+        )
+        let session: any ASRStreamingSession = realtime
+        let feeding = Task {
+            do {
+                for offset in stride(from: 0, to: samples.count, by: OmniXPCProtocolLimits.sampleRate) {
+                    try Task.checkCancellation()
+                    let end = min(offset + OmniXPCProtocolLimits.sampleRate, samples.count)
+                    session.feedAudio(samples: Array(samples[offset..<end]))
+                    try await Task.sleep(for: .seconds(1))
+                }
+                session.stop()
+            } catch {
+                session.cancel()
+            }
+        }
+        let deadline = Task {
+            do { try await Task.sleep(for: timeout + .seconds(OmniXPCProtocolLimits.maximumAudioSeconds)) }
+            catch { return }
+            session.cancel()
+        }
+        defer { feeding.cancel(); deadline.cancel(); session.cancel() }
+        let lastEvent = try await realtime.consumeEvents { event in
+            switch event {
+            case .displayUpdate:
+                return true
+            case .ended(let result):
+                guard result.text.trimmingCharacters(in: .whitespacesAndNewlines) == expected,
+                      result.language == nil, result.languageProvenance == .unknown,
+                      result.generationMetadata == nil,
+                      result.segments.allSatisfy({ $0.startSeconds == nil && $0.endSeconds == nil }) else {
+                    throw OmniXPCFailure.error(.nativeFailure, "The realtime fixture or unknown metadata contract failed.")
+                }
+                return false
+            case .failed(let failure):
+                throw failure
+            }
+        }
+        guard case .ended = lastEvent else {
+            throw OmniXPCFailure.error(.nativeFailure, "The realtime smoke did not emit a drained result.")
         }
     }
 

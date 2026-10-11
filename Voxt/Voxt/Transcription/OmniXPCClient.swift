@@ -1,5 +1,6 @@
 /// Opt-in validation client; production model routing is unchanged.
 import Foundation
+import OmniXPCContracts
 
 #if os(macOS)
 nonisolated struct OmniXPCProbeResult: Equatable, Sendable {
@@ -28,6 +29,7 @@ final class OmniXPCClient {
     let configuration: OmniXPCConfiguration
     private var connection: Connection?
     private var pending: [UUID: Pending] = [:]
+    var realtimeSession: OmniXPCRealtimeClientState?
     var connectionIdentifier: UUID? { connection?.id }
 
     func requireConnection(_ id: UUID) throws {
@@ -68,6 +70,7 @@ final class OmniXPCClient {
 
     func perform<Value: Sendable>(
         timeout: Duration,
+        requiredConnectionID: UUID? = nil,
         nativeRequestID: String? = nil,
         cancellationModelID: String? = nil,
         resetConnectionOnCancel: Bool = false,
@@ -79,14 +82,19 @@ final class OmniXPCClient {
             try await withCheckedThrowingContinuation { continuation in
                 do {
                     let proxy = try begin(
-                        id: id, timeout: timeout, nativeRequestID: nativeRequestID,
+                        id: id, timeout: timeout, requiredConnectionID: requiredConnectionID, nativeRequestID: nativeRequestID,
                         cancellationModelID: cancellationModelID, resetConnectionOnCancel: resetConnectionOnCancel,
                         fail: { continuation.resume(throwing: $0) }
                     )
                     invoke(proxy) { [weak self] outcome in
                         Task { @MainActor in
-                            guard let self, self.take(id) != nil else { return }
-                            continuation.resume(with: outcome)
+                            guard let self, let call = self.take(id) else { return }
+                            do {
+                                try self.requireConnection(call.connectionID)
+                                continuation.resume(with: outcome)
+                            } catch {
+                                continuation.resume(throwing: error)
+                            }
                         }
                     }
                 } catch {
@@ -125,6 +133,7 @@ final class OmniXPCClient {
     func invalidate() {
         let transport = connection?.transport
         connection = nil
+        realtimeSession = nil
         let calls = Array(pending.values)
         pending.removeAll()
         transport?.invalidate()
@@ -149,13 +158,15 @@ final class OmniXPCClient {
     }
 
     private func begin(
-        id: UUID, timeout: Duration, nativeRequestID: String?, cancellationModelID: String?, resetConnectionOnCancel: Bool,
+        id: UUID, timeout: Duration, requiredConnectionID: UUID? = nil,
+        nativeRequestID: String?, cancellationModelID: String?, resetConnectionOnCancel: Bool,
         fail: @escaping @MainActor (Error) -> Void,
         disconnectedSuccessfully: (@MainActor () -> Void)? = nil
     ) throws -> any OmniInferenceXPCProtocol {
         guard timeout > .zero else {
             throw OmniXPCFailure.error(.invalidRequest, "The XPC request timeout must be positive.")
         }
+        if let requiredConnectionID { try requireConnection(requiredConnectionID) }
         let state = try connected()
         let timer = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: timeout) } catch { return }
@@ -206,7 +217,6 @@ final class OmniXPCClient {
             fail(id, error: CancellationError())
         } else {
             fail(id, error: CancellationError())
-            invalidate()
         }
     }
 
@@ -214,6 +224,7 @@ final class OmniXPCClient {
         guard connection?.id == id else { return }
         let transport = connection?.transport
         connection = nil
+        realtimeSession = nil
         transport?.invalidate()
         let ids = pending.filter { $0.value.connectionID == id }.map(\.key)
         for requestID in ids {

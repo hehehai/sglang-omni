@@ -1,21 +1,34 @@
 /// Bounded final-only audio assembly; this does not produce realtime previews.
 import Foundation
 
-nonisolated struct OmniXPCModelReference: Equatable, Sendable {
-    let modelID: UUID
-    let serviceInstanceID: UUID
-    let connectionID: UUID
+public nonisolated struct OmniXPCModelReference: Equatable, Sendable {
+    public let modelID: UUID
+    public let serviceInstanceID: UUID
+    public let connectionID: UUID
+
+    public init(modelID: UUID, serviceInstanceID: UUID, connectionID: UUID) {
+        self.modelID = modelID
+        self.serviceInstanceID = serviceInstanceID
+        self.connectionID = connectionID
+    }
 }
 
-nonisolated struct OmniXPCFinalSessionReference: Equatable, Sendable {
-    let sessionID: UUID
-    let model: OmniXPCModelReference
-    let language: String?
-    let maximumTokenCount: Int
+public nonisolated struct OmniXPCFinalSessionReference: Equatable, Sendable {
+    public let sessionID: UUID
+    public let model: OmniXPCModelReference
+    public let language: String?
+    public let maximumTokenCount: Int
+
+    public init(sessionID: UUID, model: OmniXPCModelReference, language: String?, maximumTokenCount: Int) {
+        self.sessionID = sessionID
+        self.model = model
+        self.language = language
+        self.maximumTokenCount = maximumTokenCount
+    }
 }
 
-nonisolated struct OmniXPCFinalSessionBuffer: Sendable {
-    enum State: Equatable, Sendable {
+public nonisolated struct OmniXPCFinalSessionBuffer: Sendable {
+    public enum State: Equatable, Sendable {
         case receiving
         case finishing
         case cancelling
@@ -24,23 +37,23 @@ nonisolated struct OmniXPCFinalSessionBuffer: Sendable {
         case failed
     }
 
-    let sessionID: UUID
-    let modelID: UUID
-    let language: String?
-    let context: String?
-    let maximumTokenCount: Int
-    private(set) var state: State = .receiving
-    private(set) var lastAcceptedSequence = 0
+    public let sessionID: UUID
+    public let modelID: UUID
+    public let language: String?
+    public let context: String?
+    public let maximumTokenCount: Int
+    public private(set) var state: State = .receiving
+    public private(set) var lastAcceptedSequence = 0
     private var audio = Data()
 
-    var isTerminal: Bool {
+    public var isTerminal: Bool {
         switch state {
         case .completed, .cancelled, .failed: true
         case .receiving, .finishing, .cancelling: false
         }
     }
 
-    init(sessionID: UUID, modelID: UUID, language: String?, context: String?, maximumTokenCount: Int) throws {
+    public init(sessionID: UUID, modelID: UUID, language: String?, context: String?, maximumTokenCount: Int) throws {
         try OmniXPCRequestValidation.options(language: language, context: context, maximumTokenCount: maximumTokenCount)
         self.sessionID = sessionID
         self.modelID = modelID
@@ -49,7 +62,7 @@ nonisolated struct OmniXPCFinalSessionBuffer: Sendable {
         self.maximumTokenCount = maximumTokenCount
     }
 
-    mutating func append(audio chunk: Data, sequence: Int) throws -> Int {
+    public mutating func append(audio chunk: Data, sequence: Int) throws -> Int {
         guard state == .receiving, sequence == lastAcceptedSequence + 1,
               chunk.count <= OmniXPCProtocolLimits.maximumChunkAudioByteCount,
               chunk.count <= OmniXPCProtocolLimits.maximumAudioByteCount - audio.count else {
@@ -63,7 +76,7 @@ nonisolated struct OmniXPCFinalSessionBuffer: Sendable {
         return sequence
     }
 
-    mutating func beginFinish() throws -> [Float] {
+    public mutating func beginFinish() throws -> [Float] {
         guard state == .receiving else {
             throw OmniXPCFailure.error(.invalidRequest, "The final session has already finished or was cancelled.")
         }
@@ -76,7 +89,7 @@ nonisolated struct OmniXPCFinalSessionBuffer: Sendable {
     }
 
     @discardableResult
-    mutating func cancel() -> Bool {
+    public mutating func cancel() -> Bool {
         switch state {
         case .receiving:
             audio.removeAll(keepingCapacity: false)
@@ -91,7 +104,7 @@ nonisolated struct OmniXPCFinalSessionBuffer: Sendable {
     }
 
     @discardableResult
-    mutating func complete(succeeded: Bool) -> Bool {
+    public mutating func complete(succeeded: Bool) -> Bool {
         switch state {
         case .finishing:
             state = succeeded ? .completed : .failed

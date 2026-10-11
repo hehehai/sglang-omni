@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI；T3b2b XPC realtime 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4 及以后待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -661,4 +661,35 @@ bash Voxt/tools/run_omni_xpc_smoke.sh \
 - Swift 导入并链接实际 ABI3/Core/worker/engine + model stub 的 smoke 通过：create/push/owned event/finish/drain/destroy；Foundation policy XCTest 24 项中 23 通过、1 case-insensitive filesystem 用例跳过。不是 macOS SDK/NSXPC 验证。
 - Voxt 工具 29 项、源码/lockfile 审计、frontend parse、smoke shell syntax 和全仓库 pre-commit 重跑通过。
 
-下一检查点 T3b2b：在 helper 内封装上述 realtime lease，接带 model/service/connection/session identity 的 NSXPC RPC、bounded poll/event ACK 和 ASRStreamingSession；取消/断连等待 drain 后才能卸载或允许 replacement，拒绝 stale cleanup 误伤新模型。完整签名 Mac smoke、Metal/model inference、HTTP/MOSS network/golden 及原 App/Intel 回归仍需验收。
+T3b2b 的 opt-in XPC/ASRStreamingSession 接入见下节。完整签名 Mac smoke、Metal/model inference、HTTP/MOSS network/golden 及原 App/Intel 回归仍需验收。
+
+### T3b2b：共享 contracts package 与 opt-in XPC realtime
+
+状态：代码检查点已实现，不等于完整 T3 平台验收完成。Qwen realtime 已有 NSXPC RPC、helper Native lease 和 App ASRStreamingSession adapter；仍为 opt-in 验证路径，production model-manager routing/HTTP/LLM/VLM 未切换。
+
+模块边界与实现：
+
+- 新增本地 Swift Package Packages/OmniXPCContracts，只有 Foundation、无第三方依赖。实际配置、错误/预算、model/session references、final-buffer、macOS XPC protocol 和 bounded realtime codec 均由 App/helper 直接 import；移除重复编译共享源文件，不使用 re-export/typealias facade。
+- Package 的真实 XCTest 可直接 swift test，无需 App build、Xcode/MLX/model 或平台替身；原 24 项 policy/buffer 测试迁入并增加 13 项 realtime settings/wire schema/UTF-8 bytes/sequence/terminal/drain/replay 编解码用例。
+- helper 单一 coordinator 拥有连接/model/identity ledger/锁与 serial inference queue；生命周期、final commands、realtime commands、ACK batch retention、Native lease 是各自内聚的文件，不再堆成一个巨型 engine。
+- 新增 startRealtimeSession、pushRealtimeAudio、finishRealtimeSession、pollRealtimeEvents、closeRealtimeSession；model 与 connection owner 同时校验，模型只允许一个 final 或 realtime session。最终 Native token 的取消也带 session ID，防止延迟取消打到替换 final request。
+- poll 一次最多 16 项/2 MiB，retained batch 必须整体 ACK；同旧 ACK 的重试返回完全相同 Data，改变 batch count 或未来/局部/回退 ACK 明确拒绝。已从 Native 弹出的 event 保留到成功编码/ACK，JSON escaping 超预算可缩小 batch，不丢 suffix。
+- terminal ACK 才触发 Native drain/destroy 并释放 active slot；terminal 未 ACK 或 drain 未返回时拒绝 unload/replacement。close 是显式 abandon cleanup，cancel ACK 只受理取消。最后一个 drained response 限定 owner/model/session，可安全重试，不清理新 session。
+- Native push/finish/drain 在 helper serial queue，不在 model worker或 global model lock 中执行；取消绕过队列，创建前取消锁存到 lease。disconnect 排入先 RT drain/destroy、后 model close 的 barrier，失败则保留资源而非提前 free。
+- App 的 OmniXPCRealtimeClient 扩展原 MainActor transport：origin connection 强校验、顺序音频、batch identity/sequence/ACK/replay 检查，业务拒绝不当作 transport failure；不自动重放已 admission 的音频。
+- OmniXPCStreamingSession 实现原 ASRStreamingSession：4 秒 pending audio、30 秒 validation input、2 秒 chunk、单个 latest presentation event；复用现有 assembler/joining，保留 partial replacement，不伪造 language/token/timing metadata。completed/failed 在 Native drain或 cleanup 返回后由 owner 发布一次。
+- 本地 overflow/nonfinite failure 先锁存、关闭输入并取消 worker，不能在 Native 仍阻塞时提前发布失败终态；原诊断不会被后续 CancellationError 改写。cancel 可无结果结束 presentation，但 waitUntilClosed/closeAndWait 才是 cleanup barrier。
+- consumeEvents 提供 structured consumption：false/早退/throw/task cancel 触发 closeAndWait，实际 smoke 两个消费者已使用。保留的 raw AsyncStream 不会观察 for-await break；其调用者必须显式 closeAndWait，不声称 onTermination 能自动检测早退。
+- Xcode App/helper 实际链接同一 local package product，Mac gated CI 新增 standalone package 与 streaming XCTest；依赖审计只允许该唯一 contracts package path，任意 local model package override 仍拒绝。
+
+验证与边界：
+
+- 真实 Package Debug/Release 各执行 37 项 XCTest：36 passed、1 case-insensitive filesystem skipped、0 failure，无平台/模型替身。
+- 实际 portable buffer/session/domain + existing assembler/protocol 的 12 项 XCTest 通过（Native owner cleanup 用明确 continuation gate 模拟），额外 20 次重复执行通过。覆盖失败不早于 owner completion、晚安装 worker、consumer false/throw/cancel、raw break 显式 disposal、bounds/partial/未知 metadata。
+- 主助手隔离 host harness 执行实际 helper/Native ABI/worker/engine，覆盖 owner隔离、Native admission、ACK raw byte replay、非法 count/ACK、terminal ACK/drain、cancel/close幂等、模型复用。
+- 主助手进程内 RPC harness 连接实际 client → exported service methods → Native ABI/worker/engine → ASRStreamingSession，覆盖 ACK replay、取消、ended/drain、早退消费、Native preview 阻塞时本地 NaN failure 未提前发布、释放后一次原失败，以及随后同一模型 final 复用。
+- 以上 host/RPC harness 使用明确 NSXPC/signing/container/model 替身，不是实际跨进程 NSXPC 或 Metal/GPU 证明。Mac opt-in smoke 增加实际 ASR adapter realtime 和 cancel/drain/reuse 回放，但尚未执行。
+- Native ABI 43 + typed engine/真实旧新 HTTP source replay 42，Clang ASan/UBSan 85 项通过；32 项工具测试、model source/lockfile 审计通过。Swift parse/strict platform-stand-in typechecks 与全仓库 pre-commit 重跑通过。
+- 两轮只读审查发现并修复 local failure 提前终态、保留 AsyncStream 早退不清理两处生命周期问题；复查在已声明的 owner/consumer/Native contract 下未发现具体剩余问题，不能代替 Mac acceptance。
+
+下一工作：优先运行 signed Apple Silicon XPC final/realtime/model smoke 与完整 App/Intel/HTTP/MOSS/golden 回归；再推进 T4 Native VAD/Sortformer、缓存迁移/授权/lease-delete 协调。未经这些验证，不将该 30 秒 opt-in validation session 当作生产长会议 backend，也不提前删除 MLX Audio 或切换 production routing。

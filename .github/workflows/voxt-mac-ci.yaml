@@ -256,6 +256,9 @@ jobs:
           fi
           xcrun metal --version
 
+      - name: Standalone Omni XPC contracts tests
+        run: swift test --package-path Voxt/Packages/OmniXPCContracts
+
       - name: Build for testing
         working-directory: Voxt
         run: |
@@ -271,7 +274,7 @@ jobs:
           xcodebuild test-without-building -xctestrun "$xctestrun" -destination platform=macOS \
             -only-testing:VoxtTests/OmniTranscriptionRequestTests \
             -only-testing:VoxtTests/OmniRealtimeSessionUpdateTests \
-            -only-testing:VoxtTests/OmniXPCProtocolTests \
+            -only-testing:VoxtTests/OmniXPCStreamingSessionTests \
             -only-testing:VoxtTests/OmniASRRuntimeLaunchTests \
             -only-testing:VoxtTests/OmniVoiceActivityTests \
             -only-testing:VoxtTests/OmniSpeakerDiarizationTests \

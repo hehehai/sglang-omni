@@ -1,5 +1,6 @@
 /// Explicit model/session operations for bounded final-only XPC transcription.
 import Foundation
+import OmniXPCContracts
 
 #if os(macOS)
 extension OmniXPCClient {
@@ -23,7 +24,7 @@ extension OmniXPCClient {
     func unloadQwen(_ model: OmniXPCModelReference, timeout: Duration = .seconds(60)) async throws {
         try requireConnection(model.connectionID)
         let operationID = UUID().uuidString
-        let _: Void = try await perform(timeout: timeout, nativeRequestID: operationID, resetConnectionOnCancel: true) { proxy, resolve in
+        let _: Void = try await perform(timeout: timeout, requiredConnectionID: model.connectionID, nativeRequestID: operationID, resetConnectionOnCancel: true) { proxy, resolve in
             proxy.unloadQwen(operationID: operationID, modelID: model.modelID.uuidString) { error in
                 if let error { resolve(.failure(error)) } else { resolve(.success(())) }
             }
@@ -36,7 +37,7 @@ extension OmniXPCClient {
     ) async throws -> OmniXPCFinalSessionReference {
         try requireConnection(model.connectionID)
         try OmniXPCRequestValidation.options(language: language, context: context, maximumTokenCount: maximumTokenCount)
-        return try await perform(timeout: timeout, nativeRequestID: sessionID.uuidString, cancellationModelID: model.modelID.uuidString) { proxy, resolve in
+        return try await perform(timeout: timeout, requiredConnectionID: model.connectionID, nativeRequestID: sessionID.uuidString, cancellationModelID: model.modelID.uuidString) { proxy, resolve in
             proxy.startFinalSession(
                 sessionID: sessionID.uuidString, modelID: model.modelID.uuidString,
                 language: language, context: context, maximumTokenCount: maximumTokenCount
@@ -58,13 +59,13 @@ extension OmniXPCClient {
         _ audio: Data, to session: OmniXPCFinalSessionReference, sequence: Int, timeout: Duration = .seconds(30)
     ) async throws {
         try requireConnection(session.model.connectionID)
-        guard audio.count <= OmniXPCProtocolLimits.maximumChunkAudioByteCount else {
+        guard sequence > 0, audio.count <= OmniXPCProtocolLimits.maximumChunkAudioByteCount else {
             throw OmniXPCFailure.error(.invalidRequest, "The final audio chunk exceeds its transport budget.")
         }
         _ = try OmniXPCRequestValidation.samples(
             audio: audio, language: session.language, context: nil, maximumTokenCount: session.maximumTokenCount
         )
-        let accepted: Int = try await perform(timeout: timeout, nativeRequestID: session.sessionID.uuidString, cancellationModelID: session.model.modelID.uuidString) { proxy, resolve in
+        let accepted: Int = try await perform(timeout: timeout, requiredConnectionID: session.model.connectionID, nativeRequestID: session.sessionID.uuidString, cancellationModelID: session.model.modelID.uuidString) { proxy, resolve in
             proxy.pushFinalAudio(sessionID: session.sessionID.uuidString, modelID: session.model.modelID.uuidString, sequence: sequence, audio: audio) { accepted, error in
                 if let error { resolve(.failure(error)) } else { resolve(.success(accepted)) }
             }
@@ -78,7 +79,7 @@ extension OmniXPCClient {
         _ session: OmniXPCFinalSessionReference, timeout: Duration = .seconds(240)
     ) async throws -> ASRTranscriptionResult {
         try requireConnection(session.model.connectionID)
-        return try await perform(timeout: timeout, nativeRequestID: session.sessionID.uuidString, cancellationModelID: session.model.modelID.uuidString) { proxy, resolve in
+        return try await perform(timeout: timeout, requiredConnectionID: session.model.connectionID, nativeRequestID: session.sessionID.uuidString, cancellationModelID: session.model.modelID.uuidString) { proxy, resolve in
             proxy.finishFinalSession(sessionID: session.sessionID.uuidString, modelID: session.model.modelID.uuidString) { echoedID, instanceID, text, language, count, limited, error in
                 if let error {
                     resolve(.failure(error))
@@ -100,7 +101,7 @@ extension OmniXPCClient {
 
     func cancelFinalSession(_ session: OmniXPCFinalSessionReference, timeout: Duration = .seconds(30)) async throws {
         try requireConnection(session.model.connectionID)
-        let _: Void = try await perform(timeout: timeout) { proxy, resolve in
+        let _: Void = try await perform(timeout: timeout, requiredConnectionID: session.model.connectionID) { proxy, resolve in
             proxy.cancelRequest(requestID: session.sessionID.uuidString, modelID: session.model.modelID.uuidString) { error in
                 if let error { resolve(.failure(error)) } else { resolve(.success(())) }
             }

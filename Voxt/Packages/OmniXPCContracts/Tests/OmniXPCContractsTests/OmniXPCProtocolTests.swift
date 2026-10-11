@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Voxt
+import OmniXPCContracts
 
 final class OmniXPCProtocolTests: XCTestCase {
     private var configuredInfo: [String: String] {

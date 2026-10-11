@@ -1,22 +1,26 @@
 /// Foundation-only configuration and bounded messages for the validation XPC service.
 import Foundation
 
-nonisolated enum OmniXPCProtocolLimits {
-    static let abiVersion = 3
-    static let sampleRate = 16_000
-    static let maximumAudioSeconds = 30
-    static let maximumSampleCount = sampleRate * maximumAudioSeconds
-    static let maximumAudioByteCount = maximumSampleCount * MemoryLayout<UInt32>.size
-    static let maximumChunkAudioByteCount = sampleRate * 2 * MemoryLayout<UInt32>.size
-    static let maximumRequestsPerModel = 256
-    static let maximumTokenCount = 4096
-    static let maximumPromptByteCount = 16_384
-    static let maximumLanguageByteCount = 128
-    static let maximumModelPathByteCount = 1024
+public nonisolated enum OmniXPCProtocolLimits {
+    public static let abiVersion = 3
+    public static let sampleRate = 16_000
+    public static let maximumAudioSeconds = 30
+    public static let maximumSampleCount = sampleRate * maximumAudioSeconds
+    public static let maximumAudioByteCount = maximumSampleCount * MemoryLayout<UInt32>.size
+    public static let maximumChunkAudioByteCount = sampleRate * 2 * MemoryLayout<UInt32>.size
+    public static let maximumRequestsPerModel = 256
+    public static let maximumTokenCount = 4096
+    public static let maximumPromptByteCount = 16_384
+    public static let maximumLanguageByteCount = 128
+    public static let maximumModelPathByteCount = 1024
+    public static let maximumRealtimeContextByteCount = 8192
+    public static let maximumRealtimeEventsPerBatch = 16
+    public static let maximumRealtimeBatchByteCount = 2 * 1024 * 1024
+    public static let maximumRealtimeEventStringByteCount = 65_536
 }
 
-nonisolated enum OmniXPCFailure {
-    enum Code: Int {
+public nonisolated enum OmniXPCFailure {
+    public enum Code: Int, Sendable {
         case configuration = 1
         case invalidRequest
         case nativeFailure
@@ -27,18 +31,18 @@ nonisolated enum OmniXPCFailure {
         case incompatibleService
     }
 
-    static func error(_ code: Code, _ message: String) -> NSError {
+    public static func error(_ code: Code, _ message: String) -> NSError {
         NSError(domain: "Voxt.Omni.XPC", code: code.rawValue, userInfo: [NSLocalizedDescriptionKey: message])
     }
 }
 
-nonisolated struct OmniXPCConfiguration: Equatable, Sendable {
-    let appGroupIdentifier: String
-    let serviceIdentifier: String
-    let hostBundleIdentifier: String
-    let teamIdentifier: String
+public nonisolated struct OmniXPCConfiguration: Equatable, Sendable {
+    public let appGroupIdentifier: String
+    public let serviceIdentifier: String
+    public let hostBundleIdentifier: String
+    public let teamIdentifier: String
 
-    init(info: [String: String]) throws {
+    public init(info: [String: String]) throws {
         func identifier(_ key: String) throws -> String {
             guard let value = info[key],
                   value.range(of: #"^[A-Za-z0-9][A-Za-z0-9.-]{0,254}$"#, options: .regularExpression) != nil,
@@ -60,7 +64,7 @@ nonisolated struct OmniXPCConfiguration: Equatable, Sendable {
         teamIdentifier = team
     }
 
-    init(bundle: Bundle) throws {
+    public init(bundle: Bundle) throws {
         var strings: [String: String] = [:]
         for key in ["OmniAppGroupIdentifier", "OmniInferenceServiceIdentifier", "OmniHostBundleIdentifier", "OmniTeamIdentifier"] {
             strings[key] = bundle.object(forInfoDictionaryKey: key) as? String
@@ -68,7 +72,7 @@ nonisolated struct OmniXPCConfiguration: Equatable, Sendable {
         try self.init(info: strings)
     }
 
-    func signingRequirement(for identifier: String) throws -> String {
+    public func signingRequirement(for identifier: String) throws -> String {
         guard identifier == serviceIdentifier || identifier == hostBundleIdentifier else {
             throw OmniXPCFailure.error(.configuration, "The XPC peer identifier is not configured.")
         }
@@ -76,8 +80,8 @@ nonisolated struct OmniXPCConfiguration: Equatable, Sendable {
     }
 }
 
-nonisolated enum OmniXPCRequestValidation {
-    static func modelDirectory(relativePath: String, container: URL) throws -> URL {
+public nonisolated enum OmniXPCRequestValidation {
+    public static func modelDirectory(relativePath: String, container: URL) throws -> URL {
         let components = relativePath.split(separator: "/", omittingEmptySubsequences: false)
         guard relativePath.utf8.count <= OmniXPCProtocolLimits.maximumModelPathByteCount,
               components.count >= 2, components.first == "Models",
@@ -117,7 +121,7 @@ nonisolated enum OmniXPCRequestValidation {
         return candidate
     }
 
-    static func options(language: String?, context: String?, maximumTokenCount: Int) throws {
+    public static func options(language: String?, context: String?, maximumTokenCount: Int) throws {
         guard maximumTokenCount > 0, maximumTokenCount <= OmniXPCProtocolLimits.maximumTokenCount,
               (language?.utf8.count ?? 0) <= OmniXPCProtocolLimits.maximumLanguageByteCount,
               (context?.utf8.count ?? 0) <= OmniXPCProtocolLimits.maximumPromptByteCount,
@@ -126,7 +130,14 @@ nonisolated enum OmniXPCRequestValidation {
         }
     }
 
-    static func samples(audio: Data, language: String?, context: String?, maximumTokenCount: Int) throws -> [Float] {
+    public static func realtimeOptions(language: String?, context: String?, maximumTokenCount: Int) throws {
+        try options(language: language, context: context, maximumTokenCount: maximumTokenCount)
+        guard (context?.utf8.count ?? 0) <= OmniXPCProtocolLimits.maximumRealtimeContextByteCount else {
+            throw OmniXPCFailure.error(.invalidRequest, "The realtime context exceeds validation limits.")
+        }
+    }
+
+    public static func samples(audio: Data, language: String?, context: String?, maximumTokenCount: Int) throws -> [Float] {
         try options(language: language, context: context, maximumTokenCount: maximumTokenCount)
         guard !audio.isEmpty, audio.count <= OmniXPCProtocolLimits.maximumAudioByteCount,
               audio.count % MemoryLayout<UInt32>.size == 0 else {
@@ -145,7 +156,7 @@ nonisolated enum OmniXPCRequestValidation {
 }
 
 #if os(macOS)
-@objc nonisolated protocol OmniInferenceXPCProtocol {
+@objc public nonisolated protocol OmniInferenceXPCProtocol {
     func probe(withReply reply: @escaping @Sendable (Int, String, Int32, NSError?) -> Void)
     func loadQwen(
         operationID: String, modelDirectory: String,
@@ -163,6 +174,25 @@ nonisolated enum OmniXPCRequestValidation {
     func finishFinalSession(
         sessionID: String, modelID: String,
         withReply reply: @escaping @Sendable (String?, String?, String?, String?, Int, Bool, NSError?) -> Void
+    )
+    func startRealtimeSession(
+        sessionID: String, modelID: String, language: String?, context: String?, maximumTokenCount: Int,
+        decodeIntervalSamples: Int, firstDecodeSamples: Int, maximumSegmentSamples: Int,
+        withReply reply: @escaping @Sendable (String?, NSError?) -> Void
+    )
+    func pushRealtimeAudio(
+        sessionID: String, modelID: String, sequence: Int, audio: Data,
+        withReply reply: @escaping @Sendable (Int, NSError?) -> Void
+    )
+    func finishRealtimeSession(
+        sessionID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    )
+    func pollRealtimeEvents(
+        sessionID: String, modelID: String, acknowledgedEventSequence: Int, maximumEventCount: Int,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func closeRealtimeSession(
+        sessionID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
     )
     func cancelRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func terminateForValidation(withReply reply: @escaping @Sendable (NSError?) -> Void)

@@ -25,10 +25,14 @@
 		FA11DBA0FA11DBA0FA11DBA0 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = FA11DBA1FA11DBA1FA11DBA1 /* GRDB */; };
 		A0BC00000000000000000011 /* OmniInferenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC00000000000000000021 /* OmniInferenceService.swift */; };
 		A0BC00000000000000000012 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC00000000000000000022 /* main.swift */; };
-		A0BC00000000000000000013 /* OmniXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC00000000000000000023 /* OmniXPCProtocol.swift */; };
 		A0BC00000000000000000014 /* QwenCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC0000000000000000002B /* QwenCoreModel.swift */; };
 		A0BC00000000000000000015 /* OmniFinalSessionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */; };
-		A0BC00000000000000000016 /* OmniXPCFinalSessionBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC0000000000000000002D /* OmniXPCFinalSessionBuffer.swift */; };
+		A0BD00000000000000000004 /* OmniXPCContracts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BD00000000000000000002 /* OmniXPCContracts */; };
+		A0BD00000000000000000005 /* OmniXPCContracts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BD00000000000000000003 /* OmniXPCContracts */; };
+		A0BD00000000000000000020 /* OmniSessionLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000010 /* OmniSessionLifecycle.swift */; };
+		A0BD00000000000000000021 /* QwenCoreRealtimeLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000011 /* QwenCoreRealtimeLease.swift */; };
+		A0BD00000000000000000022 /* OmniRealtimeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000012 /* OmniRealtimeSession.swift */; };
+		A0BD00000000000000000023 /* OmniRealtimeSessionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,7 +73,6 @@
 		A0BC00000000000000000020 /* OmniInference.xpc */ = {isa = PBXFileReference; explicitFileType = "wrapper.xpc-service"; includeInIndex = 0; path = OmniInference.xpc; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0BC00000000000000000021 /* OmniInferenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniInferenceService.swift; sourceTree = "<group>"; };
 		A0BC00000000000000000022 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
-		A0BC00000000000000000023 /* OmniXPCProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OmniXPCProtocol.swift; path = Voxt/Transcription/OmniXPCProtocol.swift; sourceTree = SOURCE_ROOT; };
 		A0BC00000000000000000024 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A0BC00000000000000000025 /* OmniInference.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OmniInference.entitlements; sourceTree = "<group>"; };
 		A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "OmniInference-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -79,7 +82,10 @@
 		A0BC0000000000000000002A /* OmniXPCApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OmniXPCApp.entitlements; sourceTree = "<group>"; };
 		A0BC0000000000000000002B /* QwenCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenCoreModel.swift; sourceTree = "<group>"; };
 		A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniFinalSessionEngine.swift; sourceTree = "<group>"; };
-		A0BC0000000000000000002D /* OmniXPCFinalSessionBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OmniXPCFinalSessionBuffer.swift; path = Voxt/Transcription/OmniXPCFinalSessionBuffer.swift; sourceTree = SOURCE_ROOT; };
+		A0BD00000000000000000010 /* OmniSessionLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSessionLifecycle.swift; sourceTree = "<group>"; };
+		A0BD00000000000000000011 /* QwenCoreRealtimeLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenCoreRealtimeLease.swift; sourceTree = "<group>"; };
+		A0BD00000000000000000012 /* OmniRealtimeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniRealtimeSession.swift; sourceTree = "<group>"; };
+		A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniRealtimeSessionEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -176,6 +182,7 @@
 				F1A2B3C4D5E6F708090A0B0C /* FaviconFinder in Frameworks */,
 				FA11DBA0FA11DBA0FA11DBA0 /* GRDB in Frameworks */,
 				AABBCCDDEEFF001122334457 /* Logging in Frameworks */,
+				A0BD00000000000000000004 /* OmniXPCContracts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,6 +198,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0BD00000000000000000005 /* OmniXPCContracts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -276,8 +284,10 @@
 				A0BC0000000000000000002B /* QwenCoreModel.swift */,
 				A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */,
 				A0BC00000000000000000022 /* main.swift */,
-				A0BC00000000000000000023 /* OmniXPCProtocol.swift */,
-				A0BC0000000000000000002D /* OmniXPCFinalSessionBuffer.swift */,
+				A0BD00000000000000000010 /* OmniSessionLifecycle.swift */,
+				A0BD00000000000000000011 /* QwenCoreRealtimeLease.swift */,
+				A0BD00000000000000000012 /* OmniRealtimeSession.swift */,
+				A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */,
 				A0BC00000000000000000024 /* Info.plist */,
 				A0BC00000000000000000025 /* OmniInference.entitlements */,
 				A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */,
@@ -320,6 +330,7 @@
 				F1A2B3C4D5E6F708090A0B0D /* FaviconFinder */,
 				FA11DBA1FA11DBA1FA11DBA1 /* GRDB */,
 				AABBCCDDEEFF001122334456 /* Logging */,
+				A0BD00000000000000000002 /* OmniXPCContracts */,
 			);
 			productName = Voxt;
 			productReference = 31F19CCD2F4D76D200E96913 /* Voxt Dev.app */;
@@ -361,6 +372,7 @@
 			);
 			name = OmniInference;
 			packageProductDependencies = (
+				A0BD00000000000000000003 /* OmniXPCContracts */,
 			);
 			productName = OmniInference;
 			productReference = A0BC00000000000000000020 /* OmniInference.xpc */;
@@ -399,6 +411,7 @@
 			mainGroup = 31F19CC42F4D76D200E96913;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */,
 				A1B2C3D4E5F607890123456B /* XCRemoteSwiftPackageReference "mlx-audio-swift" */,
 				B1C2D3E4F5060708090A0B0E /* XCRemoteSwiftPackageReference "Sparkle" */,
 				C1D2E3F4A5060708090A0B03 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
@@ -492,10 +505,12 @@
 			files = (
 				A0BC00000000000000000011 /* OmniInferenceService.swift in Sources */,
 				A0BC00000000000000000012 /* main.swift in Sources */,
-				A0BC00000000000000000013 /* OmniXPCProtocol.swift in Sources */,
 				A0BC00000000000000000014 /* QwenCoreModel.swift in Sources */,
 				A0BC00000000000000000015 /* OmniFinalSessionEngine.swift in Sources */,
-				A0BC00000000000000000016 /* OmniXPCFinalSessionBuffer.swift in Sources */,
+				A0BD00000000000000000020 /* OmniSessionLifecycle.swift in Sources */,
+				A0BD00000000000000000021 /* QwenCoreRealtimeLease.swift in Sources */,
+				A0BD00000000000000000022 /* OmniRealtimeSession.swift in Sources */,
+				A0BD00000000000000000023 /* OmniRealtimeSessionEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1170,6 +1185,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/OmniXPCContracts;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		A1B2C3D4E5F607890123456B /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -1238,6 +1260,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A0BD00000000000000000002 /* OmniXPCContracts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */;
+			productName = OmniXPCContracts;
+		};
+		A0BD00000000000000000003 /* OmniXPCContracts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */;
+			productName = OmniXPCContracts;
+		};
 		A1B2C3D4E5F6078901234568 /* MLXAudioCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D4E5F607890123456B /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;

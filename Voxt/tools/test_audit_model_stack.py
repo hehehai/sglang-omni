@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 
@@ -10,6 +11,27 @@ import audit_model_stack as audit
 class ModelStackAuditTests(unittest.TestCase):
     def test_current_source_has_no_retired_runtime(self):
         self.assertEqual(audit.source_errors(audit.ROOT), [])
+
+    def test_local_contract_package_does_not_allow_model_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative_path in (
+                "Voxt.xcodeproj/project.pbxproj",
+                "Voxt/Transcription/MLXModelSupport.swift",
+                "Voxt/Core/Models/CustomLLMModelSupport.swift",
+            ):
+                target = root / relative_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(audit.ROOT / relative_path, target)
+            project_path = root / "Voxt.xcodeproj/project.pbxproj"
+            project = project_path.read_text()
+            self.assertEqual(audit.source_errors(root), [])
+            for package_path in ("../mlx-audio-swift", "Packages/OmniXPCContracts/../../mlx-swift"):
+                project_path.write_text(project + "\nisa = XCLocalSwiftPackageReference;\n"
+                                        + f"relativePath = {package_path};\n")
+                self.assertIn("Local package override in shared release project", audit.source_errors(root))
+            project_path.write_text(project + "\nisa = XCLocalSwiftPackageReference;\n")
+            self.assertIn("Local package override in shared release project", audit.source_errors(root))
 
     def test_dependency_name_detection_does_not_confuse_llama_with_onnx(self):
         for name in ["FluidAudio", "NemoTextProcessing", "sherpa-onnx", "onnxruntime"]:
