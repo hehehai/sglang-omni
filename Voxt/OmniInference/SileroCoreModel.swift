@@ -1,21 +1,24 @@
 /// Retained ABI4 Silero model with independently cancellable requests and registered stream leases.
 import Foundation
 import OmniXPCContracts
+import OmniModelArtifacts
 
 #if os(macOS)
 nonisolated final class SileroCoreModel: @unchecked Sendable {
     private let lock = NSLock()
+    private let directoryLease: OmniModelDirectoryLease
     private var handle: OpaquePointer?
     private var request: OpaquePointer?
     private var requestID: UUID?
     private var streamLeaseCount = 0
 
-    init(directory: URL) throws {
+    init(directoryLease: OmniModelDirectoryLease) throws {
         guard Int(omni_core_abi_version()) == OmniXPCProtocolLimits.abiVersion else {
             throw OmniXPCFailure.error(.incompatibleService, "The Native Core ABI is incompatible.")
         }
+        self.directoryLease = directoryLease
         var errorMessage: UnsafeMutablePointer<CChar>?
-        handle = omni_silero_create(directory.path, &errorMessage)
+        handle = omni_silero_create(directoryLease.directory.path, &errorMessage)
         defer { omni_string_free(errorMessage) }
         guard handle != nil else {
             throw OmniXPCFailure.error(.nativeFailure, "The Native Silero model could not be loaded.")

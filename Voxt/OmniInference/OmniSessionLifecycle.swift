@@ -56,13 +56,13 @@ nonisolated final class OmniFinalSessionEngine: @unchecked Sendable {
             // note (assistant): Enqueue under the lock so disconnect cannot overtake admitted work.
             queue.async { [self] in
                 do {
-                    let directory = try OmniXPCRequestValidation.modelDirectory(
-                        relativePath: modelDirectory, container: groupContainer()
+                    let directoryLease = try OmniServiceIdentity.modelDirectoryLease(
+                        relativePath: modelDirectory, configuration: configuration
                     )
                     guard lock.withLock({ lifetime.isActive && lifetime.operations[operation] != .cancelled }) else {
                         throw OmniXPCFailure.error(.cancelled, "The model load was cancelled.")
                     }
-                    let loaded = try QwenCoreModel(directory: directory)
+                    let loaded = try QwenCoreModel(directoryLease: directoryLease)
                     let newModelID = UUID()
                     let published = lock.withLock {
                         guard lifetime.isActive, lifetime.operations[operation] != .cancelled else { return false }

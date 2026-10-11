@@ -1,6 +1,7 @@
 /// Retained Native model with a separately cancellable token for each final request.
 import Foundation
 import OmniXPCContracts
+import OmniModelArtifacts
 
 #if os(macOS)
 nonisolated struct QwenReply: Sendable {
@@ -12,16 +13,18 @@ nonisolated struct QwenReply: Sendable {
 
 nonisolated final class QwenCoreModel: @unchecked Sendable {
     private let lock = NSLock()
+    private let directoryLease: OmniModelDirectoryLease
     private var handle: OpaquePointer?
     private var request: OpaquePointer?
     private var requestSessionID: UUID?
 
-    init(directory: URL) throws {
+    init(directoryLease: OmniModelDirectoryLease) throws {
         guard Int(omni_core_abi_version()) == OmniXPCProtocolLimits.abiVersion else {
             throw OmniXPCFailure.error(.incompatibleService, "The Native Core ABI is incompatible.")
         }
+        self.directoryLease = directoryLease
         var errorMessage: UnsafeMutablePointer<CChar>?
-        handle = omni_qwen_create(directory.path, &errorMessage)
+        handle = omni_qwen_create(directoryLease.directory.path, &errorMessage)
         defer { omni_string_free(errorMessage) }
         guard handle != nil else {
             throw OmniXPCFailure.error(.nativeFailure, "The Native Qwen model could not be loaded.")

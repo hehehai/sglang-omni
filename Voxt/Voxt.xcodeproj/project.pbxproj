@@ -40,6 +40,7 @@
 		A0C000000000000000000021 /* OmniSileroOfflineInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000011 /* OmniSileroOfflineInference.swift */; };
 		A0C000000000000000000022 /* OmniSileroStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000012 /* OmniSileroStream.swift */; };
 		A0C000000000000000000023 /* OmniSileroStreamingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */; };
+		A0BE00000000000000000005 /* OmniModelArtifacts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BE00000000000000000004 /* OmniModelArtifacts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -213,6 +214,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A0BD00000000000000000005 /* OmniXPCContracts in Frameworks */,
+				A0BE00000000000000000005 /* OmniModelArtifacts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -394,6 +396,7 @@
 			name = OmniInference;
 			packageProductDependencies = (
 				A0BD00000000000000000003 /* OmniXPCContracts */,
+				A0BE00000000000000000004 /* OmniModelArtifacts */,
 			);
 			productName = OmniInference;
 			productReference = A0BC00000000000000000020 /* OmniInference.xpc */;
@@ -1368,6 +1371,11 @@
 			productName = GRDB;
 		};
 		A0BE00000000000000000002 /* OmniModelArtifacts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A0BE00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniModelArtifacts" */;
+			productName = OmniModelArtifacts;
+		};
+		A0BE00000000000000000004 /* OmniModelArtifacts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A0BE00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniModelArtifacts" */;
 			productName = OmniModelArtifacts;

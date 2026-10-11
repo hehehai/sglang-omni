@@ -416,7 +416,7 @@ Phase 1：Native 构建和体积测量已通过；发布链路尚未通过，具
 
 ### 12.3 任务拆分与验收
 
-T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4a 已抽离 auxiliary model 的非推理下载校验，T4b1 已新增 Silero Core ABI4、T4b2a 已接 opt-in offline Silero XPC、T4b2b 已接 bounded streaming Silero XPC，T4 的 Sortformer XPC 与完整目录生命周期及 T5 以后仍待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
+T0、T1、T2 验证链路和 T3a final session 的进展见第 13 节；真实签名/macOS 验收仍待补；T3b1 已抽离 realtime engine，T3b2a 已实现 realtime C ABI，T3b2b 已接共享 contracts package 与 opt-in XPC realtime；T4a 已抽离 auxiliary model 的非推理下载校验，T4b1 已新增 Silero Core ABI4、T4b2a 已接 opt-in offline Silero XPC、T4b2b 已接 bounded streaming Silero XPC，T4c1 已加 atomic publication/cooperating directory leases、T4d1 已加 Sortformer Core ABI5；Sortformer XPC、完整缓存迁移及 T5 以后仍待实施；已有 Helper 打包和 Native golden 是基线证据，不计作 XPC 任务完成。
 
 | 任务 | 主要工作 | 依赖 | 完成标准 |
 |---|---|---|---|
@@ -779,4 +779,33 @@ T4b2b 的 streaming 接入见下节；之后继续 Sortformer 状态/ABI/XPC，�
 - client-fix agent另以 test-only drain fault interposer 回放真实 helper/Core：barrier error保留模型且 unload busy、同 actor coalesced retry 到真实 Core drain成功；不是自然 Core/GPU fault 验收。独立复查重跑 22 portable 与最新 whole streaming harness，声明 lifetime/worker contract 下未发现具体剩余问题。
 - 既有 Qwen final/realtime 与 offline Silero 整体 harness 回归通过；Core/HTTP source 未修改，Native Clang ASan/UBSan116 通过；33 项工具/source/resolved audits 通过。helper/client/smoke parse 与 supplemental Linux platform-stand-in typecheck 通过，全仓库 pre-commit 重跑通过。
 
-下一工作：Sortformer typed state/Core/XPC；共享目录授权/迁移/atomic publication/model lease-delete 与 actual ASR+VAD+diarization GPU 并行、内存/长会议/性能/范围 golden、Mac App/Intel/signing/notarization acceptance 仍须补齐。此 checkpoint 不删除 MLX Audio，也不提前切换 production factory。
+Sortformer Core 与 cooperating publication/lease 进展见 T4d1/T4c1。Sortformer XPC、完整缓存迁移与 actual ASR+VAD+diarization GPU 并行、内存/长会议/性能/golden、Mac App/Intel/signing/notarization acceptance 仍待补。production factory 与 MLX Audio 依赖未切换。
+
+### T4c1：cooperating directory leases 与 verified atomic publication
+
+- OmniModelArtifacts 新增系统 POSIX shared/exclusive nonblocking flock、稳定 payload 外 lockfile与同 filesystem directory exchange（macOS renameatx_np SWAP/Linux renameat2 EXCHANGE），无 delete-old/move-new fallback。App 使用既有 bounded disk queue，staging lease跨下载持有、发布前 validate/检查取消，已有 destination 不在 commit 前删除。
+- 成功 commit 后取消不能回滚或误报未安装；旧 payload cleanup 失败返回 committed outcome/retained staging。interrupted commit/retained staging 通过稳定 lock marker quarantine，不盲目当新下载继续。partial cancel 不删安装目录；explicit ASR uninstall 协调 mutation leases。Whisper NPZ-only 既有判定保留，不伪称 NPZ integrity 验证。
+- opt-in helper Qwen/Silero Reader lease 在 Native 创建前取得并持续到 Swift model/stream ownership释放；lease 下再次授权 XPC shared model files。URL trailing-directory语义不能用于identity equality，已改为 canonical path比较。helper实际链接 ModelArtifacts product，LLM/VLM 非本任务 reader/缓存不自动迁移。
+- 审查复现并修复 publication relocation-sensitive symlink 可发布坏权重/删旧 payload 与 parent mutation绕过 child reader两项问题。公开发布限制 canonical sibling roots并在 commit 前比对 staged symlink future resolved file device/inode；稳定外部 blob与relative内部regular链接支持，unsafe/directory links明确拒绝。coordinated roots不得重叠，persistent claim/namespace 双向检查与 post-flock recheck 保留 lock inode；不声称防御 hostile UID/uncoordinated writer。
+- 实际 Package Debug/Release70 项均通过（含原34结构与publication/lease/独立process/crash/race案例）；before-regression 六项失败，修复后通过。实际 ModelDiskOperations Debug/Release验证取消/reader-blocked删除/commit后取消结果；独立审查重跑两配置和50次parent/child competing claims，never both admitted。actual helper/client/Core5 stream回放包括 loaded-model reader阻止exclusive mutation，配合路径修复后通过。Linux证据不等于APFS/XPC/GPU认证。
+- 限制：无 automatic cache migration、fsync/power-loss durability、immutable snapshot 或 automatic marked-staging reconciliation；并发first claims可保守双拒绝并留下永久不兼容claim，需明确维护。未覆盖 legacy repair/shadow等所有reader；完整目录授权/迁移/删除协调验收仍待补。
+
+### T4d1：bounded Sortformer Core ABI5
+
+- Native Core追加四speaker AOSC streaming handle/settings、owned row-major probabilities/absolute-time speaker segments、strictsequence/cancel/finish/drain/model leases；同一专用worker加载/InitState/Feed/释放native arrays，至多16states、每model一个command/audio copy、2秒input及frame/state/encoder/compression/counter bounds。legacy Qwen/Silero functions/layouts保留，HTTP defaults/wire不切换，App/helper/smoke ABI expectation同步5。
+- 复用实际Sortformer Init/Feed/cachecompression；pure ProbabilitiesToSegments抽离真实body。config-taking constructor使实际Native config whitelist/arithmetics在feature/weight allocation前检查；initial architecture明确16k/hop160/subsample8/four-speaker FC512/TF192。actualFeature新支持1sample，无empty-remainder op；既有≥2input算术及HTTP最低2sample拒绝保持；实际单sample MLX执行仍待Mac。
+- 审查发现legacyJSON loader在验证前 unsafe narrowing，huge int wrap/fraction truncation/float-cast UB可绕Native whitelist。已以同一parser的strict native mode在所有33int/8float/4bool字段转换前检查type/range，safe legacy coercion保持，unsafe转化现在明确error；真实parser编入测试，不再被LoadConfig stand-in遮住。
+- 原96ABI +42realtime/golden-tool6 +1298真实config cases，Clang/GCC ASan/UBSan/float-cast-overflow各1442passed；legacy真实BEFORE/AFTER772fixtures/compiler全一致，pure segments10000 cases byte-identical。独立复查310focused +161额外边界，未发现具体剩余numeric defect。模型/MLX仍明确替身；真实checkpoint、single-sample/Metal/compression numerical golden未验收。
+- Main Swift真实ABI5 header/link验证 owned probabilities/segments/free/finish/drain；model/MLX为替身，不是SDK/Metal认证。Sortformer XPC/上层diarization client尚未实现，不能把Core独立检查点计作完整T4。
+
+### 剩余工作与硬门槛（不能宣布全部规划完成）
+
+| 阶段 | 当前未完成内容 |
+| --- | --- |
+| T2/full T3 | 实际signed Mac/Xcode/NSXPC/App Group/Metal/model验证；历史包装结果不覆盖新提交 |
+| T4 | Sortformer XPC/client、全部cached-directory迁移/授权/lease-delete与真实3runtime并行/golden |
+| T5 | Whisper/Cohere/MOSS Core/XPC、MOSS typed realtime及完整客户端切换；production仍既有Native HTTP/辅助路径 |
+| T6 | 所有ASR/VAD调用者迁移后删除Audio package/branches与完整App/Intel/LLM/VLM回归；当前依赖保留 |
+| T7 | actual signing/notarization/clean-machine、memory/performance/longmeeting/failure矩阵及release gates |
+
+已请求Mac验收执行方式，但用户AFK未选择，不能视为SSH/CI/signing授权。当前只推进离线实现并保留全部真实平台/production/发布门槛，不启用CI gates、不push/merge/deploy。

@@ -1,4 +1,5 @@
 import Foundation
+import OmniModelArtifacts
 
 /// Blocking file operations run on a bounded Foundation queue, not Swift's
 /// cooperative executor. UI waits are cancellable at ModelInstallationCache;
@@ -23,6 +24,44 @@ nonisolated enum ModelDiskOperations {
         }
     }
 
+    static func prepareStagingDirectory(at directory: URL) async throws -> OmniModelDirectoryLease {
+        try await perform {
+            try FileManager.default.createDirectory(at: directory.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let lease = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation)
+            try FileManager.default.createDirectory(at: lease.directory, withIntermediateDirectories: true)
+            return lease
+        }
+    }
+
+    static func publish(
+        stagingLease: OmniModelDirectoryLease,
+        to destination: URL,
+        validate: @escaping @Sendable (URL) throws -> Void
+    ) async throws -> OmniModelPublication.Outcome {
+        let cancellation = PublicationCancellation()
+        return try await withTaskCancellationHandler {
+            try await perform {
+                try OmniModelPublication.publish(
+                    stagingLease: stagingLease, to: destination,
+                    validate: validate, checkCancellation: cancellation.check
+                )
+            }
+        } onCancel: {
+            cancellation.cancel()
+        }
+    }
+
+    static func removeModelDirectories(_ directories: [URL]) async throws {
+        try await perform {
+            let existing = Set(directories).filter { FileManager.default.fileExists(atPath: $0.path) }
+            let leases = try existing.map { try OmniModelDirectoryLease.acquire(for: $0, mode: .exclusiveMutation) }
+            defer { withExtendedLifetime(leases) {} }
+            for directory in existing {
+                try FileManager.default.removeItem(at: directory)
+            }
+        }
+    }
+
     static func remove(_ directories: [URL]) async throws {
         try await perform {
             for directory in Set(directories) {
@@ -31,6 +70,23 @@ nonisolated enum ModelDiskOperations {
                 }
             }
         }
+    }
+}
+
+private nonisolated final class PublicationCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isCancelled = false
+
+    func cancel() {
+        lock.lock()
+        defer { lock.unlock() }
+        isCancelled = true
+    }
+
+    func check() throws {
+        lock.lock()
+        defer { lock.unlock() }
+        if isCancelled { throw CancellationError() }
     }
 }
 

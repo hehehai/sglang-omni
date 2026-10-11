@@ -6,6 +6,7 @@ import Combine
 import CFNetwork
 import MLX
 import HuggingFace
+import OmniModelArtifacts
 
 @MainActor
 class MLXModelManager: ObservableObject {
@@ -198,7 +199,7 @@ class MLXModelManager: ObservableObject {
         }
         await omniLedger.waitForRetirements()
         do {
-            try await ModelDiskOperations.remove(directories)
+            try await ModelDiskOperations.removeModelDirectories(directories)
             await Task.detached(priority: .utility) {
                 if let id = Repo.ID(rawValue: repo) {
                     for root in roots { MLXModelStorageSupport.clearHubCache(for: id, rootDirectory: root) }
@@ -228,7 +229,6 @@ class MLXModelManager: ObservableObject {
         if let task = downloadTasksByRepo[canonicalRepo] {
             downloadStopActionsByRepo[canonicalRepo] = .cancel
             setPausedStatusMessage(nil, for: canonicalRepo)
-            setState(.notDownloaded, for: canonicalRepo)
             clearSelectedDownloadSource(for: canonicalRepo)
             task.cancel()
             return
@@ -244,13 +244,11 @@ class MLXModelManager: ObservableObject {
 
     private func schedulePartialCleanup(for repo: String) {
         guard !isModelDownloaded(repo: repo), !deletingRepos.contains(repo) else { return }
-        let directories = [writeCacheDirectory(for: repo), downloadTempDirectory(for: repo)].compactMap { $0 }
-        let root = writeRootURL()
+        let directories = [downloadTempDirectory(for: repo)].compactMap { $0 }
         let revision = storageRevision
         invalidateLocalCache(for: repo)
         clearSelectedDownloadSource(for: repo)
         setPausedStatusMessage(nil, for: repo)
-        setState(.notDownloaded, for: repo)
         activeDownloadRepos.insert(repo)
         downloadStopActionsByRepo[repo] = .cancel
         let task = Task { [weak self] in
@@ -263,14 +261,9 @@ class MLXModelManager: ObservableObject {
                 requestInstallation(repo)
             }
             do {
-                try await ModelDiskOperations.remove(directories)
-                try await ModelDiskOperations.perform {
-                    if let id = Repo.ID(rawValue: repo) {
-                        MLXModelStorageSupport.clearHubCache(for: id, rootDirectory: root)
-                    }
-                }
+                try await ModelDiskOperations.removeModelDirectories(directories)
                 guard revision == storageRevision else { return }
-                setState(.notDownloaded, for: repo)
+                await refreshAfterCancelledDownload(for: repo)
             } catch {
                 guard revision == storageRevision else { return }
                 setState(.error("Couldn't remove partial model files: \(error.localizedDescription)"), for: repo)
@@ -527,17 +520,9 @@ class MLXModelManager: ObservableObject {
             }
             do {
                 setPausedStatusMessage(nil, for: canonicalRepo)
-                let modelDir = try await performDownloadWithFallback(for: canonicalRepo)
-                try Task.checkCancellation()
-                try await MLXModelDownloadSupport.validateDownloadedModelInBackground(
-                    at: modelDir,
-                    repo: canonicalRepo,
-                    sizeState: MLXModelDownloadSupport.validationSizeState(for: canonicalRepo),
-                    downloadSizeTolerance: downloadSizeTolerance,
-                    fileManager: .default
-                )
-                try Task.checkCancellation()
-                guard revision == storageRevision else { throw CancellationError() }
+                _ = try await performDownloadWithFallback(for: canonicalRepo)
+                // note (guanwei): Publication already committed; late cancellation cannot undo the installation.
+                guard revision == storageRevision else { return }
                 markDownloadCompleted(for: canonicalRepo)
                 SystemNotificationSupport.postModelDownloadSucceeded(
                     modelName: displayTitle(for: canonicalRepo)
@@ -553,9 +538,7 @@ class MLXModelManager: ObservableObject {
                     setPausedStatusMessage(nil, for: canonicalRepo)
                     await cleanupPartialDownload(for: canonicalRepo)
                     guard revision == storageRevision else { return }
-                    await clearHubCache(for: canonicalRepo)
-                    guard revision == storageRevision else { return }
-                    markCancelledDownloadUnavailable(for: canonicalRepo)
+                    await refreshAfterCancelledDownload(for: canonicalRepo)
                     VoxtLog.modelInfo("Download cancelled. repo=\(canonicalRepo)")
                 }
             } catch {
@@ -564,8 +547,6 @@ class MLXModelManager: ObservableObject {
                     return
                 }
                 setPausedStatusMessage(nil, for: canonicalRepo)
-                await clearHubCache(for: canonicalRepo)
-                guard revision == storageRevision else { return }
                 let message = downloadErrorMessage(for: error, repo: canonicalRepo)
                 setState(.error(message), for: canonicalRepo)
                 SystemNotificationSupport.postModelDownloadFailed(
@@ -789,13 +770,15 @@ class MLXModelManager: ObservableObject {
         }
     }
 
-    private func markCancelledDownloadUnavailable(for repo: String) {
+    private func refreshAfterCancelledDownload(for repo: String) async {
+        let revision = storageRevision
+        let request = installationRequest(repo)
+        let snapshot = await Task.detached(priority: .utility) { request.scan() }.value
+        guard revision == storageRevision else { return }
         invalidateLocalCache(for: repo)
-        if repo == modelRepo {
-            checkExistingModel()
-        } else {
-            setState(.notDownloaded, for: repo)
-        }
+        downloadedStateByRepo[repo] = snapshot.isInstalled
+        applyInstallationState(snapshot, repo: repo)
+        requestInstallation(repo)
     }
 
     private func installationRequest(_ repo: String) -> ModelInstallationRequest {
@@ -965,11 +948,11 @@ class MLXModelManager: ObservableObject {
     }
 
     private func cleanupPartialDownload(for repo: String) async {
-        let directories = [writeCacheDirectory(for: repo), downloadTempDirectory(for: repo)].compactMap { $0 }
+        let directories = [downloadTempDirectory(for: repo)].compactMap { $0 }
         // This compensating cleanup is requested BY cancellation, so it must not
         // inherit the cancelled download task's flag. Paths are captured first.
         let result = await Task.detached(priority: .utility) {
-            try await ModelDiskOperations.remove(directories)
+            try await ModelDiskOperations.removeModelDirectories(directories)
         }.result
         if case .failure(let error) = result {
             VoxtLog.modelWarning("Partial model cleanup failed. repo=\(repo), error=\(error.localizedDescription)")
@@ -1150,13 +1133,14 @@ class MLXModelManager: ObservableObject {
                 return try await performDownload(using: candidate.url, for: repo)
             } catch is CancellationError {
                 throw CancellationError()
+            } catch let error as OmniModelStorageError {
+                throw error
             } catch {
                 try Task.checkCancellation()
                 lastError = error
                 VoxtLog.modelWarning(
                     "MLX Audio download source failed. repo=\(repo), source=\(candidate.displayName), error=\(error.localizedDescription)"
                 )
-                await clearHubCache(for: repo)
             }
         }
 
@@ -1206,7 +1190,8 @@ class MLXModelManager: ObservableObject {
             return modelDir
         }
 
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let stagingLease = try await ModelDiskOperations.prepareStagingDirectory(at: tempDir)
+        defer { withExtendedLifetime(stagingLease) {} }
 
         VoxtLog.modelInfo("Fetching model entries: \(repoID.description)")
         let entries = try await MLXModelDownloadSupport.fetchModelEntries(
@@ -1331,21 +1316,24 @@ class MLXModelManager: ObservableObject {
             bearerToken: bearerToken
         )
 
-        VoxtLog.modelInfo("Validating downloaded files...", verbose: true)
-        try await MLXModelDownloadSupport.validateDownloadedModelInBackground(
-            at: tempDir,
-            repo: repo,
-            sizeState: MLXModelDownloadSupport.validationSizeState(for: repo),
-            downloadSizeTolerance: downloadSizeTolerance,
-            fileManager: .default
-        )
-        VoxtLog.modelInfo("Moving downloaded files into final cache...", verbose: true)
-        try await Task.detached(priority: .utility) {
-            try MLXModelDownloadSupport.clearDirectory(at: modelDir, fileManager: .default)
-            try FileManager.default.moveItem(at: tempDir, to: modelDir)
-        }.value
-        VoxtLog.modelInfo("Download files moved to final cache.", verbose: true)
-        return modelDir
+        let sizeState = MLXModelDownloadSupport.validationSizeState(for: repo)
+        let sizeTolerance = downloadSizeTolerance
+        let outcome = try await ModelDiskOperations.publish(stagingLease: stagingLease, to: modelDir) { directory in
+            try MLXModelDownloadSupport.validateDownloadedModel(
+                at: directory, repo: repo, sizeState: sizeState,
+                downloadSizeTolerance: sizeTolerance, fileManager: .default
+            )
+            let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            if !MLXModelDownloadSupport.weightExtensions(for: repo).contains("npz")
+                || entries.contains(where: { $0.pathExtension.lowercased() == "safetensors" }) {
+                try OmniModelArtifactValidation.validateSafetensorsDirectory(at: directory)
+            }
+        }
+        if let warning = outcome.cleanupErrorDescription {
+            VoxtLog.modelWarning("Model installed; cleanup incomplete. retainedPreviousDirectory=\(outcome.retainedPreviousDirectory?.path ?? "none"), error=\(warning)")
+        }
+        VoxtLog.modelInfo("Download published atomically.", verbose: true)
+        return outcome.directory
     }
 
     private func downloadEntryWithRetry(
@@ -1519,17 +1507,6 @@ class MLXModelManager: ObservableObject {
         VoxtLog.modelInfo(
             "MLX Audio model released. repo=\(expectedRepo ?? "unknown"), reason=\(reason)"
         )
-    }
-
-    private func clearHubCache(for repo: String) async {
-        let root = writeRootURL()
-        await Task.detached(priority: .utility) {
-            try? await ModelDiskOperations.perform {
-                if let id = Repo.ID(rawValue: repo) {
-                    MLXModelStorageSupport.clearHubCache(for: id, rootDirectory: root)
-                }
-            }
-        }.value
     }
 
     private func repairIncompleteModelDirectoryIfNeeded(

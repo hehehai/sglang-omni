@@ -3,6 +3,7 @@ import XCTest
 import HuggingFace
 import MLX
 import MLXAudioSTT
+import OmniModelArtifacts
 
 @MainActor
 final class MLXModelManagerStorageTests: MLXModelManagerTestCase {
@@ -192,6 +193,38 @@ final class MLXModelManagerStorageTests: MLXModelManagerTestCase {
             await manager.cancelDownloadAndWait(repo: staleRepo)
 
             XCTAssertFalse(FileManager.default.fileExists(atPath: staleDir.path))
+        }
+    }
+
+    func testCancelPartialDownloadPreservesExistingDestinationWeights() async throws {
+        try await withIsolatedModelStorageRoot { root in
+            let repo = "mlx-community/parakeet-tdt-0.6b-v3"
+            let destination = root.appendingPathComponent("mlx-audio/mlx-community_parakeet-tdt-0.6b-v3")
+            let staging = root.appendingPathComponent("mlx-audio/mlx-community_parakeet-tdt-0.6b-v3-download")
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+            let weights = Data("previous weights awaiting repair".utf8)
+            try weights.write(to: destination.appendingPathComponent("model.safetensors"))
+            try Data("partial".utf8).write(to: staging.appendingPathComponent("model.safetensors"))
+            let manager = MLXModelManager(modelRepo: MLXModelManager.defaultModelRepo)
+            await manager.cancelDownloadAndWait(repo: repo)
+            XCTAssertEqual(try Data(contentsOf: destination.appendingPathComponent("model.safetensors")), weights)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: staging.path))
+        }
+    }
+
+    func testDeleteModelRejectsReaderLeaseWithoutRemovingWeights() async throws {
+        try await withIsolatedModelStorageRoot { root in
+            let repo = "mlx-community/parakeet-tdt-0.6b-v3"
+            try seedValidMLXModelDirectory(repo: repo, root: root)
+            let destination = root.appendingPathComponent("mlx-audio/mlx-community_parakeet-tdt-0.6b-v3")
+            let reader = try OmniModelDirectoryLease.acquire(for: destination, mode: .sharedRead)
+            let manager = MLXModelManager(modelRepo: MLXModelManager.defaultModelRepo)
+            let result = await manager.deleteModel(repo: repo)
+            guard case .failure(let error) = result else { return XCTFail("Deletion bypassed reader lease") }
+            XCTAssertEqual(error as? OmniModelStorageError, .busy(path: destination.path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: destination.appendingPathComponent("weights.safetensors").path))
+            withExtendedLifetime(reader) {}
         }
     }
 

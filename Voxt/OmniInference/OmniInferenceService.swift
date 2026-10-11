@@ -1,12 +1,24 @@
 /// Connection-scoped XPC entry points and shared admission for the Native validation host.
 import Foundation
 import OmniXPCContracts
+import OmniModelArtifacts
 
 #if os(macOS)
 import Darwin
 
 nonisolated enum OmniServiceIdentity {
     static let instanceID = UUID()
+
+    static func modelDirectoryLease(relativePath: String, configuration: OmniXPCConfiguration) throws -> OmniModelDirectoryLease {
+        let container = try groupContainer(configuration: configuration)
+        let directory = try OmniXPCRequestValidation.modelDirectory(relativePath: relativePath, container: container)
+        let lease = try OmniModelDirectoryLease.acquire(for: directory, mode: .sharedRead)
+        let checked = try OmniXPCRequestValidation.modelDirectory(relativePath: relativePath, container: container)
+        guard checked.resolvingSymlinksInPath().standardizedFileURL.path == lease.directory.path else {
+            throw OmniXPCFailure.error(.invalidRequest, "The shared model directory changed during lease acquisition.")
+        }
+        return lease
+    }
 
     static func groupContainer(configuration: OmniXPCConfiguration) throws -> URL {
         guard let container = FileManager.default.containerURL(
