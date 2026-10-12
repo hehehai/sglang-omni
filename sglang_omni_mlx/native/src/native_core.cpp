@@ -58,7 +58,7 @@ void SetError(char **error_message, const char *message) noexcept {
 using omni_native::CopyString;
 using omni_native::SetError;
 
-unsigned int omni_core_abi_version(void) { return 5; }
+unsigned int omni_core_abi_version(void) { return 6; }
 
 OmniQwenHandle *omni_qwen_create(const char *model_directory,
                                  char **error_message) {

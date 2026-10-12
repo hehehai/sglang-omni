@@ -1,4 +1,4 @@
-/// Owns an ABI5 stream through cancellation and its explicit Native drain/destroy barrier.
+/// Owns an ABI6 stream through cancellation and checked Native drain/destruction.
 import Foundation
 import OmniXPCContracts
 
@@ -149,7 +149,10 @@ nonisolated final class SortformerCoreStreamLease: @unchecked Sendable {
             handle = nil
             while cancellationCallCount > 0 { handleCondition.wait() }
             handleCondition.unlock()
-            omni_sortformer_stream_destroy(nativeHandle)
+            guard omni_sortformer_stream_destroy_checked(nativeHandle, &errorMessage) == 1, errorMessage == nil else {
+                handleCondition.withLock { handle = nativeHandle }
+                throw OmniXPCFailure.error(.nativeFailure, "The Native Sortformer stream destruction did not complete.")
+            }
         }
         isDestroyed = true
         model.releaseStreamLease()

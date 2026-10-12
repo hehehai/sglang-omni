@@ -6,6 +6,7 @@ public nonisolated enum OmniXPCSortformerLimits {
     public static let subsamplingFactor = 8
     public static let maximumChunkSampleCount = 32_000
     public static let maximumStreamCount = 16
+    public static let maximumLoadsPerConnection = 256
     public static let maximumStateFrameCount = 4096
     public static let maximumChunkFrameCount = 26
     public static let speakerCount = 4

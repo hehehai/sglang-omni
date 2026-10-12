@@ -169,6 +169,60 @@ void CancelBeforeAndDestroyWaiting() {
   omni_sortformer_result_free(&result);
 }
 
+void CheckedNullDestruction() {
+  char *error = reinterpret_cast<char *>(1);
+  assert(omni_sortformer_destroy_checked(nullptr, &error) == 1);
+  assert(error == nullptr);
+  error = reinterpret_cast<char *>(1);
+  assert(omni_sortformer_stream_destroy_checked(nullptr, &error) == 1);
+  assert(error == nullptr);
+}
+
+void CheckedModelDestruction() {
+  auto model = CreateSortformerModel();
+  auto stream = CreateSortformerStream(model.get());
+  char *error = nullptr;
+  assert(omni_sortformer_destroy_checked(model.get(), &error) == 0);
+  CheckSortformerError(error);
+  auto result = PushSortformer(stream.get(), 1);
+  omni_sortformer_result_free(&result);
+  error = reinterpret_cast<char *>(1);
+  assert(omni_sortformer_stream_destroy_checked(stream.get(), &error) == 1);
+  assert(error == nullptr);
+  (void)stream.release();
+  error = reinterpret_cast<char *>(1);
+  assert(omni_sortformer_destroy_checked(model.get(), &error) == 1);
+  assert(error == nullptr);
+  (void)model.release();
+  assert(SortformerState().live_array_count == 0);
+  assert(SortformerState().destruction_count == 1);
+}
+
+void CheckedStreamDestructionWaits() {
+  auto model = CreateSortformerModel();
+  auto stream = CreateSortformerStream(model.get());
+  SortformerState().block_feed = true;
+  const auto native_stream = stream.get();
+  auto running = std::async(std::launch::async,
+                            [&] { CheckSortformerRejected(native_stream); });
+  WaitForSortformerFeed();
+  auto destroying = std::async(std::launch::async, [&] {
+    char *error = reinterpret_cast<char *>(1);
+    assert(omni_sortformer_stream_destroy_checked(native_stream, &error) == 1);
+    assert(error == nullptr);
+  });
+  assert(destroying.wait_for(std::chrono::milliseconds(50)) ==
+         std::future_status::timeout);
+  ReleaseSortformerFeed();
+  running.get();
+  destroying.get();
+  (void)stream.release();
+  assert(SortformerState().live_array_count == 3);
+  assert(omni_sortformer_destroy_checked(model.get(), nullptr) == 1);
+  (void)model.release();
+  assert(SortformerState().live_array_count == 0);
+}
+
 } // namespace
 
 void RunSortformerLifecycleCase(const std::string &test) {
@@ -186,6 +240,12 @@ void RunSortformerLifecycleCase(const std::string &test) {
     CreateCancellation();
   } else if (test == "sortformer_lifecycle_cancel_before") {
     CancelBeforeAndDestroyWaiting();
+  } else if (test == "sortformer_lifecycle_checked_null") {
+    CheckedNullDestruction();
+  } else if (test == "sortformer_lifecycle_checked_model") {
+    CheckedModelDestruction();
+  } else if (test == "sortformer_lifecycle_checked_stream_wait") {
+    CheckedStreamDestructionWaits();
   } else {
     assert(false && "Unknown Sortformer lifecycle case");
   }

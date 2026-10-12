@@ -37,6 +37,8 @@ final class OmniXPCClient {
     var closedSileroStreams: [UUID: OmniXPCSileroStreamReference] = [:]
     var sortformerStreams: [UUID: OmniXPCSortformerStreamState] = [:]
     var closedSortformerStreams: [UUID: OmniXPCSortformerStreamReference] = [:]
+    var pendingSortformerLoad: OmniXPCSortformerLoadState?
+    var sortformerLoadCleanup: OmniXPCSortformerLoadCleanup?
     var connectionIdentifier: UUID? { connection?.id }
 
     func requireConnection(_ id: UUID) throws {

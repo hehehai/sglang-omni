@@ -345,6 +345,11 @@ OMNI_CORE_EXPORT void omni_sortformer_cancel(OmniSortformerHandle *handle);
 // Synchronize stream creation/raw model calls against destroy, preventing new
 // calls once destruction begins. Submitted stream work may overlap destroy.
 OMNI_CORE_EXPORT void omni_sortformer_destroy(OmniSortformerHandle *handle);
+// Returns 1 after destruction; on 0 the handle remains owned and retryable.
+// Checked model destruction requires all stream handles to be destroyed first.
+OMNI_CORE_EXPORT int
+omni_sortformer_destroy_checked(OmniSortformerHandle *handle,
+                                char **error_message);
 
 // Required settings: finite threshold 0..1, durations 0..3600 seconds, cache
 // 1..4096 and FIFO 0..4096, also constrained by the model's encoder positions
@@ -390,6 +395,10 @@ OMNI_CORE_EXPORT int omni_sortformer_stream_drain(OmniSortformerStream *stream,
 // All cancel/destroy/free functions are NULL safe; destroy exactly once.
 OMNI_CORE_EXPORT void
 omni_sortformer_stream_destroy(OmniSortformerStream *stream);
+// Returns 1 after destruction; on 0 the stream remains owned and retryable.
+OMNI_CORE_EXPORT int
+omni_sortformer_stream_destroy_checked(OmniSortformerStream *stream,
+                                       char **error_message);
 // Frees both owned arrays and clears ALL fields; repeated/NULL safe.
 OMNI_CORE_EXPORT void omni_sortformer_result_free(OmniSortformerResult *result);
 

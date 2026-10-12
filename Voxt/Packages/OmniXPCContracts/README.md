@@ -32,7 +32,7 @@ backends, load models, retry admitted audio or choose a cloud fallback.
 
 The four macOS-gated RPCs are `loadSilero`, `unloadSilero`,
 `sileroSpeechTimestamps` and `cancelSileroRequest`. The streaming extension below
-shares the same model owner. Current Core ABI is 5; production VAD and HTTP routes
+shares the same model owner. Current Core ABI is 6; production VAD and HTTP routes
 are unchanged.
 
 `OmniXPCSileroSettings` requires explicit threshold, minimum speech milliseconds,
@@ -116,11 +116,36 @@ model, and a Silero deadline never invalidates the healthy shared connection.
 
 ## Bounded Sortformer streaming contract (opt-in)
 
-The seven actual RPCs are `loadSortformer`, `unloadSortformer`,
-`startSortformerStream`, `pushSortformerAudio`, `finishSortformerStream`,
-`closeSortformerStream` and `cancelSortformerRequest`. Helper Core leases and
+The eight actual RPCs are `loadSortformer`, `unloadSortformer`,
+`drainSortformerLoad`, `startSortformerStream`, `pushSortformerAudio`,
+`finishSortformerStream`, `closeSortformerStream` and `cancelSortformerRequest`. Helper Core leases and
 App clients use this shared product directly. Production HTTP/meeting
 factories are unchanged; opt-in wiring is not signed-platform acceptance.
+
+### Load cleanup barrier
+
+`drainSortformerLoad` uses the original load-operation UUID, never a guessed
+model identity. Success follows Native creation completion, checked stream/model
+destruction and reader release, or a closed no-resource load identity. A drain
+received before a delayed load creates a closed tombstone so that load cannot
+later admit. Each connection retains at most 256 load identities without eviction;
+new IDs fail when full, while existing IDs remain drainable. Only one queued load
+drain per connection is admitted. Closed old loads never affect replacements.
+
+App loads retain one pending ticket and await an uncancelled scoped drain after
+cancellation, deadline, malformed identity or Native error. A failed cleanup or
+cleanup timeout retains that ticket and blocks replacement; use
+`closePendingSortformerLoad(timeout:)` to retry on the originating connection.
+Concurrent retries coalesce. A lost connection remains unconfirmed and cannot
+retarget cleanup through a new connection. Cancel ACKs, deadlines and disconnects
+are not resource barriers. No automatic model/audio replay or connection reset is
+introduced, and coordinator ownership across failed loads is not yet switched.
+
+ABI6 adds status-returning Sortformer model/stream destruction. On failure the
+helper retains raw handles, leases and readers for retry, including cancelled
+unpublished loads and failed unload. Legacy void C entry points and layouts are
+preserved. Rebuild matching Core/helper/App artifacts: ABI5 must not pass the gate
+for these new cleanup guarantees. This is not real Metal/SDK acceptance.
 
 `OmniXPCSortformerSettings` requires explicit threshold, minimum duration and
 merge gap in seconds, speaker-cache maximum frame count and FIFO maximum frame

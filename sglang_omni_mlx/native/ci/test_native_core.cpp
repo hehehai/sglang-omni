@@ -357,7 +357,7 @@ void ConcurrentRequests() {
 } // namespace
 
 int main(int argument_count, char **arguments) {
-  assert(argument_count == 2 && omni_core_abi_version() == 5);
+  assert(argument_count == 2 && omni_core_abi_version() == 6);
   omni_test::SortformerState().config.modules.use_aosc = true;
   const std::string test = arguments[1];
   if (test.starts_with("sortformer_") &&

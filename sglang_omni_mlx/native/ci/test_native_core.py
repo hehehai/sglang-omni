@@ -98,6 +98,9 @@ CASES = (
     "sortformer_lifecycle_finish_cancel",
     "sortformer_lifecycle_create_cancel",
     "sortformer_lifecycle_cancel_before",
+    "sortformer_lifecycle_checked_null",
+    "sortformer_lifecycle_checked_model",
+    "sortformer_lifecycle_checked_stream_wait",
 )
 
 
@@ -437,11 +440,13 @@ def test_exported_c_symbols(abi_build: Path) -> None:
         "omni_sortformer_create",
         "omni_sortformer_cancel",
         "omni_sortformer_destroy",
+        "omni_sortformer_destroy_checked",
         "omni_sortformer_stream_create",
         "omni_sortformer_stream_push",
         "omni_sortformer_stream_finish",
         "omni_sortformer_stream_cancel",
         "omni_sortformer_stream_drain",
         "omni_sortformer_stream_destroy",
+        "omni_sortformer_stream_destroy_checked",
         "omni_sortformer_result_free",
     }

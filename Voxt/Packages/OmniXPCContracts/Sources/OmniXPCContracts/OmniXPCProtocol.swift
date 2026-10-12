@@ -2,7 +2,7 @@
 import Foundation
 
 public nonisolated enum OmniXPCProtocolLimits {
-    public static let abiVersion = 5
+    public static let abiVersion = 6
     public static let sampleRate = 16_000
     public static let maximumAudioSeconds = 30
     public static let maximumSampleCount = sampleRate * maximumAudioSeconds
@@ -196,6 +196,7 @@ public nonisolated enum OmniXPCRequestValidation {
         withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
     )
     func unloadSortformer(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func drainSortformerLoad(operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func startSortformerStream(
         streamID: String, modelID: String, settings: Data, withReply reply: @escaping @Sendable (String?, NSError?) -> Void
     )

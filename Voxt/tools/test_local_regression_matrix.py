@@ -136,6 +136,7 @@ class OmniXPCPackagingTests(unittest.TestCase):
             "SileroCoreStreamLease.swift", "OmniSileroOfflineInference.swift", "OmniSileroStream.swift", "OmniSileroStreamingEngine.swift",
             "SortformerCoreModel.swift", "SortformerCoreStreamLease.swift", "OmniSortformerInferenceEngine.swift",
             "OmniSortformerStream.swift", "OmniSortformerStreamingEngine.swift", "OmniSortformerRPC.swift",
+            "OmniSortformerModelCleanup.swift",
         ]
         self.assertEqual(re.findall(r"/\* (\S+) in Sources \*/", sources), expected_sources)
         self.assertEqual({path.name for path in (ROOT / "OmniInference").glob("*.swift")}, set(expected_sources))

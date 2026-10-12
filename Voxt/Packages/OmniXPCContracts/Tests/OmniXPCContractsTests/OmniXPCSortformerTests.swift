@@ -24,6 +24,7 @@ final class OmniXPCSortformerTests: XCTestCase {
         XCTAssertEqual(OmniXPCSortformerLimits.subsamplingFactor, 8)
         XCTAssertEqual(OmniXPCSortformerLimits.maximumChunkSampleCount, 32_000)
         XCTAssertEqual(OmniXPCSortformerLimits.maximumStreamCount, 16)
+        XCTAssertEqual(OmniXPCSortformerLimits.maximumLoadsPerConnection, 256)
         XCTAssertEqual(OmniXPCSortformerLimits.maximumStateFrameCount, 4096)
         XCTAssertEqual(OmniXPCSortformerLimits.maximumChunkFrameCount, 26)
         XCTAssertEqual(OmniXPCSortformerLimits.speakerCount, 4)

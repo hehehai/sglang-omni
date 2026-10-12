@@ -870,6 +870,20 @@ production factory、cache路径、AudioSPM/MLXSwift LLM/VLM/Remote routes未切
 
 依然没有解决legacySwiftSilero及所有其它reader、Hubshadow/blob/cacheclear/repair、immutable snapshots/Appcrash-orphan、XPCshared目录准备/授权/完整model-load cleanup barrier与六ASRfamilies Core/XPC。1.16快捷实现和现有fallback边界仅兼容过渡，不替代规划终点。
 
+### T4d4：Sortformer failed-load drain + checked Native release（ABI6，opt-in）
+
+- 新增actual shared `drainSortformerLoad(operationID:withReply:)` selector，以原load ID而非猜测modelUUID关闭scope。helper各connection拥有独立non-evicting load ledger（active/closed，≤256），unknown drain先记录closed tombstone再success，later/delayed同IDload不得admit；general256 operationhistory仍独立，旧loadID不因eviction损害replacement/重开。每connection最多1 queueddrain，duplicate busy而非累积callbacks。其它businessID/wrongowner拒绝，fullledger拒新ID但允许原IDdrain/retry，不重置健康Qwen/Silero。
+- drain在原create/commands/cleanup之后的实际Swift serialqueue执行，cancel在locks外；成功只在实际stream drain/destroy、modeldestroy、readerrelease或closed/no-future-admission scope之后。cancel ACK仍非barrier。失效connection回复disconnected，不凭serverevent冒称App观察到释放；failedbarrier保留rawleases/models/readers可retry。
+- SERVICE第一版按原ABI5 voiddestroy调用测试通过，但Main sourcefollowup确认真实漏洞：void函数catch异常只log retained而不回报失败。扩展为两checked C APIs：model destroy拒绝live leased streams（不破坏健康stream）；checked0保留rawhandle/error可retry，checked1销毁完成；旧void函数/layouts/numericalmethods保留。Core/shared epoch升至6、exports46，防止旧ABI5通过guard后缺checkedexport、清理时才崩溃；必须重编matchedCore/helper/App，历史ABI5success不冒称ABI6。
+- Helper `SortformerCoreModel.close()` throws且status1之前不清handle/reader；stream在drain后checkedDestroy0会restore rawhandle，不释放modellease/slot。cancelled unpublishedload先把model挂回engine再尝试close，失败不会在localdeinit误释放/触发precondition；failedunload保留model，pending命令退役后可同reference重试。cleanup body复用explicitdrain/cancel/disconnect，不拿异常ACK或timeout释放任何ownedreader。Qwen/Silero旧voiddestroy的exception observability尚未整体改造，不把此Sortformer修复推广为全runtime已验收。
+- App每client≤1 pendingloadticket捕获originconnection+operation，cancel/timeout/malformed/native error均awaituncancelled drain。cleanup error/deadline surface并retain ticket、阻止replacement；`closePendingSortformerLoad(timeout:)`同origin retry/coalesce，不audio/model重发。lostconnection保留unknown ownership，不能通过新connection close；不能因此把load放进file coordinatorpermit而提前放弃旧owner，productionpreparation/失联恢复政策仍待补。
+- 独立审查复现P1跨load cleanup task竞态：ticket先nil、外层defer尚未退役Task时，高优先级coalescer立即发新失败load可能复用旧completedTask，少发新drain；实际Debug/Release多次复现。Main改为typedattempt（attemptID+loadOP+Task），仅sameOP coalesce，Task自身完成前原子退役，不让旧waiter清新attempt；补100pair publicAPI回归。旧noncooperativecallback test也改为wait operationgateentered（start ACK不证明callback已进），消除原测试假完成不稳定。独立followup在actual pre-fix Debug/Release复现，修复后40次stress/8000pairs通过，最终51tests两配置各5runs及retry/cancel/disconnect补验通过，P1closed/noadditionalconcretefinding；不是SDK/Metal验收。
+- Main最终client51 tests/config（原43+8load cases，部分case多场景）Debug/Release通过，Contracts88/config（87pass/1Linuxfilesystemskip），Native Clang ASan/UBSan/floatcast ABI99+realtime42=141通过；新增3 checkedrelease Nativecases、pureC checkedfunctions/linkage与46exports检查。ABI6首轮Cfixture仍assert5导致98/99失败，单独修复并保留失败日志，完整141rerun不是复用旧99报告。
+- actualApp client→exportedhelper→Nativeworker combined harness：blocked actualmodelconstructor取消/期限后error仍等checked销毁与readerrelease，健康Qwen+Silero可服务；Native/malformedload错误、cleanupRPC失败ticketretained/coalescedretry、ABI5报告拒绝beforecreate、取消未发布model三次checkedDestroy人工失败、stream checkedDestroy0restore/retry、unload checkedDestroy0保留/retry、lostconnection不certify。私有modelGate/Native-fault interposer是明确替身，不是自然GPUfailure。SERVICE独立load/drain/tombstone/history/fullcap/latecreate/blockedFeed/failure-retry tests与原service regression已重编Core6重跑，原print ABI5只是历史banner不当proof。
+- helper新file真实Xcode Sources membership、同sharedproduct链接、所有testconformers与peer extraction更新。没有启用CI/signing/productionXPC、没有Audio unlink/下载copy/savedmodel替换/云fallback。macOS SDK/ObjC NSXPC/Metal/真实weights/golden仍待补，RPC/helper/C API smoke CPU不冒充这些验收。
+
+下一步仍是实际sharedModels路径准备/authorization/外部owner与coordinator资源屏障、失联/旧owner释放恢复策略，再推进六ASR families Core/XPC；没有拿1.16快速发布或本次ABI6当作全部规划完成。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |

@@ -1,4 +1,4 @@
-/// Retains the ABI5 model and its directory reader until every Native stream lease has drained.
+/// Retains the ABI6 model reader until stream leases and checked model destruction complete.
 import Foundation
 import OmniModelArtifacts
 import OmniXPCContracts
@@ -38,16 +38,20 @@ nonisolated final class SortformerCoreModel: @unchecked Sendable {
         }
     }
 
-    func close() {
-        let released = lock.withLock {
+    func close() throws {
+        let closingHandle = lock.withLock {
             precondition(streamLeaseCount == 0)
-            let released = (handle, directoryLease)
+            return handle
+        }
+        guard let closingHandle else { return }
+        var errorMessage: UnsafeMutablePointer<CChar>?
+        defer { omni_string_free(errorMessage) }
+        guard omni_sortformer_destroy_checked(closingHandle, &errorMessage) == 1, errorMessage == nil else {
+            throw OmniXPCFailure.error(.nativeFailure, "The Native Sortformer model destruction did not complete.")
+        }
+        lock.withLock {
             handle = nil
             directoryLease = nil
-            return released
-        }
-        withExtendedLifetime(released.1) {
-            if let releasedHandle = released.0 { omni_sortformer_destroy(releasedHandle) }
         }
     }
 

@@ -16,7 +16,7 @@ final class OmniXPCRealtimeTests: XCTestCase {
         XCTAssertEqual(realtime.model, model)
         XCTAssertEqual(final.language, realtime.language)
         XCTAssertEqual(final.maximumTokenCount, realtime.maximumTokenCount)
-        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 5)
+        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 6)
     }
 
     func testSettingsDefaultsAndIndependentInclusiveSampleBounds() throws {

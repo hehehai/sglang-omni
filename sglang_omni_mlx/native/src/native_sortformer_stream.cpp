@@ -252,6 +252,35 @@ int omni_sortformer_stream_drain(OmniSortformerStream *stream,
   }
 }
 
+int omni_sortformer_stream_destroy_checked(OmniSortformerStream *stream,
+                                           char **error_message) {
+  ClearSortformerError(error_message);
+  try {
+    if (stream != nullptr) {
+      stream->SetTerminal(SortformerPhase::Cancelled);
+      const auto worker = stream->worker;
+      {
+        std::lock_guard<std::mutex> lock(worker->command_mutex);
+        SortformerCommand command{.operation = SortformerOperation::Drain,
+                                  .stream = stream};
+        worker->Execute(command);
+        if (command.error != nullptr) {
+          SetError(error_message, command.error);
+          return 0;
+        } else {
+        }
+        worker->leased_slots[stream->slot] = false;
+      }
+      delete stream;
+    } else {
+    }
+    return 1;
+  } catch (...) {
+    SetError(error_message, "Sortformer stream destruction failed.");
+    return 0;
+  }
+}
+
 void omni_sortformer_stream_destroy(OmniSortformerStream *stream) {
   try {
     if (stream != nullptr) {

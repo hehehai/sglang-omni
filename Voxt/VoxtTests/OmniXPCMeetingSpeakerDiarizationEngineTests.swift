@@ -329,6 +329,7 @@ private nonisolated final class CallerPeer: OmniInferenceXPCProtocol {
         reply(modelID.uuidString, serviceInstanceID.uuidString, nil)
     }
     func unloadSortformer(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void) { unloadCount += 1; reply(nil) }
+    func drainSortformerLoad(operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void) { reply(unused) }
     func startSortformerStream(streamID: String, modelID: String, settings: Data, withReply reply: @escaping @Sendable (String?, NSError?) -> Void) {
         startCount += 1; events.append("open")
         self.settings = try! OmniXPCSortformerSettings.decode(settings)

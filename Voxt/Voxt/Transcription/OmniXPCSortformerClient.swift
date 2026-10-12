@@ -3,15 +3,29 @@ import Foundation
 import OmniXPCContracts
 
 #if os(macOS)
-private nonisolated struct OmniXPCSortformerLoadReplyFailure: Error {
-    let connectionID: UUID
+nonisolated struct OmniXPCSortformerLoadState: Sendable {
+    let operationID: UUID
+    var connectionID: UUID?
+    var isLoading = true
+}
+
+nonisolated struct OmniXPCSortformerLoadCleanup: Sendable {
+    let id: UUID
+    let operationID: UUID
+    let task: Task<Void, Error>
 }
 
 extension OmniXPCClient {
     func loadSortformer(
-        modelDirectory: URL, timeout: Duration = .seconds(300)
+        modelDirectory: URL, timeout: Duration = .seconds(300), cleanupTimeout: Duration = .seconds(60)
     ) async throws -> OmniXPCSortformerModelReference {
         try Task.checkCancellation()
+        guard pendingSortformerLoad == nil else {
+            throw OmniXPCFailure.error(.busy, "Complete the pending Sortformer load cleanup before loading another model.")
+        }
+        guard timeout > .zero, cleanupTimeout > .zero else {
+            throw OmniXPCFailure.error(.invalidRequest, "The Sortformer load and cleanup timeouts must be positive.")
+        }
         guard modelDirectory.isFileURL,
               let container = FileManager.default.containerURL(
                 forSecurityApplicationGroupIdentifier: configuration.appGroupIdentifier
@@ -25,15 +39,16 @@ extension OmniXPCClient {
         }
         let relativePath = String(directoryPath.dropFirst(containerPath.count + 1))
         _ = try OmniXPCRequestValidation.modelDirectory(relativePath: relativePath, container: container)
-        let operationID = UUID().uuidString
-        let model: OmniXPCSortformerModelReference
+        let operationID = UUID()
+        pendingSortformerLoad = OmniXPCSortformerLoadState(operationID: operationID)
         do {
-            model = try await perform(
+            let model: OmniXPCSortformerModelReference = try await perform(
                 timeout: timeout, requiredConnectionID: connectionIdentifier,
-                nativeRequestID: operationID, cancellationTarget: .sortformer
+                nativeRequestID: operationID.uuidString, cancellationTarget: .sortformer
             ) { proxy, resolve in
                 let connectionID = self.connectionIdentifier!
-                proxy.loadSortformer(operationID: operationID, modelDirectory: relativePath) { modelID, instanceID, error in
+                self.pendingSortformerLoad?.connectionID = connectionID
+                proxy.loadSortformer(operationID: operationID.uuidString, modelDirectory: relativePath) { modelID, instanceID, error in
                     if let error {
                         resolve(.failure(error))
                     } else if let modelID, let model = UUID(uuidString: modelID),
@@ -42,34 +57,54 @@ extension OmniXPCClient {
                             modelID: model, serviceInstanceID: instance, connectionID: connectionID
                         )))
                     } else {
-                        resolve(.failure(OmniXPCSortformerLoadReplyFailure(connectionID: connectionID)))
+                        resolve(.failure(OmniXPCFailure.error(.incompatibleService, "The service returned an invalid Sortformer model identity.")))
                     }
                 }
             }
-        } catch let failure as OmniXPCSortformerLoadReplyFailure {
-            if connectionIdentifier == failure.connectionID {
-                // Note (Omni): no model reference exists, so retire only this originating load operation.
-                let cleanup = Task { @MainActor in
-                    let _: Void = try await self.perform(
-                        timeout: timeout, requiredConnectionID: failure.connectionID,
-                        nativeRequestID: operationID, cancellationTarget: .sortformer
-                    ) { proxy, resolve in
-                        proxy.cancelSortformerRequest(requestID: operationID, modelID: nil) { error in
-                            if let error { resolve(.failure(error)) } else { resolve(.success(())) }
-                        }
-                    }
-                }
-                try await cleanup.value
+            try Task.checkCancellation()
+            try requireConnection(model.connectionID)
+            pendingSortformerLoad = nil
+            return model
+        } catch {
+            pendingSortformerLoad?.isLoading = false
+            try await closePendingSortformerLoad(timeout: cleanupTimeout)
+            throw error
+        }
+    }
+
+    /// Only a successful scoped drain reply releases a submitted load ticket.
+    func closePendingSortformerLoad(timeout: Duration = .seconds(60)) async throws {
+        guard let load = pendingSortformerLoad else { return }
+        guard !load.isLoading else {
+            throw OmniXPCFailure.error(.busy, "The Sortformer load is still awaiting its reply or cancellation.")
+        }
+        guard let connectionID = load.connectionID else {
+            pendingSortformerLoad = nil
+            return
+        }
+        guard connectionIdentifier == connectionID else {
+            throw OmniXPCFailure.error(.disconnected, "The originating Sortformer connection is unavailable; cleanup is not confirmed.")
+        }
+        if let cleanup = sortformerLoadCleanup, cleanup.operationID == load.operationID {
+            try await cleanup.task.value
+            return
+        }
+        let cleanupID = UUID()
+        let cleanup = Task { @MainActor in
+            defer {
+                if self.sortformerLoadCleanup?.id == cleanupID { self.sortformerLoadCleanup = nil }
             }
-            throw OmniXPCFailure.error(.incompatibleService, "The service returned an invalid Sortformer model identity.")
+            let _: Void = try await self.perform(
+                timeout: timeout, requiredConnectionID: connectionID, cancellationTarget: .sortformer
+            ) { proxy, resolve in
+                proxy.drainSortformerLoad(operationID: load.operationID.uuidString) { error in
+                    if let error { resolve(.failure(error)) } else { resolve(.success(())) }
+                }
+            }
+            if self.pendingSortformerLoad?.operationID == load.operationID { self.pendingSortformerLoad = nil }
         }
-        if Task.isCancelled {
-            let cleanup = Task { @MainActor in try await self.unloadSortformer(model) }
-            try await cleanup.value
-            throw CancellationError()
-        }
-        try requireConnection(model.connectionID)
-        return model
+        sortformerLoadCleanup = OmniXPCSortformerLoadCleanup(id: cleanupID, operationID: load.operationID, task: cleanup)
+        try await cleanup.value
     }
 
     func unloadSortformer(

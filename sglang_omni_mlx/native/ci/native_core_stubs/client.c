@@ -59,8 +59,12 @@ int main(void) {
     int (*transcribe_request)(OmniQwenHandle *, OmniQwenRequest *, const float *,
                               size_t, const char *, const char *, int,
                               OmniQwenResult *, char **) = omni_qwen_transcribe_request;
-    assert(version() == 5);
+    assert(version() == 6);
+    int (*sortformer_destroy_checked)(OmniSortformerHandle *, char **) = omni_sortformer_destroy_checked;
+    int (*sortformer_stream_destroy_checked)(OmniSortformerStream *, char **) = omni_sortformer_stream_destroy_checked;
     char *error = NULL;
+    assert(sortformer_destroy_checked(NULL, &error) == 1 && error == NULL);
+    assert(sortformer_stream_destroy_checked(NULL, &error) == 1 && error == NULL);
     assert(create(NULL, &error) == NULL);
     assert(strcmp(error, "Invalid model directory.") == 0);
     string_free(error);

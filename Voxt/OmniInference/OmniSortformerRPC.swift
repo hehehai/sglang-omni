@@ -18,6 +18,12 @@ nonisolated extension OmniInferenceSession {
         }
     }
 
+    func drainSortformerLoad(
+        operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    ) {
+        sortformerEngine.drainLoad(operationID: operationID, lifetime: sortformerLifetime, reply: reply)
+    }
+
     func unloadSortformer(
         operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
     ) {

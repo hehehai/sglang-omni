@@ -6,15 +6,18 @@ import OmniXPCContracts
 nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
     nonisolated final class ConnectionLifetime: @unchecked Sendable {
         enum OperationState { case active, cancelled, completed }
+        enum LoadState { case active, closed }
 
         let id = UUID()
         // note (assistant): Only the Sortformer engine lock protects this lifetime and its ledger.
         var isActive = true
         var operations: [UUID: OperationState] = [:]
+        var loads: [UUID: LoadState] = [:]
+        var isLoadDrainPending = false
         private var operationOrder: [UUID] = []
 
         func recordOperation(_ operationID: UUID) throws {
-            guard operations[operationID] == nil else {
+            guard operations[operationID] == nil, loads[operationID] == nil else {
                 throw OmniXPCFailure.error(.invalidRequest, "The operation ID has already been used.")
             }
             operationOrder.append(operationID)
@@ -39,7 +42,8 @@ nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
     var model: SortformerCoreModel?
     var requestIDs: [UUID: StreamHistory] = [:]
     var streams: [UUID: OmniSortformerStream] = [:]
-    private var isCleanupPending = false
+    var isCleanupPending = false
+    var isModelUnloadPending = false
 
     init(configuration: OmniXPCConfiguration) { self.configuration = configuration }
 
@@ -71,7 +75,11 @@ nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
             guard modelState == .unloaded else {
                 throw OmniXPCFailure.error(.busy, "Unload the current Sortformer model before loading another model.")
             }
+            guard lifetime.loads.count < OmniXPCSortformerLimits.maximumLoadsPerConnection else {
+                throw OmniXPCFailure.error(.busy, "The Sortformer load ledger is full for this connection.")
+            }
             try lifetime.recordOperation(operation)
+            lifetime.loads[operation] = .active
             owner = lifetime
             loadOperationID = operation
             modelState = .loading
@@ -85,26 +93,34 @@ nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
                         throw OmniXPCFailure.error(.cancelled, "The Sortformer load was cancelled.")
                     }
                     let loaded = try SortformerCoreModel(directoryLease: directoryLease)
-                    let newModelID = UUID()
-                    let published = lock.withLock {
-                        guard lifetime.isActive, lifetime.operations[operation] != .cancelled else { return false }
+                    let publishedModelID = lock.withLock { () -> UUID? in
+                        guard lifetime.isActive, lifetime.operations[operation] != .cancelled else { return nil }
+                        var newModelID = UUID()
+                        while lifetime.loads[newModelID] != nil || lifetime.operations[newModelID] != nil {
+                            newModelID = UUID()
+                        }
                         model = loaded
                         modelID = newModelID
                         modelState = .ready
                         lifetime.operations[operation] = .completed
-                        return true
+                        return newModelID
                     }
-                    if published {
-                        reply(newModelID.uuidString, OmniServiceIdentity.instanceID.uuidString, nil)
+                    if let publishedModelID {
+                        reply(publishedModelID.uuidString, OmniServiceIdentity.instanceID.uuidString, nil)
                     } else {
-                        loaded.close()
+                        lock.withLock {
+                            model = loaded
+                            modelState = .unloading
+                        }
+                        try loaded.close()
+                        lock.withLock { model = nil }
                         throw OmniXPCFailure.error(.cancelled, "The Sortformer load was cancelled.")
                     }
                 } catch {
                     let cancelled = lock.withLock {
                         let cancelled = !lifetime.isActive || lifetime.operations[operation] == .cancelled
                         lifetime.operations[operation] = cancelled ? .cancelled : .completed
-                        if lifetime.isActive, owner?.id == lifetime.id, loadOperationID == operation { clearModel() }
+                        if owner?.id == lifetime.id, loadOperationID == operation, model == nil { clearModel() }
                         return cancelled
                     }
                     reply(nil, nil, cancelled
@@ -122,7 +138,13 @@ nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
             let operation = try identifier(operationID)
             let requestedModelID = try identifier(modelID)
             try lock.withLock {
-                try requireOwner(lifetime, modelID: requestedModelID)
+                guard lifetime.isActive, owner?.id == lifetime.id, self.modelID == requestedModelID else {
+                    throw OmniXPCFailure.error(.invalidRequest, "The Sortformer model belongs to another connection.")
+                }
+                guard modelState == .ready || modelState == .unloading,
+                      model != nil, !isModelUnloadPending, !isCleanupPending, !lifetime.isLoadDrainPending else {
+                    throw OmniXPCFailure.error(.busy, "The Sortformer model has pending cleanup.")
+                }
                 guard streams.isEmpty else {
                     throw OmniXPCFailure.error(.busy, "Close Sortformer streams before unloading the model.")
                 }
@@ -132,15 +154,25 @@ nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
                 try lifetime.recordOperation(operation)
                 let loaded = model!
                 modelState = .unloading
+                isModelUnloadPending = true
                 queue.async { [self] in
-                    loaded.close()
-                    let cancelled = lock.withLock {
-                        let cancelled = !lifetime.isActive || lifetime.operations[operation] == .cancelled
-                        lifetime.operations[operation] = cancelled ? .cancelled : .completed
-                        if owner?.id == lifetime.id, self.modelID == requestedModelID { clearModel() }
-                        return cancelled
+                    do {
+                        try loaded.close()
+                        let cancelled = lock.withLock {
+                            isModelUnloadPending = false
+                            let cancelled = !lifetime.isActive || lifetime.operations[operation] == .cancelled
+                            lifetime.operations[operation] = cancelled ? .cancelled : .completed
+                            if owner?.id == lifetime.id, self.modelID == requestedModelID { clearModel() }
+                            return cancelled
+                        }
+                        reply(cancelled ? OmniXPCFailure.error(.cancelled, "The Sortformer unload was cancelled.") : nil)
+                    } catch {
+                        lock.withLock {
+                            isModelUnloadPending = false
+                            lifetime.operations[operation] = .completed
+                        }
+                        reply(error as NSError)
                     }
-                    reply(cancelled ? OmniXPCFailure.error(.cancelled, "The Sortformer unload was cancelled.") : nil)
                 }
             }
         } catch {
@@ -167,13 +199,13 @@ nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
                     stream.lastReply = nil
                     cancellingLeases = [stream.lease]
                 }
+            } else if lifetime.loads[requestedID] == .closed {
+                return
             } else if owner?.id == lifetime.id, loadOperationID == requestedID {
                 lifetime.operations[requestedID] = .cancelled
-                if modelState == .ready || modelState == .unloading {
-                    modelState = .unloading
-                    cancellingLeases = cancelOwnedStreams()
-                    enqueueCleanup(lifetime: lifetime, loadOperationID: requestedID)
-                }
+                modelState = .unloading
+                cancellingLeases = cancelOwnedStreams()
+                enqueueCleanup(lifetime: lifetime, loadOperationID: requestedID)
             } else if let operation = lifetime.operations[requestedID] {
                 if operation == .active { lifetime.operations[requestedID] = .cancelled }
             } else {
@@ -207,53 +239,6 @@ nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
         }
     }
 
-    private func cancelOwnedStreams() -> [SortformerCoreStreamLease] {
-        streams.values.map { stream in
-            stream.state = .cancelled
-            stream.lastAudio = nil
-            stream.lastReply = nil
-            return stream.lease
-        }
-    }
-
-    private func enqueueCleanup(lifetime: ConnectionLifetime, loadOperationID: UUID) {
-        guard !isCleanupPending else { return }
-        isCleanupPending = true
-        queue.async { [self] in
-            let owned = lock.withLock { () -> (SortformerCoreModel?, [OmniSortformerStream])? in
-                guard owner?.id == lifetime.id, self.loadOperationID == loadOperationID else { return nil }
-                return (model, Array(streams.values))
-            }
-            guard let owned else { return }
-            for stream in owned.1 {
-                do {
-                    stream.lease.cancel()
-                    try stream.lease.drainAndDestroy()
-                    lock.withLock {
-                        streams.removeValue(forKey: stream.id)
-                        requestIDs[stream.id] = .closed
-                    }
-                } catch {
-                    lock.withLock { stream.isClosePending = false }
-                    NSLog("Native Sortformer cleanup barrier failed; model retained for retry.")
-                }
-            }
-            let canCloseModel = lock.withLock {
-                guard streams.isEmpty else {
-                    isCleanupPending = false
-                    return false
-                }
-                return true
-            }
-            guard canCloseModel else { return }
-            owned.0?.close()
-            lock.withLock {
-                guard owner?.id == lifetime.id, self.loadOperationID == loadOperationID else { return }
-                clearModel()
-            }
-        }
-    }
-
     func identifier(_ value: String) throws -> UUID {
         guard value.utf8.count == 36, let identifier = UUID(uuidString: value) else {
             throw OmniXPCFailure.error(.invalidRequest, "Model, stream and operation IDs must be UUIDs.")
@@ -271,23 +256,13 @@ nonisolated final class OmniSortformerInferenceEngine: @unchecked Sendable {
     }
 
     func requireUnusedRequestID(_ requestedID: UUID, lifetime: ConnectionLifetime) throws {
-        guard requestedID != modelID, requestIDs[requestedID] == nil, lifetime.operations[requestedID] == nil else {
+        guard requestedID != modelID, requestIDs[requestedID] == nil,
+              lifetime.operations[requestedID] == nil, lifetime.loads[requestedID] == nil else {
             throw OmniXPCFailure.error(.invalidRequest, "The Sortformer stream ID aliases a model or used operation ID.")
         }
         guard requestIDs.count < OmniXPCProtocolLimits.maximumRequestsPerModel else {
             throw OmniXPCFailure.error(.invalidRequest, "The Sortformer stream ledger is full; unload the model.")
         }
-    }
-
-    private func clearModel() {
-        precondition(streams.isEmpty)
-        model = nil
-        modelID = nil
-        owner = nil
-        loadOperationID = nil
-        requestIDs.removeAll(keepingCapacity: false)
-        isCleanupPending = false
-        modelState = .unloaded
     }
 }
 #endif
