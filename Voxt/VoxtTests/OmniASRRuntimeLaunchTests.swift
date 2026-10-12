@@ -92,28 +92,45 @@ final class OmniASRRuntimeLaunchTests: XCTestCase {
             OmniASRBackend.runtimeExecutable(for: .mossTranscribeDiarize, qwenRuntime: qwenRuntime).path,
             "/opt/voxt/bin/moss_transcribe_diarize_server"
         )
+        XCTAssertEqual(
+            OmniASRBackend.runtimeExecutable(for: .nemotronASR, qwenRuntime: qwenRuntime).path,
+            "/opt/voxt/bin/nemotron_asr_server"
+        )
+        XCTAssertEqual(
+            OmniASRBackend.modelKindsByRepo["mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit"],
+            .nemotronASR
+        )
+        XCTAssertEqual(
+            OmniASRBackend.runtimeExecutable(for: .parakeet, qwenRuntime: qwenRuntime).path,
+            "/opt/voxt/bin/parakeet_server"
+        )
+        XCTAssertEqual(OmniASRBackend.modelKindsByRepo["mlx-community/parakeet-tdt-0.6b-v3"], .parakeet)
+        XCTAssertEqual(
+            OmniASRBackend.runtimeExecutable(for: .senseVoice, qwenRuntime: qwenRuntime).path,
+            "/opt/voxt/bin/sensevoice_server"
+        )
+        XCTAssertEqual(OmniASRBackend.modelKindsByRepo["mlx-community/SenseVoiceSmall"], .senseVoice)
     }
 
     func testOmniModelRoutingIdentifiesOnlyNativeRuntimeCheckpoints() {
-#if arch(arm64)
-        XCTAssertTrue(OmniASRBackend.usesOmniRuntime(for: "mlx-community/Qwen3-ASR-0.6B-4bit"))
-        XCTAssertTrue(OmniASRBackend.usesOmniRuntime(for: "mlx-community/whisper-large-v3-turbo"))
-#else
-        XCTAssertFalse(OmniASRBackend.usesOmniRuntime(for: "mlx-community/Qwen3-ASR-0.6B-4bit"))
-        XCTAssertFalse(OmniASRBackend.usesOmniRuntime(for: "mlx-community/whisper-large-v3-turbo"))
-#endif
-        XCTAssertFalse(OmniASRBackend.usesOmniRuntime(for: "mlx-community/parakeet-tdt-0.6b-v3"))
+        for model in MLXModelCatalog.availableModels {
+            XCTAssertEqual(OmniASRBackend.usesOmniRuntime(for: model.id), OmniASRBackend.isAppleSilicon, model.id)
+            XCTAssertNotNil(OmniASRBackend.nativeModelKind(for: model.id), model.id)
+            XCTAssertNil(OmniASRBackend.unavailability(for: model.id, isAppleSilicon: true), model.id)
+            XCTAssertEqual(OmniASRBackend.unavailability(for: model.id, isAppleSilicon: false), .unsupportedPlatform, model.id)
+        }
+        XCTAssertFalse(OmniASRBackend.usesOmniRuntime(for: "unknown/model"))
     }
 
     func testNativeAvailabilityRejectsUnsupportedCheckpointsWithoutFamilyInference() {
         for repo in [
-            "mlx-community/parakeet-tdt-0.6b-v3",
-            "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
-            "mlx-community/SenseVoiceSmall",
+            "unknown/Qwen3-ASR-0.6B-8bit",
             "mlx-community/Qwen3-ASR-1.7B-3bit",
             "unknown/model",
         ] {
             XCTAssertEqual(OmniASRBackend.unavailability(for: repo, isAppleSilicon: true), .unsupportedModel)
+            XCTAssertNil(OmniASRBackend.nativeModelKind(for: repo))
+            XCTAssertFalse(OmniASRBackend.usesOmniRuntime(for: repo))
         }
         for repo in OmniASRBackend.modelKindsByRepo.keys {
             XCTAssertNil(OmniASRBackend.unavailability(for: repo, isAppleSilicon: true))
@@ -123,10 +140,12 @@ final class OmniASRRuntimeLaunchTests: XCTestCase {
 
     func testNativeAvailabilityCanonicalizesLegacyAliases() {
         XCTAssertEqual(OmniASRBackend.nativeModelKind(for: "mlx-community/whisper-base-mlx"), .whisper)
-        XCTAssertEqual(
-            OmniASRBackend.unavailability(for: "mlx-community/Parakeet-0.6B", isAppleSilicon: true),
-            .unsupportedModel
-        )
+        for repo in ["mlx-community/Parakeet-0.6B", "mlx-community/parakeet-tdt-0.6b-v2"] {
+            XCTAssertEqual(OmniASRBackend.nativeModelKind(for: repo), .parakeet)
+            XCTAssertNil(OmniASRBackend.unavailability(for: repo, isAppleSilicon: true))
+            XCTAssertEqual(OmniASRBackend.unavailability(for: repo, isAppleSilicon: false), .unsupportedPlatform)
+            XCTAssertEqual(OmniASRBackend.usesOmniRuntime(for: repo), OmniASRBackend.isAppleSilicon)
+        }
     }
 
     /// Only the checkpoints validated against the native runtime are eligible.

@@ -3,15 +3,13 @@ import XCTest
 
 @MainActor
 final class OnboardingGuideTests: MLXModelManagerTestCase {
-    func testInstalledUnavailableSpeechCannotCompleteModelSetup() async throws {
-        let disabledRepo = "mlx-community/SenseVoiceSmall"
-        let nativeRepo = "mlx-community/Qwen3-ASR-0.6B-4bit"
+    func testUnknownSpeechCannotCompleteModelSetupWhileNativeSpeechUsesPlatformGate() async throws {
+        let disabledRepo = "unknown/model"
+        let nativeRepo = "mlx-community/SenseVoiceSmall"
         try await withIsolatedModelStorageRoot { root in
-            try seedValidMLXModelDirectory(repo: disabledRepo, root: root)
             try seedValidMLXModelDirectory(repo: nativeRepo, root: root)
             let mlx = MLXModelManager(modelRepo: disabledRepo)
             let llm = CustomLLMModelManager(modelRepo: CustomLLMModelManager.defaultModelRepo)
-            _ = try await mlx.refreshInstallation(repo: disabledRepo)
             _ = try await mlx.refreshInstallation(repo: nativeRepo)
             let guide = OnboardingGuideView(
                 currentStep: .constant(.models),
@@ -32,7 +30,7 @@ final class OnboardingGuideTests: MLXModelManagerTestCase {
         }
     }
 
-    func testOpeningGuidePreservesUnavailableSpeechSelections() {
+    func testOpeningGuidePreservesNativeSpeechSelections() {
         let defaults = TestDoubles.makeUserDefaults()
         var settings = mixedSettings()
         let selection = FeatureModelSelectionID.mlx("mlx-community/SenseVoiceSmall")

@@ -6,7 +6,7 @@ import XCTest
 
 @MainActor
 final class ModelDebugSupportTests: XCTestCase {
-    func testDebugCatalogKeepsUnavailableASRVisibleButUnselectableEvenWhenInstalled() throws {
+    func testDebugCatalogUsesInstallationAndPlatformGatesForNewNativeASR() throws {
         let repos: Set<String> = [
             "mlx-community/parakeet-tdt-0.6b-v3",
             "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
@@ -19,11 +19,13 @@ final class ModelDebugSupportTests: XCTestCase {
             )
             for repo in repos {
                 let option = try XCTUnwrap(options.first { $0.id == "mlx:\(repo)" })
-                let reason = try XCTUnwrap(OmniASRBackend.unavailabilityReason(for: repo))
-                XCTAssertEqual(option.isInstalled, installedRepos.contains(repo))
-                XCTAssertFalse(option.isSelectable)
+                let isInstalled = installedRepos.contains(repo)
+                let reason = OmniASRBackend.unavailabilityReason(for: repo)
+                    ?? (isInstalled ? nil : AppLocalization.localizedString("Install this model in Model settings first."))
+                XCTAssertEqual(option.isInstalled, isInstalled)
+                XCTAssertEqual(option.isSelectable, isInstalled && OmniASRBackend.isAppleSilicon)
                 XCTAssertEqual(option.disabledReason, reason)
-                XCTAssertFalse(option.selectorEntry.isSelectable)
+                XCTAssertEqual(option.selectorEntry.isSelectable, isInstalled && OmniASRBackend.isAppleSilicon)
                 XCTAssertEqual(option.selectorEntry.disabledReason, reason)
             }
         }

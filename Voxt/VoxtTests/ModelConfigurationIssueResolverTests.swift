@@ -12,9 +12,12 @@ final class ModelConfigurationIssueResolverTests: MLXModelManagerTestCase {
         return [.init(scope: .mlxModel(asrRepo), message: reason)]
     }
 
-    func testUnavailableASRWarnsBeforeScanAndAfterInstallationInEverySelectedFeature() async throws {
+    func testNativeASRAliasPreservesSelectionAndUsesPlatformAndInstallationGates() async throws {
         let repo = "mlx-community/parakeet-tdt-0.6b-v3"
-        let reason = try XCTUnwrap(OmniASRBackend.unavailabilityReason(for: repo))
+        let scope = ModelConfigurationIssue.Scope.mlxModel(repo)
+        let availabilityIssues: [ModelConfigurationIssue] = OmniASRBackend.unavailabilityReason(for: repo).map {
+            [ModelConfigurationIssue(scope: scope, message: $0)]
+        } ?? []
         let selections: [WritableKeyPath<FeatureSettings, FeatureModelSelectionID>] = [
             \.transcription.asrSelectionID, \.translation.asrSelectionID,
             \.rewrite.asrSelectionID, \.meeting.asrSelectionID
@@ -30,16 +33,18 @@ final class ModelConfigurationIssueResolverTests: MLXModelManagerTestCase {
                 let mlx = MLXModelManager(modelRepo: repo)
                 let llm = CustomLLMModelManager(modelRepo: llmRepo)
                 XCTAssertTrue(mlx.isCheckingInstallation(repo: repo))
-                let expected = ModelConfigurationIssue(scope: .mlxModel(repo), message: reason)
-                XCTAssertEqual(issues(defaults, mlx, llm).filter { $0.scope == expected.scope }, [expected])
+                XCTAssertEqual(issues(defaults, mlx, llm).filter { $0.scope == scope }, availabilityIssues)
 
                 _ = try await mlx.refreshInstallation(repo: repo)
-                XCTAssertEqual(issues(defaults, mlx, llm).filter { $0.scope == expected.scope }, [expected])
+                let missingIssues: [ModelConfigurationIssue] = OmniASRBackend.isAppleSilicon
+                    ? [ModelConfigurationIssue(scope: scope, message: AppLocalization.localizedString("Model needs to be installed."))]
+                    : availabilityIssues
+                XCTAssertEqual(issues(defaults, mlx, llm).filter { $0.scope == scope }, missingIssues)
                 try seedValidMLXModelDirectory(repo: repo, root: root)
                 mlx.checkExistingModel(refresh: true)
                 _ = try await mlx.refreshInstallation(repo: repo)
                 XCTAssertTrue(mlx.isModelDownloaded(repo: repo))
-                XCTAssertEqual(issues(defaults, mlx, llm).filter { $0.scope == expected.scope }, [expected])
+                XCTAssertEqual(issues(defaults, mlx, llm).filter { $0.scope == scope }, availabilityIssues)
                 XCTAssertEqual(FeatureSettingsStore.load(defaults: defaults)[keyPath: selection], .mlx(repo))
                 XCTAssertEqual(defaults.dictionaryRepresentation() as NSDictionary, savedPreferences)
                 await mlx.shutdownForApplicationTermination()

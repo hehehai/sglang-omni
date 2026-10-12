@@ -52,7 +52,7 @@ final class MLXModelSupportTests: XCTestCase {
         ] {
             XCTAssertEqual(MLXModelCatalog.isRealtimeCapableModelRepo(repo), OmniASRBackend.isAppleSilicon)
         }
-        XCTAssertFalse(MLXModelCatalog.isRealtimeCapableModelRepo("mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit"))
+        XCTAssertEqual(MLXModelCatalog.isRealtimeCapableModelRepo("mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit"), OmniASRBackend.isAppleSilicon)
         XCTAssertFalse(MLXModelCatalog.isRealtimeCapableModelRepo("beshkenadze/cohere-transcribe-03-2026-mlx-fp16"))
     }
 
@@ -67,7 +67,7 @@ final class MLXModelSupportTests: XCTestCase {
         )
         XCTAssertEqual(
             MLXModelCatalog.liveMode(for: "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit"),
-            .batchPreview
+            OmniASRBackend.isAppleSilicon ? .nativeNemotronLive : .batchPreview
         )
         XCTAssertEqual(
             MLXModelCatalog.liveMode(for: "beshkenadze/cohere-transcribe-03-2026-mlx-fp16"),
@@ -81,6 +81,20 @@ final class MLXModelSupportTests: XCTestCase {
             MLXModelCatalog.liveMode(for: "mlx-community/Voxtral-Mini-4B-Realtime-2602-4bit"),
             OmniASRBackend.isAppleSilicon ? .nativeQwenLive : .batchPreview
         )
+    }
+
+    func testBatchAndUnknownModelsCannotSelectNativeLiveSessions() {
+        let repos: [String] = [
+            "mlx-community/parakeet-tdt-0.6b-v3",
+            "mlx-community/Parakeet-0.6B",
+            "mlx-community/SenseVoiceSmall",
+            "unknown/nemotron-asr",
+            "unknown/Qwen3-ASR-0.6B-8bit",
+        ]
+        for repo in repos {
+            XCTAssertFalse(MLXModelCatalog.isRealtimeCapableModelRepo(repo), repo)
+            XCTAssertEqual(MLXModelCatalog.liveMode(for: repo), .batchPreview, repo)
+        }
     }
 
     func testQwen3CatalogTagsExposeRealtimeBadge() {

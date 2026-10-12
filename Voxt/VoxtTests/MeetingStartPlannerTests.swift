@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class MeetingStartPlannerTests: XCTestCase {
     func testUnavailableSavedModelBlocksMeetingStart() {
-        let repo = "mlx-community/parakeet-tdt-0.6b-v3"
+        let repo = "unknown/model"
         for state: MLXModelManager.ModelState in [.downloaded, .ready, .loading] {
             let decision = MeetingStartPlanner.resolve(
                 selectedEngine: .mlxAudio,
@@ -17,6 +17,26 @@ final class MeetingStartPlannerTests: XCTestCase {
                 remoteASRConfiguration: .init(providerID: RemoteASRProvider.openAIWhisper.rawValue, model: "", endpoint: "", apiKey: "")
             )
             XCTAssertEqual(decision, .blocked(.recording(.mlxModelUnavailable(detail: OmniASRBackend.unavailabilityReason(for: repo)))))
+        }
+    }
+
+    func testInstalledNativeCatalogModelsUsePlatformGateForMeetings() {
+        let states: [MLXModelManager.ModelState] = [.downloaded, .ready, .loading]
+        let repos: [String] = MLXModelCatalog.availableModels.map(\.id) + ["mlx-community/Parakeet-0.6B"]
+        for repo in repos {
+            for state in states {
+                let decision = MeetingStartPlanner.resolve(
+                    selectedEngine: .mlxAudio,
+                    selectedMLXRepo: repo,
+                    isSelectedMLXModelDownloaded: true,
+                    mlxModelState: state,
+                    remoteASRConfiguration: .init(providerID: RemoteASRProvider.openAIWhisper.rawValue, model: "", endpoint: "", apiKey: "")
+                )
+                let expected: MeetingStartDecision = OmniASRBackend.isAppleSilicon
+                    ? .start(.mlxAudio)
+                    : .blocked(.recording(.mlxModelUnavailable(detail: OmniASRBackend.unavailabilityReason(for: repo))))
+                XCTAssertEqual(decision, expected, repo)
+            }
         }
     }
 

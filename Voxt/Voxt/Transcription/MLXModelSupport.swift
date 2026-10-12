@@ -522,7 +522,7 @@ struct MLXModelCatalog {
     nonisolated static func isRealtimeCapableModelRepo(_ repo: String) -> Bool {
         guard OmniASRBackend.unavailability(for: repo) == nil else { return false }
         switch OmniASRBackend.nativeModelKind(for: repo) {
-        case .qwen3ASR, .mossTranscribeDiarize:
+        case .qwen3ASR, .mossTranscribeDiarize, .nemotronASR:
             return true
         default:
             return false
@@ -536,6 +536,8 @@ struct MLXModelCatalog {
             return .nativeQwenLive
         case .mossTranscribeDiarize:
             return .nativeStreamingLive
+        case .nemotronASR:
+            return .nativeNemotronLive
         default:
             return .batchPreview
         }

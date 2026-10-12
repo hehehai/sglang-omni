@@ -155,17 +155,9 @@ command -v hdiutil >/dev/null || die "hdiutil is required"
 command -v productbuild >/dev/null || die "productbuild is required"
 
 if [[ -n "$NATIVE_RUNTIME_DIR" ]]; then
-  [[ -d "$NATIVE_RUNTIME_DIR/bin" ]] || die "native runtime bin directory not found: $NATIVE_RUNTIME_DIR/bin"
-  for required_runtime_file in \
-    qwen3_asr_server \
-    whisper_server \
-    cohere_transcribe_server \
-    moss_transcribe_diarize_server \
-    libmlx.dylib \
-    libjaccl.dylib \
-    mlx.metallib; do
-    [[ -f "$NATIVE_RUNTIME_DIR/bin/$required_runtime_file" ]] || die "native runtime file not found: $NATIVE_RUNTIME_DIR/bin/$required_runtime_file"
-  done
+  bash "$ROOT/tools/validate_native_runtime.sh" "$NATIVE_RUNTIME_DIR"
+else
+  :
 fi
 
 if [[ "$OPEN_AFTER_INSTALL" == "true" && "$INSTALL_APP" != "true" ]]; then

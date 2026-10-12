@@ -807,13 +807,24 @@ Sortformer Core 与 cooperating publication/lease 进展见 T4d1/T4c1。Sortform
 - continuation完整包回归揭示旧Silero两条literalABI4 assertion；已以097f845单独修成ABI5并保留旧budget检查。隔离published package、排除并行Sortformer新代码后Debug/Release70均通过，随后当前完整88也均通过。旧失败日志保留，不把旧ABI4检查点的70结果当作ABI5包认证。
 - 消费者的origin/service/model/stream ownership、expected sequence/frame progression、model-specificcompression/admission/replay/cancel/drain须在下一helper/client checkpoint验证；DTO静态值检查不能代替runtime生命周期。下一步仍为actual Sortformer Core wrapper→XPC engine→App client/structured scope。
 
+### 最新官方 main 同步：7f78bf3（保留 ancestry 的 merge）
+
+- 合并基线为官方7f78bf3，包含Nemotron3.5/Parakeetv3/SenseVoiceSmall Native model/transcriber/server及golden fixtures、移除旧PythonQwen server/OmniTyper与其他官方pipeline更新。此前本地schema检查点d307c5f保留；无rebase/force-push，不是把PR合入官方main。
+- 当前11个offered ASR checkpoints均有Native HTTP mapping，Qwen/MOSS/Nemotron可realtime，Parakeet/SenseVoice仍batch-only。既有unsupported/platform/no-ASR-Swift-fallback gates保留；canonical aliases仍沿用原策略，不自动删改已安装权重/新造cloud fallback。
+- 无文本冲突不等于语义正确：真实merged Native entry body在portable typecheck复现Parakeet旧parameters变量未定义、SenseVoice STTOutput→自有ASR result不匹配；已改为app-ownedchunkDurationSeconds与ASRTranscriptionResult/ASRTranscriptSegment。actual literalentry/helper/request body修复后5个short/long/metadata/missing-VAD/timing场景通过，runtime/logging明确替身，不是fullApp SDK/network/model测试。
+- 修复catalog遗漏的Nemotron nativeNemotronLive route与一批过期T0 fixtures；未知模型测试先确认不支持再调用ensure/download，避免误入真正下载。277portable assertions分别覆盖host与临时Apple-Silicon-policy分支（只替换architecture directives，不是Mac/arm64执行）；Main75 policy/action checks通过，12个修改的macOS XCTest suites未实际执行。
+- packaging统一调用小型filesystem checker，确保7个server executable及MLX资源齐全；CI同checker检查artifact与解包ZIP，gates/signing不变。13实际checker tests及8个syntheticZIP场景通过，placeholder不是Mach-O/签名/model证明。
+- Native CMake保留Core5的44 exports与原lease/thread/algorithm逻辑；上游共享LstmStep/RelativeShift的改动保留。独立source review+19focused tests与synthetic vocabulary/MOSS/metadata replay通过；同步2份test-only SpeakerSegment新增language/emotion/event fields以免旧类型遮蔽事实。MainClangASan/UBSan/float-cast1442通过，同步stub后最终ABI96+realtime42=138再次通过。
+- 真实PackageContracts88（87pass/1filesystemskip）与Artifacts70通过；ASR自有contracts20+adapter6回归通过；当前46tool tests/source/resolved audits通过。上述均不能替代真实Mac SDK/NSXPC/Metal/model/golden/concurrency/长会议验收。
+- 上游补齐的是model/NativeHTTP实现，不是完整Core/XPC/App dependency切换。下一轮直接复用这些模型补Core/XPC与调用者；Nativeinput仍用MLXAudioCore resample、VAD/Sortformer配置及生产Swift辅助路径仍用MLXAudio，现时unlink会导致编译/功能断裂。保留MLX Swift本地LLM/VLM及Remote ASR/LLM；完成这些真实consumer迁移和MacSwiftPM/App验收后再移除Audio，而非从零重做模型。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |
 | --- | --- |
 | T2/full T3 | 实际signed Mac/Xcode/NSXPC/App Group/Metal/model验证；历史包装结果不覆盖新提交 |
 | T4 | Sortformer XPC/client、全部cached-directory迁移/授权/lease-delete与真实3runtime并行/golden |
-| T5 | Whisper/Cohere/MOSS Core/XPC、MOSS typed realtime及完整客户端切换；production仍既有Native HTTP/辅助路径 |
+| T5 | Whisper/Cohere/MOSS/Nemotron/Parakeet/SenseVoice Core/XPC、MOSS/Nemotron typed realtime及完整客户端切换；复用上游已实现模型，production仍Native HTTP/辅助路径 |
 | T6 | 所有ASR/VAD调用者迁移后删除Audio package/branches与完整App/Intel/LLM/VLM回归；当前依赖保留 |
 | T7 | actual signing/notarization/clean-machine、memory/performance/longmeeting/failure矩阵及release gates |
 

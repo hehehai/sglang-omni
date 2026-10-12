@@ -345,18 +345,7 @@ jobs:
       - name: Validate native runtime artifact
         run: |
           set -euo pipefail
-          runtime="${RUNNER_TEMP}/voxt-native-runtime"
-          for file in \
-            qwen3_asr_server \
-            whisper_server \
-            cohere_transcribe_server \
-            moss_transcribe_diarize_server \
-            libmlx.dylib \
-            libjaccl.dylib \
-            mlx.metallib; do
-            test -f "$runtime/bin/$file"
-          done
-          test -x "$runtime/bin/qwen3_asr_server"
+          bash Voxt/tools/validate_native_runtime.sh "$RUNNER_TEMP/voxt-native-runtime"
 
       - name: Build unsigned PR package
         working-directory: Voxt
@@ -378,7 +367,10 @@ jobs:
           test -f "$zip_path"
           test -f "$dmg_path"
           test -f "$pkg_path"
-          unzip -l "$zip_path" | grep -F 'Contents/Resources/OmniRuntime/bin/qwen3_asr_server'
+          package_contents="$(mktemp -d "$RUNNER_TEMP/voxt-package-contents.XXXXXX")"
+          trap 'rm -rf "$package_contents"' EXIT
+          unzip -q "$zip_path" -d "$package_contents"
+          bash Voxt/tools/validate_native_runtime.sh "$package_contents/Voxt.app/Contents/Resources/OmniRuntime"
           hdiutil verify "$dmg_path"
           shasum -a 256 -c "$zip_path.sha256"
           shasum -a 256 -c "$pkg_path.sha256"

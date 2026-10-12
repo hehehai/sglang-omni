@@ -92,10 +92,10 @@ final class MeetingASRSupportTests: XCTestCase {
 
         XCTAssertEqual(modes[0], .chunk(profile: .quality))
         XCTAssertEqual(modes[1], OmniASRBackend.isAppleSilicon ? .liveLocal(mode: .nativeStreamingLive) : .chunk(profile: .quality))
-        XCTAssertEqual(modes[2], .chunk(profile: .quality))
+        XCTAssertEqual(modes[2], OmniASRBackend.isAppleSilicon ? .liveLocal(mode: .nativeNemotronLive) : .chunk(profile: .quality))
         XCTAssertFalse(modes[0].usesLocalVoiceActivityGate)
         XCTAssertEqual(modes[1].usesLocalVoiceActivityGate, OmniASRBackend.isAppleSilicon)
-        XCTAssertFalse(modes[2].usesLocalVoiceActivityGate)
+        XCTAssertEqual(modes[2].usesLocalVoiceActivityGate, OmniASRBackend.isAppleSilicon)
     }
 
     func testRemoteAndChunkModesDoNotUseLocalVoiceActivityGate() {

@@ -6,8 +6,8 @@ import XCTest
 
 @MainActor
 final class FeatureModelCatalogBuilderTests: MLXModelManagerTestCase {
-    func testUnavailableASRRemainsVisibleAndDisabledInEveryFeatureEvenWhenInstalled() async throws {
-        let repos = [
+    func testNewNativeASRSelectionUsesInstallationAndPlatformGatesInEveryFeature() async throws {
+        let repos: [String] = [
             "mlx-community/parakeet-tdt-0.6b-v3",
             "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
             "mlx-community/SenseVoiceSmall"
@@ -24,7 +24,10 @@ final class FeatureModelCatalogBuilderTests: MLXModelManagerTestCase {
                     _ = try await manager.refreshInstallation(repo: repo)
                 }
                 for repo in repos {
-                    let reason = try XCTUnwrap(OmniASRBackend.unavailabilityReason(for: repo))
+                    let availability = FeatureModelCatalogBuilder.localSelectorAvailability(
+                        isInstalled: isInstalled,
+                        unavailabilityReason: OmniASRBackend.unavailabilityReason(for: repo)
+                    )
                     let selection = FeatureModelSelectionID.mlx(repo)
                     let builder = makeBuilder(
                         mlxModelManager: manager,
@@ -36,8 +39,12 @@ final class FeatureModelCatalogBuilderTests: MLXModelManagerTestCase {
                     )
                     for sheet in [FeatureModelSelectorSheet.transcriptionASR, .translationASR, .rewriteASR, .meetingASR] {
                         let entry = try XCTUnwrap(builder.entries(for: sheet).first { $0.selectionID == selection })
-                        XCTAssertFalse(entry.isSelectable)
-                        XCTAssertEqual(entry.disabledReason, reason)
+                        XCTAssertEqual(entry.isSelectable, isInstalled && OmniASRBackend.isAppleSilicon)
+                        XCTAssertEqual(entry.disabledReason, availability.disabledReason)
+                        XCTAssertEqual(
+                            entry.displayTags.contains(AppLocalization.localizedString("Realtime")),
+                            repo == "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit" && OmniASRBackend.isAppleSilicon
+                        )
                         XCTAssertEqual(entry.filterTags.contains(AppLocalization.localizedString("Installed")), isInstalled)
                         XCTAssertTrue(entry.usageLocations.contains(AppLocalization.localizedString("Meeting")))
                     }

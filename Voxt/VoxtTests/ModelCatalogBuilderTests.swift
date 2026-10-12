@@ -6,14 +6,14 @@ import XCTest
 
 @MainActor
 final class ModelCatalogBuilderTests: XCTestCase {
-    func testUnavailableInstalledASRCatalogShowsReasonAndKeepsRemovalAndLocationActions() throws {
+    func testInstalledNativeASRCatalogUsesPlatformGateAndKeepsRemovalAndLocationActions() throws {
         let repo = "mlx-community/parakeet-tdt-0.6b-v3"
         var settings = makeFeatureSettings()
         settings.meeting.asrSelectionID = .mlx(repo)
         let builder = makeBuilder(featureSettings: settings)
         let entry = try XCTUnwrap(builder.asrEntries().first { $0.id == "mlx:\(repo)" })
 
-        XCTAssertEqual(entry.statusText, try XCTUnwrap(OmniASRBackend.unavailabilityReason(for: repo)))
+        XCTAssertEqual(entry.statusText, OmniASRBackend.unavailabilityReason(for: repo) ?? "")
         XCTAssertTrue(entry.filterTags.contains(AppLocalization.localizedString("Installed")))
         XCTAssertTrue(entry.usageLocations.contains(AppLocalization.localizedString("Meeting")))
         XCTAssertEqual(entry.primaryAction?.title, AppLocalization.localizedString("Uninstall"))
@@ -22,7 +22,7 @@ final class ModelCatalogBuilderTests: XCTestCase {
     }
 
     func testUnavailableASRActionsBlockInstallResumeAndUseButAllowCleanup() throws {
-        let repo = "mlx-community/SenseVoiceSmall"
+        let repo = "unknown/model"
         for state in [LocalModelInstallState.installable(isEnabled: true), .paused, .installed] {
             let snapshot = LocalModelInstallSnapshot(
                 target: .mlx(repo), state: state, isInstalled: state == .installed,
@@ -217,15 +217,21 @@ final class ModelCatalogBuilderTests: XCTestCase {
 #endif
     }
 
-    func testNonOmniASRModelKeepsMLXAudioEngineBadge() throws {
-        let repo = "mlx-community/parakeet-tdt-0.6b-v3"
-        let builder = makeBuilder(
-            featureSettings: makeFeatureSettings(transcriptionASR: .mlx(repo))
-        )
-
-        let entry = try XCTUnwrap(builder.asrEntries().first(where: { $0.id == "mlx:\(repo)" }))
-
-        XCTAssertEqual(entry.engine, AppLocalization.localizedString("MLX Audio"))
+    func testNewNativeASRModelsUseOmniBadgeAndOnlyNemotronShowsRealtime() throws {
+        let repos: [String] = [
+            "mlx-community/parakeet-tdt-0.6b-v3",
+            "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
+            "mlx-community/SenseVoiceSmall",
+        ]
+        for repo in repos {
+            let builder = makeBuilder(featureSettings: makeFeatureSettings(transcriptionASR: .mlx(repo)))
+            let entry = try XCTUnwrap(builder.asrEntries().first { $0.id == "mlx:\(repo)" })
+            XCTAssertEqual(entry.engine, AppLocalization.localizedString(OmniASRBackend.isAppleSilicon ? "SGLang Omni" : "MLX Audio"))
+            XCTAssertEqual(
+                entry.displayTags.contains(AppLocalization.localizedString("Realtime")),
+                repo == "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit" && OmniASRBackend.isAppleSilicon
+            )
+        }
     }
 
     func testParakeetV3DoesNotClaimUnsupportedChinesePrimaryLanguage() throws {

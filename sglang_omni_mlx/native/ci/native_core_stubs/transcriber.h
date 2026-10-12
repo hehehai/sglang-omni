@@ -42,6 +42,9 @@ struct SpeakerSegment {
   double end_seconds = 0.0;
   std::string speaker;
   std::string text;
+  std::optional<std::string> language;
+  std::optional<std::string> emotion;
+  std::optional<std::string> event;
 };
 
 struct TranscriptionResult {

@@ -2,6 +2,36 @@
 
 Source/lockfile status checked against app commit `81c04a3`. Distinguish **the app's current dependency**, **the published fork**, and **pending app validation**. A passing library workflow or static lockfile audit is not an app or model-quality release certification.
 
+## Native replacement status after upstream 7f78bf3
+
+The PR branch has merged the latest official Native HTTP implementations for
+Nemotron ASR, Parakeet v3 and SenseVoice Small. All eleven currently offered ASR
+checkpoint entries now map to Native servers; Nemotron joins Qwen/MOSS realtime,
+while Parakeet/SenseVoice remain batch-only. Upstream includes recorded model
+goldens, but this merged app has not been validated on macOS/Metal/models.
+
+This removes the need to reimplement those numerical models, **not** the need
+to finish Voxt integration before removing the Audio package:
+
+- Normal ASR dispatch remains Native HTTP/WebSocket. Core ABI5/XPC executes
+  Qwen and Silero; Sortformer has Core plus shared schemas but no XPC route.
+  Whisper/Cohere/MOSS/Nemotron/Parakeet/SenseVoice still need Core/XPC routing.
+- Native ASR input preparation still calls MLXAudioCore resampling. Replace it
+  with tested application-owned resampling; do not silently reduce fidelity.
+- Native long-form VAD policy and Sortformer configuration still use Audio
+  types; production auxiliary detectors retain Swift Silero/Sortformer paths.
+- ASR adapters/loaders and test seams still compile against Audio products.
+  Removing their project links now would break compilation or functionality.
+- Keep mlx-swift-lm, MLXLLM/MLXVLM/MLXLMCommon, shared MLX runtime support,
+  llama.swift and Remote ASR/LLM. Removing Audio does not mean removing MLX.
+
+The merge repairs app-owned generation/result integration and Nemotron live
+eligibility rather than weakening unsupported/platform/no-fallback gates.
+Runtime preflight now checks all seven server executables and shared resources;
+filesystem checks are not Mach-O, signing, model-quality or release acceptance.
+Finish source consumers and deliberate SwiftPM resolution, then require full
+macOS App/XCTest and model/lifecycle/packaging acceptance before release.
+
 ## Current Voxt working-tree pins
 
 `Voxt.xcodeproj/project.pbxproj` now references the published fork and matching LM revision:
