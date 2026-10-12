@@ -41,15 +41,18 @@ in the service. Client task ownership, microphone admission, transcript renderin
 and ASRStreamingSession stay in the app. The package does not select production
 backends, load models, retry admitted audio or choose a cloud fallback.
 
-## Bounded speaker realtime schemas (ABI8)
+## Bounded speaker realtime RPC (ABI9, opt-in)
 
-The matched Core/helper/App epoch is now 8. Native Core adds thirteen bounded
-MOSS/Nemotron model/stream exports (69 total); the speaker schemas are shared
-Foundation prerequisites, **not new NSXPC selectors or production callers**.
+The matched Core/helper/App epoch is now 9. The thirteen bounded Native
+MOSS/Nemotron model/stream exports remain unchanged (69 total). ABI9 matches
+these ten actual macOS RPC selectors: loadSpeaker, unloadSpeaker,
+drainSpeakerLoad, startSpeakerSession, pushSpeakerAudio, commitSpeakerSession,
+finishSpeakerSession, pollSpeakerEvents, closeSpeakerSession and
+cancelSpeakerRequest. Older epoch8 artifacts must not pass the compatibility gate.
 `OmniXPCSpeakerKind` uses MOSS=1/Nemotron=2, distinct from batch model numbers.
 References bind the complete model/service/connection/original-load UUID scope
-and session UUID. Native uint64 session IDs require a future service-owned
-projection, never UUID truncation/hash or automatic reconnect retargeting.
+and session UUID. The helper uses a private monotonic UInt64 Native session
+counter, never UUID truncation/hash or automatic reconnect retargeting.
 
 Immutable settings preserve optional prompt/language/chunk milliseconds and
 require exact family fields. Event and poll codecs preserve preview segments
@@ -57,22 +60,33 @@ absent versus final/completed segments present (including empty), Double times,
 metadata and positive overflow-safe UInt64 sequences. Full session equality,
 terminal-last ordering, 512 segments, 64 events, UTF8/NUL-inclusive native string
 budgets and independent encoded-byte budgets are enforced. Use bounded
-encoded()/decode(_:) at an eventual wire boundary, not raw Codable.
+encoded()/decode(_:) at the actual wire boundary, not raw Codable.
 
 Native ingress remains finite mono16k, 1...32000 samples/chunk and at most
 480000 samples per session. This is a validation-route transport bound, not
 longform/model capacity. ACK, completed/cancelled events, empty polls or a DTO
-isDrained value do not establish Native retirement. The future helper/client
-must retain original-scope handles/readers/permits until actual checked
-worker/model barriers succeed. Core streams keep their single model lease even
-after drain until checked stream destruction. Neither XPC lifecycle integration
-nor real macOS/Metal/model numerical acceptance is supplied by these codecs.
+isDrained value do not establish Native retirement. Helper/client ownership
+retains original-scope handles/readers until actual checked worker/model barriers
+succeed, including nonnull handles returned with failed creation. Non-evicting
+load/session histories are bounded to 256 identities; failed cleanup is retryable
+only in the original scope. Poll replays the complete retained batch until its
+exact last sequence is acknowledged; audio is never automatically replayed.
+Nemotron commit seals input, while MOSS commit permits later chunks.
+
+OmniXPCSpeakerModelOwner retains one owned coordinator permit across the entire
+session, including asynchronously admitted decoding. Checked session close
+releases the lane while preserving resident model readers; original-load model
+close releases those readers. Load tickets distinguish never-submitted work from
+ambiguous admitted work. Retain owners and explicitly await close; disconnect,
+deinit, cancel ACK and presentation completion cannot prove retirement.
+Production factories remain unchanged. Portable client/helper/Core CPU evidence
+is not actual macOS SDK, signed NSXPC, Metal or model numerical acceptance.
 
 ## Offline Silero contract
 
 The four macOS-gated RPCs are `loadSilero`, `unloadSilero`,
 `sileroSpeechTimestamps` and `cancelSileroRequest`. The streaming extension below
-shares the same model owner. Current Core ABI is 8; production VAD and HTTP routes
+shares the same model owner. Current Core ABI is 9; production VAD and HTTP routes
 are unchanged.
 
 `OmniXPCSileroSettings` requires explicit threshold, minimum speech milliseconds,

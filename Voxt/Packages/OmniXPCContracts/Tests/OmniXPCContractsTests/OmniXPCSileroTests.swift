@@ -254,7 +254,7 @@ final class OmniXPCSileroTests: XCTestCase {
         XCTAssertEqual(OmniXPCSileroLimits.maximumTimestampBatchByteCount, 65_536)
         XCTAssertEqual(OmniXPCSileroLimits.maximumTimestampCount, 938)
         XCTAssertEqual(OmniXPCSileroLimits.maximumOptionMilliseconds, 30_000)
-        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 8)
+        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 9)
         XCTAssertEqual(OmniXPCProtocolLimits.sampleRate, 16_000)
         XCTAssertEqual(OmniXPCProtocolLimits.maximumSampleCount, 480_000)
         XCTAssertEqual(OmniXPCProtocolLimits.maximumRequestsPerModel, 256)

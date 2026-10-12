@@ -54,6 +54,15 @@
 		A0C200000000000000000024 /* OmniBatchInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */; };
 		A0C200000000000000000025 /* OmniBatchModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000015 /* OmniBatchModelCleanup.swift */; };
 		A0C200000000000000000026 /* OmniBatchRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000016 /* OmniBatchRPC.swift */; };
+		A0C300000000000000000021 /* SpeakerCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000011 /* SpeakerCoreModel.swift */; };
+		A0C300000000000000000022 /* SpeakerCoreStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000012 /* SpeakerCoreStream.swift */; };
+		A0C300000000000000000023 /* SpeakerCoreOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000013 /* SpeakerCoreOutput.swift */; };
+		A0C300000000000000000024 /* OmniSpeakerInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000014 /* OmniSpeakerInferenceEngine.swift */; };
+		A0C300000000000000000025 /* OmniSpeakerSessionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000015 /* OmniSpeakerSessionEngine.swift */; };
+		A0C300000000000000000026 /* OmniSpeakerCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000016 /* OmniSpeakerCommands.swift */; };
+		A0C300000000000000000027 /* OmniSpeakerDelivery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000017 /* OmniSpeakerDelivery.swift */; };
+		A0C300000000000000000028 /* OmniSpeakerModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000018 /* OmniSpeakerModelCleanup.swift */; };
+		A0C300000000000000000029 /* OmniSpeakerRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000019 /* OmniSpeakerRPC.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -126,6 +135,15 @@
 		A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchInferenceEngine.swift; sourceTree = "<group>"; };
 		A0C200000000000000000015 /* OmniBatchModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchModelCleanup.swift; sourceTree = "<group>"; };
 		A0C200000000000000000016 /* OmniBatchRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchRPC.swift; sourceTree = "<group>"; };
+		A0C300000000000000000011 /* SpeakerCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCoreModel.swift; sourceTree = "<group>"; };
+		A0C300000000000000000012 /* SpeakerCoreStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCoreStream.swift; sourceTree = "<group>"; };
+		A0C300000000000000000013 /* SpeakerCoreOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCoreOutput.swift; sourceTree = "<group>"; };
+		A0C300000000000000000014 /* OmniSpeakerInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerInferenceEngine.swift; sourceTree = "<group>"; };
+		A0C300000000000000000015 /* OmniSpeakerSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerSessionEngine.swift; sourceTree = "<group>"; };
+		A0C300000000000000000016 /* OmniSpeakerCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerCommands.swift; sourceTree = "<group>"; };
+		A0C300000000000000000017 /* OmniSpeakerDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerDelivery.swift; sourceTree = "<group>"; };
+		A0C300000000000000000018 /* OmniSpeakerModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerModelCleanup.swift; sourceTree = "<group>"; };
+		A0C300000000000000000019 /* OmniSpeakerRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerRPC.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -349,6 +367,15 @@
 				A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */,
 				A0C200000000000000000015 /* OmniBatchModelCleanup.swift */,
 				A0C200000000000000000016 /* OmniBatchRPC.swift */,
+				A0C300000000000000000011 /* SpeakerCoreModel.swift */,
+				A0C300000000000000000012 /* SpeakerCoreStream.swift */,
+				A0C300000000000000000013 /* SpeakerCoreOutput.swift */,
+				A0C300000000000000000014 /* OmniSpeakerInferenceEngine.swift */,
+				A0C300000000000000000015 /* OmniSpeakerSessionEngine.swift */,
+				A0C300000000000000000016 /* OmniSpeakerCommands.swift */,
+				A0C300000000000000000017 /* OmniSpeakerDelivery.swift */,
+				A0C300000000000000000018 /* OmniSpeakerModelCleanup.swift */,
+				A0C300000000000000000019 /* OmniSpeakerRPC.swift */,
 				A0BC00000000000000000024 /* Info.plist */,
 				A0BC00000000000000000025 /* OmniInference.entitlements */,
 				A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */,
@@ -594,6 +621,15 @@
 				A0C200000000000000000024 /* OmniBatchInferenceEngine.swift in Sources */,
 				A0C200000000000000000025 /* OmniBatchModelCleanup.swift in Sources */,
 				A0C200000000000000000026 /* OmniBatchRPC.swift in Sources */,
+				A0C300000000000000000021 /* SpeakerCoreModel.swift in Sources */,
+				A0C300000000000000000022 /* SpeakerCoreStream.swift in Sources */,
+				A0C300000000000000000023 /* SpeakerCoreOutput.swift in Sources */,
+				A0C300000000000000000024 /* OmniSpeakerInferenceEngine.swift in Sources */,
+				A0C300000000000000000025 /* OmniSpeakerSessionEngine.swift in Sources */,
+				A0C300000000000000000026 /* OmniSpeakerCommands.swift in Sources */,
+				A0C300000000000000000027 /* OmniSpeakerDelivery.swift in Sources */,
+				A0C300000000000000000028 /* OmniSpeakerModelCleanup.swift in Sources */,
+				A0C300000000000000000029 /* OmniSpeakerRPC.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

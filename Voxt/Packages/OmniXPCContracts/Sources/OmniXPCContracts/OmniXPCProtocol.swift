@@ -2,7 +2,7 @@
 import Foundation
 
 public nonisolated enum OmniXPCProtocolLimits {
-    public static let abiVersion = 8
+    public static let abiVersion = 9
     public static let sampleRate = 16_000
     public static let maximumAudioSeconds = 30
     public static let maximumSampleCount = sampleRate * maximumAudioSeconds
@@ -166,6 +166,26 @@ public nonisolated enum OmniXPCRequestValidation {
 #if os(macOS)
 @objc public nonisolated protocol OmniInferenceXPCProtocol {
     func probe(withReply reply: @escaping @Sendable (Int, String, Int32, NSError?) -> Void)
+    func loadSpeaker(
+        operationID: String, kind: Int, modelDirectory: String, clientConnectionID: String,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func unloadSpeaker(operationID: String, modelReference: Data, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func drainSpeakerLoad(operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func startSpeakerSession(
+        sessionID: String, modelReference: Data, settings: Data, withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func pushSpeakerAudio(
+        sessionReference: Data, audioSequence: UInt64, audio: Data, withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func commitSpeakerSession(sessionReference: Data, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func finishSpeakerSession(sessionReference: Data, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func pollSpeakerEvents(
+        sessionReference: Data, acknowledgedEventSequence: UInt64, maximumEventCount: Int,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func closeSpeakerSession(sessionReference: Data, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func cancelSpeakerRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func loadBatch(
         operationID: String, kind: Int, modelDirectory: String,
         withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void

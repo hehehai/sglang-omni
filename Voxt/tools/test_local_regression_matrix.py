@@ -139,6 +139,9 @@ class OmniXPCPackagingTests(unittest.TestCase):
             "OmniSortformerModelCleanup.swift",
             "BatchCoreModel.swift", "BatchCoreOptions.swift", "BatchCoreRequest.swift",
             "OmniBatchInferenceEngine.swift", "OmniBatchModelCleanup.swift", "OmniBatchRPC.swift",
+            "SpeakerCoreModel.swift", "SpeakerCoreStream.swift", "SpeakerCoreOutput.swift",
+            "OmniSpeakerInferenceEngine.swift", "OmniSpeakerSessionEngine.swift", "OmniSpeakerCommands.swift",
+            "OmniSpeakerDelivery.swift", "OmniSpeakerModelCleanup.swift", "OmniSpeakerRPC.swift",
         ]
         self.assertEqual(re.findall(r"/\* (\S+) in Sources \*/", sources), expected_sources)
         self.assertEqual({path.name for path in (ROOT / "OmniInference").glob("*.swift")}, set(expected_sources))

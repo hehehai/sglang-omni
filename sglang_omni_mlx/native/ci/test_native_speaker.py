@@ -432,7 +432,7 @@ def test_standalone_c_header_and_thirteen_dlsym_exports(native_build: Path) -> N
 def test_main_epoch_source_not_fixture_shim() -> None:
     source = (NATIVE / "src/native_core.cpp").read_text()
     assert re.search(
-        r"unsigned int omni_core_abi_version\(void\)\s*\{\s*return 8;\s*\}", source
+        r"unsigned int omni_core_abi_version\(void\)\s*\{\s*return 9;\s*\}", source
     )
     assert (
         '#include "omni_native_speaker.h"'

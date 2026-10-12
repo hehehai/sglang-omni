@@ -357,6 +357,22 @@ private actor OwnershipTestGate {
 }
 
 private nonisolated final class OwnershipTestService: OmniInferenceXPCProtocol {
+    func loadSpeaker(operationID: String, kind: Int, modelDirectory: String, clientConnectionID: String,
+                     withReply reply: @escaping @Sendable (Data?, NSError?) -> Void) { reply(nil, unused) }
+    func unloadSpeaker(operationID: String, modelReference: Data,
+                       withReply reply: @escaping @Sendable (NSError?) -> Void) { reply(unused) }
+    func drainSpeakerLoad(operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void) { reply(unused) }
+    func startSpeakerSession(sessionID: String, modelReference: Data, settings: Data,
+                             withReply reply: @escaping @Sendable (Data?, NSError?) -> Void) { reply(nil, unused) }
+    func pushSpeakerAudio(sessionReference: Data, audioSequence: UInt64, audio: Data,
+                          withReply reply: @escaping @Sendable (Data?, NSError?) -> Void) { reply(nil, unused) }
+    func commitSpeakerSession(sessionReference: Data, withReply reply: @escaping @Sendable (NSError?) -> Void) { reply(unused) }
+    func finishSpeakerSession(sessionReference: Data, withReply reply: @escaping @Sendable (NSError?) -> Void) { reply(unused) }
+    func pollSpeakerEvents(sessionReference: Data, acknowledgedEventSequence: UInt64, maximumEventCount: Int,
+                           withReply reply: @escaping @Sendable (Data?, NSError?) -> Void) { reply(nil, unused) }
+    func closeSpeakerSession(sessionReference: Data, withReply reply: @escaping @Sendable (NSError?) -> Void) { reply(unused) }
+    func cancelSpeakerRequest(requestID: String, modelID: String?,
+                              withReply reply: @escaping @Sendable (NSError?) -> Void) { reply(unused) }
     func loadBatch(operationID _: String, kind _: Int, modelDirectory _: String,
                    withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void) {
         reply(nil, nil, OmniXPCFailure.error(.invalidRequest, "This test peer does not implement batch inference."))

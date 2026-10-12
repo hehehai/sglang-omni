@@ -11,7 +11,7 @@ nonisolated struct OmniXPCProbeResult: Equatable, Sendable {
 
 @MainActor
 final class OmniXPCClient {
-    enum CancellationTarget { case qwen, silero, sortformer, batch }
+    enum CancellationTarget { case qwen, silero, sortformer, batch, speaker }
 
     private struct Connection {
         let id: UUID
@@ -46,6 +46,15 @@ final class OmniXPCClient {
     var closedBatchModels: [UUID: OmniXPCBatchModelReference] = [:]
     var batchLoadIDs: Set<UUID> = []
     var closedBatchLoadIDs: Set<UUID> = []
+    var speakerModel: OmniXPCSpeakerLoadState?
+    var pendingSpeakerLoad: OmniXPCSpeakerLoadState?
+    var speakerLoadIDs: Set<UUID> = []
+    var closedSpeakerLoadIDs: Set<UUID> = []
+    var speakerSessionIDs: Set<UUID> = []
+    var speakerUnloadIDs: Set<UUID> = []
+    var closedSpeakerModels: [UUID: OmniXPCSpeakerModelReference] = [:]
+    var closedSpeakerSessions: [UUID: OmniXPCSpeakerSessionReference] = [:]
+    var speakerServiceIdentity: (connectionID: UUID, serviceInstanceID: UUID)?
     var connectionIdentifier: UUID? { connection?.id }
 
     func requireConnection(_ id: UUID) throws {
@@ -250,6 +259,8 @@ final class OmniXPCClient {
                 proxy.cancelSortformerRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
             case .batch:
                 proxy.cancelBatchRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
+            case .speaker:
+                proxy.cancelSpeakerRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
             }
             fail(id, error: error)
         } else {

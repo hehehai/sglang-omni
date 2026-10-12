@@ -43,6 +43,27 @@ This remains opt-in, at most 30 seconds per final request. Default HTTP/meeting
 routing, longform/realtime migration, model choices and Audio dependencies are
 unchanged; actual SDK/NSXPC/Metal acceptance remains pending.
 
+## Explicit speaker realtime ownership
+
+`OmniXPCSpeakerModelOwner` explicitly prepares a shared Models directory and
+starts a bounded MOSS/Nemotron session. Unlike synchronous final requests, push
+returns an admission ACK while Native decoding may still be queued or active.
+The owner therefore retains one identity-owned coordinator permit throughout the
+session, not one permit per command. Completion events and empty polls do not
+release it. Checked session close releases the lane, preserving resident model
+readers; explicit permanent model close drains the original load scope before
+releasing readers. Failed/unknown cleanup retains the same identities and permit
+for retry, never implicitly reconnecting, reloading or replaying audio.
+
+Load tickets distinguish never-submitted RPCs from ambiguous admitted work;
+pre-send rejection cannot drain another owner's model. Closed sessions/models
+are identity-scoped and cleanup tasks are uncancelled and coalesced. Await close
+while retaining the owner; deinit is not a barrier. Finite mono16k chunks contain
+1...32000 samples, with at most 480000 samples per session. These are opt-in
+transport bounds, not production recording limits or longform support.
+Core/helper/App require matched ABI9 artifacts; production factories and actual
+SDK/signed NSXPC/Metal acceptance remain unchanged and pending, respectively.
+
 ## MLX boundaries
 
 `MLXTranscriber` owns recording tasks, revision checks, model leases and capture-buffer instances. Pure policy is in `MLXTranscriptionPlanning`, `MLXInferenceConfiguration`, `MLXTranscriptMerging`, and `MLXLiveTextPreview`. Shared values, buffers, detached inference and structured segment conversion live in their correspondingly named files.
