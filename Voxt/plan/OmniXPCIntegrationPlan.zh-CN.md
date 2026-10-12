@@ -798,6 +798,15 @@ Sortformer Core 与 cooperating publication/lease 进展见 T4d1/T4c1。Sortform
 - 原96ABI +42realtime/golden-tool6 +1298真实config cases，Clang/GCC ASan/UBSan/float-cast-overflow各1442passed；legacy真实BEFORE/AFTER772fixtures/compiler全一致，pure segments10000 cases byte-identical。独立复查310focused +161额外边界，未发现具体剩余numeric defect。模型/MLX仍明确替身；真实checkpoint、single-sample/Metal/compression numerical golden未验收。
 - Main Swift真实ABI5 header/link验证 owned probabilities/segments/free/finish/drain；model/MLX为替身，不是SDK/Metal认证。Sortformer XPC/上层diarization client尚未实现，不能把Core独立检查点计作完整T4。
 
+### T4d2a：Sortformer shared transport schema 前置检查点（尚非 XPC 路由）
+
+- 实际 OmniXPCContracts product 新增独立 Sortformer model/stream references、显式 settings、row-major 四speaker probability/absolute-time segment batch；不添加尚无 service 实现的 RPC selector，不切换 App meeting/production diarization。
+- Settings wire≤1024 bytes；batch wire≤32768 bytes、1..26 frames、精确frameCount×4 probability值、≤104 segments、processed frames≤Int32.max。constructor/Codable/有界encode-decode都检查value domains；byte/count bounds在解析/typed array formation前执行。所有设置用明确seconds/frame单位，无Native defaults。
+- 保持实际 Native Float 时间计算再widen Double（不是literal Double0.08）；允许不同speaker重叠、同时start及long-stream Float舍入的zero-length intervals。finish无新增audio/padding/result，契约不伪造final batch或speaker summary。
+- 18个新增真实Foundation tests覆盖fields/types/shapes/counters/bytes/NaN/Inf/segment范围/sort/overlap/longstreamrounding，独立review两配置18pass、无具体剩余schema finding。Main最终actual Package Debug/Release各88（87pass/1case-sensitive-filesystem skip）；真实Swift ABI5→专用worker/真实config parser→ownedresult→DTO往返60push，含1/2samples/hop边界、两次独立stream与continual>30s/finish-drain。model/MLX为明确替身，不是concurrentGPU或NSXPC认证。
+- continuation完整包回归揭示旧Silero两条literalABI4 assertion；已以097f845单独修成ABI5并保留旧budget检查。隔离published package、排除并行Sortformer新代码后Debug/Release70均通过，随后当前完整88也均通过。旧失败日志保留，不把旧ABI4检查点的70结果当作ABI5包认证。
+- 消费者的origin/service/model/stream ownership、expected sequence/frame progression、model-specificcompression/admission/replay/cancel/drain须在下一helper/client checkpoint验证；DTO静态值检查不能代替runtime生命周期。下一步仍为actual Sortformer Core wrapper→XPC engine→App client/structured scope。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |
@@ -808,4 +817,4 @@ Sortformer Core 与 cooperating publication/lease 进展见 T4d1/T4c1。Sortform
 | T6 | 所有ASR/VAD调用者迁移后删除Audio package/branches与完整App/Intel/LLM/VLM回归；当前依赖保留 |
 | T7 | actual signing/notarization/clean-machine、memory/performance/longmeeting/failure矩阵及release gates |
 
-已请求Mac验收执行方式，但用户AFK未选择，不能视为SSH/CI/signing授权。当前只推进离线实现并保留全部真实平台/production/发布门槛，不启用CI gates、不push/merge/deploy。
+此前请求Mac验收执行方式时用户AFK未选择，不能视为SSH/CI/signing授权。该轮仅推进离线实现、没有publish。之后用户明确请求提交并更新现有PR，已正常push到097f845并保留PR2683原包装说明/历史证据，补最新检查点/回归修正/未完成门槛；未force-push/merge/deploy，不启用CI gates。Sortformer schema后续检查点仍不等于平台或production验收。

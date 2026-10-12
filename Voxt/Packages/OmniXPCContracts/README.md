@@ -19,6 +19,7 @@ OmniInference service ───┘
 - Realtime settings, strict wire-event/batch shape and size validation.
 - Offline Silero settings, distinct connection/model references and bounded sample-timestamp batches.
 - Silero stream references and bounded per-command probability batches.
+- Sortformer settings, model/stream references and bounded four-speaker result codecs.
 - Shared bounded little-endian Float32 audio validation for Qwen and Silero.
 - The macOS NSXPC request/reply signatures used by both actual consumers.
 
@@ -112,6 +113,39 @@ history; references evicted after later streams retire are rejected locally.
 Disconnect initiates service cleanup but is not a client-observed native drain
 ACK. Stale connection/model references never reset a healthy replacement or Qwen
 model, and a Silero deadline never invalidates the healthy shared connection.
+
+## Sortformer transport schema prerequisite
+
+The Foundation types are implemented; Sortformer RPC selectors, helper engine
+and App client are **not yet connected**. This schema checkpoint does not add
+an executable XPC route or switch production diarization.
+
+`OmniXPCSortformerSettings` requires explicit threshold, minimum duration and
+merge gap in seconds, speaker-cache maximum frame count and FIFO maximum frame
+count. It enforces finite threshold 0...1, durations 0...3600 seconds, cache
+1...4096 and FIFO 0...4096, with a 1024-byte wire limit. Model-specific encoder,
+compression and input-cap validation remains Native Core responsibility; these
+general bounds do not certify checkpoint compatibility.
+
+`OmniXPCSortformerModelReference` and `OmniXPCSortformerStreamReference` preserve
+connection/service/model/stream identities. The result codec alone cannot prove
+origin ownership, expected audio sequence or cumulative frame progression.
+
+`OmniXPCSortformerProbabilityBatch` is a push-only result: 1...26 frames, four
+speakers, exactly frame-count times four row-major finite probabilities in
+0...1, at most 104 segments and 32768 wire bytes. Cumulative processed frames
+are bounded by the Native Int32 counter, not received audio samples. Absolute
+segment start/end seconds follow the actual model Float arithmetic before
+widening to Double; overlapping speakers, equal starts and long-stream rounded
+zero-length ranges remain valid. Unknown/missing fields, malformed shapes,
+invalid values and out-of-batch/unsorted segments reject. Byte/count bounds
+precede decoding arrays. Use `encoded()`/`decode(_:)` at the transport boundary;
+raw Codable does not enforce the overall wire byte budget.
+
+Native finish produces no extra audio, padded tail, probability batch or final
+speaker summary. Cancellation is not drain; future helper/client paths must
+preserve explicit terminal drain/destruction and no automatic audio replay.
+Actual signed NSXPC/Metal/model acceptance remains pending.
 
 ## Test independently
 
