@@ -11,7 +11,7 @@ nonisolated struct OmniXPCProbeResult: Equatable, Sendable {
 
 @MainActor
 final class OmniXPCClient {
-    enum CancellationTarget { case qwen, silero }
+    enum CancellationTarget { case qwen, silero, sortformer }
 
     private struct Connection {
         let id: UUID
@@ -35,6 +35,8 @@ final class OmniXPCClient {
     var realtimeSession: OmniXPCRealtimeClientState?
     var sileroStreams: [UUID: OmniXPCSileroStreamState] = [:]
     var closedSileroStreams: [UUID: OmniXPCSileroStreamReference] = [:]
+    var sortformerStreams: [UUID: OmniXPCSortformerStreamState] = [:]
+    var closedSortformerStreams: [UUID: OmniXPCSortformerStreamReference] = [:]
     var connectionIdentifier: UUID? { connection?.id }
 
     func requireConnection(_ id: UUID) throws {
@@ -142,6 +144,8 @@ final class OmniXPCClient {
         realtimeSession = nil
         sileroStreams.removeAll()
         closedSileroStreams.removeAll()
+        sortformerStreams.removeAll()
+        closedSortformerStreams.removeAll()
         let calls = Array(pending.values)
         pending.removeAll()
         transport?.invalidate()
@@ -181,7 +185,7 @@ final class OmniXPCClient {
             do { try await Task.sleep(for: timeout) } catch { return }
             guard let self, let call = self.pending[id] else { return }
             let error = OmniXPCFailure.error(.timedOut, "The XPC request timed out.")
-            if call.cancellationTarget == .silero {
+            if call.cancellationTarget != .qwen {
                 self.cancel(id, error: error)
             } else {
                 self.fail(id, error: error)
@@ -231,6 +235,8 @@ final class OmniXPCClient {
                 proxy.cancelRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
             case .silero:
                 proxy.cancelSileroRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
+            case .sortformer:
+                proxy.cancelSortformerRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
             }
             fail(id, error: error)
         } else {
@@ -246,6 +252,8 @@ final class OmniXPCClient {
         sileroStreams.removeAll()
         closedSileroStreams.removeAll()
         transport?.invalidate()
+        sortformerStreams.removeAll()
+        closedSortformerStreams.removeAll()
         let ids = pending.filter { $0.value.connectionID == id }.map(\.key)
         for requestID in ids {
             guard let call = take(requestID) else { continue }

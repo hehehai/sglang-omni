@@ -6,8 +6,8 @@ set -euo pipefail
   echo "Apple Silicon macOS is required for XPC/Metal validation." >&2
   exit 1
 }
-[[ $# -eq 4 || $# -eq 5 ]] || {
-  echo "usage: run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file> [silero-model-directory]" >&2
+[[ $# -ge 4 && $# -le 6 ]] || {
+  echo "usage: run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file> [silero-model-directory] [sortformer-model-directory]" >&2
   exit 2
 }
 app="$1"
@@ -15,6 +15,11 @@ model="$2"
 audio="$3"
 expected="$4"
 silero="${5:-}"
+sortformer="${6:-}"
+if [[ -n "$sortformer" && ! -f "$sortformer/config.json" ]]; then
+  echo "The optional Sortformer model is missing config.json." >&2
+  exit 1
+fi
 if [[ -n "$silero" && ! -f "$silero/config.json" ]]; then
   echo "The optional Silero model is missing config.json." >&2
   exit 1
@@ -35,7 +40,7 @@ scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 afconvert "$audio" -f WAVE -d LEI16@16000 -c 1 "$scratch/input.wav"
 
-python3 - "$app/Contents/MacOS/$executable" "$model" "$scratch/input.wav" "$expected" "$silero" <<'PY'
+python3 - "$app/Contents/MacOS/$executable" "$model" "$scratch/input.wav" "$expected" "$silero" "$sortformer" <<'PY'
 import array
 import json
 import os
@@ -47,7 +52,7 @@ import sys
 import uuid
 import wave
 
-executable, model, audio, expected, silero = sys.argv[1:]
+executable, model, audio, expected, silero, sortformer = sys.argv[1:]
 environment = {
     key: value for key, value in os.environ.items()
     if not key.startswith(('DYLD_', '__XPC_DYLD_', 'VOXT_OMNI_XPC_SMOKE_'))
@@ -60,6 +65,10 @@ def run(mode, run_id=None):
         overrides['VOXT_OMNI_XPC_SMOKE_RUN_ID'] = run_id
         if silero:
             overrides['VOXT_OMNI_XPC_SMOKE_SILERO_DIRECTORY'] = f'Models/OmniXPCSileroSmoke/{run_id}'
+        else:
+            pass
+        if sortformer:
+            overrides['VOXT_OMNI_XPC_SMOKE_SORTFORMER_DIRECTORY'] = f'Models/OmniXPCSortformerSmoke/{run_id}'
         else:
             pass
     completed = subprocess.run(
@@ -82,9 +91,14 @@ run_id = str(uuid.uuid4()).upper()
 model_destination = container / 'Models' / 'OmniXPCSmoke' / run_id
 artifacts = container / 'OmniXPCSmoke' / run_id
 silero_destination = container / 'Models' / 'OmniXPCSileroSmoke' / run_id
+sortformer_destination = container / 'Models' / 'OmniXPCSortformerSmoke' / run_id
 destinations = [model_destination, artifacts]
 if silero:
     destinations.append(silero_destination)
+else:
+    pass
+if sortformer:
+    destinations.append(sortformer_destination)
 else:
     pass
 for destination in destinations:
@@ -98,6 +112,10 @@ try:
     shutil.copytree(model, model_destination, symlinks=False)
     if silero:
         shutil.copytree(silero, silero_destination, symlinks=False)
+    else:
+        pass
+    if sortformer:
+        shutil.copytree(sortformer, sortformer_destination, symlinks=False)
     else:
         pass
     with wave.open(audio, 'rb') as source:
@@ -118,6 +136,10 @@ try:
         raise RuntimeError('Native inference or service restart did not pass.')
     if silero and (report.get('silero_request_count') != 4 or report.get('silero_stream_count') != 2):
         raise RuntimeError('The optional Silero offline/stream reuse/reconnect validation did not run.')
+    else:
+        pass
+    if sortformer and report.get('sortformer_stream_count') != 4:
+        raise RuntimeError('The optional Sortformer stream reuse/reconnect validation did not run.')
     else:
         pass
     passed = True

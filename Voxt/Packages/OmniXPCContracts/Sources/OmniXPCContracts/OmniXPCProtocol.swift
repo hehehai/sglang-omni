@@ -191,6 +191,25 @@ public nonisolated enum OmniXPCRequestValidation {
         streamID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
     )
     func cancelSileroRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func loadSortformer(
+        operationID: String, modelDirectory: String,
+        withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
+    )
+    func unloadSortformer(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func startSortformerStream(
+        streamID: String, modelID: String, settings: Data, withReply reply: @escaping @Sendable (String?, NSError?) -> Void
+    )
+    func pushSortformerAudio(
+        streamID: String, modelID: String, sequence: Int, audio: Data,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func finishSortformerStream(
+        streamID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    )
+    func closeSortformerStream(
+        streamID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void
+    )
+    func cancelSortformerRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func startFinalSession(
         sessionID: String, modelID: String, language: String?, context: String?, maximumTokenCount: Int,
         withReply reply: @escaping @Sendable (String?, NSError?) -> Void

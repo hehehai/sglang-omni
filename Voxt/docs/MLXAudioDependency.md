@@ -13,9 +13,10 @@ goldens, but this merged app has not been validated on macOS/Metal/models.
 This removes the need to reimplement those numerical models, **not** the need
 to finish Voxt integration before removing the Audio package:
 
-- Normal ASR dispatch remains Native HTTP/WebSocket. Core ABI5/XPC executes
-  Qwen and Silero; Sortformer has Core plus shared schemas but no XPC route.
-  Whisper/Cohere/MOSS/Nemotron/Parakeet/SenseVoice still need Core/XPC routing.
+- Normal ASR dispatch remains Native HTTP/WebSocket. Core ABI5 now has opt-in
+  Qwen, Silero and Sortformer XPC helper/client routes, but production callers
+  are not cut over. Whisper/Cohere/MOSS/Nemotron/Parakeet/SenseVoice still need
+  Core/XPC routing.
 - Native ASR input preparation still calls MLXAudioCore resampling. Replace it
   with tested application-owned resampling; do not silently reduce fidelity.
 - Native long-form VAD policy and Sortformer configuration still use Audio

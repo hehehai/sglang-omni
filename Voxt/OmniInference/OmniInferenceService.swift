@@ -47,13 +47,15 @@ nonisolated final class OmniServiceAdmission: @unchecked Sendable {
 
     func reserveValidationTermination(
         engine: OmniFinalSessionEngine, lifetime: OmniConnectionLifetime,
-        sileroEngine: OmniSileroInferenceEngine, sileroLifetime: OmniSileroInferenceEngine.ConnectionLifetime
+        sileroEngine: OmniSileroInferenceEngine, sileroLifetime: OmniSileroInferenceEngine.ConnectionLifetime,
+        sortformerEngine: OmniSortformerInferenceEngine, sortformerLifetime: OmniSortformerInferenceEngine.ConnectionLifetime
     ) throws {
         try lock.withLock {
             guard !isTerminating else {
                 throw OmniXPCFailure.error(.disconnected, "The XPC service is terminating.")
             }
             try sileroEngine.requireValidationIdle(lifetime: sileroLifetime)
+            try sortformerEngine.requireValidationIdle(lifetime: sortformerLifetime)
             try engine.reserveValidationTermination(lifetime: lifetime)
             isTerminating = true
         }
@@ -86,22 +88,27 @@ nonisolated final class OmniConnectionLifetime: @unchecked Sendable {
     }
 }
 
-nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPCProtocol {
+nonisolated final class OmniInferenceSession: NSObject, OmniInferenceXPCProtocol {
     private let engine: OmniFinalSessionEngine
     private let lifetime: OmniConnectionLifetime
     private let sileroEngine: OmniSileroInferenceEngine
     private let sileroLifetime: OmniSileroInferenceEngine.ConnectionLifetime
-    private let admission: OmniServiceAdmission
+    let sortformerEngine: OmniSortformerInferenceEngine
+    let sortformerLifetime: OmniSortformerInferenceEngine.ConnectionLifetime
+    let admission: OmniServiceAdmission
 
     init(
         engine: OmniFinalSessionEngine, lifetime: OmniConnectionLifetime,
         sileroEngine: OmniSileroInferenceEngine, sileroLifetime: OmniSileroInferenceEngine.ConnectionLifetime,
+        sortformerEngine: OmniSortformerInferenceEngine, sortformerLifetime: OmniSortformerInferenceEngine.ConnectionLifetime,
         admission: OmniServiceAdmission
     ) {
         self.engine = engine
         self.lifetime = lifetime
         self.sileroEngine = sileroEngine
         self.sileroLifetime = sileroLifetime
+        self.sortformerEngine = sortformerEngine
+        self.sortformerLifetime = sortformerLifetime
         self.admission = admission
     }
 
@@ -293,7 +300,8 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
 #if VOXT_OMNI_XPC_VALIDATION
         do {
             try admission.reserveValidationTermination(
-                engine: engine, lifetime: lifetime, sileroEngine: sileroEngine, sileroLifetime: sileroLifetime
+                engine: engine, lifetime: lifetime, sileroEngine: sileroEngine, sileroLifetime: sileroLifetime,
+                sortformerEngine: sortformerEngine, sortformerLifetime: sortformerLifetime
             )
             reply(nil)
             let replyDeliveryDelaySeconds = 0.1
@@ -310,11 +318,13 @@ nonisolated private final class OmniInferenceSession: NSObject, OmniInferenceXPC
 nonisolated final class OmniInferenceListenerDelegate: NSObject, NSXPCListenerDelegate {
     private let engine: OmniFinalSessionEngine
     private let sileroEngine: OmniSileroInferenceEngine
+    private let sortformerEngine: OmniSortformerInferenceEngine
     private let admission = OmniServiceAdmission()
 
     init(configuration: OmniXPCConfiguration) {
         engine = OmniFinalSessionEngine(configuration: configuration)
         sileroEngine = OmniSileroInferenceEngine(configuration: configuration)
+        sortformerEngine = OmniSortformerInferenceEngine(configuration: configuration)
     }
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
@@ -324,16 +334,20 @@ nonisolated final class OmniInferenceListenerDelegate: NSObject, NSXPCListenerDe
             ))
             let lifetime = OmniConnectionLifetime()
             let sileroLifetime = OmniSileroInferenceEngine.ConnectionLifetime()
+            let sortformerLifetime = OmniSortformerInferenceEngine.ConnectionLifetime()
             connection.exportedInterface = NSXPCInterface(with: OmniInferenceXPCProtocol.self)
             connection.exportedObject = OmniInferenceSession(
                 engine: engine, lifetime: lifetime, sileroEngine: sileroEngine,
-                sileroLifetime: sileroLifetime, admission: admission
+                sileroLifetime: sileroLifetime, sortformerEngine: sortformerEngine,
+                sortformerLifetime: sortformerLifetime, admission: admission
             )
-            connection.interruptionHandler = { [engine, sileroEngine] in
+            connection.interruptionHandler = { [engine, sileroEngine, sortformerEngine] in
+                sortformerEngine.disconnect(lifetime: sortformerLifetime)
                 sileroEngine.disconnect(lifetime: sileroLifetime)
                 engine.disconnect(lifetime: lifetime)
             }
-            connection.invalidationHandler = { [engine, sileroEngine] in
+            connection.invalidationHandler = { [engine, sileroEngine, sortformerEngine] in
+                sortformerEngine.disconnect(lifetime: sortformerLifetime)
                 sileroEngine.disconnect(lifetime: sileroLifetime)
                 engine.disconnect(lifetime: lifetime)
             }

@@ -114,11 +114,13 @@ Disconnect initiates service cleanup but is not a client-observed native drain
 ACK. Stale connection/model references never reset a healthy replacement or Qwen
 model, and a Silero deadline never invalidates the healthy shared connection.
 
-## Sortformer transport schema prerequisite
+## Bounded Sortformer streaming contract (opt-in)
 
-The Foundation types are implemented; Sortformer RPC selectors, helper engine
-and App client are **not yet connected**. This schema checkpoint does not add
-an executable XPC route or switch production diarization.
+The seven actual RPCs are `loadSortformer`, `unloadSortformer`,
+`startSortformerStream`, `pushSortformerAudio`, `finishSortformerStream`,
+`closeSortformerStream` and `cancelSortformerRequest`. Helper Core leases and
+App clients use this shared product directly. Production HTTP/meeting
+factories are unchanged; opt-in wiring is not signed-platform acceptance.
 
 `OmniXPCSortformerSettings` requires explicit threshold, minimum duration and
 merge gap in seconds, speaker-cache maximum frame count and FIFO maximum frame
@@ -143,9 +145,26 @@ precede decoding arrays. Use `encoded()`/`decode(_:)` at the transport boundary;
 raw Codable does not enforce the overall wire byte budget.
 
 Native finish produces no extra audio, padded tail, probability batch or final
-speaker summary. Cancellation is not drain; future helper/client paths must
-preserve explicit terminal drain/destruction and no automatic audio replay.
-Actual signed NSXPC/Metal/model acceptance remains pending.
+speaker summary. Successful finish/close replies follow checked Native
+finish/cancel, drain and destruction; cancellation ACKs do not. Service state
+is bounded to 16 live streams and 256 used stream IDs per model. Only the latest
+successful push bytes and encoded reply are retained; exact last sequence and
+bytes replay that reply without inference, while changed/future/old sequences
+reject. Neither the client nor actor automatically resubmits audio.
+
+`OmniXPCDiarizationStream.feed(samples16k:)` returns the actual whole probability
+and segment batch. Use `client.withSortformerDiarizationStream` to await cleanup
+on return, throw or cancellation; retained raw actors require explicit awaited
+`close()`. One feed/finish may run at a time. Failed close remains terminal and
+retains ownership, allowing the same actor to retry the barrier. Noncooperative
+operation code cannot be forced to return by the structured scope.
+
+Sortformer deadlines cancel only their originating operation/stream and preserve
+healthy Qwen/Silero. Malformed successful load identities use the originating
+connection and load-operation ID for scoped cleanup, never guess a model ID or
+invalidate unrelated work. The cancellation ACK initiates cleanup; it is not a
+Native resource barrier. Actual signed NSXPC/Metal/model acceptance remains
+pending.
 
 ## Test independently
 

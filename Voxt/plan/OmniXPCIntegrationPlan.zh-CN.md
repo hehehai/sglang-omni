@@ -818,12 +818,26 @@ Sortformer Core 与 cooperating publication/lease 进展见 T4d1/T4c1。Sortform
 - 真实PackageContracts88（87pass/1filesystemskip）与Artifacts70通过；ASR自有contracts20+adapter6回归通过；当前46tool tests/source/resolved audits通过。上述均不能替代真实Mac SDK/NSXPC/Metal/model/golden/concurrency/长会议验收。
 - 上游补齐的是model/NativeHTTP实现，不是完整Core/XPC/App dependency切换。下一轮直接复用这些模型补Core/XPC与调用者；Nativeinput仍用MLXAudioCore resample、VAD/Sortformer配置及生产Swift辅助路径仍用MLXAudio，现时unlink会导致编译/功能断裂。保留MLX Swift本地LLM/VLM及Remote ASR/LLM；完成这些真实consumer迁移和MacSwiftPM/App验收后再移除Audio，而非从零重做模型。
 
+### T4d2b：actual Sortformer XPC/helper/client（opt-in）
+
+- shared protocol新增7个实际selectors：load/unload/start(settings)/push/finish/close/cancel；Core ABI仍5，未改Native算法/布局。helper由专用Swift queue/lifetime/lock拥有SortformerCoreModel/stream leases，共用服务load/diagnostic admission（service→engine→token），Qwen/Silero/Sortformer状态分开。Xcode helper真实source membership与同一个Contracts/Artifacts product linkage保留。
+- directory reader在Nativeload前获取并保持到NativeDestroy后同步释放；16 live streams/256model stream IDs、每stream一个normal command及coalescedclose、最新audio≤128KiB/reply≤32KiB retained。Owner/busy/history/sequence/finite/bounds先检查再构造array；expectedframe delta依实际Native `(1 + samples/160 + 7)/8`，row-major4speakers/≤26frames/≤104segments及Float absolute times在ownedArraycopy前校验，Nativeowned result/errors及时free。
+- exact last sequence+audio bytes只返回原encodedreply、不再Feed；changed/future/old input拒绝，invalidnext input不消耗sequence。Nativepostadmission failure terminal；client不自动重发audio。finish无output/padding/tail，成功finish/close只在Native finish/cancel→drain/destroy后释放slot/回复；失败retainmodel/reader/lease，可同actor/stream retryclose。原cancel ACK/deadline非barrier。
+- MainActorclient捕获originconnection/service/model/stream，检查sequence/frameprogress；新actor `OmniXPCDiarizationStream.feed(samples16k:)`返回真实完整DTO。structured `withSortformerDiarizationStream`在return/throw/cancel后awaitclose，retained rawactor需显式close；noncooperativecallback不可强制返回。Sortformer deadline使用typedscopedcancel，健康Qwen/Silero不会因此disconnect。
+- 独立review发现P2 malformed successful load identity时Native model/reader无清理入口。actual BEFORE/AFTER client+helper+Core harness复现：Before malformedserviceUUID导致reader retained/reloadbusy；After用原connection+loadOP nil-model scoped cancel，eventual reader release/reload成功且Qwen/Silero/连接健康。cleanup ACK仍不冒称drain；RPCcleanup失败会surfaced而不是假成功。21 actual portable state/controlled-peer tests（10state+11ownership）两配置均通过，非真实NSXPC XCTest。
+- actual combined client/exportedservice/Core/worker harness通过last-reply重复回放/no extraFeed、NaN/sequence拒绝后正常nextseq、独立states、continual>30s、无tailfinish/idempotency、blockedFeed timeout/close/unload barriers、健康Qwen/Silero、structuredscope、same-actor transientRPCclosefail retry、16states/stale starts、disconnect→Native release→reconnect。model/MLX及RPC/platform为明确替身，不是concurrentGPU/recognitiongolden；重复payload测试不是实际跨进程网络丢包。service额外harness包括blockedcreate、256history、Native settings/outputfailure、Native drain-fault interposer close/loadOP/disconnectretry及旧OP不误伤replacement，重复3runs通过。
+- 独立followup重跑BadLoad BEFORE/AFTER、combinedharness与21 portable tests，scope内无新增具体finding。Clientagent在已写完source/20tests后遇modelpool concurrencylimit，未提供finalhandback；Main接管并按finalsources独立重建/补回归，不声称该agent提供完整认证。Main初次portable调用遗漏测试containerENV导致10fixture failures；正确ENV后21两配置通过，原日志保留。
+- Package Debug/Release各88（87pass/1filesystemskip），Native GCC ABI96/ClangASanUBSan+floatcast ABI96+realtime42=138通过；46tool tests/source+resolvedaudits通过。helper/client/smoke supplementaltypecheck只去掉macOS/@objc/Darwin gates并使用平台替身，actualSDK/Objective-C selector/NSXPC/签名/Metal/model仍未验证。
+- Signed smoke保留原4/5参数，新增可选第6Sortformer fixture（第5可空字符串），stage `Models/OmniXPCSortformerSmoke/<run-id>` dereferencedweights；report optional `sortformer_stream_count=4`（每helper2 structuredstates再reconnect2states），成功unload后清fixture，失败retain。真实signedrun未执行，不等于modelaccuracygolden。gatedMacCI只增加portablestate suite选择，未启用gates。
+
+当前production说话人分析/HTTP factories未切换，MLXAudio和MLXSwift LLM/VLM保留。下一步复用actualSortformerXPC actor迁移productioncaller及配置依赖，然后扩展六个HTTP-onlyASR families Core/XPC；目录/平台/发布硬门槛不跳过。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |
 | --- | --- |
 | T2/full T3 | 实际signed Mac/Xcode/NSXPC/App Group/Metal/model验证；历史包装结果不覆盖新提交 |
-| T4 | Sortformer XPC/client、全部cached-directory迁移/授权/lease-delete与真实3runtime并行/golden |
+| T4 | opt-in Sortformer XPC/client已实现；production diarization调用者迁移、全部cached-directory迁移/授权/lease-delete与真实3runtime并行/golden待补 |
 | T5 | Whisper/Cohere/MOSS/Nemotron/Parakeet/SenseVoice Core/XPC、MOSS/Nemotron typed realtime及完整客户端切换；复用上游已实现模型，production仍Native HTTP/辅助路径 |
 | T6 | 所有ASR/VAD调用者迁移后删除Audio package/branches与完整App/Intel/LLM/VLM回归；当前依赖保留 |
 | T7 | actual signing/notarization/clean-machine、memory/performance/longmeeting/failure矩阵及release gates |

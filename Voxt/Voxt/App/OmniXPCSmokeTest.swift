@@ -22,6 +22,7 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
     var realtimeCancellationDrained: Bool? = nil
     var sileroRequestCount: Int? = nil
     var sileroStreamCount: Int? = nil
+    var sortformerStreamCount: Int? = nil
     var errorDomain: String? = nil
     var errorCode: Int? = nil
 
@@ -40,6 +41,7 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
         case realtimeCancellationDrained = "realtime_cancellation_drained"
         case sileroRequestCount = "silero_request_count"
         case sileroStreamCount = "silero_stream_count"
+        case sortformerStreamCount = "sortformer_stream_count"
         case errorDomain = "error_domain"
         case errorCode = "error_code"
     }
@@ -144,6 +146,13 @@ extension AppDelegate {
                             client: connected, modelDirectory: sileroDirectory, samples: samples, timeout: .seconds(timeoutSeconds)
                         )
                     }
+                    let sortformerDirectory = environment["VOXT_OMNI_XPC_SMOKE_SORTFORMER_DIRECTORY"]
+                    if let sortformerDirectory {
+                        try await Self.validateOmniSortformerSmoke(
+                            client: connected, modelDirectory: probe.groupContainer.appendingPathComponent(sortformerDirectory),
+                            samples: samples, timeout: .seconds(timeoutSeconds)
+                        )
+                    }
                     try await connected.unloadQwen(model)
                     try await connected.terminateForValidation()
                     let restarted = try await connected.probe()
@@ -167,6 +176,12 @@ extension AppDelegate {
                             client: connected, modelDirectory: sileroDirectory, samples: samples, timeout: .seconds(timeoutSeconds)
                         )
                     }
+                    if let sortformerDirectory {
+                        try await Self.validateOmniSortformerSmoke(
+                            client: connected, modelDirectory: restarted.groupContainer.appendingPathComponent(sortformerDirectory),
+                            samples: samples, timeout: .seconds(timeoutSeconds)
+                        )
+                    }
                     try await connected.unloadQwen(recoveredModel)
                     try Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(
                         status: .passed, abiVersion: restarted.abiVersion,
@@ -178,7 +193,8 @@ extension AppDelegate {
                         elapsedSeconds: Date().timeIntervalSince(started),
                         realtimeSessionCount: 3, realtimeCancellationDrained: true,
                         sileroRequestCount: sileroDirectory == nil ? nil : 4,
-                        sileroStreamCount: sileroDirectory == nil ? nil : 2
+                        sileroStreamCount: sileroDirectory == nil ? nil : 2,
+                        sortformerStreamCount: sortformerDirectory == nil ? nil : 4
                     ))
                 }
                 connected.invalidate()
@@ -221,6 +237,31 @@ extension AppDelegate {
             _ = try await stream.finish()
         }
         try await client.unloadSilero(model)
+    }
+
+    private static func validateOmniSortformerSmoke(
+        client: OmniXPCClient, modelDirectory: URL, samples: [Float], timeout: Duration
+    ) async throws {
+        let model = try await client.loadSortformer(modelDirectory: modelDirectory, timeout: timeout)
+        let settings = try OmniXPCSortformerSettings(
+            threshold: 0.5, minimumDurationSeconds: 0, mergeGapSeconds: 0.18,
+            speakerCacheMaximumFrameCount: 188, fifoMaximumFrameCount: 188
+        )
+        for _ in 0..<2 {
+            try await client.withSortformerDiarizationStream(model: model, settings: settings, timeout: timeout) { stream in
+                var processedFrameCount: UInt64 = 0
+                for offset in stride(from: 0, to: samples.count, by: OmniXPCSortformerLimits.maximumChunkSampleCount) {
+                    let end = min(offset + OmniXPCSortformerLimits.maximumChunkSampleCount, samples.count)
+                    let batch = try await stream.feed(samples16k: Array(samples[offset..<end]))
+                    guard batch.processedFrameCount > processedFrameCount else {
+                        throw OmniXPCFailure.error(.nativeFailure, "Sortformer did not advance its processed frame count.")
+                    }
+                    processedFrameCount = batch.processedFrameCount
+                }
+                try await stream.finish()
+            }
+        }
+        try await client.unloadSortformer(model)
     }
 
     private static func omniSmokeInteger(_ value: String?, defaultValue: Int, maximum: Int) throws -> Int {
