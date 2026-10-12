@@ -80,7 +80,10 @@ extension OmniXPCClient {
         streamID: UUID = UUID(), timeout: Duration = .seconds(30)
     ) async throws -> OmniXPCSortformerStreamReference {
         try Task.checkCancellation()
-        try requireConnection(model.connectionID)
+        let modelState = try requireSortformerModel(model)
+        guard !modelState.closing, !modelState.unloading else {
+            throw OmniXPCFailure.error(.busy, "The Sortformer model is retiring.")
+        }
         let encodedSettings = try settings.encoded()
         guard timeout > .zero, sortformerStreams[streamID] == nil,
               closedSortformerStreams[streamID] == nil else {
@@ -250,7 +253,7 @@ extension OmniXPCClient {
         return state
     }
 
-    private func retireSortformerStream(_ state: OmniXPCSortformerStreamState) {
+    func retireSortformerStream(_ state: OmniXPCSortformerStreamState) {
         state.drained = true
         state.terminal = true
         state.busy = false

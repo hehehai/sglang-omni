@@ -25,12 +25,15 @@ func makeSortformerOwnershipFixture() async throws -> (OmniXPCClient, OmniXPCSor
 }
 
 nonisolated final class SortformerOwnershipPeer: OmniInferenceXPCProtocol {
-    let modelID = UUID()
+    var modelID = UUID()
     let serviceInstanceID = UUID()
     var startCount = 0, pushCount = 0, finishCount = 0, cancelCount = 0, closeCount = 0, otherCancelCount = 0
     var blockStart = false, blockPush = false, blockClose = false, corruptIdentity = false
     var corruptLoadIdentity = false, blockLoad = false, blockLoadDrain = false
-    var loadCount = 0, loadDrainCount = 0
+    var loadCount = 0, loadDrainCount = 0, unloadCount = 0
+    var blockUnload = false
+    var unloadFailure: NSError?
+    private var unloadReply: (@Sendable (NSError?) -> Void)?
     var loadFailure: NSError?, loadDrainFailure: NSError?
     var loadOperationID: String?
     var cancelledLoadOperationID: String?, drainedLoadOperationID: String?
@@ -52,6 +55,7 @@ nonisolated final class SortformerOwnershipPeer: OmniInferenceXPCProtocol {
     }
     func loadSortformer(operationID: String, modelDirectory: String, withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void) {
         loadCount += 1
+        modelID = UUID()
         loadOperationID = operationID
         loadReply = reply
         if !blockLoad { releaseLoad() }
@@ -66,10 +70,17 @@ nonisolated final class SortformerOwnershipPeer: OmniInferenceXPCProtocol {
         loadDrainReply = reply
         if !blockLoadDrain { releaseLoadDrain() }
     }
-    func releaseLoadDrain() { loadDrainReply?(loadDrainFailure); loadDrainReply = nil }
-    func unloadSortformer(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void) {
-        reply(processedFrames.isEmpty ? nil : OmniXPCFailure.error(.busy, "Undrained controlled streams"))
+    func releaseLoadDrain() {
+        if loadDrainFailure == nil { processedFrames.removeAll() }
+        loadDrainReply?(loadDrainFailure); loadDrainReply = nil
     }
+    func unloadSortformer(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void) {
+        unloadCount += 1
+        if !processedFrames.isEmpty { reply(OmniXPCFailure.error(.busy, "Undrained controlled streams")); return }
+        unloadReply = reply
+        if !blockUnload { releaseUnload() }
+    }
+    func releaseUnload() { unloadReply?(unloadFailure); unloadReply = nil }
     func startSortformerStream(streamID: String, modelID: String, settings: Data, withReply reply: @escaping @Sendable (String?, NSError?) -> Void) {
         startCount += 1
         self.settings = try! OmniXPCSortformerSettings.decode(settings)

@@ -884,6 +884,16 @@ production factory、cache路径、AudioSPM/MLXSwift LLM/VLM/Remote routes未切
 
 下一步仍是实际sharedModels路径准备/authorization/外部owner与coordinator资源屏障、失联/旧owner释放恢复策略，再推进六ASR families Core/XPC；没有拿1.16快速发布或本次ABI6当作全部规划完成。
 
+### T4d5a：successful-model 原load scope退休身份（Owner/coordinator前置）
+
+- App successful load保留originaloperationID+完整model/service/connection reference，当前connection最多1modelbinding与≤256closed-modelreference历史。`closeSortformerModel`复用actual八RPC中的drainSortformerLoad，以原OPawait完整Native stream/model checked销毁，不猜modelID、不在timeout后冒称清理完成；model/streams先terminal以拒新start/lateoutput，成功才retire bindings。失败/deadline保留可retry，同modelclosingTask coalesceuncancelled且insideTask退役，不影响replacement。
+- 既有unload仍拒live streams，pendingunload阻止newstarts，busy/failure不本地误关健康model。lost successfulunloadreply可用originalloadtombstone确认完整退休，避免server已销毁但client只有stale modelID。旧成功close在exacthistory内idempotent，forged svc/model/conn与evictedunknown refs本地拒绝；service复用retired UUID回复会进入scoped failed-load cleanup。
+- genuineinvalidate/disconnect清success-modelmap/history（与旧streammap一致），不当作Nativebarrier、不能旧refretarget新connection；T4d4 failed-load未知ticket仍retain。未来externalOwner必须自行retainlease/modelRef/permit失联路径，不能凭map absence放开GPU lane。client仍支持原actualhelperdrain后reconnect，不引入自动重发model/audio。
+- 5项newmodelpublicAPI cases追加已有loadownershipsuite，总portable56/config Debug/Release；controlledpeer每load更新UUID对齐实际helper而非staticID掩盖generation。独立read-onlyreview56/config、9extra lateUnload/start/feed/deadline/retiredUUID/history/conn/provisional cases两配置通过（额外不是项目test），noadditionalscopedfinding。actualNative代码/service/protocol/ABI6不变。
+- Actualclient→exportedhelper→Core6 CPU chain：blockedFeed关model时reader仍busy/不earlyreturn且Qwen/Silero健康，streamcheckedDestroy人工失败retainbindings/same-scope retry，实际已成功unload却reply丢失后OPtombstone确认、oldclose不伤replacementfeed。原Sortformer+Qwencombinedregression重编当前client通过；实际签名smoke改成功/异常terminalcleanup为closeModel，原6streams/2callersreport不变，signedrun未执行。
+
+这里是owner所需的退休入口，并未实现sharedModels copy/迁移或完整ModelOwner/coordinator wiring；下一步用retainableowned permit覆盖prepare/失败cleanup/close失联资源未知路径，不能把load/close丢进原always-defer-release withPermit就宣布安全。production factory、Audio/LLM/VLM/Remote/settings/cachepaths/签名/CIgates均未切换。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |

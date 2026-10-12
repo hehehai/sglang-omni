@@ -20,8 +20,8 @@ extension OmniXPCClient {
         modelDirectory: URL, timeout: Duration = .seconds(300), cleanupTimeout: Duration = .seconds(60)
     ) async throws -> OmniXPCSortformerModelReference {
         try Task.checkCancellation()
-        guard pendingSortformerLoad == nil else {
-            throw OmniXPCFailure.error(.busy, "Complete the pending Sortformer load cleanup before loading another model.")
+        guard pendingSortformerLoad == nil, sortformerModel == nil else {
+            throw OmniXPCFailure.error(.busy, "Retire the current Sortformer model and any pending load cleanup before loading another model.")
         }
         guard timeout > .zero, cleanupTimeout > .zero else {
             throw OmniXPCFailure.error(.invalidRequest, "The Sortformer load and cleanup timeouts must be positive.")
@@ -63,6 +63,10 @@ extension OmniXPCClient {
             }
             try Task.checkCancellation()
             try requireConnection(model.connectionID)
+            guard closedSortformerModels[model.modelID] == nil else {
+                throw OmniXPCFailure.error(.incompatibleService, "The service reused a retired Sortformer model identity.")
+            }
+            sortformerModel = OmniXPCSortformerModelState(reference: model, loadOperationID: operationID)
             pendingSortformerLoad = nil
             return model
         } catch {
@@ -110,7 +114,12 @@ extension OmniXPCClient {
     func unloadSortformer(
         _ model: OmniXPCSortformerModelReference, timeout: Duration = .seconds(60)
     ) async throws {
-        try requireConnection(model.connectionID)
+        let state = try requireSortformerModel(model)
+        guard !state.closing, !state.unloading else {
+            throw OmniXPCFailure.error(.busy, "The Sortformer model already has pending retirement.")
+        }
+        state.unloading = true
+        defer { state.unloading = false }
         let operationID = UUID().uuidString
         let _: Void = try await perform(
             timeout: timeout, requiredConnectionID: model.connectionID,
@@ -120,6 +129,7 @@ extension OmniXPCClient {
                 if let error { resolve(.failure(error)) } else { resolve(.success(())) }
             }
         }
+        retireSortformerModel(state)
     }
 }
 #endif

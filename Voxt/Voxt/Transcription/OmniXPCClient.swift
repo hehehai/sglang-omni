@@ -37,6 +37,8 @@ final class OmniXPCClient {
     var closedSileroStreams: [UUID: OmniXPCSileroStreamReference] = [:]
     var sortformerStreams: [UUID: OmniXPCSortformerStreamState] = [:]
     var closedSortformerStreams: [UUID: OmniXPCSortformerStreamReference] = [:]
+    var sortformerModel: OmniXPCSortformerModelState?
+    var closedSortformerModels: [UUID: OmniXPCSortformerModelReference] = [:]
     var pendingSortformerLoad: OmniXPCSortformerLoadState?
     var sortformerLoadCleanup: OmniXPCSortformerLoadCleanup?
     var connectionIdentifier: UUID? { connection?.id }
@@ -148,6 +150,8 @@ final class OmniXPCClient {
         closedSileroStreams.removeAll()
         sortformerStreams.removeAll()
         closedSortformerStreams.removeAll()
+        sortformerModel = nil
+        closedSortformerModels.removeAll()
         let calls = Array(pending.values)
         pending.removeAll()
         transport?.invalidate()
@@ -256,6 +260,8 @@ final class OmniXPCClient {
         transport?.invalidate()
         sortformerStreams.removeAll()
         closedSortformerStreams.removeAll()
+        sortformerModel = nil
+        closedSortformerModels.removeAll()
         let ids = pending.filter { $0.value.connectionID == id }.map(\.key)
         for requestID in ids {
             guard let call = take(requestID) else { continue }

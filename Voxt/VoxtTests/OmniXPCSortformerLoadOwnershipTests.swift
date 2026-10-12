@@ -193,6 +193,103 @@ nonisolated final class OmniXPCSortformerLoadOwnershipTests: XCTestCase {
     }
 
     @MainActor
+    func testLoadedModelCloseAwaitsOriginalLoadDrainAndRejectsNewWork() async throws {
+        let (client, model, peer) = try await makeSortformerOwnershipFixture()
+        let settings = try OmniXPCSortformerSettings(threshold: 0.5, minimumDurationSeconds: 0,
+            mergeGapSeconds: 0.18, speakerCacheMaximumFrameCount: 188, fifoMaximumFrameCount: 188)
+        let stream = try await client.startSortformerStream(model: model, settings: settings)
+        let originalLoadID = peer.loadOperationID
+        peer.blockLoadDrain = true
+        var closed = false
+        let closing = Task { try await client.closeSortformerModel(model); closed = true }
+        try await wait { peer.loadDrainCount == 1 }
+        XCTAssertFalse(closed)
+        XCTAssertEqual(peer.drainedLoadOperationID, originalLoadID)
+        XCTAssertNotNil(client.sortformerModel)
+        XCTAssertEqual(client.sortformerStreams.count, 1)
+        do { _ = try await client.startSortformerStream(model: model, settings: settings); XCTFail("Retiring model accepted a start") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.busy.rawValue) }
+        do { _ = try await client.pushSortformerAudio(Data(repeating: 0, count: 4), to: stream, sequence: 1); XCTFail("Retiring stream accepted audio") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.invalidRequest.rawValue) }
+        peer.releaseLoadDrain()
+        try await closing.value
+        XCTAssertNil(client.sortformerModel)
+        XCTAssertTrue(client.sortformerStreams.isEmpty)
+        try await client.closeSortformerModel(model)
+        XCTAssertEqual(peer.loadDrainCount, 1)
+    }
+
+    @MainActor
+    func testFailedModelCloseRetainsBindingsAndCoalescesSameModelRetry() async throws {
+        let (client, model, peer) = try await makeSortformerOwnershipFixture()
+        peer.loadDrainFailure = OmniXPCFailure.error(.nativeFailure, "Controlled model destruction failure")
+        do { try await client.closeSortformerModel(model); XCTFail("Failed model drain acknowledged") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.nativeFailure.rawValue) }
+        XCTAssertEqual(client.sortformerModel?.reference, model)
+        XCTAssertNil(client.closedSortformerModels[model.modelID])
+        peer.loadDrainFailure = nil
+        peer.blockLoadDrain = true
+        let first = Task { try await client.closeSortformerModel(model) }
+        let second = Task { try await client.closeSortformerModel(model) }
+        try await wait { peer.loadDrainCount == 2 }
+        peer.releaseLoadDrain()
+        try await first.value
+        try await second.value
+        XCTAssertEqual(peer.loadDrainCount, 2)
+        XCTAssertNil(client.sortformerModel)
+    }
+
+    @MainActor
+    func testUnloadTimeoutCanRetireByOriginalLoadEvenAfterItsReplyWasLost() async throws {
+        let (client, model, peer) = try await makeSortformerOwnershipFixture()
+        peer.blockUnload = true
+        let originalLoadID = peer.loadOperationID
+        do { try await client.unloadSortformer(model, timeout: .milliseconds(10)); XCTFail("Blocked unload succeeded") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.timedOut.rawValue) }
+        XCTAssertEqual(client.sortformerModel?.reference, model)
+        try await client.closeSortformerModel(model)
+        XCTAssertEqual(peer.drainedLoadOperationID, originalLoadID)
+        XCTAssertNil(client.sortformerModel)
+        peer.releaseUnload()
+        try await client.closeSortformerModel(model)
+        XCTAssertEqual(peer.loadDrainCount, 1)
+    }
+
+    @MainActor
+    func testModelDrainRetiresFailedProvisionalStartWithoutStreamActor() async throws {
+        let (client, model, peer) = try await makeSortformerOwnershipFixture()
+        peer.startFailure = OmniXPCFailure.error(.nativeFailure, "Controlled ambiguous stream creation")
+        peer.closeFailure = OmniXPCFailure.error(.nativeFailure, "Controlled stream cleanup failure")
+        let settings = try OmniXPCSortformerSettings(threshold: 0.5, minimumDurationSeconds: 0,
+            mergeGapSeconds: 0.18, speakerCacheMaximumFrameCount: 188, fifoMaximumFrameCount: 188)
+        do { _ = try await client.startSortformerStream(model: model, settings: settings); XCTFail("Failed start succeeded") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.nativeFailure.rawValue) }
+        XCTAssertEqual(client.sortformerStreams.count, 1)
+        try await client.closeSortformerModel(model)
+        XCTAssertTrue(client.sortformerStreams.isEmpty)
+        XCTAssertNil(client.sortformerModel)
+        XCTAssertEqual(peer.loadDrainCount, 1)
+    }
+
+    @MainActor
+    func testForgedModelCannotDrainAndOldCloseCannotAffectReplacement() async throws {
+        let (client, model, peer, directory) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let replacement = try await client.loadSortformer(modelDirectory: directory)
+        let forged = OmniXPCSortformerModelReference(modelID: replacement.modelID, serviceInstanceID: UUID(), connectionID: replacement.connectionID)
+        do { try await client.closeSortformerModel(forged); XCTFail("Forged model retired") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.invalidRequest.rawValue) }
+        try await client.closeSortformerModel(model)
+        XCTAssertEqual(peer.loadDrainCount, 0)
+        XCTAssertEqual(client.sortformerModel?.reference, replacement)
+        try await client.closeSortformerModel(replacement)
+        XCTAssertNil(client.sortformerModel)
+        client.invalidate()
+        do { try await client.closeSortformerModel(replacement); XCTFail("Lost connection certified old cleanup") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.invalidRequest.rawValue) }
+    }
+
+    @MainActor
     private func fixture() async throws -> (OmniXPCClient, OmniXPCSortformerModelReference, SortformerOwnershipPeer, URL) {
         let (client, model, peer) = try await makeSortformerOwnershipFixture()
         try await client.unloadSortformer(model)

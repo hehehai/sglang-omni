@@ -246,40 +246,45 @@ extension AppDelegate {
         client: OmniXPCClient, modelDirectory: URL, samples: [Float], timeout: Duration
     ) async throws {
         let model = try await client.loadSortformer(modelDirectory: modelDirectory, timeout: timeout)
-        let settings = try OmniXPCSortformerSettings(
-            threshold: 0.5, minimumDurationSeconds: 0, mergeGapSeconds: 0.18,
-            speakerCacheMaximumFrameCount: 188, fifoMaximumFrameCount: 188
-        )
-        for _ in 0..<2 {
-            try await client.withSortformerDiarizationStream(model: model, settings: settings, timeout: timeout) { stream in
-                var processedFrameCount: UInt64 = 0
-                for offset in stride(from: 0, to: samples.count, by: OmniXPCSortformerLimits.maximumChunkSampleCount) {
-                    let end = min(offset + OmniXPCSortformerLimits.maximumChunkSampleCount, samples.count)
-                    let batch = try await stream.feed(samples16k: Array(samples[offset..<end]))
-                    guard batch.processedFrameCount > processedFrameCount else {
-                        throw OmniXPCFailure.error(.nativeFailure, "Sortformer did not advance its processed frame count.")
+        do {
+            let settings = try OmniXPCSortformerSettings(
+                threshold: 0.5, minimumDurationSeconds: 0, mergeGapSeconds: 0.18,
+                speakerCacheMaximumFrameCount: 188, fifoMaximumFrameCount: 188
+            )
+            for _ in 0..<2 {
+                try await client.withSortformerDiarizationStream(model: model, settings: settings, timeout: timeout) { stream in
+                    var processedFrameCount: UInt64 = 0
+                    for offset in stride(from: 0, to: samples.count, by: OmniXPCSortformerLimits.maximumChunkSampleCount) {
+                        let end = min(offset + OmniXPCSortformerLimits.maximumChunkSampleCount, samples.count)
+                        let batch = try await stream.feed(samples16k: Array(samples[offset..<end]))
+                        guard batch.processedFrameCount > processedFrameCount else {
+                            throw OmniXPCFailure.error(.nativeFailure, "Sortformer did not advance its processed frame count.")
+                        }
+                        processedFrameCount = batch.processedFrameCount
                     }
-                    processedFrameCount = batch.processedFrameCount
+                    try await stream.finish()
                 }
-                try await stream.finish()
             }
+            let configuration = try MeetingSortformerConfiguration.load(from: modelDirectory)
+            let engine = MeetingSpeakerDiarizationEngineFactory.makeXPC(
+                client: client, model: model, configuration: configuration
+            )
+            let descriptor = MeetingAudioAssetDescriptor(
+                source: .mixed, sampleRate: 16_000, startSample: 0, sampleCount: samples.count
+            )
+            let turns = try await engine.diarizeFile(
+                descriptors: [descriptor], loadAsset: { _ in
+                    MeetingAudioAsset(source: .mixed, samples: samples, sampleRate: 16_000, sessionStartOffset: 0)
+                }, options: .init(), progress: nil
+            )
+            guard turns.allSatisfy({ $0.startSeconds >= 0 && $0.endSeconds <= Double(samples.count) / 16_000 }) else {
+                throw OmniXPCFailure.error(.nativeFailure, "The Sortformer caller returned out-of-audio turn bounds.")
+            }
+        } catch {
+            try await client.closeSortformerModel(model, timeout: timeout)
+            throw error
         }
-        let configuration = try MeetingSortformerConfiguration.load(from: modelDirectory)
-        let engine = MeetingSpeakerDiarizationEngineFactory.makeXPC(
-            client: client, model: model, configuration: configuration
-        )
-        let descriptor = MeetingAudioAssetDescriptor(
-            source: .mixed, sampleRate: 16_000, startSample: 0, sampleCount: samples.count
-        )
-        let turns = try await engine.diarizeFile(
-            descriptors: [descriptor], loadAsset: { _ in
-                MeetingAudioAsset(source: .mixed, samples: samples, sampleRate: 16_000, sessionStartOffset: 0)
-            }, options: .init(), progress: nil
-        )
-        guard turns.allSatisfy({ $0.startSeconds >= 0 && $0.endSeconds <= Double(samples.count) / 16_000 }) else {
-            throw OmniXPCFailure.error(.nativeFailure, "The Sortformer caller returned out-of-audio turn bounds.")
-        }
-        try await client.unloadSortformer(model)
+        try await client.closeSortformerModel(model, timeout: timeout)
     }
 
     private static func omniSmokeInteger(_ value: String?, defaultValue: Int, maximum: Int) throws -> Int {

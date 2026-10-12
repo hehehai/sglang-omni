@@ -141,6 +141,18 @@ retarget cleanup through a new connection. Cancel ACKs, deadlines and disconnect
 are not resource barriers. No automatic model/audio replay or connection reset is
 introduced, and coordinator ownership across failed loads is not yet switched.
 
+Successful App loads also retain their original operation ID in one current
+model binding. `closeSortformerModel(_:timeout:)` drains that original scope,
+including provisional or live streams; retirement failure/deadline keeps the
+binding for retry. Unload still rejects live streams, but a lost successful unload
+reply can be resolved through the load tombstone rather than a guessed model ID.
+New stream starts and late outputs are blocked while closing. Exact closed-model
+references are idempotent within a 256-entry current-connection history; foreign
+or evicted references are rejected. Connection loss clears those success-model
+maps without proving Native release; a future external owner must retain its own
+lease/reference/permit on that path. Retained coordinator permits are not wired
+by this prerequisite.
+
 ABI6 adds status-returning Sortformer model/stream destruction. On failure the
 helper retains raw handles, leases and readers for retry, including cancelled
 unpublished loads and failed unload. Legacy void C entry points and layouts are
