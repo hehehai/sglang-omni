@@ -860,7 +860,8 @@ production factory、cache路径、AudioSPM/MLXSwift LLM/VLM/Remote routes未切
 
 ### 官方main再同步与T4c3：legacy Sortformer reader coordination
 
-- 用户确认目标为 `sgl-project/sglang-omni/main`。本轮freshfetch为7f78bf3，已是ec43cae祖先，实际merge返回Already up to date；不制造空merge、不rebase/重写3个local checkpoint。用户提出1.16快速发布实现仍作为短期兼容基线，核心继续Core/XPC/owned contracts/协作目录/真实平台验收路线，不把发布完成写成迁移完成。当前API可见Voxt独立repo仍baa6f316/1.15.0，不冒称已拿到不存在于本轮fetch的1.16差异，也不把独立repo根目录混入本项目。
+- 用户确认目标为 `sgl-project/sglang-omni/main`。初次freshfetch为7f78bf3，已是ec43cae祖先，实际merge返回Already up to date；不制造空merge、不rebase/重写local checkpoint。后续复核fetch新增e3d7dc378c749914ffca07576c00b16d32b08739（父7f78bf3），仅README发布news，单独正常双亲merge。
+- 用户所述1.16确认发布于SGLang-Omni仓库 `voxt-v1.16.0`，发布时间2026-10-11T19:12:10Z；annotatedtag实际source为5f3a4e25dc1292f2e565ad10b37357416a07813c，独立发布分支，未进入本轮官方main。与旧main的共同祖先740576d7，含快速packaging、版本、Developer ID provisioning/signing、MacCI默认启用等提交；不能把main README news当作这些发布实现已合入，更不因merge请求自动开启CI/更改签名。按用户确认只mergeofficialmain，未混入tag分支或独立Voxt仓库根目录。后续若合入发布分支须明确scope与保留迁移gates。1.16短期发布实现不改变Core/XPC/owned contracts/协作目录/真实平台验收终点，发布成功不等于迁移完成。
 - 从RealtimeDiarization拆出实际 `MeetingSortformerModelStorage`（Foundation/HF/Artifacts，无MLXAudio）；原path/readable/write/temp/cache/presencechecker策略保留。新增validatedModelDirectoryLease在原readable root顺序下，先sharedRead再presencevalidation；missing/invalid返回nil，busy/unsafe直接抛错，不静默换另一个cache。
 - 新paired `MeetingSortformerModelLease`，被actual MLX meetingengine和realtimeannotationstage两处使用；reader覆盖真实Swiftmodelconstruction，model先销毁再释放reader。每次operation用localholder/defer pin跨所有await，file结束/cacheclear/realtime reset不让正在feed的旧model提前失去reader；file/live feed用捕获的model，而非afterawait再读可能被换掉的cache。reader acquire后checkcancellation并再次checkcache，防止actorreentry不必要的duplicate load。
 - 不改变旧Swiftmodel数值/阈值/padding/state/mapping/progress，也不把Swiftcancel/stream/presentation completion冒称MLXworker/Metal barrier。pinnedmodel内部eval仅source检查，实际GPU teardown/ARClazygraph仍需Mac。
