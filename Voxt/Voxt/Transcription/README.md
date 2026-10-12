@@ -27,6 +27,22 @@ not external blob writes, uncoordinated namespace replacement, or an app crash
 that releases its locks before an orphaned server finishes parent-death cleanup.
 Legacy Swift readers and repair/shadow-cache maintenance are not all coordinated.
 
+## Explicit batch model ownership
+
+`OmniXPCBatchModelOwner` prepares a caller-supplied shared Models directory,
+retains an App reader through model residency, and requires explicit preparation
+before bounded final transcription. Loading and requests reserve identity-owned
+file/final ASR coordinator permits. A successful command releases its lane while
+keeping the cached model/reader; error or cancellation drains the original model
+scope before release. Failed or lost cleanup retains the reader/reference/permit
+for explicit owner close retry, never replay, implicit reload or retarget.
+Close is permanent, uncancelled and coalesced; it cancels and awaits active work
+before retirement and reuses a retained permit instead of queuing behind itself.
+Retain the owner and await close; deinit is not a Native resource barrier.
+This remains opt-in, at most 30 seconds per final request. Default HTTP/meeting
+routing, longform/realtime migration, model choices and Audio dependencies are
+unchanged; actual SDK/NSXPC/Metal acceptance remains pending.
+
 ## MLX boundaries
 
 `MLXTranscriber` owns recording tasks, revision checks, model leases and capture-buffer instances. Pure policy is in `MLXTranscriptionPlanning`, `MLXInferenceConfiguration`, `MLXTranscriptMerging`, and `MLXLiveTextPreview`. Shared values, buffers, detached inference and structured segment conversion live in their correspondingly named files.

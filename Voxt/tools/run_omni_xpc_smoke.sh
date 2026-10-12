@@ -8,6 +8,8 @@ set -euo pipefail
 }
 [[ $# -ge 4 && $# -le 6 ]] || {
   echo "usage: run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file> [silero-model-directory] [sortformer-model-directory]" >&2
+  echo "Optional batch: supply ALL of VOXT_OMNI_XPC_SMOKE_BATCH_KIND, VOXT_OMNI_XPC_SMOKE_BATCH_MODEL_SOURCE and VOXT_OMNI_XPC_SMOKE_BATCH_EXPECTED_SOURCE." >&2
+  echo "Batch kind: 1=whisper, 2=cohere, 3=moss, 4=nemotron, 5=parakeet, 6=sensevoice; expected source: nonempty UTF-8, <=65536 bytes." >&2
   exit 2
 }
 app="$1"
@@ -59,8 +61,46 @@ environment = {
     and key not in {'VOXT_OMNI_RUNTIME', 'VOXT_ASR_BACKEND', 'MLX_METAL_PATH'}
 }
 
+BATCH_FIELDS = (
+    'VOXT_OMNI_XPC_SMOKE_BATCH_KIND',
+    'VOXT_OMNI_XPC_SMOKE_BATCH_MODEL_SOURCE',
+    'VOXT_OMNI_XPC_SMOKE_BATCH_EXPECTED_SOURCE',
+)
+MAXIMUM_BATCH_EXPECTED_BYTE_COUNT = 65_536
+batch_environment = {field: os.environ[field] for field in BATCH_FIELDS if field in os.environ}
+batch_kind: int | None = None
+batch_expected_bytes: bytes | None = None
+if batch_environment:
+    if len(batch_environment) != len(BATCH_FIELDS) or not all(batch_environment.values()):
+        raise ValueError('Optional batch smoke requires all three explicit environment values.')
+    else:
+        pass
+    if batch_environment[BATCH_FIELDS[0]] not in {'1', '2', '3', '4', '5', '6'}:
+        raise ValueError('Batch kind must be 1=whisper, 2=cohere, 3=moss, 4=nemotron, 5=parakeet, 6=sensevoice.')
+    else:
+        batch_kind = int(batch_environment[BATCH_FIELDS[0]])
+    batch_source = pathlib.Path(batch_environment[BATCH_FIELDS[1]]).resolve()
+    batch_expected_source = pathlib.Path(batch_environment[BATCH_FIELDS[2]]).resolve()
+    if not batch_source.is_dir() or not batch_expected_source.is_file():
+        raise ValueError('The batch model directory or expected transcript file is missing.')
+    else:
+        pass
+    with batch_expected_source.open('rb') as source:
+        batch_expected_bytes = source.read(MAXIMUM_BATCH_EXPECTED_BYTE_COUNT + 1)
+    if len(batch_expected_bytes) > MAXIMUM_BATCH_EXPECTED_BYTE_COUNT:
+        raise ValueError('The batch expected transcript exceeds 65536 bytes.')
+    elif not batch_expected_bytes.decode('utf-8').strip():
+        raise ValueError('The batch expected transcript must be nonempty UTF-8.')
+    else:
+        pass
+    batch_environment[BATCH_FIELDS[1]] = str(batch_source)
+    batch_environment[BATCH_FIELDS[2]] = str(batch_expected_source)
+else:
+    pass
+
 def run(mode, run_id=None):
     overrides = dict(environment, VOXT_OMNI_XPC_SMOKE_MODE=mode)
+    overrides.update(batch_environment)
     if run_id is not None:
         overrides['VOXT_OMNI_XPC_SMOKE_RUN_ID'] = run_id
         if mode == 'stage':
@@ -114,6 +154,10 @@ if sortformer:
     destinations.append(sortformer_destination)
 else:
     pass
+if batch_kind is not None:
+    destinations.append(container / 'Models' / 'OmniXPCBatchSmoke' / run_id)
+else:
+    pass
 for destination in destinations:
     if not destination.resolve().is_relative_to(container.resolve()):
         raise RuntimeError('The smoke fixture destination is outside the shared container.')
@@ -122,6 +166,10 @@ for destination in destinations:
 passed = False
 try:
     artifacts.mkdir(parents=True)
+    if batch_expected_bytes is not None:
+        (artifacts / 'batch-expected.txt').write_bytes(batch_expected_bytes)
+    else:
+        pass
     staged = run('stage', run_id)
     if staged.get('status') != 'prepared' or staged.get('abi_version') != expected_abi_version:
         raise RuntimeError('The signed app did not complete coordinated model preparation.')
@@ -147,6 +195,13 @@ try:
         pass
     if sortformer and (report.get('sortformer_stream_count') != 6 or report.get('sortformer_caller_count') != 2):
         raise RuntimeError('The optional Sortformer stream/caller reuse/reconnect validation did not run.')
+    else:
+        pass
+    if batch_kind is not None and (
+        type(report.get('batch_kind')) is not int or report.get('batch_kind') != batch_kind
+        or report.get('batch_request_count') != 4 or report.get('batch_caller_count') != 2
+    ):
+        raise RuntimeError('The optional batch owner reuse/reconnect validation did not run.')
     else:
         pass
     passed = True

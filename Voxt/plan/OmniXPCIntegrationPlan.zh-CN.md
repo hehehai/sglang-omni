@@ -925,6 +925,20 @@ Native/service/protocol/ABI6/Audio/LLM/VLM/Remote/catalog/settings/cachepaths/�
 
 仍需：所有实际生产caller/Owned coordinator/defaultfactory与失联owner恢复、完整cache/repair/shadow/blob/orphan-window政策、6ASR longform和2typedrealtime、剩余Audio消费者迁移/真实macSwiftPM unlink graph、全部平台/GPU/golden/长会议/签名公证矩阵。保留真实Macgate，不宣称“1–5全部完成”。
 
+### 六family batch external Owner + 实际validation consumer（ABI7保持，30秒保持）
+
+- 新actual `OmniXPCBatchModelOwner`：explicitprepare（不外借rawmodelreference）、sharedModels授权→Appreader下重新授权/canonicalcompare+结构验证→own loadUUID。只准.fileASR/.finalASR正常work；每load/request用identity-owned coordinatorpermit。successcommand释放lane但保留residentmodel/reader；error/cancel/malformed/deadline先await原load-model scope checkedretire，failure/原connectionlost保留reader/ref/permit供explicitclose retry，无mapabsence/cancelACK/timeout证明。
+- transcribe先正timeout/kind/strictsettings/≤480000 finiteFloat32验证，必须显式prepare，不自动reload/replay/chunk。close永久terminal、uncancelledcoalesce、先cancel/awaitprivateprep/request Tasks.result；heldpermit重用，不reserve排在自己lane后。cleanup Task在completion内retirestorage，wrongowner/empty状态不清其它pendingload（非nil ownOP才match）。cachedprepare检查exactclient/ref/closing/requesting/connection；rawOwner必须retain+awaitclose，没有deinitbarrier或保证失联恢复。
+- BatchClient目录授权按真实2callsite抽出供Owner+load复用，原namespace/错误语义保持。Native/Core/protocol/ABI7/numerics/30秒/生产default/catalog/保存权重/Audio/Remote/LLM/VLM/signing/releasegates都未改。
+- signedApp smoke增加显式可选batchfixture：ALL3 env `VOXT_OMNI_XPC_SMOKE_BATCH_KIND`（1Whisper/2Cohere/3MOSS/4Nemotron/5Parakeet/6SenseVoice）、`...BATCH_MODEL_SOURCE`、`...BATCH_EXPECTED_SOURCE`。缺/空/partial/unknown/非canonicalkind/不存在source/非regular expected/非法UTF8/expected>65536bytes全部明确拒绝，不猜model/kind/golden。Python只whitelist3值，ambientDYLD/其它smokeoverrides原过滤保留，CLI4/5/6args不变。
+- optionalmodel实际Appcoordinatedsource-reader/staging/atomicpublish到Models/OmniXPCBatchSmoke/runUUID，script不copyModels；expected有界snapshot到artifact/batch-expected.txt。Appinfer按probecontainer+nonce定位，不信任envdestination。实际Owner prepare→samePCM2requests→checkedclose，helperreconnect前后各跑1caller，报告4requests/2callers/kind；absentbatch不改旧counts。成功须trimmedtext精确expected且finishStop，matchingtruncatedfixture不能冒充通过。失败close静态保留Owner/client/reader/lane，outerfailure不invalidate/terminatehelper，failclosedprocess退出不是资源proof。
+- Main当前Owner finalUUID构造无forceunwrap：actualportable21Owner+原coordinator23+client10=54/config；testagent210optimized重复、strictsource target通过，fullstrict Linux generatedXCTestdiscovery失败保留不当fullsuite成功。Smoke actualcompleteguardedentry/Owner/coordinator/publish source +显式platform/peer hooks7/config通过，Pythonactualembeddedtransaction10新+3已有=13且整个tools59通过；Macguardparse非SDK。
+- Main actualOwner→client→exportedhelper→reader→Core7 CPU两配置：六kinds prepare/reuse/close全通过；blockedconstructordeadline与blockedrealworkerrequestdeadline时Appreader/lane不放行；人工checkedrequestdestroyfailure→actual额外Nativelease使model BUSY→原Owner同scope重试成功才恢复writer/cache/lane。twoCPUlibs、Transcriber/model/MLX/gate/fault/NSXPC/thermal/cache替身明确；非Metal/真实weights/productioncombineddylib。
+- 独立readonlyOwner/currentauthclient以当前hash冻结：actual6family baseline+每配置6次independentprobe complete运行通过，queuedcancel/wrongowner/input/latecancels/malformedforeignlostoutput/coalescedcancelledclose/失联scope/heldpermit/reentrantcache等；4个private negativecontrols均检出：unsafe退休成功、移除requestidentity、nestedownpermit再reserve（hang）、Appreader提前释放。strictSwift6/warningsaserrors通过，无actionablefinding。Main另审Smoke真实caller、private7cases复跑，未授权/执行actualMac。
+- 外部fixture搬迁遗留旧Artifacts source与已编译PCH路径错误、Main测试包missingrelativefrozen sibling失败已保留logs；复制完整source并新scratch重建后完整54/7/actualCoreCPU debug+optimized通过，不把failedattempts改成通过。
+
+下一步仍是各family长音频/typedMOSS-Nemotronrealtime、实际生产ASR caller切换/共享models恢复与其它Audio消费者、真实SDK/NSXPC/Metal/weights/golden/GPU并发/longmeeting/签名公证矩阵。此Owner不提高30秒接口预算，不机械切长录音，不删除仍被用的Audiopackage，不发布新增localcheckpoint。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |

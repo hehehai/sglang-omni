@@ -24,6 +24,9 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
     var sileroStreamCount: Int? = nil
     var sortformerStreamCount: Int? = nil
     var sortformerCallerCount: Int? = nil
+    var batchKind: Int? = nil
+    var batchRequestCount: Int? = nil
+    var batchCallerCount: Int? = nil
     var errorDomain: String? = nil
     var errorCode: Int? = nil
 
@@ -44,6 +47,9 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
         case sileroStreamCount = "silero_stream_count"
         case sortformerStreamCount = "sortformer_stream_count"
         case sortformerCallerCount = "sortformer_caller_count"
+        case batchKind = "batch_kind"
+        case batchRequestCount = "batch_request_count"
+        case batchCallerCount = "batch_caller_count"
         case errorDomain = "error_domain"
         case errorCode = "error_code"
     }
@@ -61,6 +67,7 @@ extension AppDelegate {
                 guard mode == "prepare" || mode == "stage" || mode == "infer" else {
                     throw OmniXPCFailure.error(.invalidRequest, "The XPC smoke mode must be prepare, stage or infer.")
                 }
+                let batchKind = try OmniXPCSmokeBatchValidation.kind(environment: environment)
                 let connected = try OmniXPCClient()
                 client = connected
                 let probe = try await connected.probe()
@@ -161,6 +168,10 @@ extension AppDelegate {
                             samples: samples, timeout: .seconds(timeoutSeconds)
                         )
                     }
+                    try await OmniXPCSmokeBatchValidation.run(
+                        client: connected, kind: batchKind, container: probe.groupContainer, identifier: id,
+                        audio: audio, timeout: .seconds(timeoutSeconds)
+                    )
                     try await connected.unloadQwen(model)
                     try await connected.terminateForValidation()
                     let restarted = try await connected.probe()
@@ -190,6 +201,10 @@ extension AppDelegate {
                             samples: samples, timeout: .seconds(timeoutSeconds)
                         )
                     }
+                    try await OmniXPCSmokeBatchValidation.run(
+                        client: connected, kind: batchKind, container: restarted.groupContainer, identifier: id,
+                        audio: audio, timeout: .seconds(timeoutSeconds)
+                    )
                     try await connected.unloadQwen(recoveredModel)
                     try Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(
                         status: .passed, abiVersion: restarted.abiVersion,
@@ -203,14 +218,21 @@ extension AppDelegate {
                         sileroRequestCount: sileroDirectory == nil ? nil : 4,
                         sileroStreamCount: sileroDirectory == nil ? nil : 2,
                         sortformerStreamCount: sortformerDirectory == nil ? nil : 6,
-                        sortformerCallerCount: sortformerDirectory == nil ? nil : 2
+                        sortformerCallerCount: sortformerDirectory == nil ? nil : 2,
+                        batchKind: batchKind?.rawValue,
+                        batchRequestCount: batchKind == nil ? nil : 4,
+                        batchCallerCount: batchKind == nil ? nil : 2
                     ))
                 }
                 connected.invalidate()
                 fflush(stdout)
                 exit(EXIT_SUCCESS)
             } catch {
-                client?.invalidate()
+                if !OmniXPCSmokeBatchValidation.hasRetainedOwner {
+                    client?.invalidate()
+                } else {
+                    // note (assistant): An ambiguous batch close pins its reader/client until fail-closed process exit.
+                }
                 let failure = error as NSError
                 try? Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(
                     status: .failed, errorDomain: failure.domain, errorCode: failure.code

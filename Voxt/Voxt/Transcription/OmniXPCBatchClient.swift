@@ -20,7 +20,27 @@ final class OmniXPCBatchLoadState {
     }
 }
 
+nonisolated struct OmniXPCBatchModelDirectory: Sendable {
+    let directory: URL
+    let relativePath: String
+    let container: URL
+}
+
 extension OmniXPCClient {
+    func authorizedBatchModelDirectory(_ modelDirectory: URL) throws -> OmniXPCBatchModelDirectory {
+        guard modelDirectory.isFileURL, let container = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: configuration.appGroupIdentifier
+        ) else { throw OmniXPCFailure.error(.configuration, "Batch models require the configured shared container.") }
+        let containerPath = container.resolvingSymlinksInPath().standardizedFileURL.path
+        let directoryPath = modelDirectory.resolvingSymlinksInPath().standardizedFileURL.path
+        guard directoryPath.hasPrefix(containerPath + "/") else {
+            throw OmniXPCFailure.error(.invalidRequest, "The batch model is outside the shared container.")
+        }
+        let relativePath = String(directoryPath.dropFirst(containerPath.count + 1))
+        let directory = try OmniXPCRequestValidation.modelDirectory(relativePath: relativePath, container: container)
+        return OmniXPCBatchModelDirectory(directory: directory, relativePath: relativePath, container: container)
+    }
+
     func loadBatch(kind: OmniXPCBatchKind, modelDirectory: URL, timeout: Duration = .seconds(300),
                    cleanupTimeout: Duration = .seconds(60), operationID: UUID = UUID()) async throws -> OmniXPCBatchModelReference {
         try Task.checkCancellation()
@@ -34,16 +54,7 @@ extension OmniXPCClient {
         guard batchLoadIDs.count < OmniXPCBatchLimits.maximumLoadsPerConnection else {
             throw OmniXPCBatchFailure.error(.limit)
         }
-        guard modelDirectory.isFileURL, let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: configuration.appGroupIdentifier
-        ) else { throw OmniXPCFailure.error(.configuration, "Batch models require the configured shared container.") }
-        let containerPath = container.resolvingSymlinksInPath().standardizedFileURL.path
-        let directoryPath = modelDirectory.resolvingSymlinksInPath().standardizedFileURL.path
-        guard directoryPath.hasPrefix(containerPath + "/") else {
-            throw OmniXPCFailure.error(.invalidRequest, "The batch model is outside the shared container.")
-        }
-        let relativePath = String(directoryPath.dropFirst(containerPath.count + 1))
-        _ = try OmniXPCRequestValidation.modelDirectory(relativePath: relativePath, container: container)
+        let relativePath = try authorizedBatchModelDirectory(modelDirectory).relativePath
         let state = OmniXPCBatchLoadState(operationID: operationID, kind: kind)
         batchLoadIDs.insert(operationID)
         pendingBatchLoad = state
