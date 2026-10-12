@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <random>
+#include <utility>
 
 namespace qwen3_asr {
 
@@ -70,17 +71,43 @@ std::string NewEventId() {
 RealtimeConnection::RealtimeConnection(Sender sender)
     : sender_(std::move(sender)) {}
 
+bool RealtimeConnection::IsSendingOnThisThread() {
+  std::lock_guard<std::recursive_mutex> lock(send_mutex_);
+  return sending_thread_ == std::this_thread::get_id();
+}
+
 void RealtimeConnection::Send(nlohmann::ordered_json event) {
-  std::lock_guard<std::mutex> lock(send_mutex_);
-  if (closed_) {
-    return;
+  std::exception_ptr failure;
+  bool close_after_delivery;
+  {
+    std::lock_guard<std::recursive_mutex> lock(send_mutex_);
+    if (closed_) {
+      return;
+    } else {
+    }
+    event_index_ += 1;
+    event["event_id"] = NewEventId();
+    event["event_index"] = event_index_;
+    const std::string serialized = event.dump();
+    sending_thread_ = std::this_thread::get_id();
+    try {
+      if (!sender_(serialized)) {
+        closed_ = true;
+      } else {
+      }
+    } catch (...) {
+      failure = std::current_exception();
+    }
+    sending_thread_ = {};
+    close_after_delivery = std::exchange(close_after_delivery_, false);
+  }
+  if (close_after_delivery) {
+    // Note (OpenAI): direct HTTP errors must not invert transport/engine locks.
+    Close();
   } else {
   }
-  event_index_ += 1;
-  event["event_id"] = NewEventId();
-  event["event_index"] = event_index_;
-  if (!sender_(event.dump())) {
-    closed_ = true;
+  if (failure) {
+    std::rethrow_exception(failure);
   } else {
   }
 }
@@ -94,8 +121,12 @@ void RealtimeConnection::SendError(const std::string &type,
 
 void RealtimeConnection::Close() {
   cancel_->store(true);
-  std::lock_guard<std::mutex> lock(send_mutex_);
+  std::lock_guard<std::recursive_mutex> lock(send_mutex_);
   closed_ = true;
+  if (sending_thread_ == std::this_thread::get_id()) {
+    close_after_delivery_ = true;
+  } else {
+  }
 }
 
 std::optional<std::vector<float>>

@@ -57,6 +57,7 @@ add_library(qwen3_asr STATIC
   src/worker.cpp
   src/realtime_engine.cpp
   src/realtime.cpp
+  src/speaker_realtime_event.cpp
   src/form.cpp)
 target_include_directories(qwen3_asr PUBLIC src)
 target_link_libraries(qwen3_asr PUBLIC mlx nlohmann_json::nlohmann_json pcre2-8-static
@@ -201,7 +202,8 @@ set_target_properties(cohere_transcribe_server cohere_transcribe PROPERTIES
 install(TARGETS cohere_transcribe_server cohere_transcribe RUNTIME DESTINATION bin)
 # Note (Dayuxiaoshui): MOSS-Transcribe-Diarize on Qwen3-ASR's decoder, WAV and
 # form handling, with its own server and parity tool.
-add_library(moss_asr STATIC src/moss_model.cpp src/moss_transcriber.cpp src/moss_realtime.cpp)
+add_library(moss_asr STATIC src/moss_model.cpp src/moss_transcriber.cpp
+  src/moss_realtime.cpp src/moss_realtime_engine.cpp)
 target_link_libraries(moss_asr PUBLIC qwen3_asr)
 target_compile_options(moss_asr PRIVATE -Wall -Wextra)
 # Note (Dayuxiaoshui): a long recording's cut is the minimum of energy sums,
@@ -218,7 +220,7 @@ install(TARGETS moss_transcribe_diarize_server moss_transcribe RUNTIME DESTINATI
 # Note (Dayuxiaoshui): Nemotron 3.5 ASR streaming on Sortformer's NeMo front end
 # and Qwen3-ASR's checkpoint loading, with its own server and parity tool.
 add_library(nemotron_asr STATIC src/nemotron_model.cpp src/nemotron_transcriber.cpp
-  src/nemotron_realtime.cpp)
+  src/nemotron_realtime.cpp src/nemotron_realtime_engine.cpp)
 target_link_libraries(nemotron_asr PUBLIC qwen3_asr sortformer swift_port)
 # Note (Dayuxiaoshui): the positional table is float math that must round as
 # Swift's does, so no fused multiply-add.

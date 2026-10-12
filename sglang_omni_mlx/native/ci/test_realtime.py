@@ -76,7 +76,7 @@ def compile_realtime(build: Path, baseline: Path | None = None) -> Path:
     else:
         pass
     sources = ["worker.cpp", "realtime.cpp"]
-    headers = ["worker.h", "realtime.h"]
+    headers = ["worker.h", "realtime.h", "speaker_realtime_event.h"]
     if baseline is None:
         sources.append("realtime_engine.cpp")
         headers.append("realtime_engine.h")

@@ -7,13 +7,18 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "nlohmann/json.hpp"
 #include "realtime_engine.h"
+#include "speaker_realtime_event.h"
 #include "worker.h"
 
 namespace qwen3_asr {
+
+nlohmann::ordered_json
+SpeakerRealtimeEventJson(const SpeakerRealtimeEvent &event);
 
 // One realtime socket's session: numbered events out, client events in.
 // Handle runs on the socket's thread; decodes run on the worker and report
@@ -32,9 +37,10 @@ public:
   void SendError(const std::string &type, const std::string &code,
                  const std::string &message);
   // The client left: stop any decode in flight and send nothing more.
-  void Close();
+  virtual void Close();
 
 protected:
+  bool IsSendingOnThisThread();
   void Send(nlohmann::ordered_json event);
   // The samples of an append event's base64 PCM16 audio; reports anything
   // else to the client and returns nothing.
@@ -51,7 +57,10 @@ protected:
 
 private:
   Sender sender_;
-  std::mutex send_mutex_;
+  // Note (OpenAI): a sender may Close while delivery holds this mutex.
+  std::recursive_mutex send_mutex_;
+  std::thread::id sending_thread_;
+  bool close_after_delivery_ = false;
   int event_index_ = 0;
   bool closed_ = false;
 };
