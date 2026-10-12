@@ -48,6 +48,12 @@
 		A0C100000000000000000025 /* OmniSortformerRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000015 /* OmniSortformerRPC.swift */; };
 		A0C100000000000000000026 /* OmniSortformerModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000016 /* OmniSortformerModelCleanup.swift */; };
 		A0BE00000000000000000005 /* OmniModelArtifacts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BE00000000000000000004 /* OmniModelArtifacts */; };
+		A0C200000000000000000021 /* BatchCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000011 /* BatchCoreModel.swift */; };
+		A0C200000000000000000022 /* BatchCoreOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000012 /* BatchCoreOptions.swift */; };
+		A0C200000000000000000023 /* BatchCoreRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000013 /* BatchCoreRequest.swift */; };
+		A0C200000000000000000024 /* OmniBatchInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */; };
+		A0C200000000000000000025 /* OmniBatchModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000015 /* OmniBatchModelCleanup.swift */; };
+		A0C200000000000000000026 /* OmniBatchRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000016 /* OmniBatchRPC.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -114,6 +120,12 @@
 		A0C100000000000000000014 /* OmniSortformerStreamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerStreamingEngine.swift; sourceTree = "<group>"; };
 		A0C100000000000000000015 /* OmniSortformerRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerRPC.swift; sourceTree = "<group>"; };
 		A0C100000000000000000016 /* OmniSortformerModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerModelCleanup.swift; sourceTree = "<group>"; };
+		A0C200000000000000000011 /* BatchCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchCoreModel.swift; sourceTree = "<group>"; };
+		A0C200000000000000000012 /* BatchCoreOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchCoreOptions.swift; sourceTree = "<group>"; };
+		A0C200000000000000000013 /* BatchCoreRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchCoreRequest.swift; sourceTree = "<group>"; };
+		A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchInferenceEngine.swift; sourceTree = "<group>"; };
+		A0C200000000000000000015 /* OmniBatchModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchModelCleanup.swift; sourceTree = "<group>"; };
+		A0C200000000000000000016 /* OmniBatchRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchRPC.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -331,6 +343,12 @@
 				A0C100000000000000000014 /* OmniSortformerStreamingEngine.swift */,
 				A0C100000000000000000015 /* OmniSortformerRPC.swift */,
 				A0C100000000000000000016 /* OmniSortformerModelCleanup.swift */,
+				A0C200000000000000000011 /* BatchCoreModel.swift */,
+				A0C200000000000000000012 /* BatchCoreOptions.swift */,
+				A0C200000000000000000013 /* BatchCoreRequest.swift */,
+				A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */,
+				A0C200000000000000000015 /* OmniBatchModelCleanup.swift */,
+				A0C200000000000000000016 /* OmniBatchRPC.swift */,
 				A0BC00000000000000000024 /* Info.plist */,
 				A0BC00000000000000000025 /* OmniInference.entitlements */,
 				A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */,
@@ -570,6 +588,12 @@
 				A0C100000000000000000024 /* OmniSortformerStreamingEngine.swift in Sources */,
 				A0C100000000000000000025 /* OmniSortformerRPC.swift in Sources */,
 				A0C100000000000000000026 /* OmniSortformerModelCleanup.swift in Sources */,
+				A0C200000000000000000021 /* BatchCoreModel.swift in Sources */,
+				A0C200000000000000000022 /* BatchCoreOptions.swift in Sources */,
+				A0C200000000000000000023 /* BatchCoreRequest.swift in Sources */,
+				A0C200000000000000000024 /* OmniBatchInferenceEngine.swift in Sources */,
+				A0C200000000000000000025 /* OmniBatchModelCleanup.swift in Sources */,
+				A0C200000000000000000026 /* OmniBatchRPC.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

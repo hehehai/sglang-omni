@@ -2,7 +2,7 @@
 import Foundation
 
 public nonisolated enum OmniXPCProtocolLimits {
-    public static let abiVersion = 6
+    public static let abiVersion = 7
     public static let sampleRate = 16_000
     public static let maximumAudioSeconds = 30
     public static let maximumSampleCount = sampleRate * maximumAudioSeconds
@@ -101,10 +101,13 @@ public nonisolated enum OmniXPCRequestValidation {
         guard FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDirectory), isDirectory.boolValue else {
             throw OmniXPCFailure.error(.invalidRequest, "The shared model directory is not installed.")
         }
-        let namesReadByQwen = ["config.json", "vocab.json", "merges.txt", "tokenizer_config.json", "tokenizer.json"]
+        let modelFileNames = [
+            "config.json", "vocab.json", "merges.txt", "tokenizer_config.json", "tokenizer.json",
+            "generation_config.json", "processor_config.json", "tokenizer.model", "weights.npz", "am.mvn"
+        ]
         var files = try FileManager.default.contentsOfDirectory(at: candidate, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "safetensors" }
-        for name in namesReadByQwen {
+            .filter { $0.pathExtension == "safetensors" || $0.pathExtension == "model" }
+        for name in modelFileNames {
             let file = candidate.appendingPathComponent(name)
             if FileManager.default.fileExists(atPath: file.path)
                 || (try? FileManager.default.destinationOfSymbolicLink(atPath: file.path)) != nil {
@@ -163,6 +166,17 @@ public nonisolated enum OmniXPCRequestValidation {
 #if os(macOS)
 @objc public nonisolated protocol OmniInferenceXPCProtocol {
     func probe(withReply reply: @escaping @Sendable (Int, String, Int32, NSError?) -> Void)
+    func loadBatch(
+        operationID: String, kind: Int, modelDirectory: String,
+        withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
+    )
+    func transcribeBatch(
+        requestID: String, modelID: String, audio: Data, settings: Data,
+        withReply reply: @escaping @Sendable (Data?, NSError?) -> Void
+    )
+    func cancelBatchRequest(requestID: String, modelID: String?, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func drainBatchLoad(operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func unloadBatch(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func loadQwen(
         operationID: String, modelDirectory: String,
         withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void

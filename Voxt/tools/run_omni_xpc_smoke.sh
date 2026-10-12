@@ -63,6 +63,18 @@ def run(mode, run_id=None):
     overrides = dict(environment, VOXT_OMNI_XPC_SMOKE_MODE=mode)
     if run_id is not None:
         overrides['VOXT_OMNI_XPC_SMOKE_RUN_ID'] = run_id
+        if mode == 'stage':
+            overrides['VOXT_OMNI_XPC_SMOKE_MODEL_SOURCE'] = str(pathlib.Path(model).resolve())
+            if silero:
+                overrides['VOXT_OMNI_XPC_SMOKE_SILERO_SOURCE'] = str(pathlib.Path(silero).resolve())
+            else:
+                pass
+            if sortformer:
+                overrides['VOXT_OMNI_XPC_SMOKE_SORTFORMER_SOURCE'] = str(pathlib.Path(sortformer).resolve())
+            else:
+                pass
+        else:
+            pass
         if silero:
             overrides['VOXT_OMNI_XPC_SMOKE_SILERO_DIRECTORY'] = f'Models/OmniXPCSileroSmoke/{run_id}'
         else:
@@ -82,7 +94,8 @@ def run(mode, run_id=None):
     return json.loads(reports[0])
 
 prepared = run('prepare')
-if prepared.get('status') != 'prepared' or prepared.get('abi_version') != 5:
+expected_abi_version = 7
+if prepared.get('status') != 'prepared' or prepared.get('abi_version') != expected_abi_version:
     raise RuntimeError('The signed service did not complete its ABI/container probe.')
 container = pathlib.Path(prepared['group_container'])
 if not container.is_absolute() or not container.is_dir():
@@ -109,15 +122,9 @@ for destination in destinations:
 passed = False
 try:
     artifacts.mkdir(parents=True)
-    shutil.copytree(model, model_destination, symlinks=False)
-    if silero:
-        shutil.copytree(silero, silero_destination, symlinks=False)
-    else:
-        pass
-    if sortformer:
-        shutil.copytree(sortformer, sortformer_destination, symlinks=False)
-    else:
-        pass
+    staged = run('stage', run_id)
+    if staged.get('status') != 'prepared' or staged.get('abi_version') != expected_abi_version:
+        raise RuntimeError('The signed app did not complete coordinated model preparation.')
     with wave.open(audio, 'rb') as source:
         if source.getnchannels() != 1 or source.getframerate() != 16000 or source.getsampwidth() != 2:
             raise RuntimeError('The converted fixture must be mono 16 kHz PCM16.')

@@ -23,6 +23,19 @@ OmniInference service ───┘
 - Shared bounded little-endian Float32 audio validation for Qwen and Silero.
 - The macOS NSXPC request/reply signatures used by both actual consumers.
 
+ABI7 adds typed bounded final batch contracts for Whisper, Cohere, MOSS,
+Nemotron, Parakeet and SenseVoice. Settings preserve each Native family's
+Float/Double precision and defaults; results retain language, speaker, times,
+emotion/event and generated-token/finish metadata. The helper directly calls
+the existing transcribers, not HTTP. At most 30 seconds of finite mono16k input
+is supported per final request; realtime/longform consumers remain pending.
+Original-load identities, checked request/model release, non-evicting bounded
+load tombstones and retained client claims keep errors/disconnects from falsely
+acknowledging retirement. There is no automatic replay or retargeted cleanup.
+Matched Core/helper/App artifacts must be rebuilt; an old Core cannot supply
+these ten new exports. Portable peers/CPU workers are not signed NSXPC/Metal
+acceptance, and default production routing remains unchanged.
+
 Model ownership, worker drain, ACK replay storage and inference scheduling stay
 in the service. Client task ownership, microphone admission, transcript rendering
 and ASRStreamingSession stay in the app. The package does not select production
@@ -32,7 +45,7 @@ backends, load models, retry admitted audio or choose a cloud fallback.
 
 The four macOS-gated RPCs are `loadSilero`, `unloadSilero`,
 `sileroSpeechTimestamps` and `cancelSileroRequest`. The streaming extension below
-shares the same model owner. Current Core ABI is 6; production VAD and HTTP routes
+shares the same model owner. Current Core ABI is 7; production VAD and HTTP routes
 are unchanged.
 
 `OmniXPCSileroSettings` requires explicit threshold, minimum speech milliseconds,

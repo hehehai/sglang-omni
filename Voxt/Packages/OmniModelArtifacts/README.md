@@ -1,5 +1,15 @@
 # OmniModelArtifacts
 
+`OmniModelPreparation.prepare(from:to:replaceExisting:validate:checkCancellation:)`
+explicitly copies an installed model under a source reader into exclusive sibling
+staging, dereferences regular-file links, structurally validates and atomically
+publishes through the existing publication API. Original weights are unchanged;
+replacement is opt-in and destination readers exclude it. Failed hidden staging
+is retained, not automatically resumed. Budgets are 100,000 entries and 128 GiB
+of file bytes; the initial directory listing is not memory-bounded by that entry
+check. This is cooperating preparation, not hostile namespace, immutable blob,
+model compatibility, checksum, recovery or power-loss certification.
+
 A dependency-free, Foundation-only Swift 6.2 package for **structural** validation of local safetensors directories. It does not import MLX or instantiate models. The macOS minimum is 10.15 for throwing FileHandle APIs; Linux is also supported.
 
 ```swift

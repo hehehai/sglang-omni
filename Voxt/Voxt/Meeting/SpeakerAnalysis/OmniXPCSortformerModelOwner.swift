@@ -25,6 +25,7 @@ final class OmniXPCSortformerModelOwner {
     private var ownedPermit: MeetingLocalInferenceOwnedPermit?
     private var preparation: Task<OmniXPCPreparedSortformerModel, Error>?
     private var closing: Task<Void, Error>?
+    private var speakerEngine: OmniXPCMeetingSpeakerDiarizationEngine?
     private(set) var isClosing = false
     private(set) var isClosed = false
 
@@ -109,6 +110,15 @@ final class OmniXPCSortformerModelOwner {
         }
     }
 
+    func makeSpeakerAnalysisEngine() async throws -> OmniXPCMeetingSpeakerDiarizationEngine {
+        let prepared = try await prepare()
+        if let speakerEngine { return speakerEngine }
+        let engine = OmniXPCMeetingSpeakerDiarizationEngine(client: client, model: prepared.model,
+            configuration: prepared.configuration, coordinator: coordinator)
+        speakerEngine = engine
+        return engine
+    }
+
     /// Failure or connection loss retains the reader and lane; retry on the original scope.
     func close(timeout: Duration = .seconds(60)) async throws {
         if isClosed { return }
@@ -122,6 +132,10 @@ final class OmniXPCSortformerModelOwner {
             if let preparation = self.preparation {
                 preparation.cancel()
                 _ = await preparation.result
+            }
+            if let engine = self.speakerEngine {
+                try await engine.retire()
+                self.speakerEngine = nil
             }
             if self.preparedModel != nil || self.directoryLease != nil || self.ownedPermit != nil
                 || self.ownsPendingLoad {

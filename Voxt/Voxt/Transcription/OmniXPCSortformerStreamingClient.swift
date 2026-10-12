@@ -1,9 +1,38 @@
 import Foundation
 import OmniXPCContracts
 
+/// A caller-retained start receipt survives connection-map eviction without inferring native drain.
+nonisolated final class OmniXPCSortformerStartOwnership: @unchecked Sendable {
+    enum Status: Sendable { case notSubmitted, submitted, drained }
+
+    let reference: OmniXPCSortformerStreamReference
+    private let lock = NSLock()
+    private var currentStatus = Status.notSubmitted
+    private var claimed = false
+
+    init(model: OmniXPCSortformerModelReference, streamID: UUID = UUID()) {
+        reference = OmniXPCSortformerStreamReference(streamID: streamID, model: model)
+    }
+
+    var status: Status { lock.withLock { currentStatus } }
+
+    fileprivate func claim(model: OmniXPCSortformerModelReference) throws {
+        try lock.withLock {
+            guard !claimed, reference.model == model else {
+                throw OmniXPCFailure.error(.invalidRequest, "The Sortformer start ticket is already used or belongs to another model.")
+            }
+            claimed = true
+        }
+    }
+
+    fileprivate func submitted() { lock.withLock { currentStatus = .submitted } }
+    fileprivate func drained() { lock.withLock { currentStatus = .drained } }
+}
+
 @MainActor
 final class OmniXPCSortformerStreamState {
     let reference: OmniXPCSortformerStreamReference
+    let ownership: OmniXPCSortformerStartOwnership?
     var audioSequence = 0
     var processedFrameCount: UInt64 = 0
     var busy = true
@@ -14,7 +43,10 @@ final class OmniXPCSortformerStreamState {
     var cancelTask: Task<Void, Error>?
     private var pendingFrameCount: Int?
 
-    init(reference: OmniXPCSortformerStreamReference) { self.reference = reference }
+    init(reference: OmniXPCSortformerStreamReference, ownership: OmniXPCSortformerStartOwnership? = nil) {
+        self.reference = reference
+        self.ownership = ownership
+    }
 
     func requireReady() throws {
         guard !closing, !terminal else {
@@ -77,8 +109,12 @@ private nonisolated struct OmniXPCSortformerStartRejection: Error {
 extension OmniXPCClient {
     func startSortformerStream(
         model: OmniXPCSortformerModelReference, settings: OmniXPCSortformerSettings,
-        streamID: UUID = UUID(), timeout: Duration = .seconds(30)
+        streamID: UUID = UUID(), timeout: Duration = .seconds(30),
+        ownership: OmniXPCSortformerStartOwnership? = nil
     ) async throws -> OmniXPCSortformerStreamReference {
+        let ownership = ownership ?? OmniXPCSortformerStartOwnership(model: model, streamID: streamID)
+        try ownership.claim(model: model)
+        let streamID = ownership.reference.streamID
         try Task.checkCancellation()
         let modelState = try requireSortformerModel(model)
         guard !modelState.closing, !modelState.unloading else {
@@ -93,19 +129,21 @@ extension OmniXPCClient {
             throw OmniXPCFailure.error(.busy, "The client already owns sixteen Sortformer streams.")
         }
         let reference = OmniXPCSortformerStreamReference(streamID: streamID, model: model)
-        let state = OmniXPCSortformerStreamState(reference: reference)
+        let state = OmniXPCSortformerStreamState(reference: reference, ownership: ownership)
         sortformerStreams[streamID] = state
         do {
             let _: Void = try await perform(
                 timeout: timeout, requiredConnectionID: model.connectionID, nativeRequestID: streamID.uuidString,
                 cancellationModelID: model.modelID.uuidString, cancellationTarget: .sortformer
             ) { proxy, resolve in
+                ownership.submitted()
                 proxy.startSortformerStream(
                     streamID: streamID.uuidString, modelID: model.modelID.uuidString, settings: encodedSettings
                 ) { reply, error in
                     if let error {
                         if error.domain == "Voxt.Omni.XPC",
                            error.code == OmniXPCFailure.Code.invalidRequest.rawValue || error.code == OmniXPCFailure.Code.busy.rawValue {
+                            ownership.drained()
                             resolve(.failure(OmniXPCSortformerStartRejection(failure: error)))
                         } else {
                             resolve(.failure(error))
@@ -125,7 +163,11 @@ extension OmniXPCClient {
             }
             throw rejection.failure
         } catch {
-            try await cleanUpSortformerStream(state)
+            if ownership.status == .submitted {
+                try await cleanUpSortformerStream(state)
+            } else if sortformerStreams[streamID] === state {
+                sortformerStreams.removeValue(forKey: streamID)
+            }
             throw error
         }
     }
@@ -254,6 +296,7 @@ extension OmniXPCClient {
     }
 
     func retireSortformerStream(_ state: OmniXPCSortformerStreamState) {
+        state.ownership?.drained()
         state.drained = true
         state.terminal = true
         state.busy = false

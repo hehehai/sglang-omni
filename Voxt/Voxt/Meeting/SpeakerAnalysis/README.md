@@ -43,8 +43,14 @@ model residency is not an active command, so successful preparation releases its
 command permit while keeping the reader. Cleanup is pressure/recording nondeferrable
 but cannot overtake active inference. Borrowed operations must finish/cancel first.
 There is no owner/token deinit resource barrier or automatic lane recovery.
-This does not convert the existing engine's per-feed permit failure paths or
-switch production factories.
+The XPC adapter now holds identity-owned permits for open/feed/close and retains
+its bounded provisional-start ticket on unconfirmed cleanup. Concrete engine
+`close()` is an explicit retry barrier; dropping it is not disposal. The Owner's
+`makeSpeakerAnalysisEngine()` caches that engine, and Owner close permanently
+retires it before acquiring the model-cleanup permit, so late borrowed work
+cannot reopen it or deadlock behind its retained command lane. The raw factory
+returns the concrete engine so callers can await cleanup. Default production
+factories remain unchanged.
 
 File-feed failures, cancellation and slow-feed checks await owned stream cleanup
 before releasing the inference permit. A noncooperative asset/progress callback

@@ -280,7 +280,8 @@ actor MeetingVoiceActivityDetector {
 actor ASRSileroStreamingVoiceActivityDetector {
     private let sampleRate = 16_000
     private let chunkSize = 512
-    private var model: SileroVAD?
+    private var loadedModel: SileroVADModelLease?
+    private var modelGeneration = 0
     private var states: [String: SileroVADStreamingState] = [:]
     private var pendingSamples: [String: [Float]] = [:]
     private var pendingSampleOffsets: [String: Int] = [:]
@@ -291,7 +292,13 @@ actor ASRSileroStreamingVoiceActivityDetector {
     private var omniEndpoint: OmniServerEndpoint?
     private var unloadGeneration = 0
 
+    deinit {
+        // Note (assistant): recurrent arrays may still reference model weights when the actor is dropped.
+        states.removeAll()
+    }
+
     func reset() {
+        modelGeneration += 1
         states.removeAll()
         pendingSamples.removeAll()
         pendingSampleOffsets.removeAll()
@@ -306,7 +313,7 @@ actor ASRSileroStreamingVoiceActivityDetector {
     func unload() async {
         unloadGeneration += 1
         reset()
-        model = nil
+        loadedModel = nil
         if omniEndpoint != nil {
             omniEndpoint = nil
             await OmniSileroVADRuntime.shared.release()
@@ -323,7 +330,9 @@ actor ASRSileroStreamingVoiceActivityDetector {
         if OmniSileroVADRuntime.isEnabled {
             return try await omniProbability(samples: samples, sampleRate: inputSampleRate, streamID: streamID)
         }
-        let model = try await loadModelIfAvailable()
+        let loadedModel = try await loadModelIfAvailable()
+        defer { withExtendedLifetime(loadedModel) {} }
+        let model = loadedModel.model
         let prepared = ASRVoiceActivitySampleRateConverter.resample(
             samples: samples,
             from: inputSampleRate,
@@ -341,7 +350,7 @@ actor ASRSileroStreamingVoiceActivityDetector {
             let chunk = Array(pending[pendingOffset..<endOffset])
             pendingOffset = endOffset
             let state = states[streamID]
-            let (probability, nextState) = try withError {
+            let (probability, nextState) = try withError { [model, sampleRate] in
                 let (probabilityArray, nextState) = try model.feed(
                     chunk: MLXArray(chunk),
                     state: state,
@@ -450,26 +459,33 @@ actor ASRSileroStreamingVoiceActivityDetector {
         }
     }
 
-    private func loadModelIfAvailable() async throws -> SileroVAD {
-        if let model {
-            return model
-        }
+    private func loadModelIfAvailable() async throws -> SileroVADModelLease {
+        try Task.checkCancellation()
+        if let loadedModel { return loadedModel }
+        let generation = modelGeneration
         let directory = try await SileroVADModelProvisioner.shared.ensureModelDirectory()
-        let loaded = try SileroVADModelSupport.loadModel(from: directory)
-        model = loaded
+        try Task.checkCancellation()
+        guard generation == modelGeneration else { throw CancellationError() }
+        if let loadedModel { return loadedModel }
+        let directoryLease = try await SileroVADModelSupport.validatedModelDirectoryLease(from: directory)
+        try Task.checkCancellation()
+        guard generation == modelGeneration else { throw CancellationError() }
+        if let loadedModel { return loadedModel }
+        let loaded = try SileroVADModelLease(directoryLease: directoryLease)
+        loadedModel = loaded
         return loaded
     }
 }
 
 actor ASRSileroOfflineVoiceActivityDetector: ASROfflineVoiceActivityBackend {
     private let sampleRate = 16_000
-    private var model: SileroVAD?
+    private var loadedModel: SileroVADModelLease?
     private var omniEndpoint: OmniServerEndpoint?
     private var unloadGeneration = 0
 
     func unload() async {
         unloadGeneration += 1
-        model = nil
+        loadedModel = nil
         if omniEndpoint != nil {
             omniEndpoint = nil
             await OmniSileroVADRuntime.shared.release()
@@ -481,7 +497,9 @@ actor ASRSileroOfflineVoiceActivityDetector: ASROfflineVoiceActivityBackend {
         if OmniSileroVADRuntime.isEnabled {
             return try await omniSpeechRanges(samples: samples, sampleRate: inputSampleRate)
         }
-        let model = try await loadModelIfAvailable()
+        let loadedModel = try await loadModelIfAvailable()
+        defer { withExtendedLifetime(loadedModel) {} }
+        let model = loadedModel.model
         let prepared = ASRVoiceActivitySampleRateConverter.resample(
             samples: samples,
             from: inputSampleRate,
@@ -490,7 +508,7 @@ actor ASRSileroOfflineVoiceActivityDetector: ASROfflineVoiceActivityBackend {
         guard !prepared.isEmpty else { return [] }
 
         let profile = MeetingSileroVADSensitivity.stored().configuration()
-        let timestamps = try withError {
+        let timestamps = try withError { [model, sampleRate] in
             try model.getSpeechTimestamps(
                 MLXArray(prepared),
                 sampleRate: sampleRate,
@@ -572,13 +590,20 @@ actor ASRSileroOfflineVoiceActivityDetector: ASROfflineVoiceActivityBackend {
         await OmniSileroVADRuntime.shared.release()
     }
 
-    private func loadModelIfAvailable() async throws -> SileroVAD {
-        if let model {
-            return model
-        }
+    private func loadModelIfAvailable() async throws -> SileroVADModelLease {
+        try Task.checkCancellation()
+        if let loadedModel { return loadedModel }
+        let generation = unloadGeneration
         let directory = try await SileroVADModelProvisioner.shared.ensureModelDirectory()
-        let loaded = try SileroVADModelSupport.loadModel(from: directory)
-        model = loaded
+        try Task.checkCancellation()
+        guard generation == unloadGeneration else { throw CancellationError() }
+        if let loadedModel { return loadedModel }
+        let directoryLease = try await SileroVADModelSupport.validatedModelDirectoryLease(from: directory)
+        try Task.checkCancellation()
+        guard generation == unloadGeneration else { throw CancellationError() }
+        if let loadedModel { return loadedModel }
+        let loaded = try SileroVADModelLease(directoryLease: directoryLease)
+        loadedModel = loaded
         return loaded
     }
 }

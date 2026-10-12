@@ -23,7 +23,7 @@ final class OmniXPCSileroStreamingTests: XCTestCase {
         XCTAssertEqual(OmniXPCSileroLimits.maximumProbabilityBatchByteCount, 4096)
         XCTAssertEqual(OmniXPCProtocolLimits.maximumRequestsPerModel, 256)
         XCTAssertEqual(OmniXPCProtocolLimits.maximumSampleCount, 480000)
-        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 6)
+        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 7)
     }
 
     func testRoundTripPreservesFieldsAndAcceptsEmptyActiveAndFinalBatches() throws {

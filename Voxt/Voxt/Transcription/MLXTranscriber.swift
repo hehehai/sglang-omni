@@ -114,7 +114,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
     private var nextCorrectionAtSeconds: Double = 6.0
     private(set) var lastCaptureMetrics: TranscriptionCaptureMetrics?
     @Published private(set) var latestSenseVoiceMetadata: SenseVoiceTranscriptMetadata?
-    private var senseVoiceVADModel: SileroVAD?
+    private var senseVoiceVADModel: SileroVADModelLease?
     private var pendingRuntimeFailureMessage: String?
 
     init(
@@ -1767,13 +1767,13 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         case .mlx(let mlxModel):
             model = mlxModel.libraryModel
         }
-        let longFormVADModel = try await resolvedLongFormVADModelIfNeeded(
+        let longFormVADModelLease = try await resolvedLongFormVADModelIfNeeded(
             model: model,
             audioSamples: audioSamples,
             inferenceConfiguration: inferenceConfiguration
         )
         let modelBox = MLXUnsafeSendableBox(value: model)
-        let vadBox = MLXUnsafeSendableBox(value: longFormVADModel)
+        let vadBox = MLXUnsafeSendableBox(value: longFormVADModelLease)
         let targetSampleRate = targetSampleRate
         let directPassMaximumDurationSeconds = senseVoiceDirectPassMaximumDurationSeconds
         let chunkMaximumDurationSeconds = senseVoiceChunkMaximumDurationSeconds
@@ -1784,12 +1784,14 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         let vadSpeechPadMs = senseVoiceVADSpeechPadMs
 
         let inferenceTask = Task.detached(priority: inferenceTaskPriority) {
+            // Note (assistant): cancellation cannot preempt inference; retain its reader until the work returns.
+            defer { withExtendedLifetime(vadBox.value) {} }
             try Task.checkCancellation()
             return try await Self.runStreamingInferenceDetached(
                 model: modelBox.value,
                 audioSamples: audioSamples,
                 inferenceConfiguration: inferenceConfiguration,
-                longFormVADModel: vadBox.value,
+                longFormVADModel: vadBox.value?.model,
                 targetSampleRate: targetSampleRate,
                 directPassMaximumDurationSeconds: directPassMaximumDurationSeconds,
                 chunkMaximumDurationSeconds: chunkMaximumDurationSeconds,
@@ -1862,7 +1864,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         model: any STTGenerationModel,
         audioSamples: [Float],
         inferenceConfiguration: ResolvedInferenceConfiguration
-    ) async throws -> SileroVAD? {
+    ) async throws -> SileroVADModelLease? {
         guard MLXTranscriptionPlanning.shouldUseSenseVoiceVAD(
             sampleCount: audioSamples.count,
             sampleRate: targetSampleRate,
@@ -1879,9 +1881,17 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
             return senseVoiceVADModel
         }
 
+        let revision = sessionRevision
         let modelDirectory = try await SileroVADModelProvisioner.shared.ensureModelDirectory()
         try Task.checkCancellation()
-        let loadedModel = try SileroVADModelSupport.loadModel(from: modelDirectory)
+        guard revision == sessionRevision else { throw CancellationError() }
+        let directoryLease = try await SileroVADModelSupport.validatedModelDirectoryLease(from: modelDirectory)
+        try Task.checkCancellation()
+        guard revision == sessionRevision else { throw CancellationError() }
+        if let senseVoiceVADModel {
+            return senseVoiceVADModel
+        }
+        let loadedModel = try SileroVADModelLease(directoryLease: directoryLease)
         senseVoiceVADModel = loadedModel
         return loadedModel
     }

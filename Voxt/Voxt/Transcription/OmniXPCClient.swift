@@ -11,7 +11,7 @@ nonisolated struct OmniXPCProbeResult: Equatable, Sendable {
 
 @MainActor
 final class OmniXPCClient {
-    enum CancellationTarget { case qwen, silero, sortformer }
+    enum CancellationTarget { case qwen, silero, sortformer, batch }
 
     private struct Connection {
         let id: UUID
@@ -41,6 +41,11 @@ final class OmniXPCClient {
     var closedSortformerModels: [UUID: OmniXPCSortformerModelReference] = [:]
     var pendingSortformerLoad: OmniXPCSortformerLoadState?
     var sortformerLoadCleanup: OmniXPCSortformerLoadCleanup?
+    var batchModel: OmniXPCBatchLoadState?
+    var pendingBatchLoad: OmniXPCBatchLoadState?
+    var closedBatchModels: [UUID: OmniXPCBatchModelReference] = [:]
+    var batchLoadIDs: Set<UUID> = []
+    var closedBatchLoadIDs: Set<UUID> = []
     var connectionIdentifier: UUID? { connection?.id }
 
     func requireConnection(_ id: UUID) throws {
@@ -243,6 +248,8 @@ final class OmniXPCClient {
                 proxy.cancelSileroRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
             case .sortformer:
                 proxy.cancelSortformerRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
+            case .batch:
+                proxy.cancelBatchRequest(requestID: requestID, modelID: call.cancellationModelID) { _ in }
             }
             fail(id, error: error)
         } else {

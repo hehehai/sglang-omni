@@ -13,17 +13,22 @@ goldens, but this merged app has not been validated on macOS/Metal/models.
 This removes the need to reimplement those numerical models, **not** the need
 to finish Voxt integration before removing the Audio package:
 
-- Normal ASR dispatch remains Native HTTP/WebSocket. Core ABI5 now has opt-in
-  Qwen, Silero and Sortformer XPC helper/client routes, but production callers
-  are not cut over. Whisper/Cohere/MOSS/Nemotron/Parakeet/SenseVoice still need
-  Core/XPC routing.
-- Native ASR input preparation still calls MLXAudioCore resampling. Replace it
-  with tested application-owned resampling; do not silently reduce fidelity.
+- Normal ASR dispatch remains Native HTTP/WebSocket. Core ABI7 has opt-in
+  Qwen, Silero and Sortformer routes plus bounded final Core/XPC for Whisper,
+  Cohere, MOSS, Nemotron, Parakeet and SenseVoice. The new six-family route is
+  limited to 30-second batches; longform, typed MOSS/Nemotron realtime and
+  production caller/coordinator cutover remain pending.
+- Native ASR input preparation now uses ASRAudioSampleRateConverter, extracted
+  from the pinned AVAudioConverter algorithm without changing caller rounding
+  or replacing it with linear interpolation. Portable control-flow tests pass;
+  actual SDK/DSP comparison remains pending. Other AudioCore consumers remain.
 - Native long-form VAD policy still uses Audio types. Sortformer common/Native
   HTTP scheduling now uses an app-owned bounded Foundation configuration;
   its legacy Swift model adapter remains isolated and linked. An explicit
-  preloaded-model XPC meeting adapter exists, but default production routing
-  is unchanged and needs cache/ownership/platform acceptance before cutover.
+  XPC meeting adapter now uses per-command retained ownership and an explicit
+  model Owner with an owned consumer/retirement barrier. Legacy Swift Silero
+  actors and longform VAD also retain model/directory readers. Default production
+  routing is unchanged; remaining cache/recovery and platform acceptance precede cutover.
 - ASR adapters/loaders and test seams still compile against Audio products.
   Removing their project links now would break compilation or functionality.
 - Keep mlx-swift-lm, MLXLLM/MLXVLM/MLXLMCommon, shared MLX runtime support,

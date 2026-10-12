@@ -66,7 +66,7 @@ enum MeetingSpeakerDiarizationEngineFactory {
         client: OmniXPCClient, model: OmniXPCSortformerModelReference,
         configuration: MeetingSortformerConfiguration,
         coordinator: MeetingLocalInferenceCoordinator = .shared
-    ) -> any MeetingSpeakerDiarizationEngine {
+    ) -> OmniXPCMeetingSpeakerDiarizationEngine {
         OmniXPCMeetingSpeakerDiarizationEngine(
             client: client, model: model, configuration: configuration, coordinator: coordinator
         )

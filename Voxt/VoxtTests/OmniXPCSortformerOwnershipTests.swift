@@ -254,6 +254,74 @@ nonisolated final class OmniXPCSortformerOwnershipTests: XCTestCase {
         client.invalidate()
     }
 
+    @MainActor
+    func testCallerTicketRecordsSubmissionRejectionAndActualRetirement() async throws {
+        let (client, model, peer) = try await makeSortformerOwnershipFixture()
+        let notSubmitted = OmniXPCSortformerStartOwnership(model: model)
+        do {
+            _ = try await client.startSortformerStream(model: model, settings: settings(), timeout: .zero, ownership: notSubmitted)
+            XCTFail("Invalid timeout submitted")
+        } catch {}
+        XCTAssertEqual(notSubmitted.status, .notSubmitted)
+        XCTAssertEqual(peer.startCount, 0)
+        let rejected = OmniXPCSortformerStartOwnership(model: model)
+        peer.startFailure = OmniXPCFailure.error(.busy, "Known preadmission failure")
+        do { _ = try await OmniXPCDiarizationStream.open(client: client, model: model, settings: settings(), ownership: rejected); XCTFail("Rejected start succeeded") }
+        catch {}
+        XCTAssertEqual(rejected.status, .drained)
+        XCTAssertEqual(peer.closeCount, 0)
+        peer.startFailure = nil
+        let streamID = UUID()
+        let ownership = OmniXPCSortformerStartOwnership(model: model, streamID: streamID)
+        let stream = try await OmniXPCDiarizationStream.open(client: client, model: model, settings: settings(), ownership: ownership)
+        XCTAssertEqual(ownership.status, .submitted)
+        XCTAssertNotNil(client.sortformerStreams[streamID])
+        do { _ = try await client.startSortformerStream(model: model, settings: settings(), ownership: ownership); XCTFail("Ticket reused") }
+        catch {}
+        try await client.cancelSortformerStream(ownership.reference)
+        XCTAssertEqual(ownership.status, .submitted)
+        peer.closeFailure = OmniXPCFailure.error(.nativeFailure, "Destruction failed")
+        do { try await stream.close(); XCTFail("Failed drain succeeded") } catch {}
+        XCTAssertEqual(ownership.status, .submitted)
+        peer.closeFailure = nil
+        try await stream.close()
+        XCTAssertEqual(ownership.status, .drained)
+        client.invalidate()
+        XCTAssertEqual(ownership.status, .drained)
+        try await stream.close()
+    }
+
+    @MainActor
+    func testFinishAndDisconnectUpdateOnlyExplicitTicketEvidence() async throws {
+        let (client, model, _) = try await makeSortformerOwnershipFixture()
+        let finished = OmniXPCSortformerStartOwnership(model: model)
+        let stream = try await OmniXPCDiarizationStream.open(client: client, model: model, settings: settings(), ownership: finished)
+        try await stream.finish()
+        XCTAssertEqual(finished.status, .drained)
+        let unknown = OmniXPCSortformerStartOwnership(model: model)
+        _ = try await OmniXPCDiarizationStream.open(client: client, model: model, settings: settings(), ownership: unknown)
+        client.invalidate()
+        XCTAssertTrue(client.sortformerStreams.isEmpty)
+        XCTAssertEqual(unknown.status, .submitted)
+        XCTAssertEqual(finished.status, .drained)
+    }
+
+    @MainActor
+    func testLatePreadmissionRejectionUpdatesTicketEvenAfterConnectionEviction() async throws {
+        let (client, model, peer) = try await makeSortformerOwnershipFixture()
+        let ownership = OmniXPCSortformerStartOwnership(model: model)
+        peer.blockStart = true
+        let opening = Task { try await OmniXPCDiarizationStream.open(client: client, model: model, settings: settings(), ownership: ownership) }
+        try await wait { peer.startCount == 1 }
+        XCTAssertEqual(ownership.status, .submitted)
+        client.invalidate()
+        do { _ = try await opening.value; XCTFail("Disconnected start succeeded") } catch {}
+        XCTAssertEqual(ownership.status, .submitted)
+        peer.startFailure = OmniXPCFailure.error(.busy, "Late authoritative rejection")
+        peer.releaseStart()
+        XCTAssertEqual(ownership.status, .drained)
+    }
+
     private func settings() throws -> OmniXPCSortformerSettings {
         try OmniXPCSortformerSettings(threshold: 0.4, minimumDurationSeconds: 0.2, mergeGapSeconds: 0.1,
                                       speakerCacheMaximumFrameCount: 188, fifoMaximumFrameCount: 40)

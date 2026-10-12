@@ -2,7 +2,6 @@
 
 import Foundation
 @preconcurrency import MLX
-import MLXAudioCore
 import MLXAudioSTT
 import MLXAudioVAD
 
@@ -59,8 +58,11 @@ extension MLXTranscriber {
         targetSampleRate: Int
     ) throws -> [Float] {
         if abs(sampleRate - Double(targetSampleRate)) > 1.0 {
-            // Keep MLXAudio AVAudioConverter resampling for Final/live quality.
-            return try resampleAudio(samples, from: Int(sampleRate), to: targetSampleRate)
+            return try ASRAudioSampleRateConverter.resample(
+                samples: samples,
+                from: Int(sampleRate),
+                to: targetSampleRate
+            )
         }
         return samples
     }

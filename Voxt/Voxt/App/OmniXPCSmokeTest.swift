@@ -58,13 +58,19 @@ extension AppDelegate {
         Task { @MainActor in
             var client: OmniXPCClient?
             do {
-                guard mode == "prepare" || mode == "infer" else {
-                    throw OmniXPCFailure.error(.invalidRequest, "The XPC smoke mode must be prepare or infer.")
+                guard mode == "prepare" || mode == "stage" || mode == "infer" else {
+                    throw OmniXPCFailure.error(.invalidRequest, "The XPC smoke mode must be prepare, stage or infer.")
                 }
                 let connected = try OmniXPCClient()
                 client = connected
                 let probe = try await connected.probe()
-                if mode == "prepare" {
+                if mode == "prepare" || mode == "stage" {
+                    if mode == "stage" {
+                        guard let rawID = environment["VOXT_OMNI_XPC_SMOKE_RUN_ID"], let identifier = UUID(uuidString: rawID) else {
+                            throw OmniXPCFailure.error(.invalidRequest, "The model preparation identifier is invalid.")
+                        }
+                        try await Self.prepareOmniSmokeModels(container: probe.groupContainer, identifier: identifier, environment: environment)
+                    }
                     try Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(
                         status: .prepared, groupContainer: probe.groupContainer.path,
                         abiVersion: probe.abiVersion,
@@ -267,10 +273,7 @@ extension AppDelegate {
                     try await stream.finish()
                 }
             }
-            let configuration = prepared.configuration
-            let engine = MeetingSpeakerDiarizationEngineFactory.makeXPC(
-                client: client, model: model, configuration: configuration
-            )
+            let engine = try await owner.makeSpeakerAnalysisEngine()
             let descriptor = MeetingAudioAssetDescriptor(
                 source: .mixed, sampleRate: 16_000, startSample: 0, sampleCount: samples.count
             )

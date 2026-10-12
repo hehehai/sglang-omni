@@ -5,10 +5,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "omni_native_batch.h"
+
+#ifndef OMNI_CORE_EXPORT
 #if defined(__GNUC__) || defined(__clang__)
 #define OMNI_CORE_EXPORT __attribute__((visibility("default")))
 #else
 #define OMNI_CORE_EXPORT
+#endif
 #endif
 
 #ifdef __cplusplus

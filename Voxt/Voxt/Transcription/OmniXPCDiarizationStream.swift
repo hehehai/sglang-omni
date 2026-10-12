@@ -6,31 +6,35 @@ import OmniXPCContracts
 actor OmniXPCDiarizationStream {
     private let client: OmniXPCClient
     private let reference: OmniXPCSortformerStreamReference
+    private let ownership: OmniXPCSortformerStartOwnership
     private let timeout: Duration
     private var audioSequence = 0
     private var terminal = false
-    private var finished = false
     private var feeding: Task<OmniXPCSortformerProbabilityBatch, Error>?
     private var finishing: Task<Void, Error>?
     private var closing: Task<Void, Error>?
 
-    private init(client: OmniXPCClient, reference: OmniXPCSortformerStreamReference, timeout: Duration) {
+    private init(client: OmniXPCClient, ownership: OmniXPCSortformerStartOwnership, timeout: Duration) {
         self.client = client
-        self.reference = reference
+        self.reference = ownership.reference
+        self.ownership = ownership
         self.timeout = timeout
     }
 
     static func open(
         client: OmniXPCClient, model: OmniXPCSortformerModelReference, settings: OmniXPCSortformerSettings,
-        timeout: Duration = .seconds(30)
+        timeout: Duration = .seconds(30), ownership: OmniXPCSortformerStartOwnership? = nil
     ) async throws -> OmniXPCDiarizationStream {
-        let reference = try await client.startSortformerStream(model: model, settings: settings, timeout: timeout)
+        let ownership = ownership ?? OmniXPCSortformerStartOwnership(model: model)
+        let reference = try await client.startSortformerStream(
+            model: model, settings: settings, timeout: timeout, ownership: ownership
+        )
         if Task.isCancelled {
             let cleanup = Task { try await client.closeSortformerStream(reference) }
             try await cleanup.value
             throw CancellationError()
         }
-        return OmniXPCDiarizationStream(client: client, reference: reference, timeout: timeout)
+        return OmniXPCDiarizationStream(client: client, ownership: ownership, timeout: timeout)
     }
 
     func feed(samples16k: [Float]) async throws -> OmniXPCSortformerProbabilityBatch {
@@ -77,7 +81,6 @@ actor OmniXPCDiarizationStream {
             } onCancel: {
                 exchange.cancel()
             }
-            finished = true
             try Task.checkCancellation()
             guard !terminal else { throw CancellationError() }
             terminal = true
@@ -100,16 +103,11 @@ actor OmniXPCDiarizationStream {
         let finish = finishing
         feed?.cancel()
         finish?.cancel()
-        let needsClose = !finished
-        closing = Task { [client, reference] in
-            let barrier = Task {
-                if needsClose { try await client.closeSortformerStream(reference) }
-            }
-            let result = await barrier.result
+        closing = Task { [client, reference, ownership] in
             _ = await feed?.result
             _ = await finish?.result
             do {
-                try result.get()
+                if ownership.status != .drained { try await client.closeSortformerStream(reference) }
             } catch {
                 // Note (Omni): old waiters must not clear a newer retry; reset inside the failed attempt.
                 closing = nil

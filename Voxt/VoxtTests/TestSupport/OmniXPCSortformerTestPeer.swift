@@ -25,6 +25,24 @@ func makeSortformerOwnershipFixture() async throws -> (OmniXPCClient, OmniXPCSor
 }
 
 nonisolated final class SortformerOwnershipPeer: OmniInferenceXPCProtocol {
+    func loadBatch(operationID _: String, kind _: Int, modelDirectory _: String,
+                   withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void) {
+        reply(nil, nil, OmniXPCFailure.error(.invalidRequest, "This test peer does not implement batch inference."))
+    }
+    func transcribeBatch(requestID _: String, modelID _: String, audio _: Data, settings _: Data,
+                         withReply reply: @escaping @Sendable (Data?, NSError?) -> Void) {
+        reply(nil, OmniXPCFailure.error(.invalidRequest, "This test peer does not implement batch inference."))
+    }
+    func cancelBatchRequest(requestID _: String, modelID _: String?, withReply reply: @escaping @Sendable (NSError?) -> Void) {
+        reply(OmniXPCFailure.error(.invalidRequest, "This test peer does not implement batch inference."))
+    }
+    func drainBatchLoad(operationID _: String, withReply reply: @escaping @Sendable (NSError?) -> Void) {
+        reply(OmniXPCFailure.error(.invalidRequest, "This test peer does not implement batch inference."))
+    }
+    func unloadBatch(operationID _: String, modelID _: String, withReply reply: @escaping @Sendable (NSError?) -> Void) {
+        reply(OmniXPCFailure.error(.invalidRequest, "This test peer does not implement batch inference."))
+    }
+
     var modelID = UUID()
     let serviceInstanceID = UUID()
     var startCount = 0, pushCount = 0, finishCount = 0, cancelCount = 0, closeCount = 0, otherCancelCount = 0
