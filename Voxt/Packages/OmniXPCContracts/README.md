@@ -31,7 +31,7 @@ backends, load models, retry admitted audio or choose a cloud fallback.
 
 The four macOS-gated RPCs are `loadSilero`, `unloadSilero`,
 `sileroSpeechTimestamps` and `cancelSileroRequest`. The streaming extension below
-shares the same model owner. Core ABI stays at 4; production VAD and HTTP routes
+shares the same model owner. Current Core ABI is 5; production VAD and HTTP routes
 are unchanged.
 
 `OmniXPCSileroSettings` requires explicit threshold, minimum speech milliseconds,

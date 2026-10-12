@@ -15,7 +15,7 @@ final class OmniXPCSileroStreamingTests: XCTestCase {
         XCTAssertNotEqual(reference, OmniXPCSileroStreamReference(streamID: UUID(), model: model))
     }
 
-    func testStreamingLimitsDoNotChangeOfflineOrCoreABI() {
+    func testStreamingLimitsPreserveSileroBudgetsWithCurrentCoreABI() {
         XCTAssertEqual(OmniXPCSileroLimits.frameSampleCount, 512)
         XCTAssertEqual(OmniXPCSileroLimits.maximumChunkSampleCount, 32000)
         XCTAssertEqual(OmniXPCSileroLimits.maximumStreamCount, 16)
@@ -23,7 +23,7 @@ final class OmniXPCSileroStreamingTests: XCTestCase {
         XCTAssertEqual(OmniXPCSileroLimits.maximumProbabilityBatchByteCount, 4096)
         XCTAssertEqual(OmniXPCProtocolLimits.maximumRequestsPerModel, 256)
         XCTAssertEqual(OmniXPCProtocolLimits.maximumSampleCount, 480000)
-        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 4)
+        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 5)
     }
 
     func testRoundTripPreservesFieldsAndAcceptsEmptyActiveAndFinalBatches() throws {

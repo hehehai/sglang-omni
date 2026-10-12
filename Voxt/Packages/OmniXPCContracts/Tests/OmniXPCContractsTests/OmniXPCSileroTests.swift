@@ -249,12 +249,12 @@ final class OmniXPCSileroTests: XCTestCase {
         }
     }
 
-    func testOfflineLimitsLeaveCoreABIAndSharedAudioAndRequestLimitsUnchanged() {
+    func testOfflineLimitsPreserveSharedBudgetsWithCurrentCoreABI() {
         XCTAssertEqual(OmniXPCSileroLimits.maximumSettingsByteCount, 1024)
         XCTAssertEqual(OmniXPCSileroLimits.maximumTimestampBatchByteCount, 65_536)
         XCTAssertEqual(OmniXPCSileroLimits.maximumTimestampCount, 938)
         XCTAssertEqual(OmniXPCSileroLimits.maximumOptionMilliseconds, 30_000)
-        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 4)
+        XCTAssertEqual(OmniXPCProtocolLimits.abiVersion, 5)
         XCTAssertEqual(OmniXPCProtocolLimits.sampleRate, 16_000)
         XCTAssertEqual(OmniXPCProtocolLimits.maximumSampleCount, 480_000)
         XCTAssertEqual(OmniXPCProtocolLimits.maximumRequestsPerModel, 256)
