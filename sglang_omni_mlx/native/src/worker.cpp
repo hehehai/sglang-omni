@@ -3,7 +3,9 @@
 
 namespace qwen3_asr {
 
-TranscriptionWorker::TranscriptionWorker(std::function<void()> load) {
+TranscriptionWorker::TranscriptionWorker(std::function<void()> load,
+                                         bool releases_cache_when_idle)
+    : releases_cache_when_idle_(releases_cache_when_idle) {
   std::promise<void> loaded;
   std::future<void> loaded_future = loaded.get_future();
   thread_ = std::thread(&TranscriptionWorker::Run, this, std::move(loaded),
@@ -51,7 +53,7 @@ void TranscriptionWorker::Run(std::promise<void> loaded,
       // step's buffers slows each token; an idle server returns it, so it
       // holds only the model. The synchronize lets the step a decode queued
       // before it stopped return its buffers first.
-      if (queue_.empty()) {
+      if (releases_cache_when_idle_ && queue_.empty()) {
         lock.unlock();
         mlx::core::synchronize();
         mlx::core::clear_cache();

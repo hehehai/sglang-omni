@@ -59,7 +59,7 @@ int main(void) {
     int (*transcribe_request)(OmniQwenHandle *, OmniQwenRequest *, const float *,
                               size_t, const char *, const char *, int,
                               OmniQwenResult *, char **) = omni_qwen_transcribe_request;
-    assert(version() == 7);
+    assert(version() == 8);
     int (*sortformer_destroy_checked)(OmniSortformerHandle *, char **) = omni_sortformer_destroy_checked;
     int (*sortformer_stream_destroy_checked)(OmniSortformerStream *, char **) = omni_sortformer_stream_destroy_checked;
     char *error = NULL;

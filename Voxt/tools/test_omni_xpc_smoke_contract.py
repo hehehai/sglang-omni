@@ -27,7 +27,7 @@ class OmniXPCSmokeContractTests(unittest.TestCase):
                      and "prepared.get('abi_version')" in ast.unparse(statement.test))
         compiled = compile(ast.Module(body=[assignment, guard], type_ignores=[]), "smoke-probe-guard", "exec")
         exec(compiled, {"prepared": {"status": "prepared", "abi_version": self.abi_version}})
-        for version in [None, False, 0, 5, 6, self.abi_version + 1, str(self.abi_version)]:
+        for version in [None, False, 0, 5, 6, 7, self.abi_version + 1, str(self.abi_version)]:
             if version == self.abi_version:
                 continue
             else:

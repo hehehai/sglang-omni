@@ -109,12 +109,24 @@ void NemotronRealtimeEngine::Append(std::vector<float> samples) {
   }
 }
 
-void NemotronRealtimeEngine::SubmitDecode(bool final) {
-  decoding_ = true;
+void NemotronRealtimeEngine::PrepareStream() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!cancel_->load()) {
+    EnsureStream();
+  } else {
+  }
+}
+
+void NemotronRealtimeEngine::EnsureStream() {
   if (stream_ == nullptr) {
     stream_ = std::make_shared<NemotronStream>(transcriber_, options_);
   } else {
   }
+}
+
+void NemotronRealtimeEngine::SubmitDecode(bool final) {
+  decoding_ = true;
+  EnsureStream();
   std::vector<float> samples = std::move(pending_samples_);
   pending_samples_.clear();
   const std::weak_ptr<NemotronRealtimeEngine> weak_self = shared_from_this();

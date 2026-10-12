@@ -31,6 +31,9 @@ public:
   // Commands are caller-serialized; only Close may overlap or reenter a sink.
   void UpdateSettings(std::optional<std::string> language,
                       std::optional<double> chunk_milliseconds);
+  // Optional eager initialization on the model-loading thread, after settings.
+  // Ordinary callers retain lazy preparation on the first decode.
+  void PrepareStream();
   void Append(std::vector<float> samples);
   void Commit();
   void Finish();
@@ -40,6 +43,7 @@ public:
 private:
   // Called with mutex_ held and no other stream job in flight.
   void SubmitDecode(bool final);
+  void EnsureStream();
   void CompleteDecode(std::optional<qwen3_asr::TranscriptionResult> result,
                       std::exception_ptr error, bool final);
   void Emit(const qwen3_asr::SpeakerRealtimeEvent &event);

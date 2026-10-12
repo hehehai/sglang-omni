@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "omni_native_batch.h"
+#include "omni_native_speaker.h"
 
 #ifndef OMNI_CORE_EXPORT
 #if defined(__GNUC__) || defined(__clang__)

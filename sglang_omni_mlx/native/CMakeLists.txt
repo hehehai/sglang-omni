@@ -70,7 +70,9 @@ add_library(OmniCore SHARED src/native_core.cpp src/native_realtime.cpp
   src/native_sortformer.cpp src/native_sortformer_stream.cpp
   src/native_sortformer_worker.cpp src/native_sortformer_validation.cpp
   src/native_batch.cpp src/native_batch_worker.cpp
-  src/native_batch_validation.cpp src/native_batch_result.cpp)
+  src/native_batch_validation.cpp src/native_batch_result.cpp
+  src/native_speaker_lifetime.cpp src/native_speaker_commands.cpp
+  src/native_speaker_events.cpp src/native_speaker_validation.cpp)
 target_include_directories(OmniCore PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include>")
@@ -107,13 +109,19 @@ if(APPLE)
       omni_batch_create omni_batch_cancel omni_batch_destroy_checked
       omni_batch_request_create omni_batch_request_cancel
       omni_batch_request_drain omni_batch_request_destroy_checked
-      omni_batch_transcribe omni_batch_result_free)
+      omni_batch_transcribe omni_batch_result_free
+      omni_speaker_settings_default omni_speaker_create omni_speaker_cancel
+      omni_speaker_destroy_checked omni_speaker_realtime_create
+      omni_speaker_realtime_push omni_speaker_realtime_commit
+      omni_speaker_realtime_finish omni_speaker_realtime_poll
+      omni_speaker_realtime_cancel omni_speaker_realtime_drain
+      omni_speaker_realtime_destroy_checked omni_speaker_realtime_event_free)
     target_link_options(OmniCore PRIVATE "LINKER:-exported_symbol,_${symbol}")
   endforeach()
 endif()
 install(TARGETS OmniCore LIBRARY DESTINATION bin)
 install(FILES include/omni_native_core.h include/omni_native_batch.h
-  DESTINATION include)
+  include/omni_native_speaker.h DESTINATION include)
 
 add_library(silero_vad STATIC src/silero_vad.cpp)
 target_include_directories(silero_vad PUBLIC src)

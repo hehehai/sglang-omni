@@ -81,7 +81,7 @@ class OmniXPCBatchSmokeTests(unittest.TestCase):
         self.modes.append(mode)
         self.environments.append(env)
         if mode == "prepare":
-            report = {"status": "prepared", "abi_version": 7, "group_container": str(self.container)}
+            report = {"status": "prepared", "abi_version": 8, "group_container": str(self.container)}
         elif mode == "stage":
             self.assertTrue(self.artifacts.is_dir())
             for source_field, collection in (
@@ -97,7 +97,7 @@ class OmniXPCBatchSmokeTests(unittest.TestCase):
                     (destination / "stub-publication.txt").write_text("No model copying or Native execution in this test.")
                 else:
                     pass
-            report = {"status": self.stage_status, "abi_version": 7}
+            report = {"status": self.stage_status, "abi_version": 8}
         else:
             self.assertEqual(mode, "infer")
             self.assertEqual((self.artifacts / "expected.txt").read_text(), "explicit baseline fixture")
