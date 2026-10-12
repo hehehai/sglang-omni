@@ -138,8 +138,8 @@ try:
         raise RuntimeError('The optional Silero offline/stream reuse/reconnect validation did not run.')
     else:
         pass
-    if sortformer and report.get('sortformer_stream_count') != 4:
-        raise RuntimeError('The optional Sortformer stream reuse/reconnect validation did not run.')
+    if sortformer and (report.get('sortformer_stream_count') != 6 or report.get('sortformer_caller_count') != 2):
+        raise RuntimeError('The optional Sortformer stream/caller reuse/reconnect validation did not run.')
     else:
         pass
     passed = True

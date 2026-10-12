@@ -283,6 +283,8 @@ jobs:
             -only-testing:VoxtTests/OmniASRRuntimeLaunchTests \
             -only-testing:VoxtTests/OmniVoiceActivityTests \
             -only-testing:VoxtTests/OmniSpeakerDiarizationTests \
+            -only-testing:VoxtTests/MeetingSortformerConfigurationTests \
+            -only-testing:VoxtTests/MeetingSpeakerFeedPolicyTests \
             -only-testing:VoxtTests/OmniModelManagerRecoveryTests \
             -only-testing:VoxtTests/OmniFailurePathTests \
             -only-testing:VoxtTests/MLXModelManagerLifecycleTests \

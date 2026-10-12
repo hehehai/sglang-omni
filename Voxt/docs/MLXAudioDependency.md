@@ -19,8 +19,11 @@ to finish Voxt integration before removing the Audio package:
   Core/XPC routing.
 - Native ASR input preparation still calls MLXAudioCore resampling. Replace it
   with tested application-owned resampling; do not silently reduce fidelity.
-- Native long-form VAD policy and Sortformer configuration still use Audio
-  types; production auxiliary detectors retain Swift Silero/Sortformer paths.
+- Native long-form VAD policy still uses Audio types. Sortformer common/Native
+  HTTP scheduling now uses an app-owned bounded Foundation configuration;
+  its legacy Swift model adapter remains isolated and linked. An explicit
+  preloaded-model XPC meeting adapter exists, but default production routing
+  is unchanged and needs cache/ownership/platform acceptance before cutover.
 - ASR adapters/loaders and test seams still compile against Audio products.
   Removing their project links now would break compilation or functionality.
 - Keep mlx-swift-lm, MLXLLM/MLXVLM/MLXLMCommon, shared MLX runtime support,

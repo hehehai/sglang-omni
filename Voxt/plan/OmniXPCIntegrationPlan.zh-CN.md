@@ -832,6 +832,19 @@ Sortformer Core 与 cooperating publication/lease 进展见 T4d1/T4c1。Sortform
 
 当前production说话人分析/HTTP factories未切换，MLXAudio和MLXSwift LLM/VLM保留。下一步复用actualSortformerXPC actor迁移productioncaller及配置依赖，然后扩展六个HTTP-onlyASR families Core/XPC；目录/平台/发布硬门槛不跳过。
 
+### T4d3：meeting consumer seam 与 Audio-free Native scheduling config
+
+- 把原413行混合engine按真实责任拆为common protocol/default wrapper、isolated MLX legacy actor、Foundation-only Native HTTP actor；默认仍HTTP when enabled/else原Swift，不把opt-in XPC提前设为production。common/HTTP不再import MLXAudioVAD，MLX/Audio仅保留在legacy modeladapter。3个共享Sendable audio/descriptor/turn值及protocol/extensions显式nonisolated，避免MainActor-default错误推断到纯值和actor initializer。
+- 新增9field `MeetingSortformerConfiguration`：实际appownedFoundation projection，保持pinnedSwift默认/nestedsection/absent-null fallback，boundedconfig read≤16MiB+1、及时close、不读weights；encoder capacity reportingOverflow后检查。不复制30余无用模型字段，不替代Native fullarchitecture/compression/model compatibility。正常HF config symlink先resolve目标再regular/readable检查，保留cachedblob权重位置；pathauthorization/leases仍由外部loader/helper处理，未自动cache迁移。
+- `makeXPC(client:model:configuration:coordinator:)`可注入实际 `MeetingSpeakerDiarizationEngine` pipeline，预加载model/client由外部owner保留并最终unload；adapter只own/close自己streams。刻意不把model load cancelACK误当GPU资源barrier或自动在filepermit内放弃未完成modelload。singleoperationgate与operationUUID隔离late cancel，missing/empty assets、metadata/openerror、progresscancel均awaitclose；failedbarrier保留stream并在再用前retry。
+- XPC使用实际wholeDTO与既有feedPolicy.mappedRange、speakerID/displayformat/confidencenil，保持descriptor顺序、同source+gap<0.05连续判定、reset先close再open。≤32000 realPCM、单sampletail无fakepadding/FIFO；不同于原HTTP≤5秒feed，numerical/golden parity必须Mac补验。filefeeds通过actual coordinator，native feed返回后才检查30秒elapsed，cancellation/error/tooSlow在permit scope内awaitclose，不凭ACK释放lane；noncooperativecallback不可forcedreturn。
+- 独立审查复现2项：原config目标symlink被错误拒绝（旧pinneddecoder接受），Main已修复并补HFexternalblob/danglinglink回归；XPC一般config若hop80/sub4会无错误偏移/丢掉turn，已在adapter边界拒绝非16k/hop160/sub8/AOSC，保持generalprojection对HTTP/Swift可用，不改mapping掩盖不匹配。
+- actual main caller→client→exportedhelper→Core5 harness验证clippedturns/progress/source-reset/externalmodelreuse/blockedcancel-close-unload/nilasset错误传播；明确MLX/model/平台替身，不是recognition/Metal。实际未改before class+newdefaultwrapper分别执行Swift/HTTP controlledbackend共20场景（file/live、tails/large、resampling/source/reset），除随机turnUUID外ordered turns/progress完全一致，不是神经模型/网络golden。
+- Main最终11 portable controlled-peer caller tests与15 config+1 pinned-reference compare=16 tests，Debug/Release均通过；初次10caller tests不含修复后的geometrycase。原型Decoder保留原revision，12validprojection fixtures对比真实pinnedSwiftdecoder，不以手写fake decoder作oracle。46 tooling/source-resolved audits与supplemental helper/default/HTTP/legacy/XPC/smoke compile通过；Linux thermal/cache/runtime/model hooks为明确替身，fullSDK/NSXPC仍待补。
+- optional signedSortformer smoke新增actualmeeting consumer调用，每helper2 structuredstreams+1caller，再reconnect重复：`sortformer_stream_count=6` / `sortformer_caller_count=2`；原4/5参数和optional第6fixture保留，actualsignedrun未执行。MacCI仅补config/feedPolicy选择，不启用gates。
+
+production factory、cache路径、AudioSPM/MLXSwift LLM/VLM/Remote routes未切换或删除。后续完成shared-model preparation/authorization/lifecycle协调、productionfactory验收切换及六个ASR families Core/XPC；移除Audio仍需VAD policy/重采样/legacySTT adapters/tests等consumer迁移和真实Mac resolution/build。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |

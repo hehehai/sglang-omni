@@ -23,6 +23,7 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
     var sileroRequestCount: Int? = nil
     var sileroStreamCount: Int? = nil
     var sortformerStreamCount: Int? = nil
+    var sortformerCallerCount: Int? = nil
     var errorDomain: String? = nil
     var errorCode: Int? = nil
 
@@ -42,6 +43,7 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
         case sileroRequestCount = "silero_request_count"
         case sileroStreamCount = "silero_stream_count"
         case sortformerStreamCount = "sortformer_stream_count"
+        case sortformerCallerCount = "sortformer_caller_count"
         case errorDomain = "error_domain"
         case errorCode = "error_code"
     }
@@ -194,7 +196,8 @@ extension AppDelegate {
                         realtimeSessionCount: 3, realtimeCancellationDrained: true,
                         sileroRequestCount: sileroDirectory == nil ? nil : 4,
                         sileroStreamCount: sileroDirectory == nil ? nil : 2,
-                        sortformerStreamCount: sortformerDirectory == nil ? nil : 4
+                        sortformerStreamCount: sortformerDirectory == nil ? nil : 6,
+                        sortformerCallerCount: sortformerDirectory == nil ? nil : 2
                     ))
                 }
                 connected.invalidate()
@@ -260,6 +263,21 @@ extension AppDelegate {
                 }
                 try await stream.finish()
             }
+        }
+        let configuration = try MeetingSortformerConfiguration.load(from: modelDirectory)
+        let engine = MeetingSpeakerDiarizationEngineFactory.makeXPC(
+            client: client, model: model, configuration: configuration
+        )
+        let descriptor = MeetingAudioAssetDescriptor(
+            source: .mixed, sampleRate: 16_000, startSample: 0, sampleCount: samples.count
+        )
+        let turns = try await engine.diarizeFile(
+            descriptors: [descriptor], loadAsset: { _ in
+                MeetingAudioAsset(source: .mixed, samples: samples, sampleRate: 16_000, sessionStartOffset: 0)
+            }, options: .init(), progress: nil
+        )
+        guard turns.allSatisfy({ $0.startSeconds >= 0 && $0.endSeconds <= Double(samples.count) / 16_000 }) else {
+            throw OmniXPCFailure.error(.nativeFailure, "The Sortformer caller returned out-of-audio turn bounds.")
         }
         try await client.unloadSortformer(model)
     }
