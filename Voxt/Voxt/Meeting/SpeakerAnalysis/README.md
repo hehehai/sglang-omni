@@ -25,6 +25,15 @@ contract and feeds at most 32000 real samples, without invented padding/tail.
 This differs from the existing approximately five-second HTTP chunking and needs
 real numerical/model validation before production cutover.
 
+The legacy meeting engine and realtime annotation stage now keep a paired Swift
+model/directory reader through construction, cached ownership and each active
+operation. Clearing a cache or resetting the realtime stage does not release an
+in-flight model's reader; model destruction precedes release. Directory selection
+preserves existing readable-root order and rejects busy/unsafe acquisition rather
+than silently changing caches. This is cooperating filesystem ownership, not a
+new Swift MLX/GPU cancellation or drain API. Legacy Silero and cache/blob repair
+paths still need coordination.
+
 File-feed failures, cancellation and slow-feed checks await owned stream cleanup
 before releasing the inference permit. A noncooperative asset/progress callback
 cannot be forced to return. Ordinary HTTP close remains its existing socket

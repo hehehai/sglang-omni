@@ -858,6 +858,17 @@ production factory、cache路径、AudioSPM/MLXSwift LLM/VLM/Remote routes未切
 
 这里覆盖App存活正常操作中HTTP child lifetime，不解决Appcrash释放lock之后orphanNative在parentdeath cleanup/load期间继续活着的窗口，也不覆盖不合作的namespace/blob mutation、全部legacy Swift readers、HFshadow/cache repair、immutable snapshots/powerloss或cache迁移。仍需XPC shared-directory preparation/authorization/完整modelload cleanup barrier和owner接入，六ASR families Core/XPC、Audio其余consumer迁移与实际Mac验收。
 
+### 官方main再同步与T4c3：legacy Sortformer reader coordination
+
+- 用户确认目标为 `sgl-project/sglang-omni/main`。本轮freshfetch为7f78bf3，已是ec43cae祖先，实际merge返回Already up to date；不制造空merge、不rebase/重写3个local checkpoint。用户提出1.16快速发布实现仍作为短期兼容基线，核心继续Core/XPC/owned contracts/协作目录/真实平台验收路线，不把发布完成写成迁移完成。当前API可见Voxt独立repo仍baa6f316/1.15.0，不冒称已拿到不存在于本轮fetch的1.16差异，也不把独立repo根目录混入本项目。
+- 从RealtimeDiarization拆出实际 `MeetingSortformerModelStorage`（Foundation/HF/Artifacts，无MLXAudio）；原path/readable/write/temp/cache/presencechecker策略保留。新增validatedModelDirectoryLease在原readable root顺序下，先sharedRead再presencevalidation；missing/invalid返回nil，busy/unsafe直接抛错，不静默换另一个cache。
+- 新paired `MeetingSortformerModelLease`，被actual MLX meetingengine和realtimeannotationstage两处使用；reader覆盖真实Swiftmodelconstruction，model先销毁再释放reader。每次operation用localholder/defer pin跨所有await，file结束/cacheclear/realtime reset不让正在feed的旧model提前失去reader；file/live feed用捕获的model，而非afterawait再读可能被换掉的cache。reader acquire后checkcancellation并再次checkcache，防止actorreentry不必要的duplicate load。
+- 不改变旧Swiftmodel数值/阈值/padding/state/mapping/progress，也不把Swiftcancel/stream/presentation completion冒称MLXworker/Metal barrier。pinnedmodel内部eval仅source检查，实际GPU teardown/ARClazygraph仍需Mac。
+- 4 Foundation XCTest正常图 +4 actor/model tests仅OMNI_SORTFORMER_PORTABLE_TESTS；actualstorage/disk/indexvalidator/完整两个actor/commonprotocol/feedpolicy/mapping执行，实际pinnedSwiftconfigdecoder，MLX/model/HF/rootresolution/thermal/transcriptDTO/assembly替身明确。8tests Debug/Release通过；实际旧两个actor同fixtures有3reader回归失败（cachedmodel、blockedfilecancel、reset/inflight），after通过。另actual原/新engine10 file/live输入场景orderedturn/progress一致，忽略freshUUID；是controlledbackend调用层而非neural golden。
+- 46tooling/source-resolvedaudits与sourceparse通过；MacCI只选择正常Foundation suite，不启用gates。真实Mac/Xcode/签名/Metal/model/长会议仍待补，cache/LLM/VLM/Remote/AudioSPM/defaultASR/XPCfactory未改。
+
+依然没有解决legacySwiftSilero及所有其它reader、Hubshadow/blob/cacheclear/repair、immutable snapshots/Appcrash-orphan、XPCshared目录准备/授权/完整model-load cleanup barrier与六ASRfamilies Core/XPC。1.16快捷实现和现有fallback边界仅兼容过渡，不替代规划终点。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |

@@ -3,7 +3,7 @@ import MLX
 import MLXAudioVAD
 
 actor MLXSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEngine {
-    private var model: SortformerModel?
+    private var loadedModel: MeetingSortformerModelLease?
 
     func diarize(
         asset: MeetingAudioAsset, options _: MeetingSpeakerDiarizationOptions
@@ -30,7 +30,7 @@ actor MLXSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEng
         loadAsset: @escaping @Sendable (MeetingAudioAssetDescriptor) async -> MeetingAudioAsset?,
         options _: MeetingSpeakerDiarizationOptions, progress: (@Sendable (Double) async -> Void)?
     ) async throws -> [MeetingSpeakerTurn] {
-        defer { model = nil }
+        defer { loadedModel = nil }
         return try await runSession(descriptors: descriptors, loadAsset: loadAsset, fileAnalysis: true, progress: progress)
     }
 
@@ -39,14 +39,16 @@ actor MLXSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEng
         loadAsset: @escaping @Sendable (MeetingAudioAssetDescriptor) async -> MeetingAudioAsset?,
         fileAnalysis: Bool, progress: (@Sendable (Double) async -> Void)?
     ) async throws -> [MeetingSpeakerTurn] {
+        let loadedModel: MeetingSortformerModelLease
         if fileAnalysis {
-            try await MeetingLocalInferenceCoordinator.shared.withPermit(.fileSpeakerAnalysis) {
-                try await self.prepareFileModel()
+            loadedModel = try await MeetingLocalInferenceCoordinator.shared.withPermit(.fileSpeakerAnalysis) {
+                try await self.loadModelIfAvailable()
             }
         } else {
-            _ = try await loadModelIfAvailable()
+            loadedModel = try await loadModelIfAvailable()
         }
-        guard let model else { throw MeetingVADModelError.modelNotDownloaded }
+        defer { withExtendedLifetime(loadedModel) {} }
+        let model = loadedModel.model
         let config = model.config
         let policy = try MeetingSpeakerFeedPolicy(
             sampleRate: config.processorConfig.samplingRate,
@@ -89,10 +91,10 @@ actor MLXSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEng
                 let result: (DiarizationOutput, StreamingState)
                 if fileAnalysis {
                     result = try await MeetingLocalInferenceCoordinator.shared.withPermit(.fileSpeakerAnalysis) {
-                        try await self.feed(samples: samples, state: inputState, policy: policy, enforceTimeLimit: true)
+                        try await self.feed(model: model, samples: samples, state: inputState, policy: policy, enforceTimeLimit: true)
                     }
                 } else {
-                    result = try await feed(samples: samples, state: inputState, policy: policy)
+                    result = try await feed(model: model, samples: samples, state: inputState, policy: policy)
                 }
                 try Task.checkCancellation()
                 let (output, newState) = result
@@ -117,12 +119,10 @@ actor MLXSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEng
         return turns
     }
 
-    private func prepareFileModel() async throws { _ = try await loadModelIfAvailable() }
-
     private func feed(
-        samples: [Float], state: StreamingState, policy: MeetingSpeakerFeedPolicy, enforceTimeLimit: Bool = false
+        model: SortformerModel, samples: [Float], state: StreamingState,
+        policy: MeetingSpeakerFeedPolicy, enforceTimeLimit: Bool = false
     ) async throws -> (DiarizationOutput, StreamingState) {
-        guard let model else { throw MeetingVADModelError.modelNotDownloaded }
         var padded = samples
         if padded.count < policy.frameSamples {
             padded.append(contentsOf: repeatElement(0, count: policy.frameSamples - padded.count))
@@ -138,13 +138,15 @@ actor MLXSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEng
         return result
     }
 
-    private func loadModelIfAvailable() async throws -> SortformerModel {
-        if let model { return model }
-        guard let directory = await MeetingSortformerModelStorage.validatedModelDirectory() else {
+    private func loadModelIfAvailable() async throws -> MeetingSortformerModelLease {
+        if let loadedModel { return loadedModel }
+        guard let directoryLease = try await MeetingSortformerModelStorage.validatedModelDirectoryLease() else {
             throw MeetingVADModelError.modelNotDownloaded
         }
-        let loaded = try SortformerModel.fromModelDirectory(directory)
-        model = loaded
+        try Task.checkCancellation()
+        if let loadedModel { return loadedModel }
+        let loaded = try MeetingSortformerModelLease(directoryLease: directoryLease)
+        loadedModel = loaded
         return loaded
     }
 }
