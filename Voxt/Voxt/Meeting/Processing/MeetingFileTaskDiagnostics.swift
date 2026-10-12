@@ -12,6 +12,7 @@ nonisolated enum MeetingFileTaskDiagnostics {
             case .thermallyConstrained: reason = "thermal-pressure"
             case .memoryConstrained: reason = "memory-pressure"
             case .overloaded: reason = "inference-queue-full"
+            case .invalidPermit: reason = "invalid-permit"
             }
         } else {
             reason = "operation-error"

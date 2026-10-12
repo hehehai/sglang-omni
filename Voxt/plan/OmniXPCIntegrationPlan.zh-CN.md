@@ -894,6 +894,19 @@ production factory、cache路径、AudioSPM/MLXSwift LLM/VLM/Remote routes未切
 
 这里是owner所需的退休入口，并未实现sharedModels copy/迁移或完整ModelOwner/coordinator wiring；下一步用retainableowned permit覆盖prepare/失败cleanup/close失联资源未知路径，不能把load/close丢进原always-defer-release withPermit就宣布安全。production factory、Audio/LLM/VLM/Remote/settings/cachepaths/签名/CIgates均未切换。
 
+### T4d5b：owned coordinator permit + 显式shared Sortformer model Owner
+
+- `reserveOwnedPermit` 返回fileprivate identity绑定到coordinator/active token的Sendable token；只有matching `completeOwnedPermit` trim/restore cache并释放lane。token/caller return/cancel/error/deinit不自动释放，wrong/repeated/stale token错误不释放其它activework。bounded activeownedrecord=1；postacquire取消在transfer前释放ordinarylane，不装cachehooks。旧withPermit语义与policy保持；纯policy/errors/stats按责任从actor拆出（330/100行）。
+- 新实际 `.modelCleanup` priority110，不受recording/thermal/memory defer（cleanup要能回收内存），仍排在正在运行lane之后；thermal注入hook生产默认ProcessInfo原值，用于确定性测试。新增invalidPermit诊断stable `invalid-permit` exhaustivecase与回归。
+- `OmniXPCSortformerModelOwner` raw显式init(client,directory,coordinator)，prepare返回borrowed真实model/config。原sharedModelsURLauthorize→bounded diskqueue sharedreader→lease下重新authorize/canonicalpathcompare→Foundation config geometry/capacity→Native load，不copy/cache迁移/下载替换。成功Nativeload完成释放prep commandpermit，但reader/model继续owner保留；modelresident不是activeGPU命令。
+- prepare/close真实用ownedpermit，failedloadcleanup未确认保留permit/reader/原OP；close复用failedpreparepermit，readyclose reserve.modelCleanup。同ownerpreparation最多1Task，closeuncancelled/coalesce且await canceled prep.result再directscopedretire；prepworker不调用owner.close避免self-wait。public latecancel在model已stored后也awaitclose。失联保留unknownref/reader/lane，不能借新transport cleanup，不能凭map absence放lane；rawowner/token必须retain并explicitclose，no deinit释放或保证恢复，失去owner可fail-closed blocklane。
+- client可由owner显式给loadUUID，requiredOperationID cleanup guard防止owner误清其它pendingload。授权helper由client+owner共用actualvalidation；cachedpreparedmodel返回前检查client exactowned/retiringbinding。empty close不reserve phantomcleanup（optionalnil==nil问题在Main源码检查中修正）。其它owner模型busy/未发Native请求不会被这个owner关闭。
+- 签名smoke使用actualOwner.prepare匹配model/config +close，6streams/2caller/参数不变，actualsignedrun未执行。此slice只协调MODELprepare/RETIRE：原meetingengine每feed withPermit不变，borrowed work先finish/cancel才能close取得lane，没有hardGPU preemption或per-feed failurelane已转换承诺；production factory未切换。
+- Main actualportableOwner7+coordinator23+原client56=86 Debug/Release通过；加2原diagnostics literal-source cases=88/config通过。Coordinator旧/owned tests按责任分245/315行，实际sharedTestSupport111，无改变23methodbody（pollhelper rename后3个trailingclosure漏替换的编译错误修复/log保留）。独立coordinator23/重复/并行/strict build，read-onlyfinal86+11extra=97/config、补110 executions、strict productiontarget通过/noadditionalscopedfinding；fullstrict Linux XCTest discovery wrappers sending-self错误保留，不当fullSDK通过。
+- actualOwner/coordinator/diskreader/client→exportedhelper→Core6 CPU：Nativeconstructor blocked cancel/deadline时error仍等drain/permit/cache/reader，人工checkedDestroy持续失败保留lane+reader/原OP后sameowner retry，ready borrowedstream+modelclose失败重试，Qwen/Silero保持健康。Model/MLX/gate/fault/NSXPC/thermal/cachehooks替身明确，非Metal/NSXPC/真实model/GPUconcurrency。
+
+Native/service/protocol/ABI6/Audio/LLM/VLM/Remote/catalog/settings/cachepaths/签名与releasegates均未改，MacCI仅新增正常coordinator/owned suite选择。完整sharedModels迁移/recovery/old-owner失联确认、per-feed retainedlane/生产Owner factory、六ASRfamiliesCore/XPC及Mac平台验收仍待补。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |

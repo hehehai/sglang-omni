@@ -3,86 +3,9 @@
 
 import Foundation
 
-nonisolated enum MeetingLocalInferenceWorkClass: String, Sendable {
-    case liveASRFeed
-    case liveASRFinal
-    case liveASRPartial
-    case realtimeTranslation
-    case fileASR
-    case fileSpeakerAnalysis
-    case finalASR
-    case speakerAnalysis
-    case detailTranslation
-    case summary
-
-    var priority: Int {
-        switch self {
-        case .liveASRFeed: return 100
-        case .liveASRFinal: return 95
-        case .liveASRPartial: return 85
-        case .realtimeTranslation: return 70
-        case .fileASR, .fileSpeakerAnalysis: return 10
-        case .finalASR: return 60
-        case .speakerAnalysis: return 50
-        case .detailTranslation: return 40
-        case .summary: return 20
-        }
-    }
-
-    var waitsWhileRecording: Bool {
-        switch self {
-        case .fileASR, .fileSpeakerAnalysis, .finalASR, .speakerAnalysis, .detailTranslation, .summary:
-            return true
-        case .liveASRFeed, .liveASRFinal, .liveASRPartial, .realtimeTranslation:
-            return false
-        }
-    }
-
-    var isThermallyDeferrable: Bool {
-        switch self {
-        case .liveASRFeed, .liveASRFinal, .finalASR:
-            return false
-        case .liveASRPartial, .realtimeTranslation, .fileASR, .fileSpeakerAnalysis, .speakerAnalysis, .detailTranslation, .summary:
-            return true
-        }
-    }
-
-    var isMemoryDeferrable: Bool {
-        switch self {
-        case .liveASRFeed, .liveASRFinal, .finalASR:
-            return false
-        case .liveASRPartial, .realtimeTranslation, .fileASR, .fileSpeakerAnalysis, .speakerAnalysis, .detailTranslation, .summary:
-            return true
-        }
-    }
-}
-
-nonisolated struct MeetingLocalInferenceStatistics: Equatable, Sendable {
-    var submittedCount = 0
-    var completedCount = 0
-    var cancelledCount = 0
-    var overloadedCount = 0
-    var thermalDeferralCount = 0
-    var memoryDeferralCount = 0
-    var peakQueuedCount = 0
-    var totalWaitMilliseconds: Int64 = 0
-}
-
-nonisolated enum MeetingLocalInferenceCoordinatorError: LocalizedError, Sendable {
-    case overloaded
-    case thermallyConstrained
-    case memoryConstrained
-
-    var errorDescription: String? {
-        switch self {
-        case .overloaded:
-            return "The local meeting inference queue reached its safety limit."
-        case .thermallyConstrained:
-            return "The Mac is too warm for this nonessential local inference task right now."
-        case .memoryConstrained:
-            return "The Mac is under memory pressure, so this nonessential local inference task was deferred."
-        }
-    }
+nonisolated struct MeetingLocalInferenceOwnedPermit: Sendable {
+    fileprivate let coordinatorID: UUID
+    fileprivate let tokenID: UUID
 }
 
 actor MeetingLocalInferenceCoordinator {
@@ -100,8 +23,16 @@ actor MeetingLocalInferenceCoordinator {
         let continuation: CheckedContinuation<UUID, Error>
     }
 
+    private struct OwnedWork {
+        let token: UUID
+        let workClass: MeetingLocalInferenceWorkClass
+        let restoreCacheLimit: (@Sendable () -> Void)?
+    }
+
     private static let maximumQueuedWork = 32
 
+    private let coordinatorID = UUID()
+    private var activeOwnedWork: OwnedWork?
     private var activeToken: UUID?
     private var waiters: [Waiter] = []
     private var cancelledWaiterIDs = Set<UUID>()
@@ -114,6 +45,7 @@ actor MeetingLocalInferenceCoordinator {
     private let clock = ContinuousClock()
     private let maintainFileCache: @Sendable (Bool) -> Void
     private let readMemoryPressure: @Sendable () -> Bool?
+    private let readThermalState: @Sendable () -> ProcessInfo.ThermalState
     private let beginFileWorkUnit: @Sendable () -> (@Sendable () -> Void)
 
     // Isolated coordinators in tests must not initialize or mutate the MLX GPU
@@ -121,11 +53,13 @@ actor MeetingLocalInferenceCoordinator {
     init(
         maintainFileCache: @escaping @Sendable (Bool) -> Void = { _ in },
         readMemoryPressure: @escaping @Sendable () -> Bool? = { nil },
-        beginFileWorkUnit: @escaping @Sendable () -> (@Sendable () -> Void) = { {} }
+        beginFileWorkUnit: @escaping @Sendable () -> (@Sendable () -> Void) = { {} },
+        readThermalState: @escaping @Sendable () -> ProcessInfo.ThermalState = { ProcessInfo.processInfo.thermalState }
     ) {
         self.maintainFileCache = maintainFileCache
         self.readMemoryPressure = readMemoryPressure
         self.beginFileWorkUnit = beginFileWorkUnit
+        self.readThermalState = readThermalState
     }
 
     func setRecordingActive(_ isActive: Bool) {
@@ -155,7 +89,7 @@ actor MeetingLocalInferenceCoordinator {
     ) async throws -> T {
         do {
             let token = try await acquire(workClass)
-            let isFile = workClass == .fileASR || workClass == .fileSpeakerAnalysis
+            let isFile = workClass.isFileWork
             let restoreCacheLimit: (@Sendable () -> Void)? = isFile ? beginFileWorkUnit() : nil
             defer {
                 if isFile {
@@ -175,6 +109,41 @@ actor MeetingLocalInferenceCoordinator {
         }
     }
 
+    func reserveOwnedPermit(
+        _ workClass: MeetingLocalInferenceWorkClass
+    ) async throws -> MeetingLocalInferenceOwnedPermit {
+        let token = try await acquire(workClass)
+        do {
+            try Task.checkCancellation()
+        } catch {
+            release(token)
+            throw error
+        }
+        // note (guanwei): Native retirement can outlive caller failure; only explicit completion releases ownership.
+        activeOwnedWork = OwnedWork(
+            token: token,
+            workClass: workClass,
+            restoreCacheLimit: workClass.isFileWork ? beginFileWorkUnit() : nil
+        )
+        return MeetingLocalInferenceOwnedPermit(coordinatorID: coordinatorID, tokenID: token)
+    }
+
+    func completeOwnedPermit(_ permit: MeetingLocalInferenceOwnedPermit) throws {
+        guard permit.coordinatorID == coordinatorID,
+              let ownedWork = activeOwnedWork,
+              permit.tokenID == ownedWork.token
+        else {
+            throw MeetingLocalInferenceCoordinatorError.invalidPermit
+        }
+        if ownedWork.workClass.isFileWork {
+            maintainFileCache(fileMemoryBlocked())
+        }
+        ownedWork.restoreCacheLimit?()
+        activeOwnedWork = nil
+        statistics.completedCount += 1
+        release(ownedWork.token)
+    }
+
     func currentStatistics() -> MeetingLocalInferenceStatistics {
         statistics
     }
@@ -187,15 +156,16 @@ actor MeetingLocalInferenceCoordinator {
         try Task.checkCancellation()
         statistics.submittedCount += 1
 
-        if workClass == .fileASR || workClass == .fileSpeakerAnalysis {
+        if workClass.isFileWork {
             return try await acquireFilePermit(workClass)
         }
 
         if workClass.isThermallyDeferrable {
-            switch ProcessInfo.processInfo.thermalState {
+            let thermalState = readThermalState()
+            switch thermalState {
             case .serious, .critical:
                 statistics.thermalDeferralCount += 1
-                VoxtLog.meetingWarning("Local inference admission rejected. workClass=\(workClass.rawValue), reason=thermal-pressure, thermalState=\(ProcessInfo.processInfo.thermalState.rawValue)")
+                VoxtLog.meetingWarning("Local inference admission rejected. workClass=\(workClass.rawValue), reason=thermal-pressure, thermalState=\(thermalState.rawValue)")
                 throw MeetingLocalInferenceCoordinatorError.thermallyConstrained
             case .nominal, .fair:
                 break
@@ -350,7 +320,7 @@ actor MeetingLocalInferenceCoordinator {
     }
 
     private func canRun(_ workClass: MeetingLocalInferenceWorkClass, memoryBlocked: Bool? = nil) -> Bool {
-        let thermalState = ProcessInfo.processInfo.thermalState
+        let thermalState = readThermalState()
         let thermalBlocked = workClass.isThermallyDeferrable
             && (thermalState == .serious || thermalState == .critical)
         return !(recordingActive && workClass.waitsWhileRecording)

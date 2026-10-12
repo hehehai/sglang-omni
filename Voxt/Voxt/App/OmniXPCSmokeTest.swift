@@ -245,8 +245,10 @@ extension AppDelegate {
     private static func validateOmniSortformerSmoke(
         client: OmniXPCClient, modelDirectory: URL, samples: [Float], timeout: Duration
     ) async throws {
-        let model = try await client.loadSortformer(modelDirectory: modelDirectory, timeout: timeout)
+        let owner = OmniXPCSortformerModelOwner(client: client, modelDirectory: modelDirectory)
         do {
+            let prepared = try await owner.prepare(timeout: timeout)
+            let model = prepared.model
             let settings = try OmniXPCSortformerSettings(
                 threshold: 0.5, minimumDurationSeconds: 0, mergeGapSeconds: 0.18,
                 speakerCacheMaximumFrameCount: 188, fifoMaximumFrameCount: 188
@@ -265,7 +267,7 @@ extension AppDelegate {
                     try await stream.finish()
                 }
             }
-            let configuration = try MeetingSortformerConfiguration.load(from: modelDirectory)
+            let configuration = prepared.configuration
             let engine = MeetingSpeakerDiarizationEngineFactory.makeXPC(
                 client: client, model: model, configuration: configuration
             )
@@ -281,10 +283,10 @@ extension AppDelegate {
                 throw OmniXPCFailure.error(.nativeFailure, "The Sortformer caller returned out-of-audio turn bounds.")
             }
         } catch {
-            try await client.closeSortformerModel(model, timeout: timeout)
+            try await owner.close(timeout: timeout)
             throw error
         }
-        try await client.closeSortformerModel(model, timeout: timeout)
+        try await owner.close(timeout: timeout)
     }
 
     private static func omniSmokeInteger(_ value: String?, defaultValue: Int, maximum: Int) throws -> Int {

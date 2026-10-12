@@ -15,17 +15,14 @@ nonisolated struct OmniXPCSortformerLoadCleanup: Sendable {
     let task: Task<Void, Error>
 }
 
+nonisolated struct OmniXPCSortformerModelDirectory: Sendable {
+    let directory: URL
+    let relativePath: String
+    let container: URL
+}
+
 extension OmniXPCClient {
-    func loadSortformer(
-        modelDirectory: URL, timeout: Duration = .seconds(300), cleanupTimeout: Duration = .seconds(60)
-    ) async throws -> OmniXPCSortformerModelReference {
-        try Task.checkCancellation()
-        guard pendingSortformerLoad == nil, sortformerModel == nil else {
-            throw OmniXPCFailure.error(.busy, "Retire the current Sortformer model and any pending load cleanup before loading another model.")
-        }
-        guard timeout > .zero, cleanupTimeout > .zero else {
-            throw OmniXPCFailure.error(.invalidRequest, "The Sortformer load and cleanup timeouts must be positive.")
-        }
+    func authorizedSortformerModelDirectory(_ modelDirectory: URL) throws -> OmniXPCSortformerModelDirectory {
         guard modelDirectory.isFileURL,
               let container = FileManager.default.containerURL(
                 forSecurityApplicationGroupIdentifier: configuration.appGroupIdentifier
@@ -38,8 +35,23 @@ extension OmniXPCClient {
             throw OmniXPCFailure.error(.invalidRequest, "The Sortformer model is outside the shared container.")
         }
         let relativePath = String(directoryPath.dropFirst(containerPath.count + 1))
-        _ = try OmniXPCRequestValidation.modelDirectory(relativePath: relativePath, container: container)
-        let operationID = UUID()
+        let directory = try OmniXPCRequestValidation.modelDirectory(relativePath: relativePath, container: container)
+        return OmniXPCSortformerModelDirectory(directory: directory, relativePath: relativePath, container: container)
+    }
+
+    func loadSortformer(
+        modelDirectory: URL, timeout: Duration = .seconds(300), cleanupTimeout: Duration = .seconds(60),
+        operationID: UUID = UUID()
+    ) async throws -> OmniXPCSortformerModelReference {
+        try Task.checkCancellation()
+        guard pendingSortformerLoad == nil, sortformerModel == nil else {
+            throw OmniXPCFailure.error(.busy, "Retire the current Sortformer model and any pending load cleanup before loading another model.")
+        }
+        guard timeout > .zero, cleanupTimeout > .zero else {
+            throw OmniXPCFailure.error(.invalidRequest, "The Sortformer load and cleanup timeouts must be positive.")
+        }
+        let directory = try authorizedSortformerModelDirectory(modelDirectory)
+        let relativePath = directory.relativePath
         pendingSortformerLoad = OmniXPCSortformerLoadState(operationID: operationID)
         do {
             let model: OmniXPCSortformerModelReference = try await perform(
@@ -77,8 +89,11 @@ extension OmniXPCClient {
     }
 
     /// Only a successful scoped drain reply releases a submitted load ticket.
-    func closePendingSortformerLoad(timeout: Duration = .seconds(60)) async throws {
+    func closePendingSortformerLoad(timeout: Duration = .seconds(60), requiredOperationID: UUID? = nil) async throws {
         guard let load = pendingSortformerLoad else { return }
+        guard requiredOperationID == nil || requiredOperationID == load.operationID else {
+            throw OmniXPCFailure.error(.invalidRequest, "The pending Sortformer load belongs to another owner.")
+        }
         guard !load.isLoading else {
             throw OmniXPCFailure.error(.busy, "The Sortformer load is still awaiting its reply or cancellation.")
         }

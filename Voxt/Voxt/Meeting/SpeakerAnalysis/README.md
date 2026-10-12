@@ -34,6 +34,18 @@ than silently changing caches. This is cooperating filesystem ownership, not a
 new Swift MLX/GPU cancellation or drain API. Legacy Silero and cache/blob repair
 paths still need coordination.
 
+`OmniXPCSortformerModelOwner` explicitly prepares a caller-supplied shared Models
+directory under a reader lease and supplies the matching model/configuration to
+borrowed consumers. Retain the owner and await `close()`. Preparation and model
+retirement use identity-bound owned coordinator permits; unconfirmed cleanup or
+connection loss retains the lane, reader and original scope for retry. Cached
+model residency is not an active command, so successful preparation releases its
+command permit while keeping the reader. Cleanup is pressure/recording nondeferrable
+but cannot overtake active inference. Borrowed operations must finish/cancel first.
+There is no owner/token deinit resource barrier or automatic lane recovery.
+This does not convert the existing engine's per-feed permit failure paths or
+switch production factories.
+
 File-feed failures, cancellation and slow-feed checks await owned stream cleanup
 before releasing the inference permit. A noncooperative asset/progress callback
 cannot be forced to return. Ordinary HTTP close remains its existing socket
