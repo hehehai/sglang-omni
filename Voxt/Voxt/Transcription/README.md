@@ -10,6 +10,23 @@ Transcription engine adapters, local model managers, model artifacts, and shared
 
 ASR model construction is in `MLXSTTModelLoader`. Catalog/state values and reusable resumable transfer live under `Core/Models`; `MLXModelDownloadSupport` retains ASR metadata/validation and tokenizer-asset policy. Managers continue to own install/download state, storage revision and load lifetimes.
 
+## Native HTTP ownership
+
+`OmniASRRuntime` owns process state, active uses and a cooperating model-directory
+reader. It acquires that reader before spawning any ASR, Silero or Sortformer
+server, uses the canonical directory, and retains it until the child actually
+exits. A live process retains its runtime even if the last caller drops it.
+Retirement still requires explicit awaiting; shutdown/termination deadlines
+escalate signals, but cannot report a stopped process or free its reader while
+it remains running. An uninterruptible child can therefore delay retirement.
+
+`OmniASRRuntimeSupport` contains endpoint/configuration values, diagnostics and
+line buffering; `OmniASRRuntimeFinalRequests` contains unchanged family-specific
+request construction. Directory locks protect cooperating normal operation,
+not external blob writes, uncoordinated namespace replacement, or an app crash
+that releases its locks before an orphaned server finishes parent-death cleanup.
+Legacy Swift readers and repair/shadow-cache maintenance are not all coordinated.
+
 ## MLX boundaries
 
 `MLXTranscriber` owns recording tasks, revision checks, model leases and capture-buffer instances. Pure policy is in `MLXTranscriptionPlanning`, `MLXInferenceConfiguration`, `MLXTranscriptMerging`, and `MLXLiveTextPreview`. Shared values, buffers, detached inference and structured segment conversion live in their correspondingly named files.

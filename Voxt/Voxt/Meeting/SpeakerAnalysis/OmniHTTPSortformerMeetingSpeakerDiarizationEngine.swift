@@ -1,4 +1,5 @@
 import Foundation
+import OmniModelArtifacts
 
 actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEngine {
     private var omniEndpoint: OmniServerEndpoint?
@@ -152,8 +153,12 @@ actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizati
         guard let directory = await MeetingSortformerModelStorage.validatedModelDirectory() else {
             throw MeetingVADModelError.modelNotDownloaded
         }
-        let config = try MeetingSortformerConfiguration.load(from: directory)
-        let endpoint = try await OmniSortformerRuntime.shared.acquire(modelDirectory: directory)
+        let directoryLease = try await ModelDiskOperations.perform {
+            try OmniModelDirectoryLease.acquire(for: directory, mode: .sharedRead)
+        }
+        defer { withExtendedLifetime(directoryLease) {} }
+        let config = try MeetingSortformerConfiguration.load(from: directoryLease.directory)
+        let endpoint = try await OmniSortformerRuntime.shared.acquire(modelDirectory: directoryLease.directory)
         if let omniEndpoint {
             // Note (Jiaxin Deng): another call acquired a lease while this one awaited.
             await OmniSortformerRuntime.shared.release()

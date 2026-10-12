@@ -281,6 +281,7 @@ jobs:
             -only-testing:VoxtTests/OmniXPCSileroStreamingClientTests \
             -only-testing:VoxtTests/OmniXPCSortformerStreamingClientTests \
             -only-testing:VoxtTests/OmniASRRuntimeLaunchTests \
+            -only-testing:VoxtTests/OmniASRRuntimeStorageOwnershipTests \
             -only-testing:VoxtTests/OmniVoiceActivityTests \
             -only-testing:VoxtTests/OmniSpeakerDiarizationTests \
             -only-testing:VoxtTests/MeetingSortformerConfigurationTests \

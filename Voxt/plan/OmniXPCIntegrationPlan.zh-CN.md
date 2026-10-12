@@ -845,6 +845,19 @@ Sortformer Core 与 cooperating publication/lease 进展见 T4d1/T4c1。Sortform
 
 production factory、cache路径、AudioSPM/MLXSwift LLM/VLM/Remote routes未切换或删除。后续完成shared-model preparation/authorization/lifecycle协调、productionfactory验收切换及六个ASR families Core/XPC；移除Audio仍需VAD policy/重采样/legacySTT adapters/tests等consumer迁移和真实Mac resolution/build。
 
+### T4c2：Native HTTP process lifetime reader coordination（非cache迁移完成）
+
+- 7个ASR families + Silero/Sortformer的实际 `OmniASRRuntime.launch` 在spawn前经bounded `ModelDiskOperations` 获取同一Artifacts的canonical sharedRead；新增await后重检starting，retire先发生则不得后来spawn。directorybusy直接错误，不换savedchoice/复制cache/自动download/HTTP-in-XPC。
+- reader跨idle/activeuse/retire/processshutdown。liveChild terminationclosure保留runtime，避免最后caller丢掉actor使reader先释放；只有真实child exit才breakcapture/release。spawn/failedstartup/startupdeadline会stop并释放。Native supervised binary本身包含MLX model/server，不把任意detacheddaemon/tree退出当作证明。
+- 原stop把Process提前nil且忽略SIGKILL后的failedexitwait，不能承载readerbarrier。现在保留actualProcess/reader直到isRunning=false；15s shutdown/10s SIGTERM grace不变，SIGKILL后可能无限等待，不能凭timeout返回stopped。取消/期限不是Native/GPU preemption承诺，真实Mac资源回收仍待补。
+- Native HTTP Sortformer先获取短期configreader，跨boundedprojection read和sharedruntime.acquire，成功后由runtime长期reader接手；权重/目录未copy。Main额外发现同canonicaldir的isDirectory URL/alias与这个handoff碰撞：旧SharedModelRuntime的URL equality会把健康server连续retire/relaunch（三次acquire三PID），现在canonicalpath比较保留同PID，不破坏前两个reader/use。实际BEFORE 2个assert failures→AFTER通过，追加第13test。
+- 原673行runtime按真实责任拆为process/reader/state core、Support values/diagnostics/line buffer、FinalRequests family-specific request builders。支持和全部request/planning extensions与baseline逐字节相同（Support仅由EOF hook移除尾部多余空行），numeric/token/chunk/language逻辑未改。Xcode filesystem-synchronized membership已含新source/tests，未假称SDKbuild。
+- actual Foundation Process/shell fixture/POSIX locks + actual app disk adapter/publicprepare/beginUse/endUse/retire测试：13 ownership + 5原launch/support=18 tests，Main Debug/Release通过；包含9kinds、mutation阻止spawn、真实delete/exchange blocked→exit后成功、activeuse/gatedshutdown/共享prepare/重复retire、missingspawn/failedstartup/deadline、symlink、dropcaller、原15/10s grace后的实际SIGKILL/exit。旧runtime原11test snapshot有8tests失败（20assert/error records；其中误成功publish诱发后续stagingreuse错误），不以fakebefore替代。
+- 独立read-onlyreview初12+原5 tests两配置通过；另3 externaltests覆盖queuedreader-acquisition中retire、startupfailure与retire重叠、SIGTERM-ignoring samePID child在16s仍retainreader直到约25s实际exit；非项目test，不冒称GPU/model。Main final13th路径identity回归另followup确认。原Swift6strict无类型JSONstream sending错误在baseline/current均复现；actualApp Swift5 language mode/defaultMainActor，未把这次18tests包装为Swift6全App通过。Linux只替换Darwin F_SETNOSIGPIPE并移除不支持的AsyncBytes transport入口。
+- Artifacts真实70tests Debug/Release、20原/newdefaultwrapper Swift/HTTP controlledbackend调用层回放、46tooling及source/resolvedaudits通过。Native/client/helper/CoreABI/SPM/Audio/LLM/Remote/生产factory与cachepath没有切换；MacCI只加ownershipsuite选择，disabledgates不变。
+
+这里覆盖App存活正常操作中HTTP child lifetime，不解决Appcrash释放lock之后orphanNative在parentdeath cleanup/load期间继续活着的窗口，也不覆盖不合作的namespace/blob mutation、全部legacy Swift readers、HFshadow/cache repair、immutable snapshots/powerloss或cache迁移。仍需XPC shared-directory preparation/authorization/完整modelload cleanup barrier和owner接入，六ASR families Core/XPC、Audio其余consumer迁移与实际Mac验收。
+
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 
 | 阶段 | 当前未完成内容 |
