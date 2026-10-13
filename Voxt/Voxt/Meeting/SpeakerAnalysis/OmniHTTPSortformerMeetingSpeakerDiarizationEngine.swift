@@ -1,9 +1,8 @@
 import Foundation
-import OmniModelArtifacts
 
 actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEngine {
-    private var omniEndpoint: OmniServerEndpoint?
-    private var omniConfig: MeetingSortformerConfiguration?
+    private var loadedModel: MeetingSortformerModelLease?
+    private var tail: Task<Void, Never>?
 
     func diarize(
         asset: MeetingAudioAsset, options _: MeetingSpeakerDiarizationOptions
@@ -29,14 +28,7 @@ actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizati
         loadAsset: @escaping @Sendable (MeetingAudioAssetDescriptor) async -> MeetingAudioAsset?,
         options _: MeetingSpeakerDiarizationOptions, progress: (@Sendable (Double) async -> Void)?
     ) async throws -> [MeetingSpeakerTurn] {
-        do {
-            let turns = try await runSession(descriptors: descriptors, loadAsset: loadAsset, fileAnalysis: true, progress: progress)
-            await releaseOmniEndpoint()
-            return turns
-        } catch {
-            await releaseOmniEndpoint()
-            throw error
-        }
+        try await runSession(descriptors: descriptors, loadAsset: loadAsset, fileAnalysis: true, progress: progress)
     }
 
     private func runSession(
@@ -44,24 +36,48 @@ actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizati
         loadAsset: @escaping @Sendable (MeetingAudioAssetDescriptor) async -> MeetingAudioAsset?,
         fileAnalysis: Bool, progress: (@Sendable (Double) async -> Void)?
     ) async throws -> [MeetingSpeakerTurn] {
-        let endpoint: OmniServerEndpoint
+        let previous = tail
+        let operation = Task {
+            await previous?.value
+            try Task.checkCancellation()
+            do {
+                let turns = try await self.runSerialSession(
+                    descriptors: descriptors, loadAsset: loadAsset, fileAnalysis: fileAnalysis, progress: progress
+                )
+                if fileAnalysis { await self.releaseModel() }
+                return turns
+            } catch {
+                await self.releaseModel()
+                throw error
+            }
+        }
+        tail = Task { _ = try? await operation.value }
+        return try await withTaskCancellationHandler {
+            try await operation.value
+        } onCancel: {
+            operation.cancel()
+        }
+    }
+
+    private func runSerialSession(
+        descriptors: [MeetingAudioAssetDescriptor],
+        loadAsset: @escaping @Sendable (MeetingAudioAssetDescriptor) async -> MeetingAudioAsset?,
+        fileAnalysis: Bool, progress: (@Sendable (Double) async -> Void)?
+    ) async throws -> [MeetingSpeakerTurn] {
+        let model: MeetingSortformerModelLease
         if fileAnalysis {
-            endpoint = try await MeetingLocalInferenceCoordinator.shared.withPermit(.fileSpeakerAnalysis) {
-                try await self.omniEndpointIfAvailable()
+            model = try await MeetingLocalInferenceCoordinator.shared.withPermit(.fileSpeakerAnalysis) {
+                try await self.loadModelIfAvailable()
             }
         } else {
-            endpoint = try await omniEndpointIfAvailable()
+            model = try await loadModelIfAvailable()
         }
-        guard let config = omniConfig else { throw MeetingVADModelError.modelNotDownloaded }
-        let policy = try config.feedPolicy()
+        let policy = try model.configuration.feedPolicy()
         let options = OmniDiarizationOptions(
             threshold: 0.5, minDuration: 0, mergeGap: 0.18,
             spkcacheMax: policy.cacheMaximumFrames, fifoMax: MeetingSpeakerFeedPolicy.fifoMaximumFrames
         )
-        try config.validateEncoderCapacity(
-            cacheMaximumFrameCount: options.spkcacheMax, fifoMaximumFrameCount: options.fifoMax
-        )
-        var stream = OmniDiarizationStream(endpoint: endpoint, options: options)
+        var stream = OmniDiarizationStream(endpoint: model.endpoint, options: options)
         var state = (fifo: 0, cache: 0, frames: 0)
         var previousDescriptor: MeetingAudioAssetDescriptor?
         var turns: [MeetingSpeakerTurn] = []
@@ -77,7 +93,7 @@ actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizati
                         && abs(descriptor.sessionStartOffset - expectedStart) < 0.05
                     if !isContinuous {
                         await stream.close()
-                        stream = OmniDiarizationStream(endpoint: endpoint, options: options)
+                        stream = OmniDiarizationStream(endpoint: model.endpoint, options: options)
                         state = (0, 0, 0)
                     }
                 }
@@ -102,13 +118,27 @@ actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizati
                     let inputFrames = state.frames
                     let audioOffset = asset.sessionStartOffset + Double(offset) / Double(policy.sampleRate)
                     let currentStream = stream
+                    let isLastFeed = index == descriptors.count - 1 && end == prepared.count
                     let feed: OmniDiarizationFeed
                     if fileAnalysis {
                         feed = try await MeetingLocalInferenceCoordinator.shared.withPermit(.fileSpeakerAnalysis) {
-                            let startedAt = ContinuousClock.now
-                            let feed = try await currentStream.feed(samples16k: samples)
-                            try policy.validateFeedDuration(startedAt.duration(to: .now))
-                            return feed
+                            do {
+                                let startedAt = ContinuousClock.now
+                                let feed = try await currentStream.feed(samples16k: samples)
+                                try Task.checkCancellation()
+                                try policy.validateFeedDuration(startedAt.duration(to: .now))
+                                try policy.validate(fifoFrames: feed.fifoLength, cacheFrames: feed.spkcacheLength)
+                                if isLastFeed {
+                                    await currentStream.close()
+                                    await model.close()
+                                }
+                                return feed
+                            } catch {
+                                await currentStream.close()
+                                // Note (Omni): a failed socket is not proof that Native stopped evaluating.
+                                await model.close()
+                                throw error
+                            }
                         }
                     } else {
                         feed = try await currentStream.feed(samples16k: samples)
@@ -134,45 +164,23 @@ actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizati
             }
         } catch {
             await stream.close()
-            await releaseOmniEndpoint(after: error, endpoint: endpoint)
+            await model.close()
             throw error
         }
         await stream.close()
         return turns
     }
 
-    // Note (Jiaxin Deng): release failed transports so a later session can restart the server.
-    private func releaseOmniEndpoint(after error: Error, endpoint: OmniServerEndpoint) async {
-        let domain = (error as NSError).domain
-        guard omniEndpoint == endpoint, domain == NSURLErrorDomain || domain == NSPOSIXErrorDomain else { return }
-        await releaseOmniEndpoint()
+    private func loadModelIfAvailable() async throws -> MeetingSortformerModelLease {
+        if let loadedModel { return loadedModel }
+        let model = try await MeetingSortformerModelLease.load()
+        loadedModel = model
+        return model
     }
 
-    private func omniEndpointIfAvailable() async throws -> OmniServerEndpoint {
-        if let omniEndpoint { return omniEndpoint }
-        guard let directory = await MeetingSortformerModelStorage.validatedModelDirectory() else {
-            throw MeetingVADModelError.modelNotDownloaded
-        }
-        let directoryLease = try await ModelDiskOperations.perform {
-            try OmniModelDirectoryLease.acquire(for: directory, mode: .sharedRead)
-        }
-        defer { withExtendedLifetime(directoryLease) {} }
-        let config = try MeetingSortformerConfiguration.load(from: directoryLease.directory)
-        let endpoint = try await OmniSortformerRuntime.shared.acquire(modelDirectory: directoryLease.directory)
-        if let omniEndpoint {
-            // Note (Jiaxin Deng): another call acquired a lease while this one awaited.
-            await OmniSortformerRuntime.shared.release()
-            return omniEndpoint
-        }
-        omniEndpoint = endpoint
-        omniConfig = config
-        return endpoint
-    }
-
-    private func releaseOmniEndpoint() async {
-        guard omniEndpoint != nil else { return }
-        omniEndpoint = nil
-        omniConfig = nil
-        await OmniSortformerRuntime.shared.release()
+    private func releaseModel() async {
+        let original = loadedModel
+        loadedModel = nil
+        await original?.close()
     }
 }

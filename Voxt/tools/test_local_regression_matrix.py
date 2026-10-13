@@ -145,7 +145,7 @@ class OmniXPCPackagingTests(unittest.TestCase):
 
     def test_native_asr_retirement_keeps_llm_tokenizers_explicitly_linked(self) -> None:
         project = (ROOT / "Voxt.xcodeproj/project.pbxproj").read_text()
-        self.assertNotIn("MLXAudioSTT", project)
+        self.assertNotRegex(project, r"MLXAudio(?:Core|STT|VAD)|mlx-audio-swift")
         self.assertIn("productName = Tokenizers;", self.project_object("A0BC00000000000000000102"))
         self.assertIn("A0BC00000000000000000101", self.project_object("31F19CCA2F4D76D200E96913"))
         self.assertIn("A0BC00000000000000000102", self.project_object("31F19CCC2F4D76D200E96913"))
@@ -153,6 +153,10 @@ class OmniXPCPackagingTests(unittest.TestCase):
         self.assertIn('repositoryURL = "https://github.com/huggingface/swift-transformers.git";', package)
         self.assertIn("kind = exactVersion;", package)
         self.assertIn("version = 1.3.4;", package)
+        for identifier, product_name, version in [("A0BC00000000000000000112", "MLX", "0.31.6"),
+                                                  ("A0BC00000000000000000122", "HuggingFace", "0.10.2")]:
+            self.assertIn(f"productName = {product_name};", self.project_object(identifier))
+            self.assertIn(f"version = {version};", project)
         for directory in (ROOT / "Voxt", ROOT / "VoxtTests"):
             for source in directory.rglob("*.swift"):
                 self.assertNotIn("import MLXAudioSTT", source.read_text(), str(source))
@@ -231,8 +235,9 @@ class OmniXPCPackagingTests(unittest.TestCase):
             self.assertIn("OmniModelArtifactValidation.validateSafetensorsDirectory(at:", text)
             self.assertNotRegex(text, r"import MLX(?:AudioVAD)?\b|\.fromModelDirectory\(|SileroVADModelSupport\.loadModel\(")
         loader = (ROOT / "Voxt/Meeting/Capture/SileroVADModelLoader.swift").read_text()
-        self.assertIn("try withError", loader)
-        self.assertIn("SileroVAD.fromModelDirectory", loader)
+        self.assertIn("OmniModelDirectoryLease.acquire(for:", loader)
+        self.assertIn("OmniModelArtifactValidation.validateSafetensorsDirectory(at:", loader)
+        self.assertNotRegex(loader, r"import MLX(?:AudioVAD)?\b|\.fromModelDirectory\(|SileroVADModelLease")
         workflow = (ROOT.parent / ".github/workflows/voxt-mac-ci.yaml").read_text()
         self.assertIn("swift test --package-path Voxt/Packages/OmniModelArtifacts", workflow)
 

@@ -23,7 +23,7 @@ final class OmniXPCSileroStreamState {
         guard !busy else { throw OmniXPCFailure.error(.busy, "The Silero stream already has a pending command.") }
     }
 
-    func admit(audio: Data, sequence: Int) throws -> UInt64 {
+    func validateAudio(audio: Data, sequence: Int) throws -> UInt64 {
         try requireReady()
         guard audioSequence < Int.max, sequence == audioSequence + 1,
               !audio.isEmpty, audio.count % 4 == 0,
@@ -39,6 +39,11 @@ final class OmniXPCSileroStreamState {
         guard finite, !overflow, received <= UInt64.max - UInt64(OmniXPCSileroLimits.frameSampleCount - 1) else {
             throw OmniXPCFailure.error(.invalidRequest, "The Silero audio is nonfinite or its sample counter would overflow.")
         }
+        return received
+    }
+
+    func admit(audio: Data, sequence: Int) throws -> UInt64 {
+        let received = try validateAudio(audio: audio, sequence: sequence)
         busy = true
         return received
     }

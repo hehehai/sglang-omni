@@ -5,14 +5,15 @@ import OmniXPCContracts
 @MainActor
 final class OmniXPCSileroModelState {
     let reference: OmniXPCSileroModelReference
-    let loadOperationID: UUID
+    let loadOwnership: OmniXPCSileroLoadOwnership
+    var loadOperationID: UUID { loadOwnership.operationID }
     var closing = false
     var unloading = false
     var closeTask: Task<Void, Error>?
 
-    init(reference: OmniXPCSileroModelReference, loadOperationID: UUID) {
+    init(reference: OmniXPCSileroModelReference, loadOwnership: OmniXPCSileroLoadOwnership) {
         self.reference = reference
-        self.loadOperationID = loadOperationID
+        self.loadOwnership = loadOwnership
     }
 }
 
@@ -40,7 +41,7 @@ extension OmniXPCClient {
                 }
             }
             try self.requireConnection(model.connectionID)
-            self.retireSileroModel(state)
+            try self.retireSileroModel(state)
         }
         state.closeTask = closing
         try await closing.value
@@ -56,11 +57,14 @@ extension OmniXPCClient {
         return state
     }
 
-    func retireSileroModel(_ state: OmniXPCSileroModelState) {
-        guard connectionIdentifier == state.reference.connectionID, sileroModel === state else { return }
+    func retireSileroModel(_ state: OmniXPCSileroModelState) throws {
+        try requireConnection(state.reference.connectionID)
+        guard sileroModel === state else {
+            throw OmniXPCFailure.error(.invalidRequest, "The Silero model retirement scope changed.")
+        }
+        try state.loadOwnership.markDrained(client: self, connectionID: state.reference.connectionID)
         let streams = sileroStreams.values.filter { $0.reference.model == state.reference }
         for stream in streams { retireSileroStream(stream) }
-        closedSileroLoadIDs.insert(state.loadOperationID)
         closedSileroModels[state.reference.modelID] = state.reference
         sileroModel = nil
     }

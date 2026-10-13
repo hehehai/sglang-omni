@@ -2,7 +2,7 @@
 
 Source/lockfile status checked against app commit `81c04a3`. Distinguish **the app's current dependency**, **the published fork**, and **pending app validation**. A passing library workflow or static lockfile audit is not an app or model-quality release certification.
 
-## Current ASR source retirement checkpoint
+## Current Audio package retirement checkpoint
 
 The app and its tests no longer import MLXAudioSTT, load its numerical models,
 use its generation/streaming adapters, or link its product. Native HTTP ASR
@@ -18,13 +18,25 @@ borrowed its transitive Tokenizers/Hub/yyjson graph; real macOS initially reject
 that missing dependency. The explicit product fixes the graph without upgrading
 any resolved pins. Keep MLX Swift LLM/VLM, shared MLX and llama.swift.
 
-MLXAudioVAD and MLXAudioCore are still required by remaining VAD/diarization and
-reference consumers. This is a product-level STT retirement, not removal of the
-whole Audio package. The Native speaker consumer now exposes checked permanent
-retirement to its recording runtime; unknown cleanup retains original model use,
-and successful external close notifications retire the original scope without
-losing final presentation. Legacy transport task completion is not relabeled as
-a Native barrier. Full production XPC and long-form cutover remain separate work.
+AudioVAD/Core numerical consumers and linked-library test references are now
+retired as well. The app/project/resolved graph contains no Audio product/package.
+Silero and ordinary Sortformer use the actual Native HTTP implementations, with
+explicit unavailable-runtime errors rather than Swift fallback. Existing whole-audio
+Silero longform and ordinary Sortformer scheduling remain. An uncalled legacy
+realtime annotation actor was deleted after a caller/selector/resource audit; its
+proposed 24-second HTTP migration did not ship, and the existing Native admission
+cap was not weakened.
+
+Resampler expectations now come from 42 real compiled AudioCore captures made
+before unlink, not from the replacement. Silero numerical parity uses a separately
+captured legacy model/sample/profile-bound oracle. Sortformer requires an explicitly
+supplied external reference; absence is a skip, not numerical acceptance.
+
+The Native speaker consumer exposes checked permanent retirement to its recording
+runtime. Explicit Silero XPC Owner/consumer APIs and the opt-in smoke caller retain
+original reader/client/load-ticket/coordinator scope through failed retirement.
+Legacy transport task completion is not relabeled as a Native barrier. Full
+production XPC, XPC longform, signed IPC and release acceptance remain separate work.
 
 ## Historical Native replacement status after upstream 7f78bf3
 
@@ -67,19 +79,22 @@ macOS App/XCTest and model/lifecycle/packaging acceptance before release.
 
 ## Current Voxt working-tree pins
 
-`Voxt.xcodeproj/project.pbxproj` now references the published fork and matching LM revision:
+The project explicitly retains the matching non-Audio compatibility set:
 
-- Audio URL: `https://github.com/hehehai/mlx-audio-swift.git`
-- Audio revision: `2a6e75d28ae6a399ba7c7aec842384ef7a3142b5`
-- LM revision: `c6446cf7bfb7cea76408013b614d4b2c530eaa03`
-- MLX runtime: fork exact `0.31.6`
-- Tokenizer / hub: fork exact `swift-transformers 1.3.4` / `swift-huggingface 0.10.2`
+- No Audio package/product or resolved pin.
+- LM revision: `c6446cf7bfb7cea76408013b614d4b2c530eaa03`.
+- Direct MLX runtime: exact `0.31.6`.
+- Direct tokenizer: exact `swift-transformers 1.3.4`.
+- Direct hub: exact `swift-huggingface 0.10.2`.
+
+Actual macOS resolution removed only the Audio pin; retained pin states did not
+change. Shared MLX Swift LLM/VLM/MLX, llama.swift and Remote routes remain.
 
 This replaces `.12` / runtime `0.31.4` / LM `d242429` in the project requirements. The tracked app `Package.resolved` now matches the upgraded compatibility set and passes `audit_model_stack.py --resolved`. The earlier mismatch caused [PR CI 35322684144](https://github.com/hehehai/voxt/actions/runs/35322684144) to fail before app compilation or tests; that is historical evidence, not the current lockfile status. Static pin consistency does not prove successful macOS resolution, compilation or model behavior.
 
 The new fork preserves `.12`'s structured `TranscriptionEvent.ended(STTOutput)`, language provenance, Qwen KV/language controls, incremental Nemotron streaming, and streaming/VAD failure propagation.
 
-FluidAudio has been removed from Voxt's package references and speaker-analysis implementation. Sortformer remains in `MLXAudioVAD`. FluidAudio removal does not establish the provenance or absence of ONNX; audit the actual app graph and artifacts separately.
+FluidAudio and MLX Audio are removed from project references and the resolved graph. Sortformer execution is Native, not MLXAudioVAD. Source/pin absence does not alone establish artifact provenance; audit the final app/link map separately.
 
 ## Published fork and evidence
 
@@ -95,7 +110,7 @@ FluidAudio has been removed from Voxt's package references and speaker-analysis 
 
 The fork additionally fixes Parakeet's compiled closure captures using weight-aware `CompiledTrace`. Regression tests verify weight updates and absence of an owner retention cycle. The runner's Xcode selection, SDK and compiler paths were aligned to fix MLX CPU JIT subprocesses mixing Xcode 26.5 and 26.6.
 
-## Integrated compatibility set (app validation pending)
+## Historical integrated compatibility set (before Audio retirement)
 
 Keep these as a single compatibility set; do not revert or update just one component:
 

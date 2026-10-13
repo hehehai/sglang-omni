@@ -39,7 +39,7 @@ final class OmniXPCClient {
     var pendingSileroLoad: OmniXPCSileroLoadState?
     var sileroLoadCleanup: OmniXPCSileroLoadCleanup?
     var sileroLoadIDs: Set<UUID> = []
-    var closedSileroLoadIDs: Set<UUID> = []
+    var sileroLoadOwnership: [UUID: OmniXPCSileroLoadOwnership] = [:]
     var closedSileroModels: [UUID: OmniXPCSileroModelReference] = [:]
     var sortformerStreams: [UUID: OmniXPCSortformerStreamState] = [:]
     var closedSortformerStreams: [UUID: OmniXPCSortformerStreamReference] = [:]

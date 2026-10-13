@@ -92,6 +92,6 @@ not be mistaken for this adapter's Native barrier.
 
 Transport task completion, synchronous cancel, terminal events and empty polls are not native decode/Metal barriers. Only the explicitly entrusted retiring-session contract reaches the checked original-load barrier; verify the remaining transports separately.
 
-Audio STT loaders, numerical decoding, streaming/result compatibility adapters and product links are retired. Native HTTP family behavior/long-form options remain unchanged. Model-loader lifecycle tests use an identity-only fixture that cannot transcribe; they are not an alternative inference implementation. Audio VAD/Core consumers still prevent full package unlink.
+Audio STT loaders, numerical decoding, streaming/result compatibility adapters and product links are retired. Native HTTP family behavior/long-form options remain unchanged. Model-loader lifecycle tests use an identity-only fixture that cannot transcribe; they are not an alternative inference implementation. Audio VAD/Core consumers and package/product links are also retired. Native HTTP Silero/Sortformer paths retain their scheduling/whole-audio semantics; external captured baselines replace linked-library references.
 
 Keep `nonisolated` inference, cancellation propagation and the existing buffer locks intact when moving code. The source split does not introduce another model/session owner. See the [phase record](../../docs/RefactoringProgress.zh-CN.md) before changing runtime ownership.

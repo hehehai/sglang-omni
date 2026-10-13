@@ -3,9 +3,14 @@ import Foundation
 import OmniXPCContracts
 
 #if os(macOS)
-nonisolated struct OmniXPCSileroLoadState: Sendable {
-    let operationID: UUID
-    var connectionID: UUID?
+@MainActor
+struct OmniXPCSileroLoadState {
+    let ownership: OmniXPCSileroLoadOwnership
+    var operationID: UUID { ownership.operationID }
+    var connectionID: UUID? {
+        if case .submitted(let connectionID) = ownership.phase { return connectionID }
+        return nil
+    }
     var isLoading = true
 }
 
@@ -18,7 +23,7 @@ nonisolated struct OmniXPCSileroLoadCleanup: Sendable {
 extension OmniXPCClient {
     func loadSilero(
         modelDirectory: String, timeout: Duration = .seconds(240), cleanupTimeout: Duration = .seconds(60),
-        operationID: UUID = UUID()
+        operationID: UUID = UUID(), ownership: OmniXPCSileroLoadOwnership? = nil
     ) async throws -> OmniXPCSileroModelReference {
         try Task.checkCancellation()
         guard pendingSileroLoad == nil, sileroModel == nil else {
@@ -30,15 +35,32 @@ extension OmniXPCClient {
         guard sileroLoadIDs.count < OmniXPCSileroLimits.maximumLoadsPerConnection else {
             throw OmniXPCFailure.error(.busy, "The Silero client load ledger is full.")
         }
+        guard let container = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: configuration.appGroupIdentifier
+        ) else {
+            throw OmniXPCFailure.error(.configuration, "The Silero shared container is unavailable.")
+        }
+        _ = try OmniXPCRequestValidation.modelDirectory(relativePath: modelDirectory, container: container)
+        let ticket = ownership ?? OmniXPCSileroLoadOwnership(client: self, operationID: operationID)
+        try ticket.requireClient(self)
+        guard ticket.operationID == operationID, ticket.phase == .notSubmitted else {
+            throw OmniXPCFailure.error(.invalidRequest, "The Silero load ticket identity or submission phase is invalid.")
+        }
         sileroLoadIDs.insert(operationID)
-        pendingSileroLoad = OmniXPCSileroLoadState(operationID: operationID)
+        sileroLoadOwnership[operationID] = ticket
+        pendingSileroLoad = OmniXPCSileroLoadState(ownership: ticket)
         do {
             let model: OmniXPCSileroModelReference = try await perform(
                 timeout: timeout, requiredConnectionID: connectionIdentifier,
                 nativeRequestID: operationID.uuidString, cancellationTarget: .silero
             ) { proxy, resolve in
                 let connectionID = self.connectionIdentifier!
-                self.pendingSileroLoad?.connectionID = connectionID
+                do {
+                    try ticket.markSubmitted(client: self, connectionID: connectionID)
+                } catch {
+                    resolve(.failure(error))
+                    return
+                }
                 proxy.loadSilero(operationID: operationID.uuidString, modelDirectory: modelDirectory) { modelID, instanceID, error in
                     if let error {
                         resolve(.failure(error))
@@ -57,19 +79,23 @@ extension OmniXPCClient {
             guard closedSileroModels[model.modelID] == nil else {
                 throw OmniXPCFailure.error(.incompatibleService, "The service reused a retired Silero model identity.")
             }
-            sileroModel = OmniXPCSileroModelState(reference: model, loadOperationID: operationID)
+            sileroModel = OmniXPCSileroModelState(reference: model, loadOwnership: ticket)
             pendingSileroLoad = nil
             return model
         } catch {
             pendingSileroLoad?.isLoading = false
-            try await closePendingSileroLoad(timeout: cleanupTimeout, requiredOperationID: operationID)
+            let cleanup = Task { @MainActor in
+                try await self.closePendingSileroLoad(timeout: cleanupTimeout, requiredOperationID: operationID)
+            }
+            try await cleanup.value
             throw error
         }
     }
 
     func closePendingSileroLoad(timeout: Duration = .seconds(60), requiredOperationID: UUID? = nil) async throws {
         guard let load = pendingSileroLoad else {
-            guard requiredOperationID == nil || closedSileroLoadIDs.contains(requiredOperationID!) else {
+            guard let operationID = requiredOperationID,
+                  let ticket = sileroLoadOwnership[operationID], ticket.phase == .drained else {
                 throw OmniXPCFailure.error(.invalidRequest, "The Silero load has no confirmed retirement.")
             }
             return
@@ -83,10 +109,16 @@ extension OmniXPCClient {
         guard timeout > .zero else {
             throw OmniXPCFailure.error(.invalidRequest, "The Silero cleanup timeout must be positive.")
         }
-        guard let connectionID = load.connectionID else {
-            closedSileroLoadIDs.insert(load.operationID)
+        let connectionID: UUID
+        switch load.ownership.phase {
+        case .notSubmitted:
             pendingSileroLoad = nil
             return
+        case .drained:
+            pendingSileroLoad = nil
+            return
+        case .submitted(let originalConnectionID):
+            connectionID = originalConnectionID
         }
         guard connectionIdentifier == connectionID else {
             throw OmniXPCFailure.error(.disconnected, "The originating Silero connection is unavailable; cleanup is not confirmed.")
@@ -106,8 +138,9 @@ extension OmniXPCClient {
                     if let error { resolve(.failure(error)) } else { resolve(.success(())) }
                 }
             }
-            if self.pendingSileroLoad?.operationID == load.operationID {
-                self.closedSileroLoadIDs.insert(load.operationID)
+            try self.requireConnection(connectionID)
+            try load.ownership.markDrained(client: self, connectionID: connectionID)
+            if self.pendingSileroLoad?.ownership === load.ownership {
                 self.pendingSileroLoad = nil
             }
         }
@@ -131,7 +164,7 @@ extension OmniXPCClient {
                 if let error { resolve(.failure(error)) } else { resolve(.success(())) }
             }
         }
-        retireSileroModel(state)
+        try retireSileroModel(state)
     }
 
     func sileroSpeechTimestamps(
@@ -147,7 +180,7 @@ extension OmniXPCClient {
               samples16k.allSatisfy(\.isFinite) else {
             throw OmniXPCFailure.error(.invalidRequest, "Silero audio must contain at most 30 seconds of finite mono 16 kHz samples.")
         }
-        let audio = OmniVoiceActivityStream.float32LittleEndian(samples16k)
+        let audio = OmniXPCASRVoiceActivityConsumer.float32LittleEndian(samples16k)
         let encodedSettings = try settings.encoded()
         let requestID = UUID()
         let ranges: [Range<Int>] = try await perform(

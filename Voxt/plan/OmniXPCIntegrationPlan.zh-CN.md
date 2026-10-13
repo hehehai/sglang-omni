@@ -1013,7 +1013,19 @@ ABI8检查点时下一步为两family actualhelper RPC+原loadscope非evictledge
 - 真Mac最终全量TestDebug 2024（1981通过/43skip/0失败）、Contracts119/0skip/0失败；实际匹配ABI10/72 exports arm64/MLX-Metal Core构建、helper SDK编译（unsigned compile-only group placeholder，未执行helper）通过。真实Silero-v6权重/Metal直接C链覆盖checked create、失败构造owned output、offline/stream feed/finish、busy model release拒绝及checked原handle退休。初次build缺task-only uv、私有C harness误用error-free符号、重复install已删除rpath的非fatal stderr保留；未改数值、未覆盖个人数据、未签名/公证/注册group或改变CI release defaults。
 - AudioVAD/Core仍有消费者，不能解除整个Audio package。以上不代表生产XPC全切换、longform/meeting完整接入、signed authenticated IPC/AppGroup/sandbox、全family真实模型或release验收。
 
-下一步优先完成Silero owned production消费者、剩余Sortformer/AudioVAD/Core退役、Qwen checked退出观察与XPC longform/production工厂接入，再完成sharedcache/repair/blob/orphan/recovery及剩余真实平台门槛；不自动发布localcheckpoint。
+### Audio package解除与显式Silero XPC消费者
+
+- Swift Silero/Sortformer数值消费者、legacy model/state/array载入及in-process library对照均退役；project/product/Frameworks与实际Mac resolver结果移除Audio package/pin。直接固定MLX0.31.6、Tokenizers1.3.4、HuggingFace0.10.2，其他pins不变；保留MLX Swift LLM/VLM/MLX、llama.swift、Remote、catalog/installed目录与保存选择，mlx-audio存储路径不重命名。
+- Silero production Native HTTP保持whole-audio offline（31秒不是截断/自动拼接）及stream末完整frame/nil、原resampling/profile/timestamp规则，serial tail与generation保证reset/unload等旧exchange、close、最后endpoint实际process exit后才允许替换；Native不可用明确报错，现有上层energy降级警告保留，不偷偷回Swift。Sortformer普通production scheduler仍原约5秒feed/FIFO/cache/PCM offset；owned exact runtime lease在file成功/失败/cancel后actual exit才释放permit。
+- 审计确认旧MeetingRealtimeDiarizationStage仅class定义及已退休portable hook，无production caller/selector/ObjC/resource；删除这个未调用actor，不发布其新24秒HTTP版本。188update配置的Native HTTP cap实际240639 samples/15.0399375秒，24秒whole-window blocker真实存在，未放宽cap、改模型设置或任意切窗逃避。将来若需要这类消费者，需单独实现语义和真实模型验证。
+- AudioCore去链接前在Mac真实compiled legacy product捕获42 DSP输出（不是new converter生成oracle），201024-byte binary fixture/hash/provenance入测试；保留35 rate/frame cases、silence/constant/impulse、4 integer-truncation cases及empty/invalid/equalrate/1Hz/copy-storage行为。捕获platform-specific，不认证所有OS/SDK。单bit oracle负控制实际执行失败并恢复fixture；早期负控制在临时换graph时link失败，没有当检测通过。
+- 同一Mac单独旧MLXAudioVAD模型/公开clip捕获model/sample/profile-bound oracle，再用Native-only detectors验证offline/unevenstream/reset/只杀自己server的recovery，10项实际模型/reader测试通过、0skip。未提供Sortformer旧模型capture/weights，相关parity仍显式skip，不编造golden或Native自比较。
+- 显式OmniXPCSileroModelOwner及prepared-owner OmniXPCASRVoiceActivityConsumer采用原client/op/connection bound notSubmitted/submitted/drained ticket，reader/owned command lane保留到checked original-load retirement；failed/missing-map/disconnect不proof，close协同uncancelled、same-scope retry。live准确Float32拆到32000/chunk且无session-total cap，offline>30秒拒绝；不是production longform自动切换。guarded Silero smoke现在用实际owner/consumer，unknown cleanup静态保留并阻止host invalidate，原4requests/2streams统计不变。
+- 服务重启清空本机/tmp，原未集成Owner worktree/工具/部分日志丢失；保留repo改动，恢复既有Tailscale state（无新login），从Mac取回capture/results，工具、fresh harness与新证据改存durable ~/.cache。没有把失去的旧测试冒充此次执行；限流/连接错误及子任务未完成状态记录，后续错峰并限制TOTAL active子任务≤3。
+- 最终无Audio graph真Mac全量TestDebug 2023（1981通过/42skip/0失败），includes实际新Owner代码编译，portable guarded Owner16不是这2023里已执行的测试。独立恢复后实际HTTP/process/readers fresh Silero6 scenarios、Sortformer10 scenarios、Native算法CPU sanitizer、42capture bits比对与静态图审计通过，平台/数字替身明确标记。主机新Owner16 concrete-peer tests、独立Owner审查20（含success-vs-close publication/foreign-ticket/missing-map/lost-start/smoke未知清理检测，两个负控制有效）、tools67、source/resolved audit及全量hooks通过；独立Owner链未执行真实helper/Core/NSXPC，明确边界。实际opt-in host SDK build含新smoke成功（unsigned compile-only placeholder，未运行sandbox/IPC）；首次缺OmniModelArtifacts import修复，旧失败保存。
+- 当前二进制未发现MLXAudioCore/STT/VAD package modules/links，保留LLM/VLM符号；Voxt自己的MLXAudioEngineBox/LevelDelivery名字不是Audio package残留。尚不认证全family/长会议/performance/Intel/release/clean-machine、Qwen checked barrier、signed authenticated IPC/AppGroup、XPC production factory或XPC longform已完成。
+
+下一步优先完成Qwen checked退出观察、XPC longform与production recording/meeting工厂接入，再完成sharedcache/repair/blob/orphan/recovery及剩余真实平台门槛；不自动发布localcheckpoint。
 
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 

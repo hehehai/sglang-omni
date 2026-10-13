@@ -41,7 +41,7 @@ actor OmniXPCVoiceActivityStream {
         let sequence = audioSequence + 1
         let exchange = Task { [client, reference, timeout] in
             try Task.checkCancellation()
-            let audio = OmniVoiceActivityStream.float32LittleEndian(samples16k)
+            let audio = OmniXPCASRVoiceActivityConsumer.float32LittleEndian(samples16k)
             let batch = try await client.pushSileroAudio(audio, to: reference, sequence: sequence, timeout: timeout)
             return batch.probabilities.last
         }

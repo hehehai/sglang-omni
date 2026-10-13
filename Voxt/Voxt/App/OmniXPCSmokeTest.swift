@@ -246,7 +246,8 @@ extension AppDelegate {
                 fflush(stdout)
                 exit(EXIT_SUCCESS)
             } catch {
-                if !OmniXPCSmokeBatchValidation.hasRetainedOwner && !OmniXPCSmokeSpeakerValidation.hasRetainedOwner {
+                if !OmniXPCSmokeBatchValidation.hasRetainedOwner && !OmniXPCSmokeSpeakerValidation.hasRetainedOwner
+                    && !OmniXPCSmokeSileroValidation.hasRetainedOwner {
                     client?.invalidate()
                 } else {
                     // note (Codex): An ambiguous model close pins its reader/client; process exit is not retirement proof.
@@ -269,23 +270,9 @@ extension AppDelegate {
     private static func validateOmniSileroSmoke(
         client: OmniXPCClient, modelDirectory: String, samples: [Float], timeout: Duration
     ) async throws {
-        let model = try await client.loadSilero(modelDirectory: modelDirectory, timeout: timeout)
-        let settings = OmniXPCSileroSettings(
-            threshold: 0.5, minimumSpeechMilliseconds: 250, minimumSilenceMilliseconds: 100, speechPaddingMilliseconds: 30
+        try await OmniXPCSmokeSileroValidation.run(
+            client: client, relativeModelDirectory: modelDirectory, samples: samples, timeout: timeout
         )
-        let first = try await client.sileroSpeechTimestamps(samples16k: samples, settings: settings, model: model, timeout: timeout)
-        let reused = try await client.sileroSpeechTimestamps(samples16k: samples, settings: settings, model: model, timeout: timeout)
-        guard first == reused else {
-            throw OmniXPCFailure.error(.nativeFailure, "Silero same-model reuse returned inconsistent sample ranges.")
-        }
-        try await client.withSileroVoiceActivityStream(model: model, timeout: timeout) { stream in
-            for offset in stride(from: 0, to: samples.count, by: OmniXPCSileroLimits.maximumChunkSampleCount) {
-                let end = min(offset + OmniXPCSileroLimits.maximumChunkSampleCount, samples.count)
-                _ = try await stream.probability(samples16k: Array(samples[offset..<end]))
-            }
-            _ = try await stream.finish()
-        }
-        try await client.unloadSilero(model)
     }
 
     private static func validateOmniSortformerSmoke(

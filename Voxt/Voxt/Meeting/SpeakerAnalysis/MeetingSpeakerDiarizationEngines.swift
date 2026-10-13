@@ -73,18 +73,12 @@ enum MeetingSpeakerDiarizationEngineFactory {
     }
 }
 
-/// Keeps the established process routing while transport implementations own their respective lifetimes.
+/// Native HTTP is the ordinary backend; installed model selection remains independent of runtime availability.
 actor SortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEngine {
-    private let swiftEngine = MLXSortformerMeetingSpeakerDiarizationEngine()
     private let httpEngine = OmniHTTPSortformerMeetingSpeakerDiarizationEngine()
 
-    private var selectedEngine: any MeetingSpeakerDiarizationEngine {
-        if OmniSortformerRuntime.isEnabled { return httpEngine }
-        return swiftEngine
-    }
-
     func diarize(asset: MeetingAudioAsset, options: MeetingSpeakerDiarizationOptions) async throws -> [MeetingSpeakerTurn] {
-        try await selectedEngine.diarize(asset: asset, options: options)
+        try await httpEngine.diarize(asset: asset, options: options)
     }
 
     func diarizeSession(
@@ -93,7 +87,7 @@ actor SortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEngine
         continuousAudioURL: URL?, options: MeetingSpeakerDiarizationOptions,
         progress: (@Sendable (Double) async -> Void)?
     ) async throws -> [MeetingSpeakerTurn] {
-        try await selectedEngine.diarizeSession(
+        try await httpEngine.diarizeSession(
             descriptors: descriptors, loadAsset: loadAsset, continuousAudioURL: continuousAudioURL,
             options: options, progress: progress
         )
@@ -104,6 +98,6 @@ actor SortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizationEngine
         loadAsset: @escaping @Sendable (MeetingAudioAssetDescriptor) async -> MeetingAudioAsset?,
         options: MeetingSpeakerDiarizationOptions, progress: (@Sendable (Double) async -> Void)?
     ) async throws -> [MeetingSpeakerTurn] {
-        try await selectedEngine.diarizeFile(descriptors: descriptors, loadAsset: loadAsset, options: options, progress: progress)
+        try await httpEngine.diarizeFile(descriptors: descriptors, loadAsset: loadAsset, options: options, progress: progress)
     }
 }

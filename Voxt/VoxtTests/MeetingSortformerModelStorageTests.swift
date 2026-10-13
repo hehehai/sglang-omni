@@ -1,9 +1,6 @@
 import Foundation
 import OmniModelArtifacts
 import XCTest
-#if OMNI_SORTFORMER_PORTABLE_TESTS
-import MLXAudioVAD
-#endif
 
 @testable import Voxt
 
@@ -68,65 +65,4 @@ final class MeetingSortformerModelStorageTests: XCTestCase {
         _ = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation)
     }
 
-#if OMNI_SORTFORMER_PORTABLE_TESTS
-    func testCachedLegacyModelRetainsReaderUntilItsOwnerIsDropped() async throws {
-        var engine: MLXSortformerMeetingSpeakerDiarizationEngine? = MLXSortformerMeetingSpeakerDiarizationEngine()
-        _ = try await engine?.diarize(asset: MeetingAudioAsset(source: .mixed, samples: [0.25],
-            sampleRate: 16_000, sessionStartOffset: 0), options: .init())
-        do { _ = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation); XCTFail("Cached model lost its reader") }
-        catch OmniModelStorageError.busy {}
-        engine = nil
-        _ = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation)
-    }
-
-    func testModelDecoderFailureDoesNotStrandTheDirectoryReader() async throws {
-        try Data("{\"processor_config\":{\"sampling_rate\":\"invalid\"}}".utf8)
-            .write(to: directory.appendingPathComponent("config.json"))
-        let engine = MLXSortformerMeetingSpeakerDiarizationEngine()
-        do {
-            _ = try await engine.diarizeFile(descriptors: [], loadAsset: { _ in nil }, options: .init(), progress: nil)
-            XCTFail("Invalid model configuration loaded")
-        } catch is DecodingError {}
-        _ = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation)
-    }
-
-    func testFileModelAndBlockedCancellationKeepTheReaderUntilActualFeedReturns() async throws {
-        await SortformerTestControl.blockNextFeed()
-        let engine = MLXSortformerMeetingSpeakerDiarizationEngine()
-        let descriptor = MeetingAudioAssetDescriptor(source: .mixed, sampleRate: 16_000, startSample: 0, sampleCount: 160)
-        let operation = Task {
-            try await engine.diarizeFile(descriptors: [descriptor], loadAsset: { descriptor in
-                MeetingAudioAsset(source: descriptor.source, samples: [Float](repeating: 0.25, count: 160),
-                    sampleRate: 16_000, sessionStartOffset: 0)
-            }, options: .init(), progress: nil)
-        }
-        await SortformerTestControl.waitForFeed()
-        operation.cancel()
-        do { _ = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation); XCTFail("Cancellation freed an active reader") }
-        catch OmniModelStorageError.busy {}
-        await SortformerTestControl.releaseFeed()
-        do { _ = try await operation.value; XCTFail("Cancelled feed succeeded") } catch is CancellationError {}
-        _ = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation)
-    }
-
-    func testRealtimeResetKeepsAnInFlightModelsReaderUntilItsFeedReturns() async throws {
-        await SortformerTestControl.blockNextFeed()
-        let stage = MeetingRealtimeDiarizationStage()
-        let segment = MeetingTranscriptSegment(id: UUID(), speaker: .me, speakerID: nil, speakerDisplayName: nil,
-            audioSource: .microphone, speakerConfidence: nil, startSeconds: 0, endSeconds: 0.01,
-            text: "fixture", preventsAdjacentMerge: false)
-        let operation = Task {
-            await stage.annotate(segment: segment, source: .microphone,
-                asset: MeetingAudioAsset(source: .microphone, samples: [Float](repeating: 0.25, count: 160),
-                    sampleRate: 16_000, sessionStartOffset: 0), captureMode: .microphone)
-        }
-        await SortformerTestControl.waitForFeed()
-        await stage.reset()
-        do { _ = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation); XCTFail("Reset freed an active reader") }
-        catch OmniModelStorageError.busy {}
-        await SortformerTestControl.releaseFeed()
-        _ = await operation.value
-        _ = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation)
-    }
-#endif
 }

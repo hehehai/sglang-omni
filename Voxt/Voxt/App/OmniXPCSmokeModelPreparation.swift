@@ -1,5 +1,6 @@
 #if os(macOS) && VOXT_OMNI_XPC_VALIDATION
 import Foundation
+import OmniModelArtifacts
 import OmniXPCContracts
 
 extension AppDelegate {

@@ -10,10 +10,9 @@ Speaker diarization models, labels, settings, and display helpers for meeting tr
 
 ## Transport ownership
 
-The default `SortformerMeetingSpeakerDiarizationEngine` preserves existing
-Native HTTP routing when enabled and otherwise delegates to the isolated
-`MLXSortformerMeetingSpeakerDiarizationEngine`. Neither the common protocol nor
-the Native HTTP implementation imports MLX Audio. `MeetingSortformerConfiguration`
+The default `SortformerMeetingSpeakerDiarizationEngine` delegates to Native HTTP.
+Unavailable Native throws explicitly; the Swift library fallback and Audio imports
+are retired. `MeetingSortformerConfiguration`
 reads a bounded Foundation-only projection of scheduling fields; it is not model
 compatibility or shared-directory authorization.
 
@@ -25,14 +24,13 @@ contract and feeds at most 32000 real samples, without invented padding/tail.
 This differs from the existing approximately five-second HTTP chunking and needs
 real numerical/model validation before production cutover.
 
-The legacy meeting engine and realtime annotation stage now keep a paired Swift
-model/directory reader through construction, cached ownership and each active
-operation. Clearing a cache or resetting the realtime stage does not release an
-in-flight model's reader; model destruction precedes release. Directory selection
-preserves existing readable-root order and rejects busy/unsafe acquisition rather
-than silently changing caches. This is cooperating filesystem ownership, not a
-new Swift MLX/GPU cancellation or drain API. Legacy Silero and cache/blob repair
-paths still need coordination.
+The ordinary HTTP engine owns an exact runtime/model directory lease and
+serializes sessions across suspension. File completion/failure retires that exact
+process before releasing admission; shared endpoint reference counts or socket
+cancellation are not Native-exit proof. Directory selection keeps readable-root
+order and rejects busy/unsafe acquisition. The unused legacy realtime annotation
+actor had no production caller/selector/resource and was deleted; no new 24-second
+whole-window transport was added. Cache/blob/orphan recovery remains separate work.
 
 `OmniXPCSortformerModelOwner` explicitly prepares a caller-supplied shared Models
 directory under a reader lease and supplies the matching model/configuration to
@@ -55,5 +53,5 @@ factories remain unchanged.
 File-feed failures, cancellation and slow-feed checks await owned stream cleanup
 before releasing the inference permit. A noncooperative asset/progress callback
 cannot be forced to return. Ordinary HTTP close remains its existing socket
-operation, not a new Native drain barrier. Default routing, cached weights and
-MLX Audio package linkage remain unchanged.
+operation, not a new Native drain barrier. Cached weights/catalog choices remain;
+Audio package linkage is removed. Actual process exit retains the HTTP model reader.
