@@ -42,14 +42,6 @@ final class LLMDebugViewModel: ObservableObject {
         selectedPreset?.title ?? modelDebugLocalized("Select Preset")
     }
 
-    var promptPreview: String {
-        guard let selectedPreset else { return "" }
-        return ModelDebugPromptResolver.resolve(
-            preset: selectedPreset,
-            values: variableValues
-        ).content
-    }
-
     func refreshOptions() {
         remoteConfigurations = RemoteModelConfigurationStore.loadConfigurations(
             from: UserDefaults.standard.string(forKey: AppPreferenceKey.remoteLLMProviderConfigurations) ?? ""

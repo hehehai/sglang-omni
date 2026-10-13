@@ -107,18 +107,6 @@ extension ModelSettingsView {
         MLXModelManager.canonicalModelRepo(repo) == MLXModelManager.canonicalModelRepo(modelRepo)
     }
 
-    func isDownloadingModel(_ repo: String) -> Bool {
-        mlxInstallSnapshot(for: repo).state == .downloading
-    }
-
-    func isPausedModel(_ repo: String) -> Bool {
-        mlxInstallSnapshot(for: repo).state == .paused
-    }
-
-    func modelStatusText(for repo: String) -> String {
-        mlxInstallSnapshot(for: repo).statusText
-    }
-
     func useCustomLLM(_ repo: String) {
         customLLMRepo = repo
         customLLMManager.updateModel(repo: repo)
@@ -232,18 +220,6 @@ extension ModelSettingsView {
         CustomLLMModelManager.canonicalModelRepo(repo) == CustomLLMModelManager.canonicalModelRepo(customLLMRepo)
     }
 
-    func isDownloadingCustomLLM(_ repo: String) -> Bool {
-        customLLMManager.isDownloading(repo: repo)
-    }
-
-    func isPausedCustomLLM(_ repo: String) -> Bool {
-        customLLMManager.isPaused(repo: repo)
-    }
-
-    func customLLMStatusText(for repo: String) -> String {
-        customLLMInstallSnapshot(for: repo).statusText
-    }
-
     func useGGUFTranslationModel(_ modelID: GGUFTranslationModelID) {
         translationGGUFModelIDRaw = modelID.rawValue
         ggufTranslationModelManager.updateModel(id: modelID)
@@ -251,11 +227,6 @@ extension ModelSettingsView {
 
     func downloadGGUFTranslationModel(_ modelID: GGUFTranslationModelID) {
         ggufTranslationModelManager.downloadModel(id: modelID)
-        refreshCatalogSnapshot()
-    }
-
-    func cancelGGUFTranslationDownload(_ modelID: GGUFTranslationModelID) {
-        ggufTranslationModelManager.cancelDownload(id: modelID)
         refreshCatalogSnapshot()
     }
 

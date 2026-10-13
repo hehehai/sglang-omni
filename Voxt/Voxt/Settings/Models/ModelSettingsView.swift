@@ -151,8 +151,6 @@ struct ModelSettingsView: View {
         )
     }
 
-    private var allEntries: [ModelCatalogEntry] { catalogSnapshot.allEntries }
-
     private var hiddenModelVisibilityIDs: Set<String> {
         ModelVisibilityStore.decode(hiddenModelVisibilityIDsRaw)
     }

@@ -502,3 +502,18 @@ GUI catalog→ASR/Remote/LLM配置、真实device/权限/start取消/rapid resta
 Mac TestDebug全量 **2015项：1973通过、42跳过、0失败**，unsigned Release通过；ModelDebugSupport21项、Detail live/transcript4/7项、Hotkey modifiers23项实际发现执行。测试输入使用task-owned隔离workspace/home，不访问用户录音/词典/笔记/profile/certificate/Keychain。
 
 工具52、完整hooks/审计、原body等价和CPU value/projection回放补充验证；CPU SDK peers不是CoreAudio/Combine/GUI/Native证明。debug owner既有unstructured request/close后late result限制原样保留，不宣称拆文件解决cancel/drain。真实debug窗口recording/model/网络、Detail UI编辑/summary/chat、Hotkey设备/Fn jitter/侧别/恢复、长会议和性能/恢复仍需专门人工验收。
+
+## 第五批：基线 `ae8d3973`
+
+第三/第四批已按授权一起正常提交/push为 `ae8d3973`。第五批仍是其后的本地局部重构，不继承前一2015项验收。
+
+- HistoryStore934→863行，122行HistoryEntryPolicy取明确entry/text/term/snapshot/segment、period/date/calendar，复用现有entry-updating/normalizer/formatter。Store保留private Published/cache/index/total/loaded/reloadgen/pagegen/repository/audio/defaults、调度及全部写入/legacy/retention；先age deletion再读取count偏好顺序保留。原9项测试不改，新增5项owner契约。
+- 回答卡片974→500行，479行translation-menu独立owner整体原样迁移：style/SwiftUI wrapper/private representable+coordinator/privateNSView+NSMenuDelegate+selector+monitor+state/deinit同文件；conversation/private waveform、View state identity和callback/presentation/布局不改变。只新增imports/header开销，不增加layout-only测试。
+- 删除qualified审查证明的旧settings状态facade、GGUF cancel包装、view allEntries alias和重复filter-tag builder；真实snapshot/current flags/catalogDecoration/取消路由和全部30AppStorage字段/键/default不变。删除未实例化Detail styles/surface/独占colors，保留真实primary style/theme及distinct meetingDetail surface；无caller的provider refresh/overlay clear/旧wave curve/debug prompt-preview/sync sound-start退役，实际refresh/reset/wave/prompt/async sound completion和资源均保留，无测试删除。
+- 应用源码本批净减少118行；purehistory/menu抽离本身略增行数，净删来自174行已核实孤儿展示/便利链。不机械开放私有状态、不改schema/Codeckeys/raw IDs/模型/pins/权限/签名/共享Native或Audio/XPC边界。
+
+### 第五批真实验证
+
+Mac full TestDebug **2020项：1978通过/42跳过/0失败**，unsigned Release通过。HistoryAsync14、TranslationLanguageSwitch8、OverlayConversation9、RecentWaveform6实际发现执行；task-owned workspace/test home，无用户私有历史库/录音/Keychain/profile/cert或正式App覆盖。工具52、完整hooks和模型栈审计通过。
+
+CPU menu coordinator/style506 scenarios/mode、history实际计算/模型A/B及in-memory DB/Combine peers是补充证据，不等于实际AppKit菜单或SQLite/用户旧库验收。真实menu runloop/open/select/outside/Escape/焦点/销毁、conversation scroll/copy/waveform、声音/GUI、用户历史migration/retention/archive、模型/权限/性能/长会议与恢复仍需专门人工/模型验证。
