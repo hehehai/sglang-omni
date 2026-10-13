@@ -324,13 +324,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         await watchdogTask?.value
         for task in setupTasks { await task.value }
         _ = await correctionPassTask?.value
-        do {
-            try await nativeLiveRuntime.waitForCheckedRetirement()
-        } catch {
-            pendingRuntimeFailureMessage = error.localizedDescription
-            VoxtLog.asrError("Native live retirement remains pending during shutdown: \(error.localizedDescription)")
-            return
-        }
+        await nativeLiveRuntime.waitForRetirement()
         await sessionTasks.waitForAll()
         await prewarmTasks.waitForAll()
         unpinModelForSessionIfNeeded()

@@ -4,14 +4,6 @@
 <dict>
     <key>CFBundleIdentifier</key>
     <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>OmniAppGroupIdentifier</key>
-    <string>$(VOXT_OMNI_APP_GROUP_ID)</string>
-    <key>OmniInferenceServiceIdentifier</key>
-    <string>$(VOXT_OMNI_XPC_SERVICE_ID)</string>
-    <key>OmniHostBundleIdentifier</key>
-    <string>$(VOXT_OMNI_HOST_BUNDLE_IDENTIFIER)</string>
-    <key>OmniTeamIdentifier</key>
-    <string>$(VOXT_OMNI_TEAM_IDENTIFIER)</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleExecutable</key>

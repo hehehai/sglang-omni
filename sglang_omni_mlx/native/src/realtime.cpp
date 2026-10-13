@@ -1,15 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "realtime.h"
 
+#include <algorithm>
 #include <iostream>
 #include <random>
-#include <utility>
+
+#include "audio.h"
 
 namespace qwen3_asr {
 
 namespace {
 
+// Note (Jiaxin Deng): after two full re-decodes a refresh continues from the
+// shown text minus its last tokens, which may still change.
+constexpr int kPrefixAfterRefreshCount = 2;
+constexpr int kPrefixRollbackTokenCount = 5;
+constexpr float kSilentPeak = 1e-3f;
 constexpr float kPcm16FullScale = 32768.0f;
+
+constexpr std::pair<uint32_t, uint32_t> kUnspacedScriptRanges[] = {
+    {0x0E00, 0x0EFF}, {0x1000, 0x109F}, {0x1780, 0x17FF},
+    {0x2E80, 0x303F}, {0x3040, 0x30FF}, {0x3400, 0x9FFF},
+    {0xF900, 0xFAFF}, {0xFF00, 0xFFEF}, {0x20000, 0x2FA1F},
+};
+
+bool IsSpacedScript(uint32_t code_point) {
+  if (IsUnicodeSpace(code_point)) {
+    return false;
+  } else {
+  }
+  for (const auto &[low, high] : kUnspacedScriptRanges) {
+    if (code_point >= low && code_point <= high) {
+      return false;
+    } else {
+    }
+  }
+  return true;
+}
 
 std::optional<std::vector<uint8_t>> DecodeBase64(const std::string &text) {
   // Note (Jiaxin Deng): matches Python's b64decode(validate=False), which
@@ -68,46 +95,44 @@ std::string NewEventId() {
 
 } // namespace
 
+RealtimeSettings MakeRealtimeSettings(int decode_interval_ms,
+                                      int first_decode_ms,
+                                      double max_segment_seconds) {
+  return {decode_interval_ms * kSampleRate / 1000,
+          first_decode_ms * kSampleRate / 1000,
+          static_cast<int>(max_segment_seconds * kSampleRate)};
+}
+
+std::string JoinTranscriptParts(const std::vector<std::string> &parts) {
+  std::string joined;
+  for (const std::string &raw_part : parts) {
+    const std::string part = StripUnicodeWhitespace(raw_part);
+    if (part.empty()) {
+      continue;
+    } else if (!joined.empty() && IsSpacedScript(CodePoints(joined).back()) &&
+               IsSpacedScript(CodePoints(part).front())) {
+      joined += " " + part;
+    } else {
+      joined += part;
+    }
+  }
+  return joined;
+}
+
 RealtimeConnection::RealtimeConnection(Sender sender)
     : sender_(std::move(sender)) {}
 
-bool RealtimeConnection::IsSendingOnThisThread() {
-  std::lock_guard<std::recursive_mutex> lock(send_mutex_);
-  return sending_thread_ == std::this_thread::get_id();
-}
-
 void RealtimeConnection::Send(nlohmann::ordered_json event) {
-  std::exception_ptr failure;
-  bool close_after_delivery;
-  {
-    std::lock_guard<std::recursive_mutex> lock(send_mutex_);
-    if (closed_) {
-      return;
-    } else {
-    }
-    event_index_ += 1;
-    event["event_id"] = NewEventId();
-    event["event_index"] = event_index_;
-    const std::string serialized = event.dump();
-    sending_thread_ = std::this_thread::get_id();
-    try {
-      if (!sender_(serialized)) {
-        closed_ = true;
-      } else {
-      }
-    } catch (...) {
-      failure = std::current_exception();
-    }
-    sending_thread_ = {};
-    close_after_delivery = std::exchange(close_after_delivery_, false);
-  }
-  if (close_after_delivery) {
-    // Note (OpenAI): direct HTTP errors must not invert transport/engine locks.
-    Close();
+  std::lock_guard<std::mutex> lock(send_mutex_);
+  if (closed_) {
+    return;
   } else {
   }
-  if (failure) {
-    std::rethrow_exception(failure);
+  event_index_ += 1;
+  event["event_id"] = NewEventId();
+  event["event_index"] = event_index_;
+  if (!sender_(event.dump())) {
+    closed_ = true;
   } else {
   }
 }
@@ -121,12 +146,8 @@ void RealtimeConnection::SendError(const std::string &type,
 
 void RealtimeConnection::Close() {
   cancel_->store(true);
-  std::lock_guard<std::recursive_mutex> lock(send_mutex_);
+  std::lock_guard<std::mutex> lock(send_mutex_);
   closed_ = true;
-  if (sending_thread_ == std::this_thread::get_id()) {
-    close_after_delivery_ = true;
-  } else {
-  }
 }
 
 std::optional<std::vector<float>>
@@ -183,47 +204,41 @@ RealtimeSession::RealtimeSession(TranscriptionWorker &worker,
       transcriber_(transcriber), settings_(settings) {}
 
 bool RealtimeSession::Handle(const nlohmann::json &message) {
-  if (!engine_) {
-    // Note (Codex): Handle runs after shared ownership exists, unlike
-    // construction.
-    std::weak_ptr<RealtimeSession> weak_self =
-        std::static_pointer_cast<RealtimeSession>(shared_from_this());
-    engine_ = std::make_shared<RealtimeEngine>(
-        worker_, transcriber_, settings_,
-        [weak_self](const RealtimeEvent &event) {
-          if (const auto self = weak_self.lock()) {
-            self->SendEvent(event);
-          } else {
-          }
-        },
-        cancel_);
-  } else {
-  }
   const nlohmann::json type = message.value("type", nlohmann::json());
   if (type == "session.update") {
     const std::optional<nlohmann::json> session = ManualTurnSession(message);
     if (session.has_value()) {
       const nlohmann::json language =
           session->value("language", nlohmann::json());
-      engine_->UpdateLanguage(language.is_string()
-                                  ? std::optional(language.get<std::string>())
-                                  : std::nullopt);
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        language_ = language.is_string()
+                        ? NormalizeLanguage(language.get<std::string>())
+                        : std::nullopt;
+      }
+      Send({{"type", "transcription_session.updated"}});
     } else {
     }
     return true;
   } else if (type == "input_audio_buffer.append") {
-    std::optional<std::vector<float>> samples =
-        AppendedSamples(message.value("audio", nlohmann::json()));
-    if (samples.has_value()) {
-      engine_->Append(std::move(*samples));
-    } else {
-    }
+    Append(message.value("audio", nlohmann::json()));
     return true;
   } else if (type == "input_audio_buffer.commit") {
-    engine_->Commit();
+    FinalizeThrough(LockedEndSample());
     return true;
   } else if (type == "transcription.done") {
-    engine_->Finish();
+    FinalizeThrough(LockedEndSample());
+    std::vector<std::pair<int, std::string>> committed;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      committed = committed_;
+    }
+    std::sort(committed.begin(), committed.end());
+    std::vector<std::string> texts;
+    for (const auto &[segment_id, text] : committed)
+      texts.push_back(text);
+    Send({{"type", "transcription.completed"},
+          {"text", JoinTranscriptParts(texts)}});
     return false;
   } else {
     SendError("invalid_request_error", "invalid_event", "Unknown event type.");
@@ -231,19 +246,232 @@ bool RealtimeSession::Handle(const nlohmann::json &message) {
   }
 }
 
-void RealtimeSession::SendEvent(const RealtimeEvent &event) {
-  if (std::holds_alternative<RealtimeUpdated>(event)) {
-    Send({{"type", "transcription_session.updated"}});
-  } else if (const auto *segment = std::get_if<RealtimeSegment>(&event)) {
-    Send({{"type", "transcription.segment"},
-          {"segment_id", segment->segment_id},
-          {"text", segment->text},
-          {"is_final", segment->is_final}});
-  } else if (const auto *completed = std::get_if<RealtimeCompleted>(&event)) {
-    Send({{"type", "transcription.completed"}, {"text", completed->text}});
+long RealtimeSession::LockedEndSample() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return EndSample();
+}
+
+void RealtimeSession::Append(const nlohmann::json &audio) {
+  const std::optional<std::vector<float>> appended = AppendedSamples(audio);
+  if (!appended.has_value()) {
+    return;
   } else {
-    const auto &failure = std::get<RealtimeFailure>(event);
-    SendError(failure.type, failure.code, failure.message);
+  }
+  long cut_sample = -1;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const long start_sample = EndSample();
+    samples_.insert(samples_.end(), appended->begin(), appended->end());
+    if (!segment_.has_value()) {
+      StartSegment(start_sample);
+    } else {
+    }
+    const long overflow =
+        (EndSample() - segment_->start_sample) / settings_.max_segment_samples;
+    if (overflow > 0) {
+      cut_sample =
+          segment_->start_sample + overflow * settings_.max_segment_samples;
+    } else {
+    }
+  }
+  if (cut_sample >= 0) {
+    FinalizeThrough(cut_sample);
+    std::lock_guard<std::mutex> lock(mutex_);
+    StartSegment(cut_sample);
+  } else {
+  }
+  MaybeStartRefresh();
+}
+
+void RealtimeSession::StartSegment(long start_sample) {
+  Segment segment;
+  segment.segment_id = next_segment_id_++;
+  segment.start_sample = start_sample;
+  segment.next_refresh_sample = start_sample + settings_.first_decode_samples;
+  segment.language = language_;
+  segment_ = std::move(segment);
+}
+
+std::vector<float> RealtimeSession::SegmentSamples(const Segment &segment,
+                                                   long end_sample) const {
+  const long begin = segment.start_sample - buffer_start_sample_;
+  const long end = end_sample - buffer_start_sample_;
+  return std::vector<float>(samples_.begin() + begin, samples_.begin() + end);
+}
+
+TranscriptionOptions RealtimeSession::DecodeOptions(Segment &segment) {
+  TranscriptionOptions options;
+  options.language = segment.language;
+  const bool use_prefix = segment.decode_count >= kPrefixAfterRefreshCount &&
+                          !segment.transcript.empty() &&
+                          segment.language.has_value();
+  if (use_prefix) {
+    auto [ids, text] = transcriber_.RetainedPrefix(segment.transcript,
+                                                   kPrefixRollbackTokenCount);
+    options.prefix_token_ids = std::move(ids);
+    options.prefix_text = std::move(text);
+  } else {
+  }
+  segment.decode_count += 1;
+  return options;
+}
+
+Transcription RealtimeSession::Decode(std::vector<float> samples,
+                                      TranscriptionOptions options) const {
+  return [&transcriber = transcriber_, samples = std::move(samples),
+          options = std::move(options)](const std::atomic<bool> &cancel) {
+    return transcriber.Transcribe(samples, options, cancel);
+  };
+}
+
+void RealtimeSession::ApplyResult(Segment &segment,
+                                  const TranscriptionResult &result) {
+  if (result.language.has_value() && !result.language->empty()) {
+    segment.language = result.language;
+  } else {
+  }
+  segment.transcript = result.text;
+}
+
+void RealtimeSession::MaybeStartRefresh() {
+  std::vector<float> samples;
+  TranscriptionOptions options;
+  int segment_id = 0;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (refreshing_ || finalizing_ || !segment_.has_value() ||
+        EndSample() < segment_->next_refresh_sample) {
+      return;
+    } else {
+    }
+    Segment &segment = *segment_;
+    const long end_sample = EndSample();
+    samples = SegmentSamples(segment, end_sample);
+    const bool silent =
+        PeakIsSilent(samples.data(), samples.size(), kSilentPeak);
+    // Note (Jiaxin Deng): leading silence keeps the early first decode for the
+    // first audible audio.
+    if (!(silent && segment.decode_count == 0)) {
+      segment.next_refresh_sample =
+          end_sample + settings_.decode_interval_samples;
+    } else {
+    }
+    if (silent) {
+      return;
+    } else {
+    }
+    options = DecodeOptions(segment);
+    segment_id = segment.segment_id;
+    refreshing_ = true;
+  }
+  std::weak_ptr<RealtimeSession> weak_self =
+      std::static_pointer_cast<RealtimeSession>(shared_from_this());
+  worker_.Submit(
+      Decode(std::move(samples), std::move(options)), cancel_,
+      [weak_self, segment_id](std::optional<TranscriptionResult> result,
+                              std::exception_ptr error) {
+        const std::shared_ptr<RealtimeSession> self = weak_self.lock();
+        if (!self) {
+          return;
+        } else {
+        }
+        std::optional<std::string> preview;
+        {
+          std::lock_guard<std::mutex> lock(self->mutex_);
+          self->refreshing_ = false;
+          if (result.has_value() && self->segment_.has_value() &&
+              self->segment_->segment_id == segment_id) {
+            self->ApplyResult(*self->segment_, *result);
+            if (result->text != self->segment_->last_text) {
+              self->segment_->last_text = result->text;
+              preview = result->text;
+            } else {
+            }
+          } else {
+          }
+        }
+        self->refresh_done_.notify_all();
+        if (error) {
+          self->ReportDecodeFailure(error);
+        } else if (preview.has_value()) {
+          self->Send({{"type", "transcription.segment"},
+                      {"segment_id", segment_id},
+                      {"text", *preview},
+                      {"is_final", false}});
+        } else {
+        }
+        self->MaybeStartRefresh();
+      });
+}
+
+void RealtimeSession::FinalizeThrough(long end_sample) {
+  while (true) {
+    Segment segment;
+    std::vector<float> samples;
+    long cut_sample = 0;
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+      if (!segment_.has_value() || end_sample <= segment_->start_sample) {
+        finalizing_ = false;
+        return;
+      } else {
+      }
+      // Note (Jiaxin Deng): wait out an in-flight preview and start no new one,
+      // as the Python server's FIFO decode lock does.
+      finalizing_ = true;
+      refresh_done_.wait(lock, [&] { return !refreshing_; });
+      if (!segment_.has_value() || end_sample <= segment_->start_sample) {
+        finalizing_ = false;
+        return;
+      } else {
+      }
+      segment = *segment_;
+      segment_.reset();
+      cut_sample = std::min(end_sample, segment.start_sample +
+                                            settings_.max_segment_samples);
+      samples = SegmentSamples(segment, cut_sample);
+    }
+    std::optional<std::string> text;
+    if (PeakIsSilent(samples.data(), samples.size(), kSilentPeak)) {
+      text = std::string();
+    } else {
+      TranscriptionOptions options;
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        options = DecodeOptions(segment);
+      }
+      try {
+        const TranscriptionResult result = worker_.Transcribe(
+            Decode(std::move(samples), std::move(options)), cancel_);
+        ApplyResult(segment, result);
+        text = result.text;
+      } catch (...) {
+        ReportDecodeFailure(std::current_exception());
+      }
+    }
+    // Note (Jiaxin Deng): a failed or cancelled decode was already reported, so
+    // its segment is dropped rather than committed empty.
+    if (text.has_value()) {
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        committed_.emplace_back(segment.segment_id, *text);
+      }
+      Send({{"type", "transcription.segment"},
+            {"segment_id", segment.segment_id},
+            {"text", *text},
+            {"is_final", true}});
+    } else {
+    }
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      samples_.erase(samples_.begin(),
+                     samples_.begin() + (cut_sample - buffer_start_sample_));
+      buffer_start_sample_ = cut_sample;
+      if (cut_sample < end_sample) {
+        StartSegment(cut_sample);
+      } else {
+      }
+    }
   }
 }
 

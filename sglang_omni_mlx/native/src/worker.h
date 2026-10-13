@@ -38,10 +38,8 @@ public:
   using Completion = std::function<void(std::optional<TranscriptionResult>,
                                         std::exception_ptr)>;
 
-  // Runs load on the worker thread; throws what load throws. Disabling idle
-  // cache release requires explicit synchronization/cleanup inside queued jobs.
-  explicit TranscriptionWorker(std::function<void()> load,
-                               bool releases_cache_when_idle = true);
+  // Runs load on the worker thread; throws what load throws.
+  explicit TranscriptionWorker(std::function<void()> load);
   ~TranscriptionWorker();
   TranscriptionWorker(const TranscriptionWorker &) = delete;
   TranscriptionWorker &operator=(const TranscriptionWorker &) = delete;
@@ -70,7 +68,6 @@ private:
   CancelFlag running_cancel_;
   bool running_ = false;
   bool stopping_ = false;
-  const bool releases_cache_when_idle_;
   std::thread thread_;
 };
 

@@ -3,11 +3,6 @@
 
 import Foundation
 
-nonisolated struct MeetingLocalInferenceOwnedPermit: Sendable {
-    fileprivate let coordinatorID: UUID
-    fileprivate let tokenID: UUID
-}
-
 actor MeetingLocalInferenceCoordinator {
     static let shared = MeetingLocalInferenceCoordinator(
         maintainFileCache: { MeetingFileInferenceCache.trimIfNeeded(underPressure: $0) },
@@ -23,16 +18,8 @@ actor MeetingLocalInferenceCoordinator {
         let continuation: CheckedContinuation<UUID, Error>
     }
 
-    private struct OwnedWork {
-        let token: UUID
-        let workClass: MeetingLocalInferenceWorkClass
-        let restoreCacheLimit: (@Sendable () -> Void)?
-    }
-
     private static let maximumQueuedWork = 32
 
-    private let coordinatorID = UUID()
-    private var activeOwnedWork: OwnedWork?
     private var activeToken: UUID?
     private var waiters: [Waiter] = []
     private var cancelledWaiterIDs = Set<UUID>()
@@ -107,41 +94,6 @@ actor MeetingLocalInferenceCoordinator {
         } catch {
             throw error
         }
-    }
-
-    func reserveOwnedPermit(
-        _ workClass: MeetingLocalInferenceWorkClass
-    ) async throws -> MeetingLocalInferenceOwnedPermit {
-        let token = try await acquire(workClass)
-        do {
-            try Task.checkCancellation()
-        } catch {
-            release(token)
-            throw error
-        }
-        // note (guanwei): Native retirement can outlive caller failure; only explicit completion releases ownership.
-        activeOwnedWork = OwnedWork(
-            token: token,
-            workClass: workClass,
-            restoreCacheLimit: workClass.isFileWork ? beginFileWorkUnit() : nil
-        )
-        return MeetingLocalInferenceOwnedPermit(coordinatorID: coordinatorID, tokenID: token)
-    }
-
-    func completeOwnedPermit(_ permit: MeetingLocalInferenceOwnedPermit) throws {
-        guard permit.coordinatorID == coordinatorID,
-              let ownedWork = activeOwnedWork,
-              permit.tokenID == ownedWork.token
-        else {
-            throw MeetingLocalInferenceCoordinatorError.invalidPermit
-        }
-        if ownedWork.workClass.isFileWork {
-            maintainFileCache(fileMemoryBlocked())
-        }
-        ownedWork.restoreCacheLimit?()
-        activeOwnedWork = nil
-        statistics.completedCount += 1
-        release(ownedWork.token)
     }
 
     func currentStatistics() -> MeetingLocalInferenceStatistics {

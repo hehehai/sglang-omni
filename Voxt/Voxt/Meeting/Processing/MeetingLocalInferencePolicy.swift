@@ -4,7 +4,6 @@
 import Foundation
 
 nonisolated enum MeetingLocalInferenceWorkClass: String, Sendable {
-    case modelCleanup
     case liveASRFeed
     case liveASRFinal
     case liveASRPartial
@@ -18,7 +17,6 @@ nonisolated enum MeetingLocalInferenceWorkClass: String, Sendable {
 
     var priority: Int {
         switch self {
-        case .modelCleanup: return 110
         case .liveASRFeed: return 100
         case .liveASRFinal: return 95
         case .liveASRPartial: return 85
@@ -39,14 +37,14 @@ nonisolated enum MeetingLocalInferenceWorkClass: String, Sendable {
         switch self {
         case .fileASR, .fileSpeakerAnalysis, .finalASR, .speakerAnalysis, .detailTranslation, .summary:
             return true
-        case .modelCleanup, .liveASRFeed, .liveASRFinal, .liveASRPartial, .realtimeTranslation:
+        case .liveASRFeed, .liveASRFinal, .liveASRPartial, .realtimeTranslation:
             return false
         }
     }
 
     var isThermallyDeferrable: Bool {
         switch self {
-        case .modelCleanup, .liveASRFeed, .liveASRFinal, .finalASR:
+        case .liveASRFeed, .liveASRFinal, .finalASR:
             return false
         case .liveASRPartial, .realtimeTranslation, .fileASR, .fileSpeakerAnalysis, .speakerAnalysis, .detailTranslation, .summary:
             return true
@@ -55,7 +53,7 @@ nonisolated enum MeetingLocalInferenceWorkClass: String, Sendable {
 
     var isMemoryDeferrable: Bool {
         switch self {
-        case .modelCleanup, .liveASRFeed, .liveASRFinal, .finalASR:
+        case .liveASRFeed, .liveASRFinal, .finalASR:
             return false
         case .liveASRPartial, .realtimeTranslation, .fileASR, .fileSpeakerAnalysis, .speakerAnalysis, .detailTranslation, .summary:
             return true
@@ -78,7 +76,6 @@ nonisolated enum MeetingLocalInferenceCoordinatorError: LocalizedError, Sendable
     case overloaded
     case thermallyConstrained
     case memoryConstrained
-    case invalidPermit
 
     var errorDescription: String? {
         switch self {
@@ -88,8 +85,6 @@ nonisolated enum MeetingLocalInferenceCoordinatorError: LocalizedError, Sendable
             return "The Mac is too warm for this nonessential local inference task right now."
         case .memoryConstrained:
             return "The Mac is under memory pressure, so this nonessential local inference task was deferred."
-        case .invalidPermit:
-            return "The owned local inference permit does not match this coordinator's active work."
         }
     }
 }

@@ -1,5 +1,4 @@
 import Foundation
-import OmniXPCContracts
 
 nonisolated protocol MeetingSpeakerDiarizationEngine: Sendable {
     func diarize(
@@ -60,16 +59,6 @@ enum MeetingSpeakerDiarizationEngineFactory {
 
     nonisolated static func makeDefault(defaults _: UserDefaults = .standard) -> (any MeetingSpeakerDiarizationEngine)? {
         sharedSortformerEngine
-    }
-
-    nonisolated static func makeXPC(
-        client: OmniXPCClient, model: OmniXPCSortformerModelReference,
-        configuration: MeetingSortformerConfiguration,
-        coordinator: MeetingLocalInferenceCoordinator = .shared
-    ) -> OmniXPCMeetingSpeakerDiarizationEngine {
-        OmniXPCMeetingSpeakerDiarizationEngine(
-            client: client, model: model, configuration: configuration, coordinator: coordinator
-        )
     }
 }
 

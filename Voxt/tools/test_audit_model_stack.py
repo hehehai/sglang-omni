@@ -12,7 +12,7 @@ class ModelStackAuditTests(unittest.TestCase):
     def test_current_source_has_no_retired_runtime(self):
         self.assertEqual(audit.source_errors(audit.ROOT), [])
 
-    def test_local_contract_package_does_not_allow_model_overrides(self) -> None:
+    def test_local_artifact_package_does_not_allow_model_overrides(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for relative_path in (
@@ -26,7 +26,7 @@ class ModelStackAuditTests(unittest.TestCase):
             project_path = root / "Voxt.xcodeproj/project.pbxproj"
             project = project_path.read_text()
             self.assertEqual(audit.source_errors(root), [])
-            for package_path in ("../mlx-audio-swift", "Packages/OmniXPCContracts/../../mlx-swift",
+            for package_path in ("../mlx-audio-swift", "Packages/OmniXPCContracts",
                                  "Packages/OmniModelArtifacts/../mlx-audio-swift", "Packages/UnreviewedModelRuntime"):
                 project_path.write_text(project + "\nisa = XCLocalSwiftPackageReference;\n"
                                         + f"relativePath = {package_path};\n")
@@ -36,7 +36,8 @@ class ModelStackAuditTests(unittest.TestCase):
 
     def test_dependency_name_detection_does_not_confuse_llama_with_onnx(self):
         for name in ["FluidAudio", "NemoTextProcessing", "sherpa-onnx", "onnxruntime",
-                     "MLXAudioCore", "MLXAudioSTT", "MLXAudioVAD", "mlx-audio-swift"]:
+                     "MLXAudioCore", "MLXAudioSTT", "MLXAudioVAD", "mlx-audio-swift",
+                     "OmniXPCContracts", "OmniInference.xpc", "libOmniCore.dylib"]:
             self.assertIsNotNone(audit.FORBIDDEN.search(name))
         for name in ["llama.swift", "MLX", "MLXLLM", "MLXVLM", "OmniVAD", "model-storage/mlx-audio/checkpoint"]:
             self.assertIsNone(audit.FORBIDDEN.search(name))

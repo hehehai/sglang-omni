@@ -236,7 +236,7 @@ xcodebuild \
   "${BUILD_OVERRIDES[@]}"
 
 [[ -d "$APP_PATH" ]] || die "built app not found: $APP_PATH"
-[[ ! -e "$APP_PATH/Contents/XPCServices/OmniInference.xpc" ]] || die "Release packaging must not contain the opt-in OmniInference validation service; use build_omni_xpc_smoke.sh"
+[[ ! -e "$APP_PATH/Contents/XPCServices/OmniInference.xpc" ]] || die "Release packaging must not contain the retired OmniInference service"
 
 if [[ -n "$NATIVE_RUNTIME_DIR" ]]; then
   log "Embedding Omni native runtime"

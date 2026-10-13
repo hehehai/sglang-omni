@@ -10,10 +10,10 @@
 
 #include "mlx/mlx.h"
 
-#include "silero_timestamps.h"
-
 namespace silero_vad {
 
+inline constexpr int kSampleRate = 16000;
+inline constexpr int kChunkSamples = 512;
 inline constexpr int kContextSamples = 64;
 
 // One stream's state between 512-sample chunks.
@@ -23,6 +23,18 @@ struct StreamState {
   std::optional<mlx::core::array> cell;
   // The previous chunk's last 64 samples (zeros at the start).
   std::vector<float> context = std::vector<float>(kContextSamples, 0.0f);
+};
+
+struct Timestamp {
+  long start = 0;
+  long end = 0;
+};
+
+struct TimestampOptions {
+  float threshold = 0.5f;
+  int min_speech_ms = 250;
+  int min_silence_ms = 100;
+  int speech_pad_ms = 30;
 };
 
 class SileroVAD {
@@ -51,5 +63,10 @@ private:
   int cutoff_ = 129;
   TimestampOptions defaults_;
 };
+
+// Speech segments from per-chunk probabilities, as Swift probsToTimestamps.
+std::vector<Timestamp>
+ProbabilitiesToTimestamps(const std::vector<float> &probabilities,
+                          long sample_count, const TimestampOptions &options);
 
 } // namespace silero_vad

@@ -47,9 +47,6 @@ final class MeetingFileTaskDiagnosticsTests: XCTestCase {
         XCTAssertTrue(MeetingFileTaskDiagnostics.errorSummary(
             MeetingLocalInferenceCoordinatorError.overloaded
         ).contains("reason=inference-queue-full"))
-        XCTAssertTrue(MeetingFileTaskDiagnostics.errorSummary(
-            MeetingLocalInferenceCoordinatorError.invalidPermit
-        ).contains("reason=invalid-permit"))
         XCTAssertTrue(MeetingFileTaskDiagnostics.errorSummary(CancellationError()).contains("reason=cancelled"))
     }
 

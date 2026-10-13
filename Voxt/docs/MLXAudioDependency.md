@@ -1,177 +1,61 @@
 # MLX Audio Dependency Policy
 
-Source/lockfile status checked against app commit `81c04a3`. Distinguish **the app's current dependency**, **the published fork**, and **pending app validation**. A passing library workflow or static lockfile audit is not an app or model-quality release certification.
+## Current boundary
 
-## Current Audio package retirement checkpoint
+Voxt no longer imports, loads or links MLXAudioSTT, MLXAudioVAD or MLXAudioCore. The Audio package and resolved pin are removed. Local ASR, Silero and Sortformer use the existing Native HTTP/WebSocket server subprocesses; unavailable Native reports an explicit error rather than silently returning to Swift Audio.
 
-The app and its tests no longer import MLXAudioSTT, load its numerical models,
-use its generation/streaming adapters, or link its product. Native HTTP ASR
-continues to use the original family implementations and long-form settings;
-bounded XPC consumers do not silently replace the long-form route. Loader
-lifecycle tests use an identity-only fixture that explicitly rejects inference,
-not a numerical fallback. Catalogs, saved choices, installations and Remote
-routes are unchanged.
+The shared `sglang_omni_mlx/native` package must remain the officially merged implementation. XPC and the task-added C ABI/engine/lifetime changes are withdrawn, not future production gates. App-side protocol conversion, process ownership and cooperating model-directory readers remain. Preserve the original family options/longform behavior, model catalog, saved choices, installations and `model-storage/mlx-audio/...` paths. That storage name is not a package dependency.
 
-The app now explicitly links Tokenizers from the already resolved
-swift-transformers 1.3.4. Removing STT exposed that LocalTokenizerLoader had
-borrowed its transitive Tokenizers/Hub/yyjson graph; real macOS initially rejected
-that missing dependency. The explicit product fixes the graph without upgrading
-any resolved pins. Keep MLX Swift LLM/VLM, shared MLX and llama.swift.
+Removing Audio does not mean removing MLX. Keep MLX Swift LLM/VLM/MLX, llama.swift, Tokenizers/HuggingFace and Remote ASR/LLM. Identity-only model fixtures in lifecycle tests cannot perform inference and are not numerical fallbacks.
 
-AudioVAD/Core numerical consumers and linked-library test references are now
-retired as well. The app/project/resolved graph contains no Audio product/package.
-Silero and ordinary Sortformer use the actual Native HTTP implementations, with
-explicit unavailable-runtime errors rather than Swift fallback. Existing whole-audio
-Silero longform and ordinary Sortformer scheduling remain. An uncalled legacy
-realtime annotation actor was deleted after a caller/selector/resource audit; its
-proposed 24-second HTTP migration did not ship, and the existing Native admission
-cap was not weakened.
+## Retained compatibility set
 
-Resampler expectations now come from 42 real compiled AudioCore captures made
-before unlink, not from the replacement. Silero numerical parity uses a separately
-captured legacy model/sample/profile-bound oracle. Sortformer requires an explicitly
-supplied external reference; absence is a skip, not numerical acceptance.
-
-The Native speaker consumer exposes checked permanent retirement to its recording
-runtime. Explicit Silero XPC Owner/consumer APIs and the opt-in smoke caller retain
-original reader/client/load-ticket/coordinator scope through failed retirement.
-Legacy transport task completion is not relabeled as a Native barrier. Full
-production XPC, XPC longform, signed IPC and release acceptance remain separate work.
-
-## Historical Native replacement status after upstream 7f78bf3
-
-The PR branch has merged the latest official Native HTTP implementations for
-Nemotron ASR, Parakeet v3 and SenseVoice Small. All eleven currently offered ASR
-checkpoint entries now map to Native servers; Nemotron joins Qwen/MOSS realtime,
-while Parakeet/SenseVoice remain batch-only. Upstream includes recorded model
-goldens, but this merged app has not been validated on macOS/Metal/models.
-
-This removes the need to reimplement those numerical models, **not** the need
-to finish Voxt integration before removing the Audio package:
-
-- Normal ASR dispatch remains Native HTTP/WebSocket. Core ABI7 has opt-in
-  Qwen, Silero and Sortformer routes plus bounded final Core/XPC for Whisper,
-  Cohere, MOSS, Nemotron, Parakeet and SenseVoice. The new six-family route is
-  limited to 30-second batches; longform, typed MOSS/Nemotron realtime and
-  production caller/coordinator cutover remain pending.
-- Native ASR input preparation now uses ASRAudioSampleRateConverter, extracted
-  from the pinned AVAudioConverter algorithm without changing caller rounding
-  or replacing it with linear interpolation. Portable control-flow tests pass;
-  actual SDK/DSP comparison remains pending. Other AudioCore consumers remain.
-- Native long-form VAD policy still uses Audio types. Sortformer common/Native
-  HTTP scheduling now uses an app-owned bounded Foundation configuration;
-  its legacy Swift model adapter remains isolated and linked. An explicit
-  XPC meeting adapter now uses per-command retained ownership and an explicit
-  model Owner with an owned consumer/retirement barrier. Legacy Swift Silero
-  actors and longform VAD also retain model/directory readers. Default production
-  routing is unchanged; remaining cache/recovery and platform acceptance precede cutover.
-- ASR adapters/loaders and test seams still compile against Audio products.
-  Removing their project links now would break compilation or functionality.
-- Keep mlx-swift-lm, MLXLLM/MLXVLM/MLXLMCommon, shared MLX runtime support,
-  llama.swift and Remote ASR/LLM. Removing Audio does not mean removing MLX.
-
-The merge repairs app-owned generation/result integration and Nemotron live
-eligibility rather than weakening unsupported/platform/no-fallback gates.
-Runtime preflight now checks all seven server executables and shared resources;
-filesystem checks are not Mach-O, signing, model-quality or release acceptance.
-Finish source consumers and deliberate SwiftPM resolution, then require full
-macOS App/XCTest and model/lifecycle/packaging acceptance before release.
-
-## Current Voxt working-tree pins
-
-The project explicitly retains the matching non-Audio compatibility set:
-
-- No Audio package/product or resolved pin.
-- LM revision: `c6446cf7bfb7cea76408013b614d4b2c530eaa03`.
-- Direct MLX runtime: exact `0.31.6`.
-- Direct tokenizer: exact `swift-transformers 1.3.4`.
-- Direct hub: exact `swift-huggingface 0.10.2`.
-
-Actual macOS resolution removed only the Audio pin; retained pin states did not
-change. Shared MLX Swift LLM/VLM/MLX, llama.swift and Remote routes remain.
-
-This replaces `.12` / runtime `0.31.4` / LM `d242429` in the project requirements. The tracked app `Package.resolved` now matches the upgraded compatibility set and passes `audit_model_stack.py --resolved`. The earlier mismatch caused [PR CI 35322684144](https://github.com/hehehai/voxt/actions/runs/35322684144) to fail before app compilation or tests; that is historical evidence, not the current lockfile status. Static pin consistency does not prove successful macOS resolution, compilation or model behavior.
-
-The new fork preserves `.12`'s structured `TranscriptionEvent.ended(STTOutput)`, language provenance, Qwen KV/language controls, incremental Nemotron streaming, and streaming/VAD failure propagation.
-
-FluidAudio and MLX Audio are removed from project references and the resolved graph. Sortformer execution is Native, not MLXAudioVAD. Source/pin absence does not alone establish artifact provenance; audit the final app/link map separately.
-
-## Published fork and evidence
-
-- Repository: `hehehai/mlx-audio-swift`, remote and local branch `main`.
-- Integration revision: `2a6e75d28ae6a399ba7c7aec842384ef7a3142b5` (already pushed).
-- Includes upstream history through `3e978558404df4ad1bbb0a5634a03df2b0f9dfa5`; no missing upstream commits at the time of this audit.
-- The earlier squash synchronization was corrected by a normal ancestry merge. Future upstream synchronization must preserve upstream ancestry.
-- Passing CI revision: `33e72855c0169377ae5ddae83b0ce5da0673e920`.
-- Both revisions have tree `4f1c756bff39e3ad320e2b12ce3f1726dd2a268b`; the final ancestry-only merge deliberately did not repeat CI.
-- [Actions run 35309904287](https://github.com/hehehai/mlx-audio-swift/actions/runs/35309904287): Xcode 26.5 / Swift 6.3.2, dependency resolution, build, 669 Swift Testing tests and 2 XCTest tests passed.
-- The workflow excludes `SmokeTests`; environment-gated network / model tests are not all exercised. This is not proof that all Voxt checkpoint weights, long meetings, or accuracy/latency targets pass.
-- No new release tag was created. The temporary `chore/voxt-model-stack-modernization` and `codex/moss-asr-configuration` branches were removed after merging. Do not reference them.
-
-The fork additionally fixes Parakeet's compiled closure captures using weight-aware `CompiledTrace`. Regression tests verify weight updates and absence of an owner retention cycle. The runner's Xcode selection, SDK and compiler paths were aligned to fix MLX CPU JIT subprocesses mixing Xcode 26.5 and 26.6.
-
-## Historical integrated compatibility set (before Audio retirement)
-
-Keep these as a single compatibility set; do not revert or update just one component:
-
-| Dependency | Target |
-|---|---|
-| Audio fork | revision `2a6e75d28ae6a399ba7c7aec842384ef7a3142b5` |
-| mlx-swift | exact `0.31.6` via Audio |
+| Dependency | Requirement |
+| --- | --- |
 | mlx-swift-lm | revision `c6446cf7bfb7cea76408013b614d4b2c530eaa03` |
-| swift-transformers | exact `1.3.4` via Audio |
-| swift-huggingface | exact `0.10.2` via Audio |
+| mlx-swift | direct exact `0.31.6` |
+| swift-transformers / Tokenizers | direct exact `1.3.4` |
+| swift-huggingface / HuggingFace | direct exact `0.10.2` |
+| OmniModelArtifacts | independent local Foundation/POSIX package; no numerical model loading |
 
-Swift 6.3 is required and was verified in the fork CI. There is no need to wait for another fork sync or tag to integrate the published immutable revision. Do not point the shared app project at floating `main` or a developer's local path.
+The direct products replace previously borrowed Audio transitive dependencies. Real macOS STT unlink initially exposed LocalTokenizerLoader's missing Tokenizers/Hub/yyjson graph; explicit linkage repaired it without upgrading retained pins. The actual subsequent Audio resolver removed only that pin. Do not fabricate lockfile entries or point shared requirements at a developer's local checkout/floating branch.
 
-The app source now includes model preparation after weight installation, effective EOS, model-declared chat conventions, typed prefill (`.remainder` initially retained), and a concurrent loader entry point. The prequantized loader remains. One-time patch/snapshot tools have been removed; application sources are the single implementation.
+FluidAudio and Audio library runtime products remain forbidden. Inspect source, resolved graph, final bundle and link-map provenance separately; a source grep is not a complete binary audit.
 
-Before release:
+## Numerical and lifecycle verification
 
-1. Validate concrete model / tokenizer conventions, thinking suppression, EOS, OptiQ mixed quantization, VLM inputs, cancellation and final chunk delivery. Source adaptation does not prove behavior parity.
-2. Verify the **whole app** resolves strictly on macOS using the committed `Voxt.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`. Regenerate it only for an intentional dependency update. The audio CI graph is reference evidence, not a substitute app lockfile.
-3. Run the complete local validation batch before pushing for CI confirmation.
+- `ASRAudioSampleRateConverter` preserves the pinned AVAudioConverter path and caller rounding, not a replacement linear resampler. Its committed 42-output fixture was captured from the real pre-unlink compiled AudioCore product; provenance, sample formulas and Float32 bits are recorded beside the binary. A replacement-generated expectation is not a reference. Platform provenance does not certify every OS/SDK.
+- Silero offline continues whole-audio processing, including audio longer than the abandoned validation transport's 30-second bound. Streaming keeps its original completed-frame/nil/tail behavior and serializes reset/unload with active exchanges.
+- Ordinary Sortformer keeps its existing feed geometry and scheduler. The uncalled legacy realtime annotation actor was deleted after caller/selector/resource audit; an attempted 24-second whole-window replacement did not ship and existing Native admission caps were not changed.
+- Numerical parity requires independently captured legacy references with matching model, decoded samples and profile/settings. Missing Silero/Sortformer references are explicit skips, not Native self-comparisons or parity acceptance. Real Sortformer weights/reference acceptance remains pending.
+- App readers span model construction/process launch through actual child exit. Cancelled network/task presentation is not GPU retirement proof. Uninterruptible children and App-crash/orphan cleanup remain separate risks.
 
-## Toolchain and local-first validation
+Previous Mac runs belong to their frozen source snapshots; earlier Core/helper/XPC results do not certify the corrected route. Fresh no-XPC validation passed the Mac App/TestDebug suite (1975: 1933 passed, 42 skipped, zero failures), official runtime rebuild/inventory, actual App artifact audit, public-fixture Qwen CLI comparison and ten real Silero HTTP/parity/reader checks. Full model/Release/GUI/performance acceptance remains separate.
 
-Use one Xcode for the build, XCTest and MLX CPU JIT child processes. On a dedicated Mac runner select Xcode 26.5 at system level as well as through `DEVELOPER_DIR`, resolve `SDKROOT` with that Xcode, and put its default compiler toolchain first in `PATH`. On a shared developer machine coordinate a system `xcode-select` change rather than silently changing another user's toolchain.
+## Local-first validation
 
-Complete the related API changes and regression coverage locally before pushing. Run dependency audit, Debug/Release build, XCTest and relevant downloaded-model replay on Apple Silicon, then push a complete batch for a single CI confirmation. Do not use one commit/Actions run per compiler error.
-
-Earlier integration work exercised pure Foundation state machines using a temporary Swift 6.3.2 toolchain on Linux. The current refactoring audit environment has neither Swift nor Xcode. Neither isolated harnesses nor Python/static checks type-check the complete macOS Swift/Metal app. When no local Mac is available, record that limitation and leave verification pending; a passing fork workflow does not waive the app validation gate.
-
-### Complete local app validation
-
-After selecting the matching Xcode on a Mac:
+Use one Xcode for App builds, XCTest and MLX CPU JIT child processes. Resolve SDK/toolchain paths through that Xcode. Do not silently change system `xcode-select` on a shared machine.
 
 ```bash
+python3 tools/audit_model_stack.py \
+  --resolved Voxt.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+swift test --package-path Packages/OmniModelArtifacts
 bash tools/run_model_stack_validation.sh
-# For an intentional dependency upgrade only:
-# bash tools/run_model_stack_validation.sh --update-lock
-# With the integration-test checkpoints already installed:
-VOXT_RUN_MODEL_TESTS=1 VOXT_MODEL_STORAGE_ROOT="/absolute/path/to/existing/models" \
-  bash tools/run_model_stack_validation.sh
 ```
 
-Normal runs use the reviewed lockfile strictly. `--update-lock` explicitly permits dependency re-resolution for an intentional upgrade. The script builds Debug/Release, runs XCTest, audits the resolved graph and release binary/link maps, and keeps logs/results under `build/model-stack-validation.*`. It does not push or dispatch Actions. Review skipped tests and separately measure real model quality, latency and memory.
+For an intentional dependency update only, `run_model_stack_validation.sh --update-lock` permits re-resolution. Normal runs use the reviewed lockfile strictly. Optional installed-model testing requires `VOXT_RUN_MODEL_TESTS=1` and an explicit `VOXT_MODEL_STORAGE_ROOT`; it does not authorize new model downloads or user-recording access.
 
-## Reproducibility and audits
+The model-stack script builds Debug/Release, runs XCTest and audits resolved/binary/link-map inputs. It does not push or dispatch Actions. Review skips separately and measure real model quality, memory/latency and long meetings. Portable Foundation tests and Python/static checks do not typecheck the complete macOS Swift/Metal application.
 
-- `bash tools/resolve_dependencies.sh` verifies an existing lockfile strictly or bootstraps a missing one on macOS. Review and commit actual resolver output; never fabricate transitive pins.
-- During an intentional upgrade, regenerate the existing lockfile explicitly in that upgrade workspace before returning to strict resolution. A stale lockfile is not repaired by silently weakening release resolution.
-- `tools/audit_model_stack.py` now checks the new Audio/LM source revisions and the full upgraded model dependency set. Update it in the same change as any future project pin changes.
-- Source audit: `python3 tools/audit_model_stack.py`.
-- Resolved graph audit: add `--resolved <app Package.resolved>`.
-- Release audit: `--app <Voxt.app>` and `--link-map <map>` on macOS. Inspect static/dynamic provenance and resources, not just text grep.
-- CI preserves actual resolved graphs and release link maps are audited. Production releases require the app lockfile in source control.
+- `tools/resolve_dependencies.sh` verifies/bootstraps real resolver output on macOS.
+- `tools/audit_model_stack.py` checks fixed non-Audio dependencies and rejects retired Audio/XPC products.
+- `--app <Voxt.app>` and `--link-map <map>` inspect final macOS artifacts. Do not exempt library modules merely because symbols are stripped.
+- Preserve CI/release opt-in gates. App compilation alone is not release, signing, GUI or full model acceptance.
 
-## Fork synchronization and release rules
+## Historical library baseline
 
-1. Prefer official upstream releases when they include every required product contract and fix.
-2. Otherwise use this fork with a small, documented patch set. Upstream synchronization must use a normal merge preserving ancestry, not squash; review conflicts and verify retained contracts.
-3. Do not reset the fork to upstream and lose Voxt changes. An `ahead` count is expected for the patch set; a `behind` count requires investigation.
-4. Pin an immutable published revision in Voxt while preparing a release. A fork tag is optional for initial integration.
-5. After validation, annotated fork tags use `v<upstream-version>-voxt.<n>`. Never move an existing tag or reuse an upstream tag for different code.
-6. A branch merge is not a quality certification. Do not label a release stable until app build, model quality, memory and performance gates pass.
+Before retirement, Voxt used `hehehai/mlx-audio-swift` revision `2a6e75d28ae6a399ba7c7aec842384ef7a3142b5`, with tree `4f1c756bff39e3ad320e2b12ce3f1726dd2a268b`. Its ancestry merge followed CI revision `33e72855c0169377ae5ddae83b0ce5da0673e920` with the same tree. [Actions run 35309904287](https://github.com/hehehai/mlx-audio-swift/actions/runs/35309904287) passed library build/tests, excluding gated model/network smoke. This is historical provenance for captured references, not a current App dependency or release certification.
 
-See [the updated plan](ModelStackModernizationPlan.zh-CN.md) and [implementation status](ModelStackModernizationImplementation.zh-CN.md).
+Earlier `.12`/MLX0.31.4/LM `d242429` lockfile mismatch and [CI 35322684144](https://github.com/hehehai/voxt/actions/runs/35322684144) pre-compilation failure remain historical failures. Current retained LM/tokenizer/runtime/hub pins must be reviewed together; no fork reset, squash synchronization, moved tag or new library release is part of the Native HTTP migration.
+
+See the [Native HTTP migration plan](../plan/NativeHTTPMigrationPlan.zh-CN.md) and [earlier model-stack implementation record](ModelStackModernizationImplementation.zh-CN.md).

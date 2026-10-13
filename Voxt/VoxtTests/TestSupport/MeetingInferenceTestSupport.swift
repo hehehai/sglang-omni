@@ -19,12 +19,6 @@ func waitForQueuedInferenceWork(
     await waitForInferenceCondition { await coordinator.currentStatistics().peakQueuedCount >= expectedCount }
 }
 
-
-nonisolated struct MeetingOwnedWorkFailure: Error {
-    let permit: MeetingLocalInferenceOwnedPermit
-    let wasCancelled: Bool
-}
-
 nonisolated final class MeetingInferenceHooks: @unchecked Sendable {
     enum Event: Equatable { case trim(Bool), begin, restore, probe }
 
@@ -32,7 +26,6 @@ nonisolated final class MeetingInferenceHooks: @unchecked Sendable {
     private var recordedEvents: [Event] = []
     private var constrained = false
     private var thermal: ProcessInfo.ThermalState = .nominal
-    private var thermalAction: (@Sendable () -> Void)?
 
     var events: [Event] { lock.withLock { recordedEvents } }
     var memoryConstrained: Bool {
@@ -42,10 +35,6 @@ nonisolated final class MeetingInferenceHooks: @unchecked Sendable {
     var thermalState: ProcessInfo.ThermalState {
         get { lock.withLock { thermal } }
         set { lock.withLock { thermal = newValue } }
-    }
-    var thermalReadAction: (@Sendable () -> Void)? {
-        get { lock.withLock { thermalAction } }
-        set { lock.withLock { thermalAction = newValue } }
     }
 
     func record(_ event: Event) { lock.withLock { recordedEvents.append(event) } }
@@ -58,10 +47,7 @@ nonisolated final class MeetingInferenceHooks: @unchecked Sendable {
                 self.record(.begin)
                 return { self.record(.restore) }
             },
-            readThermalState: {
-                self.thermalReadAction?()
-                return self.thermalState
-            }
+            readThermalState: { self.thermalState }
         )
     }
 }

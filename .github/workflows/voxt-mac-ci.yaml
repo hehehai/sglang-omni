@@ -117,15 +117,6 @@ jobs:
         run: |
           sglang_omni_mlx/native/scripts/build_runtime.sh "$RUNNER_TEMP/runtime" "$VOXT_CI_ROOT/runtime-build"
 
-      - name: Stub-backed Core and realtime contracts
-        run: |
-          export NLOHMANN_JSON_INCLUDE_DIR="$VOXT_CI_ROOT/runtime-build/cmake/_deps/nlohmann_json-src/include"
-          test -f "$NLOHMANN_JSON_INCLUDE_DIR/nlohmann/json.hpp"
-          "$VOXT_CI_ROOT/venv/bin/python" -m pytest -q -rs \
-            sglang_omni_mlx/native/ci/test_native_core.py \
-            sglang_omni_mlx/native/ci/test_sortformer_config.py \
-            sglang_omni_mlx/native/ci/test_realtime.py
-
       # Every golden file is checked, even after one fails, and this chip's
       # outputs are uploaded so they can be recorded as its golden outputs.
       - name: Golden outputs on the frozen corpus
@@ -257,10 +248,8 @@ jobs:
           fi
           xcrun metal --version
 
-      - name: Standalone Omni Foundation package tests
-        run: |
-          swift test --package-path Voxt/Packages/OmniXPCContracts
-          swift test --package-path Voxt/Packages/OmniModelArtifacts
+      - name: Standalone model artifact package tests
+        run: swift test --package-path Voxt/Packages/OmniModelArtifacts
 
       - name: Build for testing
         working-directory: Voxt
@@ -277,9 +266,6 @@ jobs:
           xcodebuild test-without-building -xctestrun "$xctestrun" -destination platform=macOS \
             -only-testing:VoxtTests/OmniTranscriptionRequestTests \
             -only-testing:VoxtTests/OmniRealtimeSessionUpdateTests \
-            -only-testing:VoxtTests/OmniXPCStreamingSessionTests \
-            -only-testing:VoxtTests/OmniXPCSileroStreamingClientTests \
-            -only-testing:VoxtTests/OmniXPCSortformerStreamingClientTests \
             -only-testing:VoxtTests/OmniASRRuntimeLaunchTests \
             -only-testing:VoxtTests/OmniASRRuntimeStorageOwnershipTests \
             -only-testing:VoxtTests/OmniVoiceActivityTests \
@@ -287,7 +273,6 @@ jobs:
             -only-testing:VoxtTests/MeetingSortformerConfigurationTests \
             -only-testing:VoxtTests/MeetingSortformerModelStorageTests \
             -only-testing:VoxtTests/MeetingLocalInferenceCoordinatorTests \
-            -only-testing:VoxtTests/MeetingLocalInferenceOwnedPermitTests \
             -only-testing:VoxtTests/MeetingSpeakerFeedPolicyTests \
             -only-testing:VoxtTests/OmniModelManagerRecoveryTests \
             -only-testing:VoxtTests/OmniFailurePathTests \

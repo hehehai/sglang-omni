@@ -509,10 +509,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         LoggingBootstrap.bootstrap()
-        if !isRunningUnitTests, maybeRunOmniXPCSmokeAndTerminate() {
-            VoxtLog.info("Voxt launch entering Native XPC validation mode.")
-            return
-        }
         _ = noteObsidianSyncCoordinator
         _ = noteRemindersSyncCoordinator
         VoxtLog.info("Voxt launching.")

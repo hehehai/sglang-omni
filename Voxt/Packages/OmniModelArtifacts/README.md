@@ -50,7 +50,7 @@ Unknown dtypes and packed sub-byte types (`F4`, `F6_E2M3`, `F6_E3M2`) are reject
 
 Success does **not** establish tensor-name/model compatibility, tokenizer validity, configuration semantics, a complete shard set from an index, cross-shard key consistency, numerical payload validity, GPU behavior, or successful inference. Shard-index files and unrelated artifacts are not interpreted. Empty JSON configurations and arbitrary structurally valid tensor names can pass.
 
-This is not an integrity or authorization boundary. Payload bytes and hashes are not verified. Symlink targets need not stay inside the supplied directory; XPC path authorization is separate. Enumeration, attribute checks, opening, and later consumption are not one atomic snapshot. Files may change during or after validation. Filesystem snapshot, TOCTOU, checksum/integrity, and atomic-publication acceptance remain pending/separate responsibilities.
+This is not an integrity or authorization boundary. Payload bytes and hashes are not verified. Symlink targets need not stay inside the supplied directory; consumer path authorization is separate. Enumeration, attribute checks, opening, and later consumption are not one atomic snapshot. Files may change during or after validation. Filesystem snapshot, TOCTOU, checksum/integrity, and atomic-publication acceptance remain pending/separate responsibilities.
 
 ## Tests
 

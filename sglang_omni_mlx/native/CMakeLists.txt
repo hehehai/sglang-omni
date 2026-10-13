@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Native MLX runtime for Voxt: server/tool binaries and an in-process C ABI.
+# Native MLX runtime for Voxt (Qwen3-ASR, Silero VAD): one binary, no Python.
 cmake_minimum_required(VERSION 3.24)
 project(sglang_omni_mlx_native LANGUAGES C CXX)
 
@@ -55,76 +55,12 @@ add_library(qwen3_asr STATIC
   src/tokenizer.cpp
   src/transcriber.cpp
   src/worker.cpp
-  src/realtime_engine.cpp
   src/realtime.cpp
-  src/speaker_realtime_event.cpp
   src/form.cpp)
 target_include_directories(qwen3_asr PUBLIC src)
 target_link_libraries(qwen3_asr PUBLIC mlx nlohmann_json::nlohmann_json pcre2-8-static
   "-framework CoreFoundation")
 target_compile_options(qwen3_asr PUBLIC ${MLX_CXX_FLAGS} PRIVATE -Wall -Wextra)
-
-add_library(OmniCore SHARED src/native_core.cpp src/native_realtime.cpp
-  src/native_realtime_state.cpp src/native_silero.cpp
-  src/native_silero_stream.cpp src/native_silero_worker.cpp
-  src/native_sortformer.cpp src/native_sortformer_stream.cpp
-  src/native_sortformer_worker.cpp src/native_sortformer_validation.cpp
-  src/native_batch.cpp src/native_batch_worker.cpp
-  src/native_batch_validation.cpp src/native_batch_result.cpp
-  src/native_speaker_lifetime.cpp src/native_speaker_commands.cpp
-  src/native_speaker_events.cpp src/native_speaker_validation.cpp)
-target_include_directories(OmniCore PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-  "$<INSTALL_INTERFACE:include>")
-target_link_libraries(OmniCore PRIVATE qwen3_asr silero_vad sortformer
-  whisper_asr cohere_asr moss_asr nemotron_asr parakeet_asr sensevoice_asr)
-target_compile_options(OmniCore PRIVATE -Wall -Wextra)
-set_target_properties(OmniCore PROPERTIES
-  CXX_VISIBILITY_PRESET hidden
-  VISIBILITY_INLINES_HIDDEN YES
-  MACOSX_RPATH YES
-  INSTALL_NAME_DIR "@rpath"
-  BUILD_WITH_INSTALL_NAME_DIR YES
-  BUILD_RPATH "${MLX_LIBRARY_DIRS};@loader_path"
-  INSTALL_RPATH "@loader_path")
-if(APPLE)
-  foreach(symbol omni_core_abi_version omni_qwen_create omni_qwen_transcribe
-      omni_qwen_cancel omni_qwen_destroy omni_qwen_result_free omni_string_free
-      omni_qwen_request_create omni_qwen_request_cancel omni_qwen_request_destroy
-      omni_qwen_transcribe_request omni_qwen_realtime_create
-      omni_qwen_realtime_push omni_qwen_realtime_finish omni_qwen_realtime_poll
-      omni_qwen_realtime_cancel omni_qwen_realtime_drain omni_qwen_realtime_destroy
-      omni_qwen_realtime_event_free omni_silero_create omni_silero_create_checked
-      omni_silero_cancel
-      omni_silero_destroy omni_silero_destroy_checked
-      omni_silero_request_create omni_silero_request_cancel
-      omni_silero_request_destroy omni_silero_speech_timestamps
-      omni_silero_result_free omni_silero_stream_create omni_silero_stream_push
-      omni_silero_stream_finish omni_silero_stream_cancel omni_silero_stream_drain
-      omni_silero_stream_destroy omni_silero_stream_destroy_checked
-      omni_silero_stream_result_free
-      omni_sortformer_create omni_sortformer_cancel omni_sortformer_destroy
-      omni_sortformer_stream_create omni_sortformer_stream_push
-      omni_sortformer_stream_finish omni_sortformer_stream_cancel
-      omni_sortformer_stream_drain omni_sortformer_stream_destroy
-      omni_sortformer_result_free omni_sortformer_destroy_checked
-      omni_sortformer_stream_destroy_checked omni_batch_options_default
-      omni_batch_create omni_batch_cancel omni_batch_destroy_checked
-      omni_batch_request_create omni_batch_request_cancel
-      omni_batch_request_drain omni_batch_request_destroy_checked
-      omni_batch_transcribe omni_batch_result_free
-      omni_speaker_settings_default omni_speaker_create omni_speaker_cancel
-      omni_speaker_destroy_checked omni_speaker_realtime_create
-      omni_speaker_realtime_push omni_speaker_realtime_commit
-      omni_speaker_realtime_finish omni_speaker_realtime_poll
-      omni_speaker_realtime_cancel omni_speaker_realtime_drain
-      omni_speaker_realtime_destroy_checked omni_speaker_realtime_event_free)
-    target_link_options(OmniCore PRIVATE "LINKER:-exported_symbol,_${symbol}")
-  endforeach()
-endif()
-install(TARGETS OmniCore LIBRARY DESTINATION bin)
-install(FILES include/omni_native_core.h include/omni_native_batch.h
-  include/omni_native_speaker.h DESTINATION include)
 
 add_library(silero_vad STATIC src/silero_vad.cpp)
 target_include_directories(silero_vad PUBLIC src)
@@ -135,10 +71,7 @@ add_library(sortformer STATIC
   src/sortformer.cpp
   src/sortformer_checkpoint.cpp
   src/sortformer_features.cpp
-  src/sortformer_state.cpp
-  src/sortformer_segments.cpp)
-set_source_files_properties(src/native_sortformer_validation.cpp
-  src/sortformer_segments.cpp PROPERTIES COMPILE_OPTIONS -ffp-contract=off)
+  src/sortformer_state.cpp)
 target_include_directories(sortformer PUBLIC src)
 target_link_libraries(sortformer PUBLIC qwen3_asr)
 target_compile_options(sortformer PUBLIC ${MLX_CXX_FLAGS} PRIVATE -Wall -Wextra)
@@ -213,8 +146,7 @@ set_target_properties(cohere_transcribe_server cohere_transcribe PROPERTIES
 install(TARGETS cohere_transcribe_server cohere_transcribe RUNTIME DESTINATION bin)
 # Note (Dayuxiaoshui): MOSS-Transcribe-Diarize on Qwen3-ASR's decoder, WAV and
 # form handling, with its own server and parity tool.
-add_library(moss_asr STATIC src/moss_model.cpp src/moss_transcriber.cpp
-  src/moss_realtime.cpp src/moss_realtime_engine.cpp)
+add_library(moss_asr STATIC src/moss_model.cpp src/moss_transcriber.cpp src/moss_realtime.cpp)
 target_link_libraries(moss_asr PUBLIC qwen3_asr)
 target_compile_options(moss_asr PRIVATE -Wall -Wextra)
 # Note (Dayuxiaoshui): a long recording's cut is the minimum of energy sums,
@@ -231,7 +163,7 @@ install(TARGETS moss_transcribe_diarize_server moss_transcribe RUNTIME DESTINATI
 # Note (Dayuxiaoshui): Nemotron 3.5 ASR streaming on Sortformer's NeMo front end
 # and Qwen3-ASR's checkpoint loading, with its own server and parity tool.
 add_library(nemotron_asr STATIC src/nemotron_model.cpp src/nemotron_transcriber.cpp
-  src/nemotron_realtime.cpp src/nemotron_realtime_engine.cpp)
+  src/nemotron_realtime.cpp)
 target_link_libraries(nemotron_asr PUBLIC qwen3_asr sortformer swift_port)
 # Note (Dayuxiaoshui): the positional table is float math that must round as
 # Swift's does, so no fused multiply-add.

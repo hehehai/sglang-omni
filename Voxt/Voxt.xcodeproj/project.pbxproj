@@ -23,47 +23,7 @@
 		E2A1C3B4D5F60718293A4B6E /* SystemSettingsKit in Frameworks */ = {isa = PBXBuildFile; productRef = E2A1C3B4D5F60718293A4B6F /* SystemSettingsKit */; };
 		F1A2B3C4D5E6F708090A0B0C /* FaviconFinder in Frameworks */ = {isa = PBXBuildFile; productRef = F1A2B3C4D5E6F708090A0B0D /* FaviconFinder */; };
 		FA11DBA0FA11DBA0FA11DBA0 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = FA11DBA1FA11DBA1FA11DBA1 /* GRDB */; };
-		A0BC00000000000000000011 /* OmniInferenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC00000000000000000021 /* OmniInferenceService.swift */; };
-		A0BC00000000000000000012 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC00000000000000000022 /* main.swift */; };
-		A0BC00000000000000000014 /* QwenCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC0000000000000000002B /* QwenCoreModel.swift */; };
-		A0BC00000000000000000015 /* OmniFinalSessionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */; };
-		A0BD00000000000000000004 /* OmniXPCContracts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BD00000000000000000002 /* OmniXPCContracts */; };
-		A0BD00000000000000000005 /* OmniXPCContracts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BD00000000000000000003 /* OmniXPCContracts */; };
-		A0BD00000000000000000020 /* OmniSessionLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000010 /* OmniSessionLifecycle.swift */; };
-		A0BD00000000000000000021 /* QwenCoreRealtimeLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000011 /* QwenCoreRealtimeLease.swift */; };
-		A0BD00000000000000000022 /* OmniRealtimeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000012 /* OmniRealtimeSession.swift */; };
-		A0BD00000000000000000023 /* OmniRealtimeSessionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */; };
 		A0BE00000000000000000003 /* OmniModelArtifacts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BE00000000000000000002 /* OmniModelArtifacts */; };
-		A0BF00000000000000000020 /* SileroCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BF00000000000000000010 /* SileroCoreModel.swift */; };
-		A0BF00000000000000000021 /* OmniSileroInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */; };
-		A0C000000000000000000020 /* SileroCoreStreamLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000010 /* SileroCoreStreamLease.swift */; };
-		A0C000000000000000000021 /* OmniSileroOfflineInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000011 /* OmniSileroOfflineInference.swift */; };
-		A0C000000000000000000022 /* OmniSileroStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000012 /* OmniSileroStream.swift */; };
-		A0C000000000000000000023 /* OmniSileroStreamingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */; };
-		A0C000000000000000000024 /* OmniSileroModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000014 /* OmniSileroModelCleanup.swift */; };
-		A0C100000000000000000020 /* SortformerCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000010 /* SortformerCoreModel.swift */; };
-		A0C100000000000000000021 /* SortformerCoreStreamLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000011 /* SortformerCoreStreamLease.swift */; };
-		A0C100000000000000000022 /* OmniSortformerInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000012 /* OmniSortformerInferenceEngine.swift */; };
-		A0C100000000000000000023 /* OmniSortformerStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000013 /* OmniSortformerStream.swift */; };
-		A0C100000000000000000024 /* OmniSortformerStreamingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000014 /* OmniSortformerStreamingEngine.swift */; };
-		A0C100000000000000000025 /* OmniSortformerRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000015 /* OmniSortformerRPC.swift */; };
-		A0C100000000000000000026 /* OmniSortformerModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000016 /* OmniSortformerModelCleanup.swift */; };
-		A0BE00000000000000000005 /* OmniModelArtifacts in Frameworks */ = {isa = PBXBuildFile; productRef = A0BE00000000000000000004 /* OmniModelArtifacts */; };
-		A0C200000000000000000021 /* BatchCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000011 /* BatchCoreModel.swift */; };
-		A0C200000000000000000022 /* BatchCoreOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000012 /* BatchCoreOptions.swift */; };
-		A0C200000000000000000023 /* BatchCoreRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000013 /* BatchCoreRequest.swift */; };
-		A0C200000000000000000024 /* OmniBatchInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */; };
-		A0C200000000000000000025 /* OmniBatchModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000015 /* OmniBatchModelCleanup.swift */; };
-		A0C200000000000000000026 /* OmniBatchRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C200000000000000000016 /* OmniBatchRPC.swift */; };
-		A0C300000000000000000021 /* SpeakerCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000011 /* SpeakerCoreModel.swift */; };
-		A0C300000000000000000022 /* SpeakerCoreStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000012 /* SpeakerCoreStream.swift */; };
-		A0C300000000000000000023 /* SpeakerCoreOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000013 /* SpeakerCoreOutput.swift */; };
-		A0C300000000000000000024 /* OmniSpeakerInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000014 /* OmniSpeakerInferenceEngine.swift */; };
-		A0C300000000000000000025 /* OmniSpeakerSessionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000015 /* OmniSpeakerSessionEngine.swift */; };
-		A0C300000000000000000026 /* OmniSpeakerCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000016 /* OmniSpeakerCommands.swift */; };
-		A0C300000000000000000027 /* OmniSpeakerDelivery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000017 /* OmniSpeakerDelivery.swift */; };
-		A0C300000000000000000028 /* OmniSpeakerModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000018 /* OmniSpeakerModelCleanup.swift */; };
-		A0C300000000000000000029 /* OmniSpeakerRPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C300000000000000000019 /* OmniSpeakerRPC.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -101,51 +61,6 @@
 		AAC0F001AAC0F001AAC0F001 /* Signing.shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.shared.xcconfig; sourceTree = "<group>"; };
 		AAC0F002AAC0F002AAC0F002 /* Signing.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.local.xcconfig.example; sourceTree = "<group>"; };
 		D5A1B2C42F81000100ABCDEF /* Voxt/Frameworks/libomnivad.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = Voxt/Frameworks/libomnivad.dylib; sourceTree = "<group>"; };
-		A0BC00000000000000000020 /* OmniInference.xpc */ = {isa = PBXFileReference; explicitFileType = "wrapper.xpc-service"; includeInIndex = 0; path = OmniInference.xpc; sourceTree = BUILT_PRODUCTS_DIR; };
-		A0BC00000000000000000021 /* OmniInferenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniInferenceService.swift; sourceTree = "<group>"; };
-		A0BC00000000000000000022 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
-		A0BC00000000000000000024 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A0BC00000000000000000025 /* OmniInference.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OmniInference.entitlements; sourceTree = "<group>"; };
-		A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "OmniInference-Bridging-Header.h"; sourceTree = "<group>"; };
-		A0BC00000000000000000027 /* OmniXPC.shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = OmniXPC.shared.xcconfig; sourceTree = "<group>"; };
-		A0BC00000000000000000028 /* OmniXPCApp.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = OmniXPCApp.xcconfig; sourceTree = "<group>"; };
-		A0BC00000000000000000029 /* OmniXPCService.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = OmniXPCService.xcconfig; sourceTree = "<group>"; };
-		A0BC0000000000000000002A /* OmniXPCApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OmniXPCApp.entitlements; sourceTree = "<group>"; };
-		A0BC0000000000000000002B /* QwenCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenCoreModel.swift; sourceTree = "<group>"; };
-		A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniFinalSessionEngine.swift; sourceTree = "<group>"; };
-		A0BD00000000000000000010 /* OmniSessionLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSessionLifecycle.swift; sourceTree = "<group>"; };
-		A0BD00000000000000000011 /* QwenCoreRealtimeLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenCoreRealtimeLease.swift; sourceTree = "<group>"; };
-		A0BD00000000000000000012 /* OmniRealtimeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniRealtimeSession.swift; sourceTree = "<group>"; };
-		A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniRealtimeSessionEngine.swift; sourceTree = "<group>"; };
-		A0BF00000000000000000010 /* SileroCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SileroCoreModel.swift; sourceTree = "<group>"; };
-		A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroInferenceEngine.swift; sourceTree = "<group>"; };
-		A0C000000000000000000010 /* SileroCoreStreamLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SileroCoreStreamLease.swift; sourceTree = "<group>"; };
-		A0C000000000000000000011 /* OmniSileroOfflineInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroOfflineInference.swift; sourceTree = "<group>"; };
-		A0C000000000000000000012 /* OmniSileroStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroStream.swift; sourceTree = "<group>"; };
-		A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroStreamingEngine.swift; sourceTree = "<group>"; };
-		A0C000000000000000000014 /* OmniSileroModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroModelCleanup.swift; sourceTree = "<group>"; };
-		A0C100000000000000000010 /* SortformerCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SortformerCoreModel.swift; sourceTree = "<group>"; };
-		A0C100000000000000000011 /* SortformerCoreStreamLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SortformerCoreStreamLease.swift; sourceTree = "<group>"; };
-		A0C100000000000000000012 /* OmniSortformerInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerInferenceEngine.swift; sourceTree = "<group>"; };
-		A0C100000000000000000013 /* OmniSortformerStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerStream.swift; sourceTree = "<group>"; };
-		A0C100000000000000000014 /* OmniSortformerStreamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerStreamingEngine.swift; sourceTree = "<group>"; };
-		A0C100000000000000000015 /* OmniSortformerRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerRPC.swift; sourceTree = "<group>"; };
-		A0C100000000000000000016 /* OmniSortformerModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerModelCleanup.swift; sourceTree = "<group>"; };
-		A0C200000000000000000011 /* BatchCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchCoreModel.swift; sourceTree = "<group>"; };
-		A0C200000000000000000012 /* BatchCoreOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchCoreOptions.swift; sourceTree = "<group>"; };
-		A0C200000000000000000013 /* BatchCoreRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchCoreRequest.swift; sourceTree = "<group>"; };
-		A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchInferenceEngine.swift; sourceTree = "<group>"; };
-		A0C200000000000000000015 /* OmniBatchModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchModelCleanup.swift; sourceTree = "<group>"; };
-		A0C200000000000000000016 /* OmniBatchRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniBatchRPC.swift; sourceTree = "<group>"; };
-		A0C300000000000000000011 /* SpeakerCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCoreModel.swift; sourceTree = "<group>"; };
-		A0C300000000000000000012 /* SpeakerCoreStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCoreStream.swift; sourceTree = "<group>"; };
-		A0C300000000000000000013 /* SpeakerCoreOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCoreOutput.swift; sourceTree = "<group>"; };
-		A0C300000000000000000014 /* OmniSpeakerInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerInferenceEngine.swift; sourceTree = "<group>"; };
-		A0C300000000000000000015 /* OmniSpeakerSessionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerSessionEngine.swift; sourceTree = "<group>"; };
-		A0C300000000000000000016 /* OmniSpeakerCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerCommands.swift; sourceTree = "<group>"; };
-		A0C300000000000000000017 /* OmniSpeakerDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerDelivery.swift; sourceTree = "<group>"; };
-		A0C300000000000000000018 /* OmniSpeakerModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerModelCleanup.swift; sourceTree = "<group>"; };
-		A0C300000000000000000019 /* OmniSpeakerRPC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSpeakerRPC.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -242,7 +157,6 @@
 				F1A2B3C4D5E6F708090A0B0C /* FaviconFinder in Frameworks */,
 				FA11DBA0FA11DBA0FA11DBA0 /* GRDB in Frameworks */,
 				AABBCCDDEEFF001122334457 /* Logging in Frameworks */,
-				A0BD00000000000000000004 /* OmniXPCContracts in Frameworks */,
 				A0BE00000000000000000003 /* OmniModelArtifacts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -255,15 +169,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A0BC00000000000000000031 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A0BD00000000000000000005 /* OmniXPCContracts in Frameworks */,
-				A0BE00000000000000000005 /* OmniModelArtifacts in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -273,7 +178,6 @@
 				31F19CCF2F4D76D200E96913 /* Voxt */,
 				3A1A2B3C4D5E6F708090A0B0D /* VoxtTests */,
 				AAC0F003AAC0F003AAC0F003 /* Config */,
-				A0BC00000000000000000002 /* OmniInference */,
 				31F19CCE2F4D76D200E96913 /* Products */,
 				694309AF2F527ECA0056FECC /* en.lproj */,
 				694309B02F527ECB0056FECC /* zh-Hans.lproj */,
@@ -287,7 +191,6 @@
 			children = (
 				3A1A2B3C4D5E6F708090A0B0B /* VoxtTests.xctest */,
 				31F19CCD2F4D76D200E96913 /* Voxt Dev.app */,
-				A0BC00000000000000000020 /* OmniInference.xpc */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -331,59 +234,8 @@
 			children = (
 				AAC0F001AAC0F001AAC0F001 /* Signing.shared.xcconfig */,
 				AAC0F002AAC0F002AAC0F002 /* Signing.local.xcconfig.example */,
-				A0BC00000000000000000027 /* OmniXPC.shared.xcconfig */,
-				A0BC00000000000000000028 /* OmniXPCApp.xcconfig */,
-				A0BC00000000000000000029 /* OmniXPCService.xcconfig */,
-				A0BC0000000000000000002A /* OmniXPCApp.entitlements */,
 			);
 			path = Config;
-			sourceTree = "<group>";
-		};
-		A0BC00000000000000000002 /* OmniInference */ = {
-			isa = PBXGroup;
-			children = (
-				A0BC00000000000000000021 /* OmniInferenceService.swift */,
-				A0BC0000000000000000002B /* QwenCoreModel.swift */,
-				A0BC0000000000000000002C /* OmniFinalSessionEngine.swift */,
-				A0BC00000000000000000022 /* main.swift */,
-				A0BD00000000000000000010 /* OmniSessionLifecycle.swift */,
-				A0BD00000000000000000011 /* QwenCoreRealtimeLease.swift */,
-				A0BD00000000000000000012 /* OmniRealtimeSession.swift */,
-				A0BD00000000000000000013 /* OmniRealtimeSessionEngine.swift */,
-				A0BF00000000000000000010 /* SileroCoreModel.swift */,
-				A0BF00000000000000000011 /* OmniSileroInferenceEngine.swift */,
-				A0C000000000000000000010 /* SileroCoreStreamLease.swift */,
-				A0C000000000000000000011 /* OmniSileroOfflineInference.swift */,
-				A0C000000000000000000012 /* OmniSileroStream.swift */,
-				A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */,
-				A0C000000000000000000014 /* OmniSileroModelCleanup.swift */,
-				A0C100000000000000000010 /* SortformerCoreModel.swift */,
-				A0C100000000000000000011 /* SortformerCoreStreamLease.swift */,
-				A0C100000000000000000012 /* OmniSortformerInferenceEngine.swift */,
-				A0C100000000000000000013 /* OmniSortformerStream.swift */,
-				A0C100000000000000000014 /* OmniSortformerStreamingEngine.swift */,
-				A0C100000000000000000015 /* OmniSortformerRPC.swift */,
-				A0C100000000000000000016 /* OmniSortformerModelCleanup.swift */,
-				A0C200000000000000000011 /* BatchCoreModel.swift */,
-				A0C200000000000000000012 /* BatchCoreOptions.swift */,
-				A0C200000000000000000013 /* BatchCoreRequest.swift */,
-				A0C200000000000000000014 /* OmniBatchInferenceEngine.swift */,
-				A0C200000000000000000015 /* OmniBatchModelCleanup.swift */,
-				A0C200000000000000000016 /* OmniBatchRPC.swift */,
-				A0C300000000000000000011 /* SpeakerCoreModel.swift */,
-				A0C300000000000000000012 /* SpeakerCoreStream.swift */,
-				A0C300000000000000000013 /* SpeakerCoreOutput.swift */,
-				A0C300000000000000000014 /* OmniSpeakerInferenceEngine.swift */,
-				A0C300000000000000000015 /* OmniSpeakerSessionEngine.swift */,
-				A0C300000000000000000016 /* OmniSpeakerCommands.swift */,
-				A0C300000000000000000017 /* OmniSpeakerDelivery.swift */,
-				A0C300000000000000000018 /* OmniSpeakerModelCleanup.swift */,
-				A0C300000000000000000019 /* OmniSpeakerRPC.swift */,
-				A0BC00000000000000000024 /* Info.plist */,
-				A0BC00000000000000000025 /* OmniInference.entitlements */,
-				A0BC00000000000000000026 /* OmniInference-Bridging-Header.h */,
-			);
-			path = OmniInference;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -397,7 +249,6 @@
 				31F19CCA2F4D76D200E96913 /* Frameworks */,
 				D5A1B2C32F81000100ABCDEF /* Embed OmniVAD Runtime */,
 				31F19CCB2F4D76D200E96913 /* Resources */,
-				A0BC00000000000000000034 /* Embed Omni XPC (opt-in) */,
 			);
 			buildRules = (
 			);
@@ -421,7 +272,6 @@
 				F1A2B3C4D5E6F708090A0B0D /* FaviconFinder */,
 				FA11DBA1FA11DBA1FA11DBA1 /* GRDB */,
 				AABBCCDDEEFF001122334456 /* Logging */,
-				A0BD00000000000000000002 /* OmniXPCContracts */,
 				A0BE00000000000000000002 /* OmniModelArtifacts */,
 			);
 			productName = Voxt;
@@ -449,28 +299,6 @@
 			productReference = 3A1A2B3C4D5E6F708090A0B0B /* VoxtTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		A0BC00000000000000000001 /* OmniInference */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A0BC00000000000000000040 /* Build configuration list for PBXNativeTarget "OmniInference" */;
-			buildPhases = (
-				A0BC00000000000000000030 /* Sources */,
-				A0BC00000000000000000031 /* Frameworks */,
-				A0BC00000000000000000032 /* Resources */,
-				A0BC00000000000000000033 /* Embed Omni Core Runtime */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = OmniInference;
-			packageProductDependencies = (
-				A0BD00000000000000000003 /* OmniXPCContracts */,
-				A0BE00000000000000000004 /* OmniModelArtifacts */,
-			);
-			productName = OmniInference;
-			productReference = A0BC00000000000000000020 /* OmniInference.xpc */;
-			productType = "com.apple.product-type.xpc-service";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -487,9 +315,6 @@
 					3A1A2B3C4D5E6F708090A0B0E = {
 						CreatedOnToolsVersion = 26.2;
 					};
-					A0BC00000000000000000001 = {
-						CreatedOnToolsVersion = 26.2;
-					};
 				};
 			};
 			buildConfigurationList = 31F19CC82F4D76D200E96913 /* Build configuration list for PBXProject "Voxt" */;
@@ -504,7 +329,6 @@
 			mainGroup = 31F19CC42F4D76D200E96913;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */,
 				A0BE00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniModelArtifacts" */,
 				A0BC00000000000000000103 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 				A0BC00000000000000000113 /* XCRemoteSwiftPackageReference "mlx-swift" */,
@@ -524,7 +348,6 @@
 			targets = (
 				31F19CCC2F4D76D200E96913 /* Voxt */,
 				3A1A2B3C4D5E6F708090A0B0E /* VoxtTests */,
-				A0BC00000000000000000001 /* OmniInference */,
 			);
 		};
 /* End PBXProject section */
@@ -544,41 +367,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A0BC00000000000000000032 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		A0BC00000000000000000033 /* Embed Omni Core Runtime */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = ();
-			inputPaths = ();
-			name = "Embed Omni Core Runtime";
-			outputPaths = ();
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/bash;
-			shellScript = "exec /bin/bash \"$PROJECT_DIR/tools/embed_omni_xpc.sh\" --service\n";
-		};
-		A0BC00000000000000000034 /* Embed Omni XPC (opt-in) */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = ();
-			inputPaths = ();
-			name = "Embed Omni XPC (opt-in)";
-			outputPaths = ();
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/bash;
-			shellScript = "if [[ \"$CONFIGURATION\" == OmniXPCDebug && \"${VOXT_OMNI_EMBED_XPC:-NO}\" == YES ]]; then\n  exec /bin/bash \"$PROJECT_DIR/tools/embed_omni_xpc.sh\" --app\nelse\n  exit 0\nfi\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		31F19CC92F4D76D200E96913 /* Sources */ = {
@@ -592,50 +381,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A0BC00000000000000000030 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A0BC00000000000000000011 /* OmniInferenceService.swift in Sources */,
-				A0BC00000000000000000012 /* main.swift in Sources */,
-				A0BC00000000000000000014 /* QwenCoreModel.swift in Sources */,
-				A0BC00000000000000000015 /* OmniFinalSessionEngine.swift in Sources */,
-				A0BD00000000000000000020 /* OmniSessionLifecycle.swift in Sources */,
-				A0BD00000000000000000021 /* QwenCoreRealtimeLease.swift in Sources */,
-				A0BD00000000000000000022 /* OmniRealtimeSession.swift in Sources */,
-				A0BD00000000000000000023 /* OmniRealtimeSessionEngine.swift in Sources */,
-				A0BF00000000000000000020 /* SileroCoreModel.swift in Sources */,
-				A0BF00000000000000000021 /* OmniSileroInferenceEngine.swift in Sources */,
-				A0C000000000000000000020 /* SileroCoreStreamLease.swift in Sources */,
-				A0C000000000000000000021 /* OmniSileroOfflineInference.swift in Sources */,
-				A0C000000000000000000022 /* OmniSileroStream.swift in Sources */,
-				A0C000000000000000000023 /* OmniSileroStreamingEngine.swift in Sources */,
-				A0C000000000000000000024 /* OmniSileroModelCleanup.swift in Sources */,
-				A0C100000000000000000020 /* SortformerCoreModel.swift in Sources */,
-				A0C100000000000000000021 /* SortformerCoreStreamLease.swift in Sources */,
-				A0C100000000000000000022 /* OmniSortformerInferenceEngine.swift in Sources */,
-				A0C100000000000000000023 /* OmniSortformerStream.swift in Sources */,
-				A0C100000000000000000024 /* OmniSortformerStreamingEngine.swift in Sources */,
-				A0C100000000000000000025 /* OmniSortformerRPC.swift in Sources */,
-				A0C100000000000000000026 /* OmniSortformerModelCleanup.swift in Sources */,
-				A0C200000000000000000021 /* BatchCoreModel.swift in Sources */,
-				A0C200000000000000000022 /* BatchCoreOptions.swift in Sources */,
-				A0C200000000000000000023 /* BatchCoreRequest.swift in Sources */,
-				A0C200000000000000000024 /* OmniBatchInferenceEngine.swift in Sources */,
-				A0C200000000000000000025 /* OmniBatchModelCleanup.swift in Sources */,
-				A0C200000000000000000026 /* OmniBatchRPC.swift in Sources */,
-				A0C300000000000000000021 /* SpeakerCoreModel.swift in Sources */,
-				A0C300000000000000000022 /* SpeakerCoreStream.swift in Sources */,
-				A0C300000000000000000023 /* SpeakerCoreOutput.swift in Sources */,
-				A0C300000000000000000024 /* OmniSpeakerInferenceEngine.swift in Sources */,
-				A0C300000000000000000025 /* OmniSpeakerSessionEngine.swift in Sources */,
-				A0C300000000000000000026 /* OmniSpeakerCommands.swift in Sources */,
-				A0C300000000000000000027 /* OmniSpeakerDelivery.swift in Sources */,
-				A0C300000000000000000028 /* OmniSpeakerModelCleanup.swift in Sources */,
-				A0C300000000000000000029 /* OmniSpeakerRPC.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1206,65 +951,6 @@
 			};
 			name = TestDebug;
 		};
-		A0BC00000000000000000041 /* OmniXPCDebug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = A0BC00000000000000000029 /* OmniXPCService.xcconfig */;
-			buildSettings = {
-			};
-			name = OmniXPCDebug;
-		};
-		A0BC00000000000000000042 /* OmniXPCDebug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = A0BC00000000000000000027 /* OmniXPC.shared.xcconfig */;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				SDKROOT = macosx;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-			};
-			name = OmniXPCDebug;
-		};
-		A0BC00000000000000000043 /* OmniXPCDebug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = A0BC00000000000000000028 /* OmniXPCApp.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = VoxtIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 101500099;
-				ENABLE_PREVIEWS = NO;
-				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SELECTED_FILES = readwrite;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Voxt/Voxt/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Voxt/Frameworks",
-				);
-				MARKETING_VERSION = 1.15.0;
-				PRODUCT_MODULE_NAME = Voxt;
-				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = OmniXPCDebug;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1274,7 +960,6 @@
 				31F19CD62F4D76D300E96913 /* Debug */,
 				31F19CD72F4D76D300E96913 /* Release */,
 				31F19CDC2F4D76D300E96913 /* TestDebug */,
-				A0BC00000000000000000042 /* OmniXPCDebug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -1285,7 +970,6 @@
 				31F19CD92F4D76D300E96913 /* Debug */,
 				31F19CDA2F4D76D300E96913 /* Release */,
 				31F19CDB2F4D76D300E96913 /* TestDebug */,
-				A0BC00000000000000000043 /* OmniXPCDebug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -1300,21 +984,9 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A0BC00000000000000000040 /* Build configuration list for PBXNativeTarget "OmniInference" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A0BC00000000000000000041 /* OmniXPCDebug */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = OmniXPCDebug;
-		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/OmniXPCContracts;
-		};
 		A0BE00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniModelArtifacts" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/OmniModelArtifacts;
@@ -1410,16 +1082,6 @@
 			package = A0BC00000000000000000103 /* XCRemoteSwiftPackageReference "swift-transformers" */;
 			productName = Tokenizers;
 		};
-		A0BD00000000000000000002 /* OmniXPCContracts */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */;
-			productName = OmniXPCContracts;
-		};
-		A0BD00000000000000000003 /* OmniXPCContracts */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */;
-			productName = OmniXPCContracts;
-		};
 		A0BC00000000000000000112 /* MLX */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A0BC00000000000000000113 /* XCRemoteSwiftPackageReference "mlx-swift" */;
@@ -1481,11 +1143,6 @@
 			productName = GRDB;
 		};
 		A0BE00000000000000000002 /* OmniModelArtifacts */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A0BE00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniModelArtifacts" */;
-			productName = OmniModelArtifacts;
-		};
-		A0BE00000000000000000004 /* OmniModelArtifacts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A0BE00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniModelArtifacts" */;
 			productName = OmniModelArtifacts;

@@ -12,12 +12,12 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
-FORBIDDEN = re.compile(r"fluidaudio|nemotextprocessing|sherpa[-_]?onnx|onnxruntime|mlx[-_]?audio(?:[-_]?swift|core|stt|vad)", re.I)
+FORBIDDEN = re.compile(r"fluidaudio|nemotextprocessing|sherpa[-_]?onnx|onnxruntime|mlx[-_]?audio(?:[-_]?swift|core|stt|vad)|OmniXPC|OmniInference|libOmniCore", re.I)
 RETIRED_API = re.compile(
     r"\b(?:FluidAudioMeetingSpeakerDiarizationEngine|MeetingOfflineVBxModelStorage|"
     r"VoxtralRealtimeModel|CanaryModel|MoonshineModel|Wav2Vec2CTCModel|LasrCTCModel|"
     r"GraniteSpeechModel|FireRedASR2Model|GLMASRModel|MMSLanguageAdapterOption|"
-    r"nativeVoxtralLive|hiddenSupport)\b"
+    r"nativeVoxtralLive|hiddenSupport|OmniXPC\w+|OmniNativeCore|VOXT_OMNI_XPC_VALIDATION)\b"
 )
 
 
@@ -41,7 +41,7 @@ def source_errors(root):
     local_packages = re.findall(
         r"isa = XCLocalSwiftPackageReference;\s*relativePath = ([^;]+);", project
     )
-    allowed_local_packages = {"Packages/OmniXPCContracts", "Packages/OmniModelArtifacts"}
+    allowed_local_packages = {"Packages/OmniModelArtifacts"}
     if (len(local_packages) != project.count("isa = XCLocalSwiftPackageReference;")
             or any(path.strip('"') not in allowed_local_packages for path in local_packages)):
         errors.append("Local package override in shared release project")
