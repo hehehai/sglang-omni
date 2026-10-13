@@ -454,3 +454,18 @@ xcodebuild test -project Voxt.xcodeproj -scheme Voxt -destination 'platform=macO
 真实隔离Mac首轮SDK编译通过、XCTest1980：1937通过/42跳过/1失败。唯一失败为既有权限聚合fixture仍假定96提交之前的Reminders默认开启；改为显式开启sync并保留原4项权限断言，新增实际默认关闭不要求Reminders的独立测试。原失败xcresult/log保留。修正后的完整真实Mac重跑1981项：1939通过/42跳过/0失败；新增与迁移的测试已进入实际SDK套件。实际unsigned Release构建也通过；这不是签名、GUI、Native模型或性能验收。
 
 GUI catalog→ASR/Remote/LLM配置、真实device/权限/start取消/rapid restart、真实Native质量与长会议性能、下载Range/ETag/proxy/恢复仍未验证。没有CI/发布门槛激活、部署、私有凭据访问或正式App覆盖。
+
+## Native HTTP 第二批：基线 `4035ee54`
+
+第一批已正常提交/push 为 `4035ee54`，本节是其后的局部精简，不继承第一批测试数量。
+
+- 旧设置provider选择/绑定/标签/警告、未构造的ModelTableView及其瞬时layout preference、modelTableRow builder和独占回调形成封闭子图；核对所有生产/测试/协议/selector/反射/资源后删除438行。全部30个AppStorage字段/键/default不变；实际catalog、配置sheet、selection consistency和Remote/LLM/ASR入口保持。
+- VoxtNoteStore953→522行：357行models保留原enum/raw value/Codable/SwiftData entity字段与unique ID；139行Queries只接收item快照，输出排序、sections和typed manual-rank updates。Store唯一应用record变化、保存/回滚/reload/迁移/archive/rebuild，private/Published状态不开放。仅删除无caller的latestItem/latestIncompleteItem，保留已有12项测试，新增9项query/实际存储契约。
+- FeatureSettingsStore795→510行：289行normalizer不调用Store、不写偏好/不发通知，要求明确fallback。decoded/derived/save各自原有legacy derivation顺序与次数保持，migration整体组合仍照旧；store保留read/write/migration/legacy同步及private storage projection。新增独立保存JSON的损坏meeting raw-value规范化测试和malformed selection read-only fallback测试，原30项方法体保留。
+- 应用Swift源码150966→150597行，第二批净减少369行；Notes和Settings各自的边界抽离会增加少量总行数，不把store变小宣称为净删或性能提升。新文件归同步目录组，项目/依赖/签名/模型/Native及同步默认值不改。
+
+### 第二批验证
+
+真实Mac完整TestDebug **1992项：1950通过、42跳过、0失败**，unsigned Release构建通过；其中VoxtNoteStoreTests **21项**、FeatureSettingsStoreTests **32项**逐项发现并通过，覆盖实际SwiftData宏/数据库、迁移/回滚、溢出manual-rank及默认设置契约。没有使用用户笔记/凭据或覆盖正式App。
+
+工具52、完整hooks/模型栈审计通过；独立source review无blocking finding。Notes实际源码CPU differential和规范化A/B使用声明的数据库/平台peer，分别补充排序/分组/overflow/输入不变及prompt/catalog/fallback/偏好不写入的对照，不替代真实SwiftData/Mac结果。GUI布局/点击、用户旧库真实升级、外部Obsidian/Reminders同步、Native模型质量/性能和恢复仍需独立人工/模型验收。

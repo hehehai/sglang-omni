@@ -269,19 +269,6 @@ extension ModelSettingsView {
         ggufTranslationModelManager.openModelDirectory(id: modelID)
     }
 
-    func useRemoteASRProvider(_ provider: RemoteASRProvider) {
-        let resolved = RemoteModelConfigurationStore.resolvedASRConfiguration(
-            provider: provider,
-            from: remoteASRProviderConfigurationsRaw
-        )
-        switch saveRemoteASRConfiguration(resolved) {
-        case .success:
-            remoteASRSelectedProviderRaw = provider.rawValue
-        case .failure(let error):
-            showModelOperationToast(error.localizedDescription)
-        }
-    }
-
     func saveRemoteASRConfiguration(
         _ configuration: RemoteProviderConfiguration
     ) -> Result<Void, RemoteModelConfigurationStore.SaveError> {
@@ -371,10 +358,6 @@ extension ModelSettingsView {
             get: { resolvedCustomLLMGenerationSettings(for: repo) },
             set: { saveCustomLLMGenerationSettings($0, for: repo) }
         )
-    }
-
-    func useRemoteLLMProvider(_ provider: RemoteLLMProvider) {
-        remoteLLMSelectedProviderRaw = provider.rawValue
     }
 
     func saveRemoteLLMConfiguration(

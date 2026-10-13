@@ -234,28 +234,6 @@ extension ModelSettingsView {
         }
     }
 
-    func modelTableRow(
-        id: String,
-        title: String,
-        snapshot: LocalModelInstallSnapshot
-    ) -> ModelTableRow {
-        ModelTableRow(
-            id: id,
-            title: title,
-            isActive: snapshot.isCurrentSelection,
-            status: snapshot.statusText,
-            badgeText: snapshot.badgeText,
-            isTitleUnderlined: snapshot.canOpenLocation,
-            onTapTitle: snapshot.canOpenLocation ? {
-                performInstallAction(snapshot.target, kind: .openLocation)
-            } : nil,
-            actions: ModelSettingsInstallActionResolver.tableActions(
-                for: snapshot,
-                perform: performInstallAction(_:kind:)
-            )
-        )
-    }
-
     private func mlxInstallStatusText(
         for snapshot: MLXModelManager.CatalogSnapshot,
         isUninstalling: Bool,

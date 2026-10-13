@@ -3,11 +3,6 @@
 
 import SwiftUI
 
-struct ModelSettingsProviderOption: Identifiable {
-    let id: String
-    let title: String
-}
-
 enum ModelSettingsPromptVariables {
     static let enhancement = [
         PromptTemplateVariableDescriptor(
