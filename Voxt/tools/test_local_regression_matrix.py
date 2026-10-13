@@ -117,6 +117,26 @@ class LocalRegressionMatrixTests(unittest.TestCase):
 
 
 class OmniXPCPackagingTests(unittest.TestCase):
+    def test_codesign_requirement_is_an_expression_not_a_filename(self) -> None:
+        builder = (ROOT / "tools/build_omni_xpc_smoke.sh").read_text()
+        requirement = 'anchor apple generic and identifier "test.host"'
+        embedded = builder.rsplit("<<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+        invocation = next(node for node in ast.walk(ast.parse(embedded))
+                          if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                          and node.func.attr == "run" and node.args and isinstance(node.args[0], ast.List)
+                          and any(isinstance(argument, ast.Constant) and argument.value == "--test-requirement"
+                                  for argument in node.args[0].elts))
+        arguments = eval(compile(ast.Expression(invocation.args[0]), "actual-codesign-arguments", "eval"),
+                         {"requirement": requirement, "bundle": "Fixture.app"})
+        self.assertEqual(arguments[arguments.index("--test-requirement") + 1], "=" + requirement)
+        command = next(line for line in builder.splitlines()
+                       if line.strip().startswith("codesign ") and "--test-requirement" in line)
+        script = 'codesign() { printf "%s\\0" "$@"; }\n' + command
+        result = subprocess.run(["bash", "-c", script], capture_output=True, check=True,
+                                env=dict(os.environ, SIGNING_REQUIREMENT=requirement, SERVICE="Fixture.xpc", filename="libOmniCore.dylib"))
+        arguments = result.stdout.decode().split("\0")
+        self.assertEqual(arguments[arguments.index("--test-requirement") + 1], "=" + requirement)
+
     def project_object(self, identifier: str) -> str:
         project = (ROOT / "Voxt.xcodeproj/project.pbxproj").read_text()
         match = re.search(rf"^\t\t{identifier} /\*[^\n]*\*/ = \{{\n(.*?)\n\t\t\}};", project, re.S | re.M)

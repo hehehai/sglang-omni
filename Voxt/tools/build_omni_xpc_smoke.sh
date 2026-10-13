@@ -156,7 +156,7 @@ if [[ "$SIGN_APP" == YES ]]; then
   SERVICE="$APP_PATH/Contents/XPCServices/OmniInference.xpc"
   SIGNING_REQUIREMENT="anchor apple generic and certificate leaf[subject.OU] = \"$VOXT_OMNI_TEAM_IDENTIFIER\""
   for filename in libOmniCore.dylib libmlx.dylib libjaccl.dylib; do
-    codesign --verify --strict --verbose=2 --test-requirement "$SIGNING_REQUIREMENT" "$SERVICE/Contents/Frameworks/$filename"
+    codesign --verify --strict --verbose=2 --test-requirement "=$SIGNING_REQUIREMENT" "$SERVICE/Contents/Frameworks/$filename"
   done
   codesign --verify --deep --strict --verbose=2 "$SERVICE"
   codesign --verify --deep --strict --verbose=2 "$APP_PATH"
@@ -182,7 +182,7 @@ for bundle, identifier in zip(sys.argv[1:], (expected["OmniHostBundleIdentifier"
         else:
             pass
     requirement = f'anchor apple generic and identifier "{identifier}" and certificate leaf[subject.OU] = "{expected["OmniTeamIdentifier"]}"'
-    subprocess.run(["codesign", "--verify", "--strict", "--test-requirement", requirement, bundle], check=True)
+    subprocess.run(["codesign", "--verify", "--strict", "--test-requirement", "=" + requirement, bundle], check=True)
     signature = subprocess.run(["codesign", "--display", "--verbose=4", bundle], check=True, capture_output=True, text=True).stderr
     if not re.search(r"^Authority=(Apple Development:|Developer ID Application:)", signature, re.MULTILINE):
         sys.exit(f"error: {bundle}: not signed by Apple Development or Developer ID Application")

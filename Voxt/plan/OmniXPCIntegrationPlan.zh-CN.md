@@ -994,6 +994,14 @@ ABI8检查点时下一步为两family actualhelper RPC+原loadscope非evictledge
 - 修正真实SDK问题：Artifacts最低OS10.15→10.15.4匹配现有FileHandle API；SwiftUI可用性原因String?转LocalizedStringKey保持nil fallback。其余为测试/工具：POSIX临时目录身份避免Foundation /var↔/private/var别名期望错、SenseVoice fixture补原安装presence要求、Bash3.2 nounset-empty-array参数引用修正；immediate失败事件夹具预算5秒，真正deadline路径仍0.2秒且退出后reader释放断言不改。没有Native数值/ABI/production routes/模型选择变化。
 - 独立readonly14文件review无新增阻塞缺陷；27组shell引用矩阵与两negativecontrols、源码传输归档一致性、公开Qwen结果对比通过，review不自行SSH/签名。Main Linux tools64/Artifacts79回归、完整hooks另记录。剩余signed IPC/安全/跨卷/Intel/43skip/real speaker weights与longform/performance/notary/clean-machine等平台矩阵继续pending，不能把这一轮当迁移完成。
 
+### 独立 Developer ID 签名验证（不等于 signed XPC）
+
+- 用户随后上传签名材料并请求验证、明确允许专用临时keychain。只读取App证书/密码和profile所需字段；不使用发布/GitHub/Sparkle/Installer/notarization凭据。证书与Mac已有identity匹配且有效；profile仅com.voxt.Voxt、无AppGroup，不套入独立测试bundle。
+- SSH签名返回errSecInternalComponent；专用临时keychain导入/权限准备后仍失败。最小Mach-O证明真实原因CSSMERR_CSP_NO_USER_INTERACTION/-25308，正常GUI用户会话执行同一受限操作通过；未改登录keychain或全局trust/ACL、未绕过系统授权。
+- 独立Debug副本com.voxt.Voxt.signedvalidation及其nestedMach-O/framework/app/XPC helpers inside-out DeveloperID签名，通过deep/strict与Apple anchor+exactidentifier+Team要求；hardened runtime、20秒精确PID启动/TERM通过。副本关闭自动更新、独立test-home，不覆盖正式app。未timestamp/未notarize、未加入sandbox/AppGroup entitlements，不能当release权限配置或signedXPC验收。
+- spctl执行评估明确拒绝source=Unnotarized Developer ID，非签名无效；不把拒绝改报通过。任务GUI agents卸载、Mac临时keychain/P12/密码和本地解码副本删除，有效identity数量恢复原4。原上传材料保留，不进入仓库/证据包。
+- 真机发现build_omni_xpc_smoke.sh将--test-requirement表达式误当文件路径：需要前导=。修正两实际调用参数且保留anchor/Team/identifier，真实同签副本修正后通过；portable测试执行实际shell/嵌入Python参数构造，防止退回filename。签名/CI/release defaults、Native数值/ABI均未改。
+
 下一步是production调用方显式await Native retirement的所有权接入、meeting消费者与六family longform的family-specific语义、sharedcache/repair/blob/orphan/recovery、余下Audio迁移/unlink和剩余真实平台门槛；不自动发布localcheckpoint。
 
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
