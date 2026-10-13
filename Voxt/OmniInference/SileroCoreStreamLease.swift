@@ -1,4 +1,4 @@
-/// Owns an ABI4 stream and retains its model until the terminal Native barrier succeeds.
+/// Retains the stream handle and model lease until checked Native destruction succeeds.
 import Foundation
 import OmniXPCContracts
 
@@ -86,15 +86,14 @@ nonisolated final class SileroCoreStreamLease: @unchecked Sendable {
 
     func drainAndDestroy() throws {
         guard !isDestroyed else { return }
-        if let nativeHandle = handleLock.withLock({ handle }) {
+        try handleLock.withLock {
+            guard let handle else { return }
             var errorMessage: UnsafeMutablePointer<CChar>?
             defer { omni_string_free(errorMessage) }
-            guard omni_silero_stream_drain(nativeHandle, &errorMessage) == 1, errorMessage == nil else {
-                throw OmniXPCFailure.error(.nativeFailure, "The Native Silero stream barrier did not drain.")
+            guard omni_silero_stream_destroy_checked(handle, &errorMessage) == 1 else {
+                throw OmniXPCFailure.error(.nativeFailure, "The Native Silero stream destruction did not complete.")
             }
-            // note (assistant): Detaching under the handle lock excludes cancellation during raw destruction.
-            handleLock.withLock { handle = nil }
-            omni_silero_stream_destroy(nativeHandle)
+            self.handle = nil
         }
         isDestroyed = true
         model.releaseStreamLease()

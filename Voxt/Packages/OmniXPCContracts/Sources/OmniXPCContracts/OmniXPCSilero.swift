@@ -4,6 +4,7 @@ public nonisolated enum OmniXPCSileroLimits {
     public static let frameSampleCount = 512
     public static let maximumChunkSampleCount = 32_000
     public static let maximumStreamCount = 16
+    public static let maximumLoadsPerConnection = 256
     public static let maximumProbabilityCount = 63
     public static let maximumProbabilityBatchByteCount = 4096
     public static let maximumSettingsByteCount = 1024

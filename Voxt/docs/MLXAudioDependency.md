@@ -2,7 +2,31 @@
 
 Source/lockfile status checked against app commit `81c04a3`. Distinguish **the app's current dependency**, **the published fork**, and **pending app validation**. A passing library workflow or static lockfile audit is not an app or model-quality release certification.
 
-## Native replacement status after upstream 7f78bf3
+## Current ASR source retirement checkpoint
+
+The app and its tests no longer import MLXAudioSTT, load its numerical models,
+use its generation/streaming adapters, or link its product. Native HTTP ASR
+continues to use the original family implementations and long-form settings;
+bounded XPC consumers do not silently replace the long-form route. Loader
+lifecycle tests use an identity-only fixture that explicitly rejects inference,
+not a numerical fallback. Catalogs, saved choices, installations and Remote
+routes are unchanged.
+
+The app now explicitly links Tokenizers from the already resolved
+swift-transformers 1.3.4. Removing STT exposed that LocalTokenizerLoader had
+borrowed its transitive Tokenizers/Hub/yyjson graph; real macOS initially rejected
+that missing dependency. The explicit product fixes the graph without upgrading
+any resolved pins. Keep MLX Swift LLM/VLM, shared MLX and llama.swift.
+
+MLXAudioVAD and MLXAudioCore are still required by remaining VAD/diarization and
+reference consumers. This is a product-level STT retirement, not removal of the
+whole Audio package. The Native speaker consumer now exposes checked permanent
+retirement to its recording runtime; unknown cleanup retains original model use,
+and successful external close notifications retire the original scope without
+losing final presentation. Legacy transport task completion is not relabeled as
+a Native barrier. Full production XPC and long-form cutover remain separate work.
+
+## Historical Native replacement status after upstream 7f78bf3
 
 The PR branch has merged the latest official Native HTTP implementations for
 Nemotron ASR, Parakeet v3 and SenseVoice Small. All eleven currently offered ASR

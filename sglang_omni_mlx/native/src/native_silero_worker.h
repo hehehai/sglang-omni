@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "native_error.h"
+#include "native_silero_lifetime.h"
 #include "omni_native_core.h"
 #include "silero_timestamps.h"
 
@@ -32,7 +33,8 @@ struct SileroCommand {
 
 class SileroWorker {
 public:
-  explicit SileroWorker(std::filesystem::path model_directory);
+  SileroWorker() = default;
+  bool Load(std::filesystem::path model_directory);
   ~SileroWorker();
   SileroWorker(const SileroWorker &) = delete;
   SileroWorker &operator=(const SileroWorker &) = delete;
@@ -65,17 +67,17 @@ bool ValidSileroSamples(const float *samples, size_t sample_count,
 
 } // namespace omni_native
 
-struct OmniSileroHandle {
+struct OmniSileroHandle : omni_native::SileroLifetime {
   std::shared_ptr<omni_native::SileroWorker> worker;
 };
 
-struct OmniSileroRequest {
+struct OmniSileroRequest : omni_native::SileroLifetime {
   std::atomic<bool> is_used{false};
   const std::shared_ptr<std::atomic<bool>> cancel =
       std::make_shared<std::atomic<bool>>(false);
 };
 
-struct OmniSileroStream {
+struct OmniSileroStream : omni_native::SileroLifetime {
   std::shared_ptr<omni_native::SileroWorker> worker;
   std::atomic<omni_native::SileroPhase> phase{omni_native::SileroPhase::Active};
   size_t slot = 0;

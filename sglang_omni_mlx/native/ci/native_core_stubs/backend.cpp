@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Test-only backend/MLX stubs; deliberate failures contain private sentinel
 // text.
+#include "silero_backend.h"
 #include "transcriber.h"
 
 #include <cassert>
@@ -30,8 +31,37 @@ extern "C" void *__wrap_malloc(size_t byte_count) {
 #endif
 
 namespace mlx::core {
-void synchronize() {}
-void clear_cache() {}
+void synchronize() {
+  auto &silero = omni_test::SileroState();
+  std::lock_guard lock(silero.mutex);
+  const bool is_silero_worker =
+      std::this_thread::get_id() == silero.loading_thread;
+  if (is_silero_worker) {
+    ++silero.synchronize_attempt_count;
+  } else {
+  }
+  auto &failure_after = omni_test::State().synchronize_failure_after;
+  if (failure_after.load() == omni_test::SYNCHRONIZE_ALWAYS_FAIL ||
+      (failure_after.load() >= 0 && failure_after.fetch_sub(1) == 0)) {
+    throw std::runtime_error("PRIVATE synchronization failure");
+  } else if (is_silero_worker) {
+    silero.pending_constructor_work_count = 0;
+  } else {
+  }
+}
+void clear_cache() {
+  auto &silero = omni_test::SileroState();
+  std::lock_guard lock(silero.mutex);
+  if (std::this_thread::get_id() == silero.loading_thread) {
+    ++silero.cache_clear_attempt_count;
+    if (silero.fail_cache_clear) {
+      throw std::runtime_error("PRIVATE cache failure");
+    } else {
+      silero.pending_constructor_cache_count = 0;
+    }
+  } else {
+  }
+}
 } // namespace mlx::core
 
 namespace qwen3_asr {

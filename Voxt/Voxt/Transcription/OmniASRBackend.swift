@@ -1,18 +1,37 @@
 import Foundation
 
-/// A loaded local ASR model: an in-process MLXAudio model or an owned Omni server.
-nonisolated enum LoadedASRModel: @unchecked Sendable {
-    case mlx(MLXSwiftASRModel)
+/// A loaded local ASR model owns a Native server; test fixtures cannot transcribe.
+nonisolated enum LoadedASRModel: Sendable {
     case omni(OmniASRRuntime)
+    case modelUseFixture(ASRModelUseFixture)
 
     var omniRuntime: OmniASRRuntime? {
-        if case .omni(let runtime) = self { return runtime }
-        return nil
+        switch self {
+        case .omni(let runtime): return runtime
+        case .modelUseFixture: return nil
+        }
     }
 
-    var mlxModel: MLXSwiftASRModel? {
-        if case .mlx(let model) = self { return model }
-        return nil
+    func requireOmniRuntime() throws -> OmniASRRuntime {
+        switch self {
+        case .omni(let runtime): return runtime
+        case .modelUseFixture: throw ASRModelUseFixture.InferenceError.unavailable
+        }
+    }
+}
+
+nonisolated struct MLXLoadedModelBox: Sendable {
+    let loaded: LoadedASRModel
+}
+
+/// Identity-only model use for loader lifecycle tests, never a numerical backend.
+nonisolated final class ASRModelUseFixture: Sendable {
+    enum InferenceError: LocalizedError {
+        case unavailable
+
+        var errorDescription: String? {
+            "A model-use fixture cannot run ASR inference."
+        }
     }
 }
 

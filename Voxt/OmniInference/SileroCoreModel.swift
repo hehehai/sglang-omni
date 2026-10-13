@@ -1,4 +1,4 @@
-/// Retained ABI4 Silero model with independently cancellable requests and registered stream leases.
+/// Retains the model reader until checked Native destruction succeeds.
 import Foundation
 import OmniXPCContracts
 import OmniModelArtifacts
@@ -6,22 +6,32 @@ import OmniModelArtifacts
 #if os(macOS)
 nonisolated final class SileroCoreModel: @unchecked Sendable {
     private let lock = NSLock()
-    private let directoryLease: OmniModelDirectoryLease
+    private var directoryLease: OmniModelDirectoryLease?
     private var handle: OpaquePointer?
     private var request: OpaquePointer?
     private var requestID: UUID?
     private var streamLeaseCount = 0
+    private var loadReturned = false
 
-    init(directoryLease: OmniModelDirectoryLease) throws {
-        guard Int(omni_core_abi_version()) == OmniXPCProtocolLimits.abiVersion else {
-            throw OmniXPCFailure.error(.incompatibleService, "The Native Core ABI is incompatible.")
-        }
+    init(directoryLease: OmniModelDirectoryLease) {
         self.directoryLease = directoryLease
-        var errorMessage: UnsafeMutablePointer<CChar>?
-        handle = omni_silero_create(directoryLease.directory.path, &errorMessage)
-        defer { omni_string_free(errorMessage) }
-        guard handle != nil else {
-            throw OmniXPCFailure.error(.nativeFailure, "The Native Silero model could not be loaded.")
+    }
+
+    func load() throws {
+        try lock.withLock {
+            precondition(directoryLease != nil && !loadReturned)
+            defer { loadReturned = true }
+            guard Int(omni_core_abi_version()) == OmniXPCProtocolLimits.abiVersion else {
+                throw OmniXPCFailure.error(.incompatibleService, "The Native Core ABI is incompatible.")
+            }
+            var created: OpaquePointer?
+            var errorMessage: UnsafeMutablePointer<CChar>?
+            defer { omni_string_free(errorMessage) }
+            let success = omni_silero_create_checked(directoryLease!.directory.path, &created, &errorMessage)
+            handle = created
+            guard success == 1, handle != nil else {
+                throw OmniXPCFailure.error(.nativeFailure, "The Native Silero model could not be loaded.")
+            }
         }
     }
 
@@ -121,16 +131,19 @@ nonisolated final class SileroCoreModel: @unchecked Sendable {
         }
     }
 
-    func close() {
-        let releasedHandle = lock.withLock {
-            precondition(request == nil && streamLeaseCount == 0)
-            let releasedHandle = handle
-            handle = nil
-            return releasedHandle
+    func close() throws {
+        try lock.withLock {
+            precondition(loadReturned && request == nil && streamLeaseCount == 0)
+            var errorMessage: UnsafeMutablePointer<CChar>?
+            defer { omni_string_free(errorMessage) }
+            guard omni_silero_destroy_checked(handle, &errorMessage) == 1 else {
+                throw OmniXPCFailure.error(.nativeFailure, "The Native Silero model destruction did not complete.")
+            }
+            self.handle = nil
+            directoryLease = nil
         }
-        if let releasedHandle { omni_silero_destroy(releasedHandle) }
     }
 
-    deinit { close() }
+    deinit { precondition(handle == nil && directoryLease == nil && request == nil && streamLeaseCount == 0) }
 }
 #endif

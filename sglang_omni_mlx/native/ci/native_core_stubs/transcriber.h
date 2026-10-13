@@ -84,6 +84,7 @@ private:
 namespace omni_test {
 
 enum class Failure { kNone, kStandard, kNonstandard };
+inline constexpr int SYNCHRONIZE_ALWAYS_FAIL = -2;
 
 struct BackendState {
   std::mutex mutex;
@@ -107,6 +108,7 @@ struct BackendState {
   int active_count = 0;
   int destruction_count = 0;
   std::atomic<int> malloc_failure_after{-1};
+  std::atomic<int> synchronize_failure_after{-1};
   std::thread::id loading_thread;
   std::thread::id destruction_thread;
   std::vector<float> samples;

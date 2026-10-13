@@ -228,20 +228,34 @@ typedef struct OmniSileroStreamResult {
   uint64_t processed_sample_count;
 } OmniSileroStreamResult;
 
-// Synchronous, nonpreemptible config/weights load; NULL on failure. A dedicated
-// persistent worker owns the model and all native MLX stream states, including
-// their destruction. All inference is serialized; at most one command and its
-// bounded audio copy are queued/running per model. Call inputs stay valid until
-// return. Cancellation checks surround each 512-sample Feed, not GPU execution.
+// ABI10: synchronous, nonpreemptible load; 1 = ready, 0 = failed. Output
+// required, cleared first; non-NULL output is owned even on failure and must be
+// retired by destroy_checked. NULL output means construction never started. A
+// failed shell rejects inference but retains its worker for
+// synchronization/cache retirement. The persistent worker owns model/stream
+// state and their destruction. Inference is serialized with one bounded
+// command/audio copy per model. Inputs stay valid until return. Cancellation
+// surrounds each 512-sample Feed, not GPU execution.
+OMNI_CORE_EXPORT int omni_silero_create_checked(const char *model_directory,
+                                                OmniSileroHandle **handle,
+                                                char **error_message);
+// Compatibility forwarding: NULL on failure, checked retirement attempted once.
+// On retirement failure the shell is retained internally; NULL is NOT drain
+// proof. Ownership-sensitive callers must use create_checked and retain its
+// output.
 OMNI_CORE_EXPORT OmniSileroHandle *
 omni_silero_create(const char *model_directory, char **error_message);
 // Sticky stop-admission/cancellation of offline and live stream work, not
 // drain. Repeated calls and NULL are safe; completed streams remain completed.
 OMNI_CORE_EXPORT void omni_silero_cancel(OmniSileroHandle *handle);
-// Cancel + drain. May overlap submitted operations; callers prevent new raw
-// model calls and synchronize stream creation with model destroy.
-// Live stream leases retain the worker/model until destroyed; never free early.
-// Destroy exactly once; NULL safe. Never call from the model worker.
+// ABI10: 1 = destroyed (or NULL), 0 = retained; retry the same handle on error.
+// Cancels and excludes every admitted raw call, then synchronizes on the
+// worker. Live streams must be destroyed first. Callers stop new admission
+// before destroy and never reuse a successfully destroyed pointer. Never call
+// from the worker.
+OMNI_CORE_EXPORT int omni_silero_destroy_checked(OmniSileroHandle *handle,
+                                                 char **error_message);
+// Compatibility forwarding; cannot report retained ownership. Prefer checked.
 OMNI_CORE_EXPORT void omni_silero_destroy(OmniSileroHandle *handle);
 
 // Required single-use token; NULL on allocation failure. Consumed on the first
@@ -294,9 +308,14 @@ OMNI_CORE_EXPORT void omni_silero_stream_cancel(OmniSileroStream *stream);
 // state on the worker. Returns 1/0 drained/error. Never call from that worker.
 OMNI_CORE_EXPORT int omni_silero_stream_drain(OmniSileroStream *stream,
                                               char **error_message);
-// Cancel + drain + release lease. Synchronize raw stream destruction against
-// all stream calls. Push/finish/drain serialize; cancel can overlap them.
-// A live lease after model destroy remains drainable, never accepts more audio.
+// ABI10: 1 = destroyed (or NULL), 0 = retained, including synchronization
+// error. Cancels and excludes every admitted raw call before releasing the
+// stream slot. Stop new admission before destroy; never reuse a successfully
+// destroyed pointer.
+OMNI_CORE_EXPORT int
+omni_silero_stream_destroy_checked(OmniSileroStream *stream,
+                                   char **error_message);
+// Compatibility forwarding; cannot report retained ownership. Prefer checked.
 OMNI_CORE_EXPORT void omni_silero_stream_destroy(OmniSileroStream *stream);
 // Owned arrays only for nonempty successes. Both result free functions clear
 // all fields, are repeated/NULL safe; stream cancel/destroy are NULL safe too.

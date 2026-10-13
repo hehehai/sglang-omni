@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A0BC00000000000000000101 /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = A0BC00000000000000000102 /* Tokenizers */; };
 		3A1A2B3C4D5E6F708090A0B0C /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3A1A2B3C4D5E6F708090A0B0A /* XCTest.framework */; };
 		3C1A2B3C4D5E6F708090A0B0C /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C1A2B3C4D5E6F708090A0B0A /* AppIntents.framework */; };
 		A1B2C3D4E5F6078901234567 /* MLXAudioCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F6078901234568 /* MLXAudioCore */; };
-		A1B2C3D4E5F6078901234569 /* MLXAudioSTT in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F607890123456A /* MLXAudioSTT */; };
 		A1B2C3D4E5F6078901234570 /* MLXAudioVAD in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F6078901234571 /* MLXAudioVAD */; };
 		AABBCCDDEEFF001122334457 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = AABBCCDDEEFF001122334456 /* Logging */; };
 		B1C2D3E4F5060708090A0B0C /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B1C2D3E4F5060708090A0B0D /* Sparkle */; };
@@ -40,6 +40,7 @@
 		A0C000000000000000000021 /* OmniSileroOfflineInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000011 /* OmniSileroOfflineInference.swift */; };
 		A0C000000000000000000022 /* OmniSileroStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000012 /* OmniSileroStream.swift */; };
 		A0C000000000000000000023 /* OmniSileroStreamingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */; };
+		A0C000000000000000000024 /* OmniSileroModelCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C000000000000000000014 /* OmniSileroModelCleanup.swift */; };
 		A0C100000000000000000020 /* SortformerCoreModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000010 /* SortformerCoreModel.swift */; };
 		A0C100000000000000000021 /* SortformerCoreStreamLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000011 /* SortformerCoreStreamLease.swift */; };
 		A0C100000000000000000022 /* OmniSortformerInferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C100000000000000000012 /* OmniSortformerInferenceEngine.swift */; };
@@ -122,6 +123,7 @@
 		A0C000000000000000000011 /* OmniSileroOfflineInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroOfflineInference.swift; sourceTree = "<group>"; };
 		A0C000000000000000000012 /* OmniSileroStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroStream.swift; sourceTree = "<group>"; };
 		A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroStreamingEngine.swift; sourceTree = "<group>"; };
+		A0C000000000000000000014 /* OmniSileroModelCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSileroModelCleanup.swift; sourceTree = "<group>"; };
 		A0C100000000000000000010 /* SortformerCoreModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SortformerCoreModel.swift; sourceTree = "<group>"; };
 		A0C100000000000000000011 /* SortformerCoreStreamLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SortformerCoreStreamLease.swift; sourceTree = "<group>"; };
 		A0C100000000000000000012 /* OmniSortformerInferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmniSortformerInferenceEngine.swift; sourceTree = "<group>"; };
@@ -227,8 +229,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				3C1A2B3C4D5E6F708090A0B0C /* AppIntents.framework in Frameworks */,
+				A0BC00000000000000000101 /* Tokenizers in Frameworks */,
 				A1B2C3D4E5F6078901234567 /* MLXAudioCore in Frameworks */,
-				A1B2C3D4E5F6078901234569 /* MLXAudioSTT in Frameworks */,
 				A1B2C3D4E5F6078901234570 /* MLXAudioVAD in Frameworks */,
 				B1C2D3E4F5060708090A0B0C /* Sparkle in Frameworks */,
 				BB11CC22DD33EE44FF556671 /* LlamaSwift in Frameworks */,
@@ -354,6 +356,7 @@
 				A0C000000000000000000011 /* OmniSileroOfflineInference.swift */,
 				A0C000000000000000000012 /* OmniSileroStream.swift */,
 				A0C000000000000000000013 /* OmniSileroStreamingEngine.swift */,
+				A0C000000000000000000014 /* OmniSileroModelCleanup.swift */,
 				A0C100000000000000000010 /* SortformerCoreModel.swift */,
 				A0C100000000000000000011 /* SortformerCoreStreamLease.swift */,
 				A0C100000000000000000012 /* OmniSortformerInferenceEngine.swift */,
@@ -405,8 +408,8 @@
 			);
 			name = Voxt;
 			packageProductDependencies = (
+				A0BC00000000000000000102 /* Tokenizers */,
 				A1B2C3D4E5F6078901234568 /* MLXAudioCore */,
-				A1B2C3D4E5F607890123456A /* MLXAudioSTT */,
 				A1B2C3D4E5F6078901234571 /* MLXAudioVAD */,
 				BB11CC22DD33EE44FF556672 /* LlamaSwift */,
 				B1C2D3E4F5060708090A0B0D /* Sparkle */,
@@ -503,6 +506,7 @@
 			packageReferences = (
 				A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */,
 				A0BE00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniModelArtifacts" */,
+				A0BC00000000000000000103 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 				A1B2C3D4E5F607890123456B /* XCRemoteSwiftPackageReference "mlx-audio-swift" */,
 				B1C2D3E4F5060708090A0B0E /* XCRemoteSwiftPackageReference "Sparkle" */,
 				C1D2E3F4A5060708090A0B03 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
@@ -608,6 +612,7 @@
 				A0C000000000000000000021 /* OmniSileroOfflineInference.swift in Sources */,
 				A0C000000000000000000022 /* OmniSileroStream.swift in Sources */,
 				A0C000000000000000000023 /* OmniSileroStreamingEngine.swift in Sources */,
+				A0C000000000000000000024 /* OmniSileroModelCleanup.swift in Sources */,
 				A0C100000000000000000020 /* SortformerCoreModel.swift in Sources */,
 				A0C100000000000000000021 /* SortformerCoreStreamLease.swift in Sources */,
 				A0C100000000000000000022 /* OmniSortformerInferenceEngine.swift in Sources */,
@@ -1316,6 +1321,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		A0BC00000000000000000103 /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.3.4;
+			};
+		};
 		A1B2C3D4E5F607890123456B /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/hehehai/mlx-audio-swift.git";
@@ -1383,6 +1396,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A0BC00000000000000000102 /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A0BC00000000000000000103 /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Tokenizers;
+		};
 		A0BD00000000000000000002 /* OmniXPCContracts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A0BD00000000000000000001 /* XCLocalSwiftPackageReference "Packages/OmniXPCContracts" */;
@@ -1397,11 +1415,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D4E5F607890123456B /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
 			productName = MLXAudioCore;
-		};
-		A1B2C3D4E5F607890123456A /* MLXAudioSTT */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D4E5F607890123456B /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
-			productName = MLXAudioSTT;
 		};
 		A1B2C3D4E5F6078901234571 /* MLXAudioVAD */ = {
 			isa = XCSwiftPackageProductDependency;

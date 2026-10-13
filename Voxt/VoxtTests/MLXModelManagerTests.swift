@@ -2,7 +2,6 @@ import XCTest
 @testable import Voxt
 import HuggingFace
 import MLX
-import MLXAudioSTT
 
 @MainActor
 final class MLXModelManagerTests: MLXModelManagerTestCase {

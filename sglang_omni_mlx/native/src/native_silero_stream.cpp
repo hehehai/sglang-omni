@@ -53,8 +53,10 @@ CopySileroProbabilities(const SileroCommand &command) {
 OmniSileroStream *omni_silero_stream_create(OmniSileroHandle *handle,
                                             char **error_message) {
   ClearSileroError(error_message);
+  omni_native::SileroCall call(handle);
+  OmniSileroStream *registered = nullptr;
   try {
-    if (handle == nullptr) {
+    if (!call) {
       SetError(error_message, "Invalid Silero model.");
       return nullptr;
     } else {
@@ -71,20 +73,23 @@ OmniSileroStream *omni_silero_stream_create(OmniSileroHandle *handle,
       return nullptr;
     } else {
     }
-    auto stream = std::make_unique<OmniSileroStream>();
+    auto stream = std::make_shared<OmniSileroStream>();
     stream->worker = worker;
     stream->slot = static_cast<size_t>(slot - worker->leased_slots.begin());
+    registered = omni_native::SileroHandles<OmniSileroStream>::Insert(stream);
     SileroCommand command{.operation = SileroOperation::Create,
                           .stream = stream.get()};
     worker->Execute(command);
     if (command.error != nullptr) {
+      omni_native::SileroHandles<OmniSileroStream>::Remove(registered);
       SetError(error_message, command.error);
       return nullptr;
     } else {
       *slot = true;
-      return stream.release();
+      return registered;
     }
   } catch (...) {
+    omni_native::SileroHandles<OmniSileroStream>::Remove(registered);
     SetError(error_message, "Silero stream initialization failed.");
     return nullptr;
   }
@@ -104,9 +109,10 @@ int omni_silero_stream_push(OmniSileroStream *stream, uint64_t audio_sequence,
     *result = {};
   } else {
   }
+  omni_native::SileroCall call(stream);
   try {
-    if (stream == nullptr || result == nullptr ||
-        accepted_audio_sequence == nullptr || audio_sequence == 0 ||
+    if (!call || result == nullptr || accepted_audio_sequence == nullptr ||
+        audio_sequence == 0 ||
         !omni_native::ValidSileroSamples(samples, sample_count,
                                          OMNI_SILERO_MAX_CHUNK_SAMPLES)) {
       SetError(error_message, "Invalid Silero stream input.");
@@ -168,8 +174,9 @@ int omni_silero_stream_finish(OmniSileroStream *stream,
     *result = {};
   } else {
   }
+  omni_native::SileroCall call(stream);
   try {
-    if (stream == nullptr || result == nullptr) {
+    if (!call || result == nullptr) {
       SetError(error_message, "Invalid Silero stream input.");
       return 0;
     } else {
@@ -222,7 +229,8 @@ int omni_silero_stream_finish(OmniSileroStream *stream,
 }
 
 void omni_silero_stream_cancel(OmniSileroStream *stream) {
-  if (stream != nullptr) {
+  omni_native::SileroCall call(stream);
+  if (call) {
     stream->SetTerminal(SileroPhase::Cancelled);
   } else {
   }
@@ -230,8 +238,9 @@ void omni_silero_stream_cancel(OmniSileroStream *stream) {
 
 int omni_silero_stream_drain(OmniSileroStream *stream, char **error_message) {
   ClearSileroError(error_message);
+  omni_native::SileroCall call(stream);
   try {
-    if (stream == nullptr) {
+    if (!call) {
       SetError(error_message, "Invalid Silero stream input.");
       return 0;
     } else if (stream->IsActive()) {
@@ -243,7 +252,12 @@ int omni_silero_stream_drain(OmniSileroStream *stream, char **error_message) {
       SileroCommand command{.operation = SileroOperation::Drain,
                             .stream = stream};
       worker->Execute(command);
-      return 1;
+      if (command.error != nullptr) {
+        SetError(error_message, command.error);
+        return 0;
+      } else {
+        return 1;
+      }
     }
   } catch (...) {
     SetError(error_message, "Silero stream drain failed.");
@@ -251,23 +265,51 @@ int omni_silero_stream_drain(OmniSileroStream *stream, char **error_message) {
   }
 }
 
-void omni_silero_stream_destroy(OmniSileroStream *stream) {
+int omni_silero_stream_destroy_checked(OmniSileroStream *stream,
+                                       char **error_message) {
+  ClearSileroError(error_message);
+  if (stream == nullptr) {
+    return 1;
+  } else {
+  }
   try {
-    if (stream != nullptr) {
-      stream->SetTerminal(SileroPhase::Cancelled);
-      const auto worker = stream->worker;
-      {
-        std::lock_guard<std::mutex> lock(worker->command_mutex);
-        SileroCommand command{.operation = SileroOperation::Drain,
-                              .stream = stream};
-        worker->Execute(command);
-        worker->leased_slots[stream->slot] = false;
-      }
-      delete stream;
+    const auto retained =
+        omni_native::SileroHandles<OmniSileroStream>::Find(stream);
+    if (!retained) {
+      SetError(error_message, "Invalid Silero stream.");
+      return 0;
     } else {
     }
+    retained->SetTerminal(SileroPhase::Cancelled);
+    std::unique_lock gate(retained->call_mutex);
+    if (retained->is_destroyed) {
+      return 1;
+    } else {
+    }
+    const auto worker = retained->worker;
+    std::lock_guard lock(worker->command_mutex);
+    SileroCommand command{.operation = SileroOperation::Drain,
+                          .stream = stream};
+    worker->Execute(command);
+    if (command.error != nullptr) {
+      SetError(error_message, command.error);
+      return 0;
+    } else {
+      worker->leased_slots[retained->slot] = false;
+      retained->is_destroyed = true;
+      omni_native::SileroHandles<OmniSileroStream>::Remove(stream);
+      return 1;
+    }
   } catch (...) {
+    SetError(error_message, "Silero stream destruction failed.");
+    return 0;
+  }
+}
+
+void omni_silero_stream_destroy(OmniSileroStream *stream) {
+  if (omni_silero_stream_destroy_checked(stream, nullptr) != 1) {
     std::fputs("OmniCore Silero shutdown failed; lease retained.\n", stderr);
+  } else {
   }
 }
 

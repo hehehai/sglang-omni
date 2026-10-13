@@ -1,78 +1,8 @@
 import XCTest
-import MLXAudioSTT
 @testable import Voxt
 
 @MainActor
 final class MLXNativeLiveRuntimeTests: XCTestCase {
-    func testCompatibilityResultPreservesSegmentMetadataAndLanguageProvenance() {
-        let provenances: [STTLanguageProvenance] = [.detected, .requested, .outputTarget, .modelDefault, .unknown]
-        for provenance in provenances {
-            let raw = STTOutput(
-                text: "hello",
-                segments: [STTTranscriptSegment(
-                    text: "hello", startTime: 1.25, endTime: 2.5, speakerID: "speaker-1",
-                    language: "en", confidence: 0.9, emotion: "neutral", event: "speech"
-                )],
-                language: "en", languageProvenance: provenance, generationTokens: 32
-            )
-            let result = ASRTranscriptionResult(mlxOutput: raw)
-            XCTAssertEqual(result.text, raw.text)
-            XCTAssertEqual(result.language, "en")
-            XCTAssertEqual(result.languageProvenance.rawValue, provenance.rawValue)
-            XCTAssertEqual(result.segments, [ASRTranscriptSegment(
-                text: "hello", startSeconds: 1.25, endSeconds: 2.5, speakerID: "speaker-1",
-                language: "en", confidence: 0.9, emotion: "neutral", event: "speech"
-            )])
-            XCTAssertEqual(result.generationMetadata?.generatedTokenCount, 32)
-            XCTAssertNil(result.generationMetadata?.hitLengthLimit)
-        }
-        let empty = ASRTranscriptionResult(mlxOutput: STTOutput(text: ""))
-        XCTAssertEqual(empty.segments, [])
-        XCTAssertNil(empty.language)
-        XCTAssertEqual(empty.languageProvenance, .unknown)
-        XCTAssertNil(empty.generationMetadata)
-    }
-
-    func testCompatibilityStreamOnlyForwardsDisplayAndTerminalEvents() {
-        XCTAssertEqual(
-            ASRStreamingEvent(mlxEvent: .displayUpdate(confirmedText: "hello", provisionalText: " world")),
-            .displayUpdate(confirmedText: "hello", provisionalText: " world")
-        )
-        XCTAssertEqual(
-            ASRStreamingEvent(mlxEvent: .ended(STTOutput(text: "done"))),
-            .ended(ASRTranscriptionResult(text: "done"))
-        )
-        XCTAssertEqual(
-            ASRStreamingEvent(mlxEvent: .failed(StreamingFailure(message: "decode failed"))),
-            .failed(ASRStreamingFailure(message: "decode failed"))
-        )
-        XCTAssertNil(ASRStreamingEvent(mlxEvent: .confirmed(text: "hello")))
-        XCTAssertNil(ASRStreamingEvent(mlxEvent: .provisional(text: "world")))
-        XCTAssertNil(ASRStreamingEvent(mlxEvent: .stats(StreamingStats())))
-    }
-
-    func testCompatibilityGenerationOptionsPreserveDecodingControls() {
-        let options = ASRGenerationOptions(
-            maximumTokenCount: 321, temperature: 0.25, topProbabilityThreshold: 0.8,
-            topTokenCount: 12, verbose: true, language: "zh", usePunctuation: false,
-            chunkDurationSeconds: 90, minimumChunkDurationSeconds: 2.5,
-            kvCacheBitWidth: 8, kvCacheGroupSize: 32, kvCacheQuantizedStartTokenCount: 128
-        )
-        let parameters = options.mlxParameters
-        XCTAssertEqual(parameters.maxTokens, 321)
-        XCTAssertEqual(parameters.temperature, Float(0.25))
-        XCTAssertEqual(parameters.topP, Float(0.8))
-        XCTAssertEqual(parameters.topK, 12)
-        XCTAssertTrue(parameters.verbose)
-        XCTAssertEqual(parameters.language, "zh")
-        XCTAssertEqual(parameters.usePunctuation, false)
-        XCTAssertEqual(parameters.chunkDuration, 90)
-        XCTAssertEqual(parameters.minChunkDuration, 2.5)
-        XCTAssertEqual(parameters.kvBits, 8)
-        XCTAssertEqual(parameters.kvGroupSize, 32)
-        XCTAssertEqual(parameters.quantizedKVStart, 128)
-    }
-
     func testReleaseKeepsModelUseUntilOwnedTasksHaveExited() async {
         let runtime = MLXNativeLiveRuntime()
         let session = RuntimeTestStreamingSession()
@@ -186,6 +116,138 @@ final class MLXNativeLiveRuntimeTests: XCTestCase {
         XCTAssertEqual(session.cancelCount, 0)
     }
 
+    func testNativeRetirementDoesNotReleaseModelBeforeCloseBarrier() async throws {
+        let runtime = MLXNativeLiveRuntime()
+        let session = RetiringRuntimeTestSession()
+        let entered = expectation(description: "Native close entered")
+        var barrier: CheckedContinuation<Void, Never>?
+        var releases = 0
+        session.closeOperation = {
+            await withCheckedContinuation { continuation in
+                barrier = continuation
+                entered.fulfill()
+            }
+        }
+        runtime.install(session, pollInterval: .seconds(60), nextSamples: { [] }, shouldContinue: { false },
+                        onEvent: { _ in }, releaseModel: { releases += 1 })
+        runtime.release(cancelSession: true)
+        let waiting = Task { try await runtime.waitForCheckedRetirement() }
+        await fulfillment(of: [entered], timeout: 1)
+        XCTAssertTrue(runtime.hasPendingWork)
+        XCTAssertEqual(releases, 0)
+        barrier?.resume()
+        try await waiting.value
+        XCTAssertEqual(releases, 1)
+        XCTAssertFalse(runtime.hasPendingWork)
+    }
+
+    func testFailedNativeRetirementRetainsOriginalScopeForExplicitRetry() async throws {
+        let runtime = MLXNativeLiveRuntime()
+        let session = RetiringRuntimeTestSession()
+        var releases = 0
+        session.shouldFailClose = true
+        runtime.install(session, pollInterval: .seconds(60), nextSamples: { [] }, shouldContinue: { false },
+                        onEvent: { _ in }, releaseModel: { releases += 1 })
+        runtime.release(cancelSession: false)
+        do {
+            try await runtime.waitForCheckedRetirement()
+            XCTFail("Unknown Native cleanup was accepted")
+        } catch RetiringRuntimeTestSession.Failure.retained {}
+        XCTAssertTrue(runtime.hasPendingWork)
+        XCTAssertEqual(releases, 0)
+        XCTAssertEqual(session.closeAttempts, 1)
+        do {
+            try await runtime.waitForCheckedRetirement()
+            XCTFail("A second wait hid unknown cleanup")
+        } catch RetiringRuntimeTestSession.Failure.retained {}
+        XCTAssertEqual(session.closeAttempts, 1)
+        session.shouldFailClose = false
+        try await runtime.retryRetirement()
+        XCTAssertEqual(session.closeAttempts, 2)
+        XCTAssertEqual(releases, 1)
+        XCTAssertFalse(runtime.hasPendingWork)
+    }
+
+    func testAbandonedNativeRuntimeRemainsOwnedUntilExplicitSuccessfulClose() async throws {
+        var runtime: MLXNativeLiveRuntime? = MLXNativeLiveRuntime()
+        weak var retainedRuntime = runtime
+        let session = RetiringRuntimeTestSession()
+        var releases = 0
+        runtime?.install(session, pollInterval: .seconds(60), nextSamples: { [] }, shouldContinue: { false },
+                         onEvent: { _ in }, releaseModel: { releases += 1 })
+        runtime = nil
+        XCTAssertNotNil(retainedRuntime)
+        XCTAssertEqual(session.closeAttempts, 0)
+        XCTAssertEqual(releases, 0)
+        retainedRuntime?.release(cancelSession: true)
+        try await retainedRuntime?.waitForCheckedRetirement()
+        XCTAssertEqual(session.closeAttempts, 1)
+        XCTAssertEqual(releases, 1)
+        XCTAssertNil(retainedRuntime)
+    }
+
+    func testProvenNativeCloseReleasesAbandonedRuntimeAndModelUse() async {
+        var runtime: MLXNativeLiveRuntime? = MLXNativeLiveRuntime()
+        weak var retainedRuntime = runtime
+        let session = RetiringRuntimeTestSession()
+        let released = expectation(description: "proven Native close released model use")
+        runtime?.install(session, pollInterval: .seconds(60), nextSamples: { [] }, shouldContinue: { false },
+                         onEvent: { _ in }, releaseModel: { released.fulfill() })
+        runtime = nil
+        XCTAssertNotNil(retainedRuntime)
+        session.completeNativeClose()
+        await fulfillment(of: [released], timeout: 1)
+        XCTAssertNil(retainedRuntime)
+        XCTAssertEqual(session.closeAttempts, 1)
+    }
+
+    func testExternalProvenNativeCloseRetiresAbandonedFailedScope() async throws {
+        var runtime: MLXNativeLiveRuntime? = MLXNativeLiveRuntime()
+        weak var retainedRuntime = runtime
+        let session = RetiringRuntimeTestSession()
+        session.shouldFailClose = true
+        let released = expectation(description: "original scope released after external Native close")
+        runtime?.install(session, pollInterval: .seconds(60), nextSamples: { [] }, shouldContinue: { false },
+                         onEvent: { _ in }, releaseModel: { released.fulfill() })
+        runtime?.release(cancelSession: true)
+        do {
+            try await runtime?.waitForCheckedRetirement()
+            XCTFail("Unknown Native cleanup was accepted")
+        } catch RetiringRuntimeTestSession.Failure.retained {}
+        runtime = nil
+        XCTAssertNotNil(retainedRuntime)
+        session.shouldFailClose = false
+        session.completeNativeClose()
+        await fulfillment(of: [released], timeout: 1)
+        XCTAssertNil(retainedRuntime)
+        XCTAssertEqual(session.closeAttempts, 2)
+    }
+
+    func testNativeCleanupFailureDoesNotReleaseReplacementScope() async throws {
+        let runtime = MLXNativeLiveRuntime()
+        let original = RetiringRuntimeTestSession()
+        let replacement = RetiringRuntimeTestSession()
+        original.shouldFailClose = true
+        var releases: [String] = []
+        runtime.install(original, pollInterval: .seconds(60), nextSamples: { [] }, shouldContinue: { false },
+                        onEvent: { _ in }, releaseModel: { releases.append("original") })
+        runtime.install(replacement, pollInterval: .seconds(60), nextSamples: { [] }, shouldContinue: { false },
+                        onEvent: { _ in }, releaseModel: { releases.append("replacement") })
+        do {
+            try await runtime.waitForCheckedRetirement()
+            XCTFail("Unknown original cleanup was accepted")
+        } catch RetiringRuntimeTestSession.Failure.retained {}
+        XCTAssertTrue(runtime.session === replacement)
+        XCTAssertEqual(releases, [])
+        original.shouldFailClose = false
+        try await runtime.retryRetirement()
+        XCTAssertEqual(releases, ["original"])
+        XCTAssertTrue(runtime.session === replacement)
+        runtime.release(cancelSession: true)
+        try await runtime.waitForCheckedRetirement()
+        XCTAssertEqual(releases, ["original", "replacement"])
+    }
+
     private func install(_ session: RuntimeTestStreamingSession, in runtime: MLXNativeLiveRuntime, release: @escaping @MainActor () -> Void) {
         runtime.install(session, pollInterval: .seconds(60), nextSamples: { [] }, shouldContinue: { false }, onEvent: { _ in }, releaseModel: release)
     }
@@ -213,4 +275,43 @@ nonisolated private final class RuntimeTestStreamingSession: ASRStreamingSession
     func stop() { lock.lock(); stops += 1; lock.unlock(); continuation.finish() }
     func cancel() { lock.lock(); cancellations += 1; lock.unlock(); continuation.finish() }
     func emit(_ text: String) { continuation.yield(.displayUpdate(confirmedText: text, provisionalText: "")) }
+}
+
+@MainActor
+private final class RetiringRuntimeTestSession: ASRRetiringStreamingSession {
+    enum Failure: Error { case retained }
+    nonisolated let events: AsyncStream<ASRStreamingEvent>
+    private nonisolated let continuation: AsyncStream<ASRStreamingEvent>.Continuation
+    var closeAttempts = 0
+    var shouldFailClose = false
+    var closeOperation: (@MainActor () async -> Void)?
+    private var permanentCloseObserver: (@MainActor () -> Void)?
+
+    func notifyWhenPermanentlyClosed(_ observer: @escaping @MainActor () -> Void) {
+        permanentCloseObserver = observer
+    }
+
+    func completeNativeClose() {
+        continuation.finish()
+        let observer = permanentCloseObserver
+        permanentCloseObserver = nil
+        observer?()
+    }
+
+    init() {
+        let stream = AsyncStream<ASRStreamingEvent>.makeStream()
+        events = stream.stream
+        continuation = stream.continuation
+    }
+
+    nonisolated func feedAudio(samples: [Float]) {}
+    nonisolated func stop() { continuation.finish() }
+    nonisolated func cancel() { continuation.finish() }
+
+    func closeAndWait() async throws {
+        closeAttempts += 1
+        await closeOperation?()
+        if shouldFailClose { throw Failure.retained }
+        completeNativeClose()
+    }
 }

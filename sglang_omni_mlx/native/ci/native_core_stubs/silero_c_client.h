@@ -87,8 +87,12 @@ _Static_assert(OMNI_SILERO_SAMPLE_RATE == 16000 &&
 
 static void check_silero_c_abi(void) {
   OmniSileroHandle *(*create)(const char *, char **) = omni_silero_create;
+  int (*create_checked)(const char *, OmniSileroHandle **, char **) =
+      omni_silero_create_checked;
   void (*cancel)(OmniSileroHandle *) = omni_silero_cancel;
   void (*destroy)(OmniSileroHandle *) = omni_silero_destroy;
+  int (*destroy_checked)(OmniSileroHandle *, char **) =
+      omni_silero_destroy_checked;
   OmniSileroRequest *(*request_create)(void) = omni_silero_request_create;
   void (*request_cancel)(OmniSileroRequest *) = omni_silero_request_cancel;
   void (*request_destroy)(OmniSileroRequest *) = omni_silero_request_destroy;
@@ -106,13 +110,26 @@ static void check_silero_c_abi(void) {
   void (*stream_cancel)(OmniSileroStream *) = omni_silero_stream_cancel;
   int (*drain)(OmniSileroStream *, char **) = omni_silero_stream_drain;
   void (*stream_destroy)(OmniSileroStream *) = omni_silero_stream_destroy;
+  int (*stream_destroy_checked)(OmniSileroStream *, char **) =
+      omni_silero_stream_destroy_checked;
   void (*stream_result_free)(OmniSileroStreamResult *) =
       omni_silero_stream_result_free;
   char *error = NULL;
   assert(create(NULL, &error) == NULL && error != NULL);
   omni_string_free(error);
+  OmniSileroHandle *model = (OmniSileroHandle *)(uintptr_t)1;
+  assert(create_checked(NULL, &model, &error) == 0);
+  assert(model == NULL && error != NULL);
+  omni_string_free(error);
+  assert(create_checked(".", NULL, &error) == 0 && error != NULL);
+  omni_string_free(error);
+  assert(create_checked("", &model, &error) == 0);
+  assert(model == NULL && error != NULL);
+  omni_string_free(error);
   cancel(NULL);
   destroy(NULL);
+  assert(destroy_checked(NULL, &error) == 1 && error == NULL);
+  assert(stream_destroy_checked(NULL, &error) == 1 && error == NULL);
   OmniSileroRequest *request = request_create();
   assert(request != NULL);
   request_cancel(request);

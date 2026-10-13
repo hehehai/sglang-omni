@@ -14,17 +14,12 @@ namespace omni_native {
 static_assert(OMNI_SILERO_FRAME_SAMPLES == silero_vad::kChunkSamples);
 static_assert(OMNI_SILERO_SAMPLE_RATE == silero_vad::kSampleRate);
 
-SileroWorker::SileroWorker(std::filesystem::path model_directory)
-    : worker_thread(
-          [this, directory = std::move(model_directory)] { Run(directory); }) {
+bool SileroWorker::Load(std::filesystem::path model_directory) {
+  worker_thread = std::thread(
+      [this, directory = std::move(model_directory)] { Run(directory); });
   std::unique_lock<std::mutex> lock(worker_mutex);
   worker_condition.wait(lock, [this] { return is_ready; });
-  if (load_failed) {
-    lock.unlock();
-    worker_thread.join();
-    throw std::runtime_error("Silero initialization failed.");
-  } else {
-  }
+  return !load_failed;
 }
 
 SileroWorker::~SileroWorker() {
@@ -33,10 +28,18 @@ SileroWorker::~SileroWorker() {
     is_stopping = true;
   }
   worker_condition.notify_one();
-  worker_thread.join();
+  if (worker_thread.joinable()) {
+    worker_thread.join();
+  } else {
+  }
 }
 
 void SileroWorker::Execute(SileroCommand &command) {
+  // Note (OpenAI): thread startup failure leaves an owned shell with no work.
+  if (!worker_thread.joinable()) {
+    return;
+  } else {
+  }
   std::unique_lock<std::mutex> lock(worker_mutex);
   queued_command = &command;
   worker_condition.notify_one();
@@ -68,10 +71,7 @@ void SileroWorker::Run(const std::filesystem::path &model_directory) noexcept {
     is_ready = true;
   }
   worker_condition.notify_one();
-  if (initialization_failed) {
-    return;
-  } else {
-  }
+  // Note (OpenAI): failed construction can leave queued GPU work for DrainAll.
   while (true) {
     SileroCommand *command;
     {
@@ -169,13 +169,19 @@ void SileroWorker::Run(const std::filesystem::path &model_directory) noexcept {
         break;
       }
       case SileroOperation::Drain:
+        mlx::core::synchronize();
         stream_states[command->stream->slot].reset();
         command->stream->pending_sample_count = 0;
+        mlx::core::synchronize();
         break;
       case SileroOperation::DrainAll:
+        mlx::core::synchronize();
         for (auto &state : stream_states) {
           state.reset();
         }
+        model.reset();
+        mlx::core::clear_cache();
+        mlx::core::synchronize();
         break;
       }
     } catch (const SileroCancelled &) {

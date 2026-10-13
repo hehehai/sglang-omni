@@ -53,12 +53,22 @@ namespace silero_vad {
 SileroVAD::SileroVAD(const std::filesystem::path &model_directory) {
   auto &backend = omni_test::SileroState();
   {
-    std::lock_guard<std::mutex> lock(backend.mutex);
+    std::unique_lock<std::mutex> lock(backend.mutex);
     assert(std::filesystem::is_directory(model_directory));
     backend.loading_thread = std::this_thread::get_id();
     ++backend.load_count;
+    backend.changed.notify_all();
+    assert(backend.changed.wait_for(lock, std::chrono::seconds(10), [&] {
+      return !backend.block_load || backend.release_load;
+    }));
   }
   weights_.insert_or_assign("test_model_lifetime", mlx::core::array(true));
+  std::lock_guard lock(backend.mutex);
+  if (backend.load_failure != omni_test::Failure::kNone) {
+    ++backend.pending_constructor_work_count;
+    ++backend.pending_constructor_cache_count;
+  } else {
+  }
   if (backend.load_failure == omni_test::Failure::kStandard) {
     throw std::runtime_error("PRIVATE model /private/model/path");
   } else if (backend.load_failure == omni_test::Failure::kNonstandard) {

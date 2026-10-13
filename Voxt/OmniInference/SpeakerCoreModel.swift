@@ -19,7 +19,7 @@ nonisolated final class SpeakerCoreModel: @unchecked Sendable {
             self.directoryLease = directoryLease
             defer { loadReturned = true }
             guard Int(omni_core_abi_version()) == OmniXPCProtocolLimits.abiVersion,
-                  OmniXPCProtocolLimits.abiVersion == 9 else {
+                  OmniXPCProtocolLimits.abiVersion == 10 else {
                 throw OmniXPCFailure.error(.incompatibleService, "The Native Core ABI is incompatible.")
             }
             var created: OpaquePointer?

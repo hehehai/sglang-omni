@@ -2,7 +2,7 @@
 import Foundation
 
 public nonisolated enum OmniXPCProtocolLimits {
-    public static let abiVersion = 9
+    public static let abiVersion = 10
     public static let sampleRate = 16_000
     public static let maximumAudioSeconds = 30
     public static let maximumSampleCount = sampleRate * maximumAudioSeconds
@@ -207,6 +207,7 @@ public nonisolated enum OmniXPCRequestValidation {
         withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void
     )
     func unloadSilero(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
+    func drainSileroLoad(operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void)
     func sileroSpeechTimestamps(
         requestID: String, modelID: String, audio: Data, settings: Data,
         withReply reply: @escaping @Sendable (Data?, NSError?) -> Void

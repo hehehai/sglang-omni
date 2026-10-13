@@ -176,6 +176,10 @@ nonisolated final class OmniInferenceSession: NSObject, OmniInferenceXPCProtocol
         sileroEngine.unload(operationID: operationID, modelID: modelID, lifetime: sileroLifetime, reply: reply)
     }
 
+    func drainSileroLoad(operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void) {
+        sileroEngine.drainLoad(operationID: operationID, lifetime: sileroLifetime, reply: reply)
+    }
+
     func sileroSpeechTimestamps(
         requestID: String, modelID: String, audio: Data, settings: Data,
         withReply reply: @escaping @Sendable (Data?, NSError?) -> Void

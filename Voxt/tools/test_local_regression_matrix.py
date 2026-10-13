@@ -143,6 +143,20 @@ class OmniXPCPackagingTests(unittest.TestCase):
         self.assertIsNotNone(match, identifier)
         return match[1]
 
+    def test_native_asr_retirement_keeps_llm_tokenizers_explicitly_linked(self) -> None:
+        project = (ROOT / "Voxt.xcodeproj/project.pbxproj").read_text()
+        self.assertNotIn("MLXAudioSTT", project)
+        self.assertIn("productName = Tokenizers;", self.project_object("A0BC00000000000000000102"))
+        self.assertIn("A0BC00000000000000000101", self.project_object("31F19CCA2F4D76D200E96913"))
+        self.assertIn("A0BC00000000000000000102", self.project_object("31F19CCC2F4D76D200E96913"))
+        package = self.project_object("A0BC00000000000000000103")
+        self.assertIn('repositoryURL = "https://github.com/huggingface/swift-transformers.git";', package)
+        self.assertIn("kind = exactVersion;", package)
+        self.assertIn("version = 1.3.4;", package)
+        for directory in (ROOT / "Voxt", ROOT / "VoxtTests"):
+            for source in directory.rglob("*.swift"):
+                self.assertNotIn("import MLXAudioSTT", source.read_text(), str(source))
+
     def test_service_is_explicit_and_default_build_graph_is_unchanged(self) -> None:
         host = self.project_object("31F19CCC2F4D76D200E96913")
         self.assertRegex(host, r"dependencies = \(\s*\);")
@@ -154,7 +168,7 @@ class OmniXPCPackagingTests(unittest.TestCase):
             "OmniSessionLifecycle.swift", "QwenCoreRealtimeLease.swift", "OmniRealtimeSession.swift",
             "OmniRealtimeSessionEngine.swift", "SileroCoreModel.swift", "OmniSileroInferenceEngine.swift",
             "SileroCoreStreamLease.swift", "OmniSileroOfflineInference.swift", "OmniSileroStream.swift", "OmniSileroStreamingEngine.swift",
-            "SortformerCoreModel.swift", "SortformerCoreStreamLease.swift", "OmniSortformerInferenceEngine.swift",
+            "OmniSileroModelCleanup.swift", "SortformerCoreModel.swift", "SortformerCoreStreamLease.swift", "OmniSortformerInferenceEngine.swift",
             "OmniSortformerStream.swift", "OmniSortformerStreamingEngine.swift", "OmniSortformerRPC.swift",
             "OmniSortformerModelCleanup.swift",
             "BatchCoreModel.swift", "BatchCoreOptions.swift", "BatchCoreRequest.swift",

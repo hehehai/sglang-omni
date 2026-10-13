@@ -35,6 +35,12 @@ final class OmniXPCClient {
     var realtimeSession: OmniXPCRealtimeClientState?
     var sileroStreams: [UUID: OmniXPCSileroStreamState] = [:]
     var closedSileroStreams: [UUID: OmniXPCSileroStreamReference] = [:]
+    var sileroModel: OmniXPCSileroModelState?
+    var pendingSileroLoad: OmniXPCSileroLoadState?
+    var sileroLoadCleanup: OmniXPCSileroLoadCleanup?
+    var sileroLoadIDs: Set<UUID> = []
+    var closedSileroLoadIDs: Set<UUID> = []
+    var closedSileroModels: [UUID: OmniXPCSileroModelReference] = [:]
     var sortformerStreams: [UUID: OmniXPCSortformerStreamState] = [:]
     var closedSortformerStreams: [UUID: OmniXPCSortformerStreamReference] = [:]
     var sortformerModel: OmniXPCSortformerModelState?
@@ -160,8 +166,7 @@ final class OmniXPCClient {
         let transport = connection?.transport
         connection = nil
         realtimeSession = nil
-        sileroStreams.removeAll()
-        closedSileroStreams.removeAll()
+        // note (assistant): Disconnect is not proof of Silero Native retirement.
         sortformerStreams.removeAll()
         closedSortformerStreams.removeAll()
         sortformerModel = nil
@@ -273,8 +278,7 @@ final class OmniXPCClient {
         let transport = connection?.transport
         connection = nil
         realtimeSession = nil
-        sileroStreams.removeAll()
-        closedSileroStreams.removeAll()
+        // note (assistant): Preserve Silero load/model/stream claims on the originating connection.
         transport?.invalidate()
         sortformerStreams.removeAll()
         closedSortformerStreams.removeAll()

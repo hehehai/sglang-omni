@@ -4,7 +4,7 @@ import OmniXPCContracts
 #if os(macOS)
 /// An opt-in bounded ASR consumer that permanently closes its entrusted model owner.
 @MainActor
-final class OmniXPCSpeakerStreamingSession: ASRStreamingSession {
+final class OmniXPCSpeakerStreamingSession: ASRRetiringStreamingSession {
     nonisolated let events: AsyncStream<ASRStreamingEvent>
     private nonisolated let buffer: OmniXPCStreamingBuffer
     private let owner: OmniXPCSpeakerModelOwner
@@ -14,6 +14,8 @@ final class OmniXPCSpeakerStreamingSession: ASRStreamingSession {
     private var worker: Task<Void, Error>?
     private var closing: (id: UUID, task: Task<Void, Error>)?
     private var retainedUntilClosed: OmniXPCSpeakerStreamingSession?
+    private var permanentCloseObserver: (@MainActor () -> Void)?
+    private var didPermanentlyClose = false
 
     static func open(
         owner: OmniXPCSpeakerModelOwner, settings: OmniXPCSpeakerSettings,
@@ -28,7 +30,7 @@ final class OmniXPCSpeakerStreamingSession: ASRStreamingSession {
             owner: owner, requestTimeout: requestTimeout, cleanupTimeout: cleanupTimeout, pollInterval: pollInterval
         )
         session.retainedUntilClosed = session
-        owner.notifyWhenPermanentlyClosed { [weak session] in session?.retainedUntilClosed = nil }
+        owner.notifyWhenPermanentlyClosed { [weak session] in session?.modelDidPermanentlyClose() }
         let worker = Task { @MainActor [session] in try await session.run() }
         session.worker = worker
         session.buffer.install(worker: worker)
@@ -50,6 +52,23 @@ final class OmniXPCSpeakerStreamingSession: ASRStreamingSession {
     nonisolated func feedAudio(samples: [Float]) { buffer.feedAudio(samples: samples) }
     nonisolated func stop() { buffer.stop() }
     nonisolated func cancel() { buffer.cancel() }
+
+    func notifyWhenPermanentlyClosed(_ observer: @escaping @MainActor () -> Void) {
+        if didPermanentlyClose {
+            observer()
+        } else {
+            precondition(permanentCloseObserver == nil, "A speaker session can be entrusted to only one retiring runtime.")
+            permanentCloseObserver = observer
+        }
+    }
+
+    private func modelDidPermanentlyClose() {
+        didPermanentlyClose = true
+        retainedUntilClosed = nil
+        let observer = permanentCloseObserver
+        permanentCloseObserver = nil
+        observer?()
+    }
 
     func waitUntilClosed() async throws { try await worker?.value }
 

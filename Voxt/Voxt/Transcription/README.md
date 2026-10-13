@@ -61,8 +61,8 @@ are identity-scoped and cleanup tasks are uncancelled and coalesced. Await close
 while retaining the owner; deinit is not a barrier. Finite mono16k chunks contain
 1...32000 samples, with at most 480000 samples per session. These are opt-in
 transport bounds, not production recording limits or longform support.
-Core/helper/App require matched ABI9 artifacts; production factories and actual
-SDK/signed NSXPC/Metal acceptance remain unchanged and pending, respectively.
+Core/helper/App require matched ABI10 artifacts. Production factories remain
+unchanged; scoped real SDK/Metal checks do not establish signed NSXPC acceptance.
 
 `OmniXPCSpeakerStreamingSession.open(owner:settings:)` consumes an explicitly
 prepared Owner through the actual `ASRStreamingSession` seam. It permanently
@@ -88,8 +88,10 @@ not be mistaken for this adapter's Native barrier.
 
 `MLXCorrectionPassCoordinator` owns the one in-flight correction pass. Cancelling a pass does not free its slot until the task has exited; final passes wait for retiring intermediate work. The transcriber still owns session revision and model leases, and verifies them after asynchronous inference/archive work.
 
-`MLXNativeLiveRuntime` owns an installed native stream, event/feed tasks and its transferred model use. Replacement/retirement keeps old tasks separate from the new stream, and releases the use once Voxt's tasks exit; abandoned owners also cancel and retire their stream. Setup, session loops/finalization/preload/watchdogs and early prewarm use tracked-task stores so cancelled work remains visible during shutdown and blocks idle reclamation until exit. Audio-engine startup cancellation requests stop, but still waits for the native start call; this is not a hard native-exit deadline.
+`MLXNativeLiveRuntime` owns an installed stream, event/feed tasks and its transferred model use. For ASRRetiringStreamingSession it additionally awaits checked permanent Native retirement before releasing model use. Failure retains the original scope and use for explicit retry. Actual Owner-close notification waits for final event consumption before retiring an abandoned runtime, and cannot retire its replacement. Other transports retain task-only retirement semantics. Setup, session loops/finalization/preload/watchdogs and early prewarm use tracked-task stores so cancelled work remains visible during shutdown and blocks idle reclamation until exit. Audio-engine startup cancellation requests stop, but still waits for the native start call; this is not a hard native-exit deadline.
 
-This is not a native decode/Metal completion barrier: the dependency's synchronous `cancel()` has no awaitable internal-worker completion API. Verify actual model memory/cancellation behavior separately.
+Transport task completion, synchronous cancel, terminal events and empty polls are not native decode/Metal barriers. Only the explicitly entrusted retiring-session contract reaches the checked original-load barrier; verify the remaining transports separately.
+
+Audio STT loaders, numerical decoding, streaming/result compatibility adapters and product links are retired. Native HTTP family behavior/long-form options remain unchanged. Model-loader lifecycle tests use an identity-only fixture that cannot transcribe; they are not an alternative inference implementation. Audio VAD/Core consumers still prevent full package unlink.
 
 Keep `nonisolated` inference, cancellation propagation and the existing buffer locks intact when moving code. The source split does not introduce another model/session owner. See the [phase record](../../docs/RefactoringProgress.zh-CN.md) before changing runtime ownership.

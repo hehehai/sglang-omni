@@ -140,7 +140,7 @@ def run(mode, run_id=None):
     return json.loads(reports[0])
 
 prepared = run('prepare')
-expected_abi_version = 9
+expected_abi_version = 10
 if prepared.get('status') != 'prepared' or prepared.get('abi_version') != expected_abi_version:
     raise RuntimeError('The signed service did not complete its ABI/container probe.')
 container = pathlib.Path(prepared['group_container'])

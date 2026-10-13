@@ -1002,7 +1002,18 @@ ABI8检查点时下一步为两family actualhelper RPC+原loadscope非evictledge
 - spctl执行评估明确拒绝source=Unnotarized Developer ID，非签名无效；不把拒绝改报通过。任务GUI agents卸载、Mac临时keychain/P12/密码和本地解码副本删除，有效identity数量恢复原4。原上传材料保留，不进入仓库/证据包。
 - 真机发现build_omni_xpc_smoke.sh将--test-requirement表达式误当文件路径：需要前导=。修正两实际调用参数且保留anchor/Team/identifier，真实同签副本修正后通过；portable测试执行实际shell/嵌入Python参数构造，防止退回filename。签名/CI/release defaults、Native数值/ABI均未改。
 
-下一步是production调用方显式await Native retirement的所有权接入、meeting消费者与六family longform的family-specific语义、sharedcache/repair/blob/orphan/recovery、余下Audio迁移/unlink和剩余真实平台门槛；不自动发布localcheckpoint。
+### Audio STT退役与ABI10 Silero原始加载退休
+
+- 移除AudioSTT数值加载/解码、live/result兼容adapter及三个旧loader文件，App/tests零MLXAudioSTT imports，解除该product链接。Native HTTP各family实现/longform参数及catalog/保存选择/installedweights保持。loader生命周期override使用无数值/无生成能力的identity fixture，推理明确拒绝，不是fallback。
+- 真Mac首次去链接暴露LocalTokenizerLoader隐式借用STT的Tokenizers/Hub/yyjson graph，编译报缺yyjson。App显式链接已锁定swift-transformers 1.3.4 Tokenizers后通过；实际Mac resolver仅使用原resolved版本，最终Package.resolved字节与原文件一致。保留MLX Swift LLM/VLM/MLX/llama/Remote。
+- Runtime的ASRRetiringStreamingSession在feed/event tasks结束后还需checked永久close，失败保留原session/reader用途closure与runtime，显式同scope重试。审查真实CPU链复现初版self-retention在Native已成功关闭后泄漏（P2），已修复：仅转发Owner实际checked permanent-close通知，先等最终event消费，再处理原Active/原failed记录，不能退休替换者。新增两个公开弱引用回归；原失败、修后相同回归、notification删除负控制全部保留。legacy transport任务结束仍不是Native退出proof。shutdown观察checked失败，不提前释放session pin。
+- ABI10严格匹配Core/helper/contracts/App与实际drainSileroLoad selector；Native72 exports，新增Silero checked create/model destroy/stream destroy。所有raw calls先retain storage再受销毁gate约束；stream lease未退休不能destroy model。256非evicting原loadledger/tombstones覆盖未发布load、lostclose/unload replies与迟到load；disconnect保留client claim，不自动换连接。
+- 首轮checked destroy仍遗漏throwing constructor的GPU义务，真实client/helper/Core CPU检测链复现Reader released early。现注册worker/Core shell在构造前，failed checked create保留非null owned output及活worker；helper先拥有reader shell，再保存返回handle并抛错；sync/cache/post-cache-sync失败保留原handle/reader直到原scope重试通过。不是nil maps/arrays归零/Cancel ACK证明。
+- 最终主机Clang ASan/UBSan/float-cast-overflow Core103+batch104+speaker298=505通过；Contracts119（118通过/1 Linux skip）；tools66、全量hooks通过。Silero实际raw client/helper/Core CPU链14 scenarios/config、client26/config通过。独立runtime修后21 methods/config、相同真实CPU链abandonment回归及32 scenarios、检测控制通过；平台/数值hooks均明确标记，strict Linux XCTest discovery旧限制保留。
+- 真Mac最终全量TestDebug 2024（1981通过/43skip/0失败）、Contracts119/0skip/0失败；实际匹配ABI10/72 exports arm64/MLX-Metal Core构建、helper SDK编译（unsigned compile-only group placeholder，未执行helper）通过。真实Silero-v6权重/Metal直接C链覆盖checked create、失败构造owned output、offline/stream feed/finish、busy model release拒绝及checked原handle退休。初次build缺task-only uv、私有C harness误用error-free符号、重复install已删除rpath的非fatal stderr保留；未改数值、未覆盖个人数据、未签名/公证/注册group或改变CI release defaults。
+- AudioVAD/Core仍有消费者，不能解除整个Audio package。以上不代表生产XPC全切换、longform/meeting完整接入、signed authenticated IPC/AppGroup/sandbox、全family真实模型或release验收。
+
+下一步优先完成Silero owned production消费者、剩余Sortformer/AudioVAD/Core退役、Qwen checked退出观察与XPC longform/production工厂接入，再完成sharedcache/repair/blob/orphan/recovery及剩余真实平台门槛；不自动发布localcheckpoint。
 
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 

@@ -94,12 +94,15 @@ if(APPLE)
       omni_qwen_transcribe_request omni_qwen_realtime_create
       omni_qwen_realtime_push omni_qwen_realtime_finish omni_qwen_realtime_poll
       omni_qwen_realtime_cancel omni_qwen_realtime_drain omni_qwen_realtime_destroy
-      omni_qwen_realtime_event_free omni_silero_create omni_silero_cancel
-      omni_silero_destroy omni_silero_request_create omni_silero_request_cancel
+      omni_qwen_realtime_event_free omni_silero_create omni_silero_create_checked
+      omni_silero_cancel
+      omni_silero_destroy omni_silero_destroy_checked
+      omni_silero_request_create omni_silero_request_cancel
       omni_silero_request_destroy omni_silero_speech_timestamps
       omni_silero_result_free omni_silero_stream_create omni_silero_stream_push
       omni_silero_stream_finish omni_silero_stream_cancel omni_silero_stream_drain
-      omni_silero_stream_destroy omni_silero_stream_result_free
+      omni_silero_stream_destroy omni_silero_stream_destroy_checked
+      omni_silero_stream_result_free
       omni_sortformer_create omni_sortformer_cancel omni_sortformer_destroy
       omni_sortformer_stream_create omni_sortformer_stream_push
       omni_sortformer_stream_finish omni_sortformer_stream_cancel

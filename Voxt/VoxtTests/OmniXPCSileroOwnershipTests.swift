@@ -184,7 +184,7 @@ nonisolated final class OmniXPCSileroOwnershipTests: XCTestCase {
         }
         let batch = try await client.pushSileroAudio(Data(repeating: 0, count: 2048), to: healthy, sequence: 1)
         XCTAssertEqual(batch.probabilities, [0.25])
-        XCTAssertEqual(service.startCount, 33)
+        XCTAssertEqual(service.startCount, 1)
         XCTAssertEqual(service.cancelCount, 0)
         XCTAssertEqual(service.closeCount, 0)
         XCTAssertEqual(client.connectionIdentifier, unloadedModel.connectionID)
@@ -318,6 +318,70 @@ nonisolated final class OmniXPCSileroOwnershipTests: XCTestCase {
     }
 
     @MainActor
+    func testOriginalLoadCloseRetainsClaimsAfterFailureAndLostReply() async throws {
+        let (client, model, service) = try await fixture()
+        let original = service.loadOperationID
+        service.drainFailure = OmniXPCFailure.error(.nativeFailure, "Controlled checked destruction failure")
+        do { try await client.closeSileroModel(model); XCTFail("Failed destruction certified release") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.nativeFailure.rawValue) }
+        XCTAssertEqual(client.sileroModel?.reference, model)
+        service.drainFailure = nil
+        service.loseDrainReply = true
+        do { try await client.closeSileroModel(model, timeout: .milliseconds(10)); XCTFail("Lost reply certified release") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.timedOut.rawValue) }
+        XCTAssertEqual(client.sileroModel?.reference, model)
+        service.loseDrainReply = false
+        try await client.closeSileroModel(model)
+        XCTAssertEqual(service.drainedLoadOperationID, original)
+        XCTAssertNil(client.sileroModel)
+        let replacement = try await client.loadSilero(modelDirectory: "Models/replacement")
+        try await client.closeSileroModel(model)
+        XCTAssertEqual(client.sileroModel?.reference, replacement)
+        try await client.closeSileroModel(replacement)
+    }
+
+    @MainActor
+    func testFailedUnpublishedLoadAndDisconnectKeepOriginalTicket() async throws {
+        let (client, model, service) = try await fixture()
+        try await client.unloadSilero(model)
+        service.corruptLoadIdentity = true
+        service.drainFailure = OmniXPCFailure.error(.nativeFailure, "Controlled destruction failure")
+        let operationID = UUID()
+        do { _ = try await client.loadSilero(modelDirectory: "Models/silero", operationID: operationID); XCTFail("Malformed load succeeded") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.nativeFailure.rawValue) }
+        XCTAssertEqual(client.pendingSileroLoad?.operationID, operationID)
+        do { try await client.closePendingSileroLoad(requiredOperationID: UUID()); XCTFail("Wrong owner retired load") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.invalidRequest.rawValue) }
+        client.invalidate()
+        do { try await client.closePendingSileroLoad(requiredOperationID: operationID); XCTFail("Disconnect certified retirement") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.disconnected.rawValue) }
+        XCTAssertEqual(client.pendingSileroLoad?.connectionID, model.connectionID)
+        do { _ = try await client.loadSilero(modelDirectory: "Models/replacement"); XCTFail("Unknown load discarded") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.busy.rawValue) }
+        XCTAssertEqual(service.drainCount, 1)
+    }
+
+    @MainActor
+    func testLoadedModelAndStreamClaimsSurviveDisconnect() async throws {
+        let (client, model, service) = try await fixture()
+        let stream = try await client.startSileroStream(model: model)
+        client.invalidate()
+        XCTAssertEqual(client.sileroModel?.reference, model)
+        XCTAssertEqual(client.sileroStreams[stream.streamID]?.reference, stream)
+        do { try await client.closeSileroModel(model); XCTFail("Disconnected close certified release") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.disconnected.rawValue) }
+        XCTAssertEqual(service.drainCount, 0)
+    }
+
+    @MainActor
+    func testMissingTicketCannotProveExplicitOwnerRetirement() async throws {
+        let (client, _, service) = try await fixture()
+        do { try await client.closePendingSileroLoad(requiredOperationID: UUID()); XCTFail("Missing ticket certified release") }
+        catch { XCTAssertEqual((error as NSError).code, OmniXPCFailure.Code.invalidRequest.rawValue) }
+        XCTAssertEqual(service.drainCount, 0)
+    }
+
+    @MainActor
     private func fixture() async throws -> (OmniXPCClient, OmniXPCSileroModelReference, OwnershipTestService) {
         let service = OwnershipTestService()
         NSXPCConnection.setup = { $0.exportedObject = service }
@@ -393,6 +457,13 @@ private nonisolated final class OwnershipTestService: OmniInferenceXPCProtocol {
 
     var modelID = UUID()
     let serviceInstanceID = UUID()
+    var loadOperationID: String?
+    var drainedLoadOperationID: String?
+    var drainFailure: NSError?
+    var drainCount = 0
+    var loseDrainReply = false
+    var corruptLoadIdentity = false
+    private var retiredLoads: Set<String> = []
     private var isModelLoaded = false
     var startCount = 0
     var pushCount = 0
@@ -422,14 +493,26 @@ private nonisolated final class OwnershipTestService: OmniInferenceXPCProtocol {
         closeReply = nil
     }
     func loadSilero(operationID: String, modelDirectory: String, withReply reply: @escaping @Sendable (String?, String?, NSError?) -> Void) {
-        if !isModelLoaded { modelID = UUID(); isModelLoaded = true }
-        reply(modelID.uuidString, serviceInstanceID.uuidString, nil)
+        if !isModelLoaded { modelID = UUID(); isModelLoaded = true; loadOperationID = operationID }
+        reply(modelID.uuidString, corruptLoadIdentity ? nil : serviceInstanceID.uuidString, nil)
     }
     func unloadSilero(operationID: String, modelID: String, withReply reply: @escaping @Sendable (NSError?) -> Void) {
         guard isModelLoaded, modelID == self.modelID.uuidString else { reply(unused); return }
         guard receivedSamples.isEmpty else { reply(OmniXPCFailure.error(.busy, "Undrained test streams")); return }
         isModelLoaded = false
+        if let loadOperationID { retiredLoads.insert(loadOperationID) }
         reply(nil)
+    }
+    func drainSileroLoad(operationID: String, withReply reply: @escaping @Sendable (NSError?) -> Void) {
+        drainCount += 1
+        drainedLoadOperationID = operationID
+        if let drainFailure { reply(drainFailure); return }
+        guard retiredLoads.contains(operationID) || operationID == loadOperationID else { reply(unused); return }
+        retiredLoads.insert(operationID)
+        isModelLoaded = false
+        receivedSamples.removeAll()
+        sequences.removeAll()
+        if !loseDrainReply { reply(nil) }
     }
     func startSileroStream(streamID: String, modelID: String, withReply reply: @escaping @Sendable (String?, NSError?) -> Void) {
         startCount += 1

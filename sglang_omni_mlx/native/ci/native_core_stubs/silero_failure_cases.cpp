@@ -15,6 +15,8 @@ void LoadAndFeedExceptions() {
                               &error) == nullptr);
     CheckSileroError(error);
     assert(backend.live_array_count == 0);
+    assert(backend.pending_constructor_work_count == 0);
+    assert(backend.pending_constructor_cache_count == 0);
     assert(backend.loading_thread == backend.destruction_thread);
     assert(backend.loading_thread != std::this_thread::get_id());
   }

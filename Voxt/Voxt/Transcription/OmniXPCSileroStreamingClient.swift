@@ -78,7 +78,10 @@ extension OmniXPCClient {
         model: OmniXPCSileroModelReference, streamID: UUID = UUID(), timeout: Duration = .seconds(30)
     ) async throws -> OmniXPCSileroStreamReference {
         try Task.checkCancellation()
-        try requireConnection(model.connectionID)
+        let modelState = try requireSileroModel(model)
+        guard !modelState.closing, !modelState.unloading else {
+            throw OmniXPCFailure.error(.busy, "The Silero model is retiring.")
+        }
         guard timeout > .zero, sileroStreams[streamID] == nil,
               closedSileroStreams[streamID] == nil else {
             throw OmniXPCFailure.error(.invalidRequest, "The Silero stream identity or timeout is invalid.")
@@ -235,7 +238,7 @@ extension OmniXPCClient {
         return state
     }
 
-    private func retireSileroStream(_ state: OmniXPCSileroStreamState) {
+    func retireSileroStream(_ state: OmniXPCSileroStreamState) {
         state.drained = true
         guard connectionIdentifier == state.reference.model.connectionID,
               sileroStreams[state.reference.streamID] === state else { return }

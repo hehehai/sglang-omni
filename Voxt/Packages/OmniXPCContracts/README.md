@@ -41,14 +41,14 @@ in the service. Client task ownership, microphone admission, transcript renderin
 and ASRStreamingSession stay in the app. The package does not select production
 backends, load models, retry admitted audio or choose a cloud fallback.
 
-## Bounded speaker realtime RPC (ABI9, opt-in)
+## Bounded speaker realtime RPC (ABI10, opt-in)
 
-The matched Core/helper/App epoch is now 9. The thirteen bounded Native
-MOSS/Nemotron model/stream exports remain unchanged (69 total). ABI9 matches
+The matched Core/helper/App epoch is now 10 (72 Native exports). The thirteen
+bounded Native MOSS/Nemotron model/stream exports remain unchanged. ABI9 introduced
 these ten actual macOS RPC selectors: loadSpeaker, unloadSpeaker,
 drainSpeakerLoad, startSpeakerSession, pushSpeakerAudio, commitSpeakerSession,
 finishSpeakerSession, pollSpeakerEvents, closeSpeakerSession and
-cancelSpeakerRequest. Older epoch8 artifacts must not pass the compatibility gate.
+cancelSpeakerRequest. Older artifacts, including epoch9, must not pass the compatibility gate.
 `OmniXPCSpeakerKind` uses MOSS=1/Nemotron=2, distinct from batch model numbers.
 References bind the complete model/service/connection/original-load UUID scope
 and session UUID. The helper uses a private monotonic UInt64 Native session
@@ -84,10 +84,18 @@ is not actual macOS SDK, signed NSXPC, Metal or model numerical acceptance.
 
 ## Offline Silero contract
 
-The four macOS-gated RPCs are `loadSilero`, `unloadSilero`,
-`sileroSpeechTimestamps` and `cancelSileroRequest`. The streaming extension below
-shares the same model owner. Current Core ABI is 9; production VAD and HTTP routes
-are unchanged.
+The five macOS-gated RPCs are `loadSilero`, `unloadSilero`,
+`sileroSpeechTimestamps`, `cancelSileroRequest` and `drainSileroLoad`. The streaming
+extension below shares the same model owner. Current Core ABI is 10; production
+VAD and HTTP routes are unchanged.
+
+Silero has checked model/stream destruction and checked creation with an owned
+nonnull failure output after model construction begins. The helper registers a
+reader-owning shell before loading; constructor exceptions and failed sync/cache
+retirement retain it for original-scope retry. The connection's non-evicting
+256-entry original-load ledger resolves successful unload and lost close replies.
+Only actual checked original-load retirement releases reader/model/client claims;
+disconnect, cancellation ACK and absent published models are not proof.
 
 `OmniXPCSileroSettings` requires explicit threshold, minimum speech milliseconds,
 minimum silence milliseconds and speech padding milliseconds; no native defaults

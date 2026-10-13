@@ -154,7 +154,9 @@ void StreamModelStop(bool destroy_model) {
     auto has_started = started.get_future();
     destruction = std::async(std::launch::async, [&] {
       started.set_value();
-      model.reset();
+      char *error = nullptr;
+      assert(omni_silero_destroy_checked(model.get(), &error) == 0);
+      CheckSileroError(error);
     });
     has_started.get();
     assert(destruction.wait_for(std::chrono::milliseconds(50)) ==
@@ -167,7 +169,7 @@ void StreamModelStop(bool destroy_model) {
   inference.get();
   if (destruction.valid()) {
     destruction.get();
-    assert(SileroState().live_array_count == 1);
+    assert(SileroState().live_array_count >= 1);
   } else {
     assert(omni_silero_stream_create(model.get(), nullptr) == nullptr);
   }
@@ -266,6 +268,149 @@ void CancelBeforeSubmission() {
   CheckSileroDrain(unused.get());
 }
 
+void CheckedDestructionFailures() {
+  assert(omni_silero_destroy_checked(nullptr, nullptr) == 1);
+  assert(omni_silero_stream_destroy_checked(nullptr, nullptr) == 1);
+  auto model = CreateSileroModel();
+  auto stream = CreateSileroStream(model.get());
+  CheckSileroPush(stream.get(), 1, 512, 512, {0.25f});
+  char *error = nullptr;
+  assert(omni_silero_destroy_checked(model.get(), &error) == 0);
+  CheckSileroError(error);
+  const auto live_arrays = SileroState().live_array_count;
+  State().synchronize_failure_after = 0;
+  assert(omni_silero_stream_destroy_checked(stream.get(), &error) == 0);
+  CheckSileroError(error);
+  assert(SileroState().live_array_count == live_arrays);
+  State().synchronize_failure_after = 1;
+  assert(omni_silero_stream_destroy_checked(stream.get(), &error) == 0);
+  CheckSileroError(error);
+  assert(omni_silero_destroy_checked(model.get(), &error) == 0);
+  CheckSileroError(error);
+  assert(omni_silero_stream_destroy_checked(stream.get(), &error) == 1);
+  assert(error == nullptr);
+  stream.release();
+  State().synchronize_failure_after = 0;
+  assert(omni_silero_destroy_checked(model.get(), &error) == 0);
+  CheckSileroError(error);
+  assert(SileroState().destruction_count == 0);
+  State().synchronize_failure_after = 1;
+  assert(omni_silero_destroy_checked(model.get(), &error) == 0);
+  CheckSileroError(error);
+  assert(omni_silero_stream_create(model.get(), &error) == nullptr);
+  CheckSileroError(error);
+  assert(omni_silero_destroy_checked(model.get(), &error) == 1);
+  assert(error == nullptr);
+  model.release();
+  assert(SileroState().destruction_count == 1);
+}
+
+void CheckedConstructorFailures() {
+  auto &backend = SileroState();
+  for (Failure failure : {Failure::kStandard, Failure::kNonstandard}) {
+    backend.load_failure = failure;
+    State().synchronize_failure_after = SYNCHRONIZE_ALWAYS_FAIL;
+    OmniSileroHandle *model = nullptr;
+    char *error = nullptr;
+    assert(omni_silero_create_checked(std::filesystem::current_path().c_str(),
+                                      &model, &error) == 0);
+    CheckSileroError(error);
+    assert(model != nullptr);
+    assert(backend.live_array_count == 0);
+    assert(backend.pending_constructor_work_count == 1);
+    assert(backend.pending_constructor_cache_count == 1);
+    assert(omni_silero_stream_create(model, &error) == nullptr);
+    CheckSileroError(error);
+    auto request = CreateSileroRequest();
+    const std::vector<float> samples(512, 0.75f);
+    OmniSileroResult result{};
+    assert(omni_silero_speech_timestamps(model, request.get(), samples.data(),
+                                         samples.size(), &SILERO_SETTINGS,
+                                         &result, &error) == 0);
+    CheckSileroError(error);
+    CheckSileroCleared(result);
+    assert(backend.frames.empty());
+    for (int i = 0; i < 3; ++i) {
+      const int attempts = backend.synchronize_attempt_count;
+      assert(omni_silero_destroy_checked(model, &error) == 0);
+      CheckSileroError(error);
+      assert(backend.synchronize_attempt_count == attempts + 1);
+      assert(backend.pending_constructor_work_count == 1);
+      assert(backend.pending_constructor_cache_count == 1);
+    }
+    State().synchronize_failure_after = -1;
+    backend.fail_cache_clear = true;
+    for (int i = 0; i < 2; ++i) {
+      const int attempts = backend.cache_clear_attempt_count;
+      assert(omni_silero_destroy_checked(model, &error) == 0);
+      CheckSileroError(error);
+      assert(backend.cache_clear_attempt_count == attempts + 1);
+      assert(backend.pending_constructor_work_count == 0);
+      assert(backend.pending_constructor_cache_count == 1);
+    }
+    backend.fail_cache_clear = false;
+    State().synchronize_failure_after = 1;
+    assert(omni_silero_destroy_checked(model, &error) == 0);
+    CheckSileroError(error);
+    assert(backend.pending_constructor_cache_count == 0);
+    assert(omni_silero_destroy_checked(model, &error) == 1);
+    assert(error == nullptr);
+  }
+  backend.load_failure = Failure::kNone;
+  OmniSileroHandle *model = nullptr;
+  assert(omni_silero_create_checked(std::filesystem::current_path().c_str(),
+                                    &model, nullptr) == 1);
+  assert(model != nullptr);
+  CheckSileroOfflineSuccess(model);
+  assert(omni_silero_destroy_checked(model, nullptr) == 1);
+}
+
+void LegacyConstructorRetirementFailure() {
+  auto &backend = SileroState();
+  backend.load_failure = Failure::kStandard;
+  State().synchronize_failure_after = SYNCHRONIZE_ALWAYS_FAIL;
+  char *error = nullptr;
+  assert(omni_silero_create(std::filesystem::current_path().c_str(), &error) ==
+         nullptr);
+  CheckSileroError(error);
+  assert(backend.live_array_count == 0);
+  assert(backend.synchronize_attempt_count == 1);
+  assert(backend.pending_constructor_work_count == 1);
+  assert(backend.pending_constructor_cache_count == 1);
+}
+
+void CheckedStreamWaitsForCalls() {
+  auto model = CreateSileroModel();
+  auto stream = CreateSileroStream(model.get());
+  SileroState().block_feed = true;
+  auto *pointer = stream.get();
+  auto feeding = std::async(std::launch::async, [pointer] {
+    const std::vector<float> samples(512, 0.25f);
+    uint64_t accepted_sequence = 0;
+    OmniSileroStreamResult result{};
+    assert(omni_silero_stream_push(pointer, 1, samples.data(), samples.size(),
+                                   &accepted_sequence, &result, nullptr) == 0);
+    CheckSileroCleared(result);
+  });
+  WaitForSileroFeed();
+  std::promise<void> started;
+  auto has_started = started.get_future();
+  auto destroying = std::async(std::launch::async, [&] {
+    started.set_value();
+    assert(omni_silero_stream_destroy_checked(pointer, nullptr) == 1);
+  });
+  has_started.get();
+  assert(destroying.wait_for(std::chrono::milliseconds(50)) ==
+         std::future_status::timeout);
+  // Note (OpenAI): cancellation must remain safe while destroy waits for Feed.
+  omni_silero_stream_cancel(pointer);
+  ReleaseSileroFeed();
+  feeding.get();
+  destroying.get();
+  stream.release();
+  assert(SileroState().live_array_count == 1);
+}
+
 } // namespace
 
 void RunSileroLifecycleCase(const std::string &test) {
@@ -291,6 +436,14 @@ void RunSileroLifecycleCase(const std::string &test) {
     QueuedOfflineCancel();
   } else if (test == "silero_lifecycle_cancel_before") {
     CancelBeforeSubmission();
+  } else if (test == "silero_lifecycle_checked_failures") {
+    CheckedDestructionFailures();
+  } else if (test == "silero_lifecycle_constructor_retry") {
+    CheckedConstructorFailures();
+  } else if (test == "silero_lifecycle_constructor_legacy") {
+    LegacyConstructorRetirementFailure();
+  } else if (test == "silero_lifecycle_checked_wait") {
+    CheckedStreamWaitsForCalls();
   } else {
     assert(false && "Unknown Silero lifecycle test");
   }
