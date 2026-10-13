@@ -1176,7 +1176,7 @@
 "Clear one or more filters to view more models." = "フィルターを 1 つ以上解除すると、より多くのモデルを表示できます。";
 "Cloud" = "クラウド";
 "Configure the speech path, translation engine, target language, and prompt behavior for translation mode." = "翻訳モードで使う音声経路、翻訳モデル、対象言語、プロンプト動作を設定します。";
-"Configure this provider in Model settings first." = "先にモデル設定でこのプロバイダを設定してください。";
+"Configure this provider in Model settings first." = "未設定";
 "Configured" = "設定済み";
 "Experimental" = "実験中";
 "Enable LLM Enhancement" = "LLM 強化を有効化";
@@ -1185,7 +1185,7 @@
 "Fast" = "高速";
 "In Use" = "使用中";
 "Install" = "インストール";
-"Install this model in Model settings first." = "先にモデル設定でこのモデルをインストールしてください。";
+"Install this model in Model settings first." = "未インストール";
 "LLM" = "LLM";
 "LLM Model" = "LLM モデル";
 "Local LLM" = "ローカル LLM";

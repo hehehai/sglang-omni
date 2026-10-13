@@ -1266,7 +1266,7 @@
 "Clear one or more filters to view more models." = "清除一个或多个筛选项以查看更多模型。";
 "Cloud" = "云端";
 "Configure the speech path, translation engine, target language, and prompt behavior for translation mode." = "配置翻译模式使用的语音路径、翻译模型、目标语言和提示词行为。";
-"Configure this provider in Model settings first." = "请先到模型设置中完成这个服务商的配置。";
+"Configure this provider in Model settings first." = "未配置";
 "Configured" = "已配置";
 "Experimental" = "实验性";
 "Enable LLM Enhancement" = "启用 LLM 增强";
@@ -1275,7 +1275,7 @@
 "Fast" = "快速";
 "In Use" = "使用中";
 "Install" = "安装";
-"Install this model in Model settings first." = "请先到模型设置中安装这个模型。";
+"Install this model in Model settings first." = "未安装";
 "LLM" = "LLM";
 "LLM Model" = "LLM 模型";
 "Local LLM" = "本地 LLM";

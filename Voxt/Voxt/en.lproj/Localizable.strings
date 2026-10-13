@@ -1322,7 +1322,7 @@
 "Clear one or more filters to view more models." = "Clear one or more filters to view more models.";
 "Cloud" = "Cloud";
 "Configure the speech path, translation engine, target language, and prompt behavior for translation mode." = "Configure the speech path, translation engine, target language, and prompt behavior for translation mode.";
-"Configure this provider in Model settings first." = "Configure this provider in Model settings first.";
+"Configure this provider in Model settings first." = "Not configured";
 "Configured" = "Configured";
 "Experimental" = "Beta";
 "Enable LLM Enhancement" = "Enable LLM Enhancement";
@@ -1331,7 +1331,7 @@
 "Fast" = "Fast";
 "In Use" = "In Use";
 "Install" = "Install";
-"Install this model in Model settings first." = "Install this model in Model settings first.";
+"Install this model in Model settings first." = "Not installed";
 "LLM" = "LLM";
 "LLM Model" = "LLM Model";
 "Local LLM" = "Local LLM";
