@@ -31,6 +31,7 @@ final class OmniXPCSpeakerModelOwner {
     private var sessionMayExist = false
     private var acceptedSampleCount = 0
     private var cleanupRequired = false
+    private var permanentCloseObserver: (@MainActor () -> Void)?
     private(set) var isClosing = false
     private(set) var isClosed = false
     var hasSession: Bool { session != nil || sessionMayExist }
@@ -48,6 +49,15 @@ final class OmniXPCSpeakerModelOwner {
         self.modelDirectory = modelDirectory
         self.coordinator = coordinator
         self.workClass = workClass
+    }
+
+    func notifyWhenPermanentlyClosed(_ observer: @escaping @MainActor () -> Void) {
+        if isClosed {
+            observer()
+        } else {
+            precondition(permanentCloseObserver == nil, "A speaker owner can be entrusted to only one streaming consumer.")
+            permanentCloseObserver = observer
+        }
     }
 
     func prepare(timeout: Duration = .seconds(300), cleanupTimeout: Duration = .seconds(60)) async throws {
@@ -221,6 +231,9 @@ final class OmniXPCSpeakerModelOwner {
             try await self.retireScope(timeout: timeout)
             self.isClosed = true
             self.isClosing = false
+            let observer = self.permanentCloseObserver
+            self.permanentCloseObserver = nil
+            observer?()
         }
         closing = (identity, task)
         try await task.value

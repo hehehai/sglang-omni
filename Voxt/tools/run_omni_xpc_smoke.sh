@@ -9,6 +9,7 @@ set -euo pipefail
 [[ $# -ge 4 && $# -le 6 ]] || {
   echo "usage: run_omni_xpc_smoke.sh <signed-app> <qwen-model-directory> <audio-file> <expected-transcript-file> [silero-model-directory] [sortformer-model-directory]" >&2
   echo "Optional batch: supply ALL of VOXT_OMNI_XPC_SMOKE_BATCH_KIND, VOXT_OMNI_XPC_SMOKE_BATCH_MODEL_SOURCE and VOXT_OMNI_XPC_SMOKE_BATCH_EXPECTED_SOURCE." >&2
+  echo "Optional speaker: supply ALL of VOXT_OMNI_XPC_SMOKE_SPEAKER_KIND (1=moss, 2=nemotron), VOXT_OMNI_XPC_SMOKE_SPEAKER_MODEL_SOURCE and VOXT_OMNI_XPC_SMOKE_SPEAKER_EXPECTED_SOURCE." >&2
   echo "Batch kind: 1=whisper, 2=cohere, 3=moss, 4=nemotron, 5=parakeet, 6=sensevoice; expected source: nonempty UTF-8, <=65536 bytes." >&2
   exit 2
 }
@@ -66,41 +67,46 @@ BATCH_FIELDS = (
     'VOXT_OMNI_XPC_SMOKE_BATCH_MODEL_SOURCE',
     'VOXT_OMNI_XPC_SMOKE_BATCH_EXPECTED_SOURCE',
 )
-MAXIMUM_BATCH_EXPECTED_BYTE_COUNT = 65_536
-batch_environment = {field: os.environ[field] for field in BATCH_FIELDS if field in os.environ}
-batch_kind: int | None = None
-batch_expected_bytes: bytes | None = None
-if batch_environment:
-    if len(batch_environment) != len(BATCH_FIELDS) or not all(batch_environment.values()):
-        raise ValueError('Optional batch smoke requires all three explicit environment values.')
+SPEAKER_FIELDS = (
+    'VOXT_OMNI_XPC_SMOKE_SPEAKER_KIND',
+    'VOXT_OMNI_XPC_SMOKE_SPEAKER_MODEL_SOURCE',
+    'VOXT_OMNI_XPC_SMOKE_SPEAKER_EXPECTED_SOURCE',
+)
+MAXIMUM_EXPECTED_BYTE_COUNT = 65_536
+
+
+def fixture_environment(fields: tuple[str, str, str], allowed_kinds: set[str]) -> tuple[dict[str, str], int | None, bytes | None]:
+    supplied = {field: os.environ[field] for field in fields if field in os.environ}
+    if not supplied:
+        return {}, None, None
+    elif len(supplied) != len(fields) or not all(supplied.values()) or supplied[fields[0]] not in allowed_kinds:
+        raise ValueError('Optional smoke requires all three explicit values and a canonical supported kind.')
     else:
         pass
-    if batch_environment[BATCH_FIELDS[0]] not in {'1', '2', '3', '4', '5', '6'}:
-        raise ValueError('Batch kind must be 1=whisper, 2=cohere, 3=moss, 4=nemotron, 5=parakeet, 6=sensevoice.')
-    else:
-        batch_kind = int(batch_environment[BATCH_FIELDS[0]])
-    batch_source = pathlib.Path(batch_environment[BATCH_FIELDS[1]]).resolve()
-    batch_expected_source = pathlib.Path(batch_environment[BATCH_FIELDS[2]]).resolve()
-    if not batch_source.is_dir() or not batch_expected_source.is_file():
-        raise ValueError('The batch model directory or expected transcript file is missing.')
+    model_source = pathlib.Path(supplied[fields[1]]).resolve()
+    expected_source = pathlib.Path(supplied[fields[2]]).resolve()
+    if not model_source.is_dir() or not expected_source.is_file():
+        raise ValueError('The optional model directory or expected transcript file is missing.')
     else:
         pass
-    with batch_expected_source.open('rb') as source:
-        batch_expected_bytes = source.read(MAXIMUM_BATCH_EXPECTED_BYTE_COUNT + 1)
-    if len(batch_expected_bytes) > MAXIMUM_BATCH_EXPECTED_BYTE_COUNT:
-        raise ValueError('The batch expected transcript exceeds 65536 bytes.')
-    elif not batch_expected_bytes.decode('utf-8').strip():
-        raise ValueError('The batch expected transcript must be nonempty UTF-8.')
+    with expected_source.open('rb') as source:
+        expected_bytes = source.read(MAXIMUM_EXPECTED_BYTE_COUNT + 1)
+    if len(expected_bytes) > MAXIMUM_EXPECTED_BYTE_COUNT or not expected_bytes.decode('utf-8').strip():
+        raise ValueError('The optional expected transcript must be nonempty UTF-8, at most 65536 bytes.')
     else:
         pass
-    batch_environment[BATCH_FIELDS[1]] = str(batch_source)
-    batch_environment[BATCH_FIELDS[2]] = str(batch_expected_source)
-else:
-    pass
+    supplied[fields[1]] = str(model_source)
+    supplied[fields[2]] = str(expected_source)
+    return supplied, int(supplied[fields[0]]), expected_bytes
+
+
+batch_environment, batch_kind, batch_expected_bytes = fixture_environment(BATCH_FIELDS, {'1', '2', '3', '4', '5', '6'})
+speaker_environment, speaker_kind, speaker_expected_bytes = fixture_environment(SPEAKER_FIELDS, {'1', '2'})
 
 def run(mode, run_id=None):
     overrides = dict(environment, VOXT_OMNI_XPC_SMOKE_MODE=mode)
     overrides.update(batch_environment)
+    overrides.update(speaker_environment)
     if run_id is not None:
         overrides['VOXT_OMNI_XPC_SMOKE_RUN_ID'] = run_id
         if mode == 'stage':
@@ -158,6 +164,10 @@ if batch_kind is not None:
     destinations.append(container / 'Models' / 'OmniXPCBatchSmoke' / run_id)
 else:
     pass
+if speaker_kind is not None:
+    destinations.append(container / 'Models' / 'OmniXPCSpeakerSmoke' / run_id)
+else:
+    pass
 for destination in destinations:
     if not destination.resolve().is_relative_to(container.resolve()):
         raise RuntimeError('The smoke fixture destination is outside the shared container.')
@@ -168,6 +178,10 @@ try:
     artifacts.mkdir(parents=True)
     if batch_expected_bytes is not None:
         (artifacts / 'batch-expected.txt').write_bytes(batch_expected_bytes)
+    else:
+        pass
+    if speaker_expected_bytes is not None:
+        (artifacts / 'speaker-expected.txt').write_bytes(speaker_expected_bytes)
     else:
         pass
     staged = run('stage', run_id)
@@ -202,6 +216,13 @@ try:
         or report.get('batch_request_count') != 4 or report.get('batch_caller_count') != 2
     ):
         raise RuntimeError('The optional batch owner reuse/reconnect validation did not run.')
+    else:
+        pass
+    if speaker_kind is not None and (
+        type(report.get('speaker_kind')) is not int or report.get('speaker_kind') != speaker_kind
+        or report.get('speaker_session_count') != 2 or report.get('speaker_caller_count') != 2
+    ):
+        raise RuntimeError('The optional speaker streaming consumer/reconnect validation did not run.')
     else:
         pass
     passed = True

@@ -24,6 +24,11 @@ BATCH_FIELDS = (
     "VOXT_OMNI_XPC_SMOKE_BATCH_MODEL_SOURCE",
     "VOXT_OMNI_XPC_SMOKE_BATCH_EXPECTED_SOURCE",
 )
+SPEAKER_FIELDS = (
+    "VOXT_OMNI_XPC_SMOKE_SPEAKER_KIND",
+    "VOXT_OMNI_XPC_SMOKE_SPEAKER_MODEL_SOURCE",
+    "VOXT_OMNI_XPC_SMOKE_SPEAKER_EXPECTED_SOURCE",
+)
 RUN_ID = uuid.UUID("cb728617-c095-4c80-8a6f-eb73619755cd")
 
 
@@ -89,6 +94,7 @@ class OmniXPCBatchSmokeTests(unittest.TestCase):
                 ("VOXT_OMNI_XPC_SMOKE_SILERO_SOURCE", "OmniXPCSileroSmoke"),
                 ("VOXT_OMNI_XPC_SMOKE_SORTFORMER_SOURCE", "OmniXPCSortformerSmoke"),
                 (BATCH_FIELDS[1], "OmniXPCBatchSmoke"),
+                (SPEAKER_FIELDS[1], "OmniXPCSpeakerSmoke"),
             ):
                 if source_field in env:
                     self.assertTrue(Path(env[source_field]).is_dir())
@@ -112,6 +118,11 @@ class OmniXPCBatchSmokeTests(unittest.TestCase):
                 report.update(batch_kind=int(env[BATCH_FIELDS[0]]), batch_request_count=4, batch_caller_count=2)
             else:
                 self.assertFalse((self.artifacts / "batch-expected.txt").exists())
+            if SPEAKER_FIELDS[0] in env:
+                self.assertEqual((self.artifacts / "speaker-expected.txt").read_bytes(), self.batch_expected.read_bytes())
+                report.update(speaker_kind=int(env[SPEAKER_FIELDS[0]]), speaker_session_count=2, speaker_caller_count=2)
+            else:
+                self.assertFalse((self.artifacts / "speaker-expected.txt").exists())
             report.update(self.report_changes)
         return subprocess.CompletedProcess(
             arguments, 1 if mode == self.process_failure_mode else 0,
@@ -245,6 +256,64 @@ class OmniXPCBatchSmokeTests(unittest.TestCase):
                     with self.subTest(kind=kind, field=field, value=value), self.assertRaises(RuntimeError):
                         exec(compiled, {"batch_kind": kind, "report": report | {field: value}})
         exec(compiled, {"batch_kind": None, "report": {}})
+
+    def test_speaker_kinds_and_combined_explicit_batch_transaction(self) -> None:
+        for kind in ("1", "2"):
+            with self.subTest(kind=kind):
+                environment = dict(zip(SPEAKER_FIELDS, (kind, str(self.sources[3]), str(self.batch_expected))))
+                self.execute(environment | self.batch_environment, 6)
+                report = json.loads(self.output.getvalue().splitlines()[-1])
+                self.assertEqual((report["speaker_kind"], report["speaker_session_count"], report["speaker_caller_count"]), (int(kind), 2, 2))
+                self.assertFalse((self.container / "Models/OmniXPCSpeakerSmoke" / str(RUN_ID).upper()).exists())
+                self.assertFalse(self.artifacts.exists())
+                self.assertEqual(self.unrelated.read_text(), "must survive")
+
+    def test_speaker_invalid_inputs_fail_before_any_app(self) -> None:
+        environment = dict(zip(SPEAKER_FIELDS, ("1", str(self.sources[3]), str(self.batch_expected))))
+        invalid = [{field: environment[field]} for field in SPEAKER_FIELDS]
+        invalid += [environment | {SPEAKER_FIELDS[0]: kind} for kind in ("0", "3", "01", "+1", "١", "moss", "1 ")]
+        invalid += [environment | {field: ""} for field in SPEAKER_FIELDS]
+        for supplied in invalid:
+            with self.subTest(supplied=supplied), self.assertRaises(ValueError):
+                self.execute(supplied)
+        for contents in (b"", b" \n", b"\xff", b"a" * 65_537):
+            self.batch_expected.write_bytes(contents)
+            with self.subTest(contents_length=len(contents)), self.assertRaises(ValueError):
+                self.execute(environment)
+        self.assertEqual(self.modes, [])
+
+    def test_speaker_failed_report_keeps_nonce_model_and_expected_snapshot(self) -> None:
+        environment = dict(zip(SPEAKER_FIELDS, ("2", str(self.sources[3]), str(self.batch_expected))))
+        self.report_changes = {"speaker_session_count": 1}
+        with self.assertRaisesRegex(RuntimeError, "speaker streaming"):
+            self.execute(environment)
+        self.assertTrue((self.container / "Models/OmniXPCSpeakerSmoke" / str(RUN_ID).upper()).is_dir())
+        self.assertTrue((self.artifacts / "speaker-expected.txt").is_file())
+
+    def test_speaker_destination_escape_rejects_before_stage(self) -> None:
+        outside = self.root / "outside"
+        outside.mkdir()
+        (self.container / "Models/OmniXPCSpeakerSmoke").symlink_to(outside, target_is_directory=True)
+        environment = dict(zip(SPEAKER_FIELDS, ("1", str(self.sources[3]), str(self.batch_expected))))
+        with self.assertRaisesRegex(RuntimeError, "outside the shared container"):
+            self.execute(environment)
+        self.assertEqual(self.modes, ["prepare"])
+
+    def test_actual_speaker_report_guard(self) -> None:
+        statements = next(statement for statement in ast.parse(EMBEDDED).body if isinstance(statement, ast.Try)).body
+        guard = next(statement for statement in statements if isinstance(statement, ast.If)
+                     and "speaker_kind is not None" in ast.unparse(statement.test))
+        compiled = compile(ast.Module(body=[guard], type_ignores=[]), "speaker-report-guard", "exec")
+        for kind in (1, 2):
+            report = {"speaker_kind": kind, "speaker_session_count": 2, "speaker_caller_count": 2}
+            exec(compiled, {"speaker_kind": kind, "report": report})
+            for field, values in (("speaker_kind", (None, "1", True, 0, 3)),
+                                  ("speaker_session_count", (None, "2", 0, 1, 3)),
+                                  ("speaker_caller_count", (None, "2", 0, 1, 3))):
+                for value in values:
+                    with self.subTest(kind=kind, field=field, value=value), self.assertRaises(RuntimeError):
+                        exec(compiled, {"speaker_kind": kind, "report": report | {field: value}})
+        exec(compiled, {"speaker_kind": None, "report": {}})
 
     def test_signed_gate_and_original_shell_arity_are_unchanged(self) -> None:
         self.assertIn('[[ $# -ge 4 && $# -le 6 ]]', SCRIPT)

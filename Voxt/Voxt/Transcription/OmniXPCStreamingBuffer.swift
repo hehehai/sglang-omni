@@ -152,18 +152,35 @@ nonisolated struct OmniXPCStreamingPresentation {
     static let maximumSegmentCount = 512
     static let maximumTranscriptByteCount = 256 * 1024
 
-    private var assembler = OmniLiveTranscriptAssembler()
+    private var assembler: OmniLiveTranscriptAssembler
     private var segmentByteCounts: [Int: Int] = [:]
     private var transcriptByteCount = 0
+
+    init(joining: OmniLiveTranscriptAssembler.Joining = .scriptAware) {
+        assembler = OmniLiveTranscriptAssembler(joining: joining)
+    }
+
+    mutating func apply(_ event: OmniXPCSpeakerEvent) throws -> ASRStreamingEvent? {
+        guard event.kind == .segment else { return nil }
+        guard let sequence = Int(exactly: event.eventSequence), let segmentID = event.segmentID,
+              let text = event.text, let isFinal = event.isFinal else {
+            throw OmniXPCFailure.error(.incompatibleService, "The speaker segment cannot be represented locally.")
+        }
+        return try apply(sequence: sequence, segmentID: Int(segmentID), text: text, isFinal: isFinal)
+    }
 
     mutating func apply(_ event: OmniXPCRealtimeEvent) throws -> ASRStreamingEvent? {
         guard event.kind == .segment else { return nil }
         guard let segmentID = event.segmentID, let text = event.text, let isFinal = event.isFinal else {
             throw OmniXPCFailure.error(.incompatibleService, "The realtime segment is incomplete.")
         }
+        return try apply(sequence: event.sequence, segmentID: segmentID, text: text, isFinal: isFinal)
+    }
+
+    private mutating func apply(sequence: Int, segmentID: Int, text: String, isFinal: Bool) throws -> ASRStreamingEvent? {
         var updatedAssembler = assembler
         guard case .display(let confirmed, let provisional) = updatedAssembler.apply(
-            eventIndex: event.sequence, segmentID: segmentID, text: text, isFinal: isFinal
+            eventIndex: sequence, segmentID: segmentID, text: text, isFinal: isFinal
         ) else {
             assembler = updatedAssembler
             return nil

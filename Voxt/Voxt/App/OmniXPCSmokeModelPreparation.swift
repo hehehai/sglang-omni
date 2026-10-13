@@ -6,6 +6,7 @@ extension AppDelegate {
     @MainActor
     static func prepareOmniSmokeModels(container: URL, identifier: UUID, environment: [String: String]) async throws {
         let batchKind = try OmniXPCSmokeBatchValidation.kind(environment: environment)
+        let speakerKind = try OmniXPCSmokeSpeakerValidation.kind(environment: environment)
         var fixtures = [
             ("VOXT_OMNI_XPC_SMOKE_MODEL_SOURCE", "OmniXPCSmoke"),
             ("VOXT_OMNI_XPC_SMOKE_SILERO_SOURCE", "OmniXPCSileroSmoke"),
@@ -13,6 +14,9 @@ extension AppDelegate {
         ]
         if batchKind != nil {
             fixtures.append(("VOXT_OMNI_XPC_SMOKE_BATCH_MODEL_SOURCE", "OmniXPCBatchSmoke"))
+        } else {}
+        if speakerKind != nil {
+            fixtures.append(("VOXT_OMNI_XPC_SMOKE_SPEAKER_MODEL_SOURCE", "OmniXPCSpeakerSmoke"))
         } else {}
         guard environment[fixtures[0].0] != nil else {
             throw OmniXPCFailure.error(.invalidRequest, "Model preparation requires an explicitly supplied source.")

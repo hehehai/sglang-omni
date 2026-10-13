@@ -64,6 +64,24 @@ transport bounds, not production recording limits or longform support.
 Core/helper/App require matched ABI9 artifacts; production factories and actual
 SDK/signed NSXPC/Metal acceptance remain unchanged and pending, respectively.
 
+`OmniXPCSpeakerStreamingSession.open(owner:settings:)` consumes an explicitly
+prepared Owner through the actual `ASRStreamingSession` seam. It permanently
+closes that entrusted Owner before publishing ended, preserving all segment
+metadata and Double timing. MOSS uses existing line joining; Nemotron uses
+existing script-aware joining. Input uses the existing bounded Float32 buffer;
+transport chunk splitting is not longform segmentation or automatic replay.
+Use `consumeEvents(until:)` or explicitly await `closeAndWait()` on early return
+and cancellation. Failed cleanup retains the same adapter/Owner for retry;
+checked permanent Owner-close notification also releases retention when retry
+is initiated externally. Presentation end/deinit are not cleanup barriers.
+
+The optional signed smoke invokes this consumer before and after helper restart
+only when all three SPEAKER kind/model/expected source environment inputs are
+supplied. It stages Models through App preparation, requires an explicit UTF-8
+expected transcript, and retains unknown cleanup. This is not a production
+meeting/recording factory switch; the legacy runtime's task-only retirement must
+not be mistaken for this adapter's Native barrier.
+
 ## MLX boundaries
 
 `MLXTranscriber` owns recording tasks, revision checks, model leases and capture-buffer instances. Pure policy is in `MLXTranscriptionPlanning`, `MLXInferenceConfiguration`, `MLXTranscriptMerging`, and `MLXLiveTextPreview`. Shared values, buffers, detached inference and structured segment conversion live in their correspondingly named files.

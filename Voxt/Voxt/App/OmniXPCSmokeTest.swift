@@ -27,6 +27,9 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
     var batchKind: Int? = nil
     var batchRequestCount: Int? = nil
     var batchCallerCount: Int? = nil
+    var speakerKind: Int32? = nil
+    var speakerSessionCount: Int? = nil
+    var speakerCallerCount: Int? = nil
     var errorDomain: String? = nil
     var errorCode: Int? = nil
 
@@ -50,6 +53,9 @@ nonisolated private struct OmniXPCSmokeReport: Encodable {
         case batchKind = "batch_kind"
         case batchRequestCount = "batch_request_count"
         case batchCallerCount = "batch_caller_count"
+        case speakerKind = "speaker_kind"
+        case speakerSessionCount = "speaker_session_count"
+        case speakerCallerCount = "speaker_caller_count"
         case errorDomain = "error_domain"
         case errorCode = "error_code"
     }
@@ -68,6 +74,7 @@ extension AppDelegate {
                     throw OmniXPCFailure.error(.invalidRequest, "The XPC smoke mode must be prepare, stage or infer.")
                 }
                 let batchKind = try OmniXPCSmokeBatchValidation.kind(environment: environment)
+                let speakerKind = try OmniXPCSmokeSpeakerValidation.kind(environment: environment)
                 let connected = try OmniXPCClient()
                 client = connected
                 let probe = try await connected.probe()
@@ -172,6 +179,10 @@ extension AppDelegate {
                         client: connected, kind: batchKind, container: probe.groupContainer, identifier: id,
                         audio: audio, timeout: .seconds(timeoutSeconds)
                     )
+                    try await OmniXPCSmokeSpeakerValidation.run(
+                        client: connected, kind: speakerKind, container: probe.groupContainer, identifier: id,
+                        samples: samples, timeout: .seconds(timeoutSeconds)
+                    )
                     try await connected.unloadQwen(model)
                     try await connected.terminateForValidation()
                     let restarted = try await connected.probe()
@@ -205,6 +216,10 @@ extension AppDelegate {
                         client: connected, kind: batchKind, container: restarted.groupContainer, identifier: id,
                         audio: audio, timeout: .seconds(timeoutSeconds)
                     )
+                    try await OmniXPCSmokeSpeakerValidation.run(
+                        client: connected, kind: speakerKind, container: restarted.groupContainer, identifier: id,
+                        samples: samples, timeout: .seconds(timeoutSeconds)
+                    )
                     try await connected.unloadQwen(recoveredModel)
                     try Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(
                         status: .passed, abiVersion: restarted.abiVersion,
@@ -221,17 +236,20 @@ extension AppDelegate {
                         sortformerCallerCount: sortformerDirectory == nil ? nil : 2,
                         batchKind: batchKind?.rawValue,
                         batchRequestCount: batchKind == nil ? nil : 4,
-                        batchCallerCount: batchKind == nil ? nil : 2
+                        batchCallerCount: batchKind == nil ? nil : 2,
+                        speakerKind: speakerKind?.rawValue,
+                        speakerSessionCount: speakerKind == nil ? nil : 2,
+                        speakerCallerCount: speakerKind == nil ? nil : 2
                     ))
                 }
                 connected.invalidate()
                 fflush(stdout)
                 exit(EXIT_SUCCESS)
             } catch {
-                if !OmniXPCSmokeBatchValidation.hasRetainedOwner {
+                if !OmniXPCSmokeBatchValidation.hasRetainedOwner && !OmniXPCSmokeSpeakerValidation.hasRetainedOwner {
                     client?.invalidate()
                 } else {
-                    // note (assistant): An ambiguous batch close pins its reader/client until fail-closed process exit.
+                    // note (Codex): An ambiguous model close pins its reader/client; process exit is not retirement proof.
                 }
                 let failure = error as NSError
                 try? Self.emitOmniXPCSmokeResult(OmniXPCSmokeReport(

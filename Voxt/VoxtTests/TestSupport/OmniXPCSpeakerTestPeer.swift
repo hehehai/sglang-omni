@@ -23,6 +23,9 @@ nonisolated final class OmniXPCSpeakerTestPeer: OmniInferenceXPCProtocol {
     private(set) var commitCount = 0, finishCount = 0, acknowledgedDrains = 0, acknowledgedCloses = 0
     private(set) var controlledLoadActive = false, controlledStartActive = false, controlledWorkActive = false
     var events: [OmniXPCSpeakerEvent] = []
+    var removesAcknowledgedEvents = false
+    var completionText: String?
+    var completionSegments: [OmniXPCBatchSegment] = []
     private var loadReply: (@Sendable (Data?, NSError?) -> Void)?
     private var startReply: (@Sendable (Data?, NSError?) -> Void)?
     private var pushReply: (@Sendable (Data?, NSError?) -> Void)?
@@ -99,6 +102,11 @@ nonisolated final class OmniXPCSpeakerTestPeer: OmniInferenceXPCProtocol {
     func finishSpeakerSession(sessionReference: Data, withReply reply: @escaping @Sendable (NSError?) -> Void) {
         precondition(try! OmniXPCSpeakerSessionReference.decode(sessionReference) == session)
         finishCount += 1
+        if let completionText {
+            events.append(try! OmniXPCSpeakerEvent(session: session!,
+                eventSequence: (events.last?.eventSequence ?? pollAcknowledgements.last ?? 0) + 1,
+                kind: .completed, text: completionText, segments: completionSegments))
+        }
         finishReply = reply
         if !holdFinishReply { acknowledgeFinish() }
     }
@@ -109,6 +117,7 @@ nonisolated final class OmniXPCSpeakerTestPeer: OmniInferenceXPCProtocol {
                            withReply reply: @escaping @Sendable (Data?, NSError?) -> Void) {
         precondition(try! OmniXPCSpeakerSessionReference.decode(sessionReference) == session)
         pollAcknowledgements.append(acknowledgedEventSequence)
+        if removesAcknowledgedEvents { events.removeAll { $0.eventSequence <= acknowledgedEventSequence } }
         pollReply = reply
         if !holdPollReply { deliverPoll() }
     }
