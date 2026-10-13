@@ -6,27 +6,6 @@ import AVFoundation
 import Combine
 import Foundation
 
-private enum MLXCaptureStartError: LocalizedError {
-    case engineStartTimedOut(Double)
-
-    var errorDescription: String? {
-        switch self {
-        case .engineStartTimedOut(let seconds):
-            return "Audio engine failed to start within \(String(format: "%.0f", seconds))s."
-        }
-    }
-}
-
-/// Lets the non-`Sendable` `AVAudioEngine` be handed to a detached task so the blocking
-/// `start()` call can run off the main actor. Only one start is admitted by the
-/// recording-start barrier. Timeout/cancellation may request stop from another
-/// thread; completion still waits for the native start to return.
-private struct MLXAudioEngineBox: @unchecked Sendable {
-    // CoreAudio's start/stop cancellation behavior requires device acceptance;
-    // this box does not turn cancellation into an awaitable native-exit API.
-    nonisolated(unsafe) let engine: AVAudioEngine
-}
-
 @MainActor
 class MLXTranscriber: ObservableObject, TranscriberProtocol {
     @Published var isRecording = false
@@ -53,20 +32,12 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
     private var preferredInputDeviceID: AudioDeviceID?
     private let targetSampleRate = 16000
 
-    /// Upper bound for the off-main `AVAudioEngine.start()`. A wedged coreaudiod can block
-    /// `kAUStartIO` for ~10s; failing fast surfaces an overlay error instead of stalling.
+    /// Requests stop if off-main AVAudioEngine.start() stalls; completion still waits for native return.
     private static let captureStartTimeoutSeconds: Double = 6
 
     private let correctionPollInterval: Duration = .milliseconds(600)
     private let quickPassMinimumDurationSeconds: Double = 14.0
     private let qwenLiveFeedPollInterval: Duration = .milliseconds(100)
-    private let senseVoiceDirectPassMaximumDurationSeconds: Double = 30.0
-    private let senseVoiceChunkMaximumDurationSeconds: Double = 24.0
-    private let senseVoiceChunkOverlapSeconds: Double = 0.35
-    private let senseVoiceVADThreshold: Float = 0.5
-    private let senseVoiceVADMinSpeechDurationMs = 220
-    private let senseVoiceVADMinSilenceDurationMs = 420
-    private let senseVoiceVADSpeechPadMs = 180
 
     private var sessionRevision = 0
     private var correctionLoopTask: Task<Void, Never>?
@@ -680,10 +651,12 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
             )
             let prepareElapsedMs = Int(Date().timeIntervalSince(prepareStartedAt) * 1000)
             let inferenceStartedAt = Date()
-            let inferenceResult = try await runStreamingInference(
+            let inferenceResult = try await Self.runFinalInference(
                 model: model,
                 audioSamples: audioSamples,
-                inferenceConfiguration: inferenceConfiguration
+                inferenceConfiguration: inferenceConfiguration,
+                targetSampleRate: targetSampleRate,
+                inferenceTaskPriority: inferenceTaskPriority
             )
             try Task.checkCancellation()
             guard revision == sessionRevision else { return .success(nil) }
@@ -786,33 +759,16 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
     /// Configures the engine, input device, tap and `prepare()` — everything except the
     /// blocking `start()`. Returns the data needed to log once the engine is running.
     private func configureAudioCaptureGraph(usePreferredInputDevice: Bool? = nil) -> (format: AVAudioFormat, usedPreferredDevice: Bool) {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-        }
-        audioEngine.reset()
-
-        let inputNode = audioEngine.inputNode
-        inputNode.removeTap(onBus: 0)
-
         let shouldUsePreferredInputDevice = usePreferredInputDevice ?? activeCaptureUsesPreferredInputDevice
         activeCaptureUsesPreferredInputDevice = shouldUsePreferredInputDevice
-        let didApplyPreferredInputDevice = shouldUsePreferredInputDevice
-            ? applyPreferredInputDeviceIfNeeded(inputNode: inputNode)
-            : false
-        let activeInputDeviceID = didApplyPreferredInputDevice ? preferredInputDeviceID : AudioInputDeviceManager.defaultInputDeviceID()
-        let nodeOutputFormat = inputNode.outputFormat(forBus: 0)
-        let hardwareSampleRate = AudioInputDeviceManager.nominalSampleRate(for: activeInputDeviceID)
-        let recordingFormat = AudioInputDeviceManager.captureTapFormat(
-            nodeOutputFormat: nodeOutputFormat,
-            hardwareSampleRate: hardwareSampleRate
+        let context = MLXAudioCaptureGraph.configure(
+            engine: audioEngine,
+            preferredInputDeviceID: preferredInputDeviceID,
+            usePreferredInputDevice: shouldUsePreferredInputDevice
         )
+        let inputNode = audioEngine.inputNode
+        let recordingFormat = context.format
         inputSampleRate = recordingFormat.sampleRate
-
-        if abs(recordingFormat.sampleRate - nodeOutputFormat.sampleRate) > 1 {
-            VoxtLog.warning(
-                "MLX transcriber adjusted input tap format. deviceID=\(activeInputDeviceID.map(String.init(describing:)) ?? "default"), hardwareSampleRate=\(hardwareSampleRate.map { String(Int($0.rounded())) } ?? "unknown"), nodeSampleRate=\(Int(nodeOutputFormat.sampleRate.rounded())), tapSampleRate=\(Int(recordingFormat.sampleRate.rounded()))"
-            )
-        }
 
         let sampleStore = self.sampleStore
         let voiceActivityFrameStore = self.voiceActivityFrameStore
@@ -846,14 +802,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         }
 
         audioEngine.prepare()
-        return (recordingFormat, didApplyPreferredInputDevice)
-    }
-
-    private func logCaptureStarted(format: AVAudioFormat, usedPreferredDevice: Bool) {
-        VoxtLog.asr(
-            "MLX audio capture started. sampleRate=\(Int(format.sampleRate)), channels=\(format.channelCount), format=\(format.commonFormat.rawValue), interleaved=\(format.isInterleaved), routing=\(usedPreferredDevice ? "preferred" : "system-default"), deviceID=\(usedPreferredDevice ? (preferredInputDeviceID.map(String.init(describing:)) ?? "default") : "system-default")",
-            verbose: true
-        )
+        return context
     }
 
     /// Synchronous start. Used only by mid-session recovery/device-switch paths, which are
@@ -861,44 +810,25 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
     private func startAudioCaptureGraph(usePreferredInputDevice: Bool? = nil) throws {
         let context = configureAudioCaptureGraph(usePreferredInputDevice: usePreferredInputDevice)
         try audioEngine.start()
-        logCaptureStarted(format: context.format, usedPreferredDevice: context.usedPreferredDevice)
+        MLXAudioCaptureGraph.logStarted(
+            format: context.format,
+            usedPreferredDevice: context.usedPreferredDevice,
+            preferredInputDeviceID: preferredInputDeviceID
+        )
     }
 
-    /// Same as `startAudioCaptureGraph`, but runs the blocking `AVAudioEngine.start()` off the
-    /// main actor and gives up after `captureStartTimeoutSeconds`, so a wedged coreaudiod can
-    /// never freeze the hotkey/UI thread.
+    /// Runs blocking start off the main actor; timeout requests stop without abandoning the start task.
     private func startAudioCaptureGraphWithTimeout(usePreferredInputDevice: Bool? = nil) async throws {
         let context = configureAudioCaptureGraph(usePreferredInputDevice: usePreferredInputDevice)
-        try await startConfiguredEngineWithTimeout(timeoutSeconds: Self.captureStartTimeoutSeconds)
-        logCaptureStarted(format: context.format, usedPreferredDevice: context.usedPreferredDevice)
-    }
-
-    /// Runs the already-configured engine's blocking `start()` on a detached task, racing it
-    /// against a timeout. On timeout the engine is stopped so the start call unwinds promptly.
-    private func startConfiguredEngineWithTimeout(timeoutSeconds: Double) async throws {
-        let engineBox = MLXAudioEngineBox(engine: audioEngine)
-        try await withTaskCancellationHandler {
-            try Task.checkCancellation()
-            try await withThrowingTaskGroup(of: Void.self) { group in
-                group.addTask {
-                    // Detached so the blocking start can never run on the main actor.
-                    try await Task.detached(priority: .userInitiated) {
-                        try engineBox.engine.start()
-                    }.value
-                    if Task.isCancelled { engineBox.engine.stop() }
-                    try Task.checkCancellation()
-                }
-                group.addTask {
-                    try await Task.sleep(for: .seconds(timeoutSeconds))
-                    engineBox.engine.stop()
-                    throw MLXCaptureStartError.engineStartTimedOut(timeoutSeconds)
-                }
-                defer { group.cancelAll() }
-                _ = try await group.next()
-            }
-        } onCancel: {
-            engineBox.engine.stop()
-        }
+        try await MLXAudioCaptureGraph.startConfiguredEngineWithTimeout(
+            engine: audioEngine,
+            timeoutSeconds: Self.captureStartTimeoutSeconds
+        )
+        MLXAudioCaptureGraph.logStarted(
+            format: context.format,
+            usedPreferredDevice: context.usedPreferredDevice,
+            preferredInputDeviceID: preferredInputDeviceID
+        )
     }
 
     private func cancelActiveTasks() {
@@ -1539,75 +1469,6 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         )
     }
 
-    private func runStreamingInference(
-        model loadedModel: LoadedASRModel,
-        audioSamples: [Float],
-        inferenceConfiguration: ResolvedInferenceConfiguration
-    ) async throws -> MLXDetachedInferenceResult {
-        try Task.checkCancellation()
-        let runtime = try loadedModel.requireOmniRuntime()
-        let targetSampleRate = targetSampleRate
-        let speechSegments = try await omniSpeechSegmentsIfNeeded(
-            runtime: runtime,
-            audioSamples: audioSamples,
-            inferenceConfiguration: inferenceConfiguration
-        )
-        let inferenceTask = Task.detached(priority: inferenceTaskPriority) {
-            try await Self.runOmniInferenceDetached(
-                runtime: runtime,
-                audioSamples: audioSamples,
-                inferenceConfiguration: inferenceConfiguration,
-                targetSampleRate: targetSampleRate,
-                speechSegments: speechSegments
-            )
-        }
-        return try await withTaskCancellationHandler {
-            try await inferenceTask.value
-        } onCancel: {
-            inferenceTask.cancel()
-        }
-    }
-
-    /// The Native server loads the provisioned Silero VAD for long-form speech cuts.
-    private func omniSpeechSegmentsIfNeeded(
-        runtime: OmniASRRuntime,
-        audioSamples: [Float],
-        inferenceConfiguration: ResolvedInferenceConfiguration
-    ) async throws -> OmniSpeechSegments? {
-        let usesVoiceActivity: Bool
-        switch runtime.kind {
-        case .cohereTranscribe:
-            usesVoiceActivity = inferenceConfiguration.cohereLongFormStrategy == .voiceActivity
-        case .senseVoice:
-            usesVoiceActivity = true
-        default:
-            usesVoiceActivity = false
-        }
-        guard usesVoiceActivity,
-              MLXTranscriptionPlanning.shouldUseSenseVoiceVAD(
-                  sampleCount: audioSamples.count,
-                  sampleRate: targetSampleRate,
-                  directPassMaximumDurationSeconds: senseVoiceDirectPassMaximumDurationSeconds
-              )
-        else {
-            return nil
-        }
-        let modelDirectory = try await SileroVADModelProvisioner.shared.ensureModelDirectory()
-        try Task.checkCancellation()
-        return OmniSpeechSegments(
-            vadModelDirectory: modelDirectory,
-            threshold: senseVoiceVADThreshold,
-            minSpeechMilliseconds: senseVoiceVADMinSpeechDurationMs,
-            minSilenceMilliseconds: senseVoiceVADMinSilenceDurationMs,
-            speechPadMilliseconds: senseVoiceVADSpeechPadMs,
-            // Note (Dayuxiaoshui): SenseVoice splits each speech run into overlapping chunks
-            // instead of merging runs across short gaps.
-            mergeGapSeconds: runtime.kind == .senseVoice ? nil : 1.0,
-            maxChunkSeconds: Float(senseVoiceChunkMaximumDurationSeconds),
-            chunkOverlapSeconds: runtime.kind == .senseVoice ? Float(senseVoiceChunkOverlapSeconds) : nil
-        )
-    }
-
     private func runtimeFailureMessage(for error: Error) -> String {
         if let structuredError = error as? MLXStructuredTranscriptionError,
            let description = structuredError.errorDescription {
@@ -1637,10 +1498,12 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
             for: .postStopFinal,
             audioDurationSeconds: audioDurationSeconds
         )
-        let inferenceResult = try await runStreamingInference(
+        let inferenceResult = try await Self.runFinalInference(
             model: model,
             audioSamples: audioSamples,
-            inferenceConfiguration: inferenceConfiguration
+            inferenceConfiguration: inferenceConfiguration,
+            targetSampleRate: targetSampleRate,
+            inferenceTaskPriority: inferenceTaskPriority
         )
         latestSenseVoiceMetadata = inferenceResult.senseVoiceMetadata
         let rawCandidate = normalizeText(inferenceResult.rawText)
@@ -1836,30 +1699,5 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
 
     private static func traceQuoted(_ value: String) -> String {
         value.isEmpty ? "\"\"" : "\"\(value)\""
-    }
-
-    @discardableResult
-    private func applyPreferredInputDeviceIfNeeded(inputNode: AVAudioInputNode) -> Bool {
-        guard let preferredInputDeviceID,
-              preferredInputDeviceID != AudioDeviceID(kAudioObjectUnknown),
-              AudioInputDeviceManager.isAvailableInputDevice(preferredInputDeviceID)
-        else {
-            return false
-        }
-        guard let audioUnit = inputNode.audioUnit else { return false }
-        var deviceID = preferredInputDeviceID
-        let status = AudioUnitSetProperty(
-            audioUnit,
-            kAudioOutputUnitProperty_CurrentDevice,
-            kAudioUnitScope_Global,
-            0,
-            &deviceID,
-            UInt32(MemoryLayout<AudioDeviceID>.size)
-        )
-        if status != noErr {
-            VoxtLog.asrWarning("Unable to switch input device. status=\(status)")
-            return false
-        }
-        return true
     }
 }

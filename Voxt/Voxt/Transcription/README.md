@@ -8,7 +8,7 @@ Native HTTP engine adapters, local model managers, model artifacts and shared tr
 - Manages ASR discovery, downloads, repository state and bounded artifact validation.
 - Preserves family-specific requests, language/hints, structured segments, preview/final projection and longform behavior.
 
-`OmniASRBackend` constructs the Native runtime. Catalog/state values and resumable transfer live under `Core/Models`; `MLXModelDownloadSupport` retains metadata/validation and tokenizer-asset policy. Managers own install/download state, storage revisions and load lifetimes. Lifecycle tests use identity-only fixtures that reject inference.
+`OmniASRBackend` constructs the Native runtime. Catalog/state values and resumable transfer live under `Core/Models`; `MLXModelDownloadSupport` retains metadata/validation and tokenizer-asset policy. Managers own install/download state, storage revisions and load lifetimes. `MLXModelDownloadAttempt` receives one attempt's endpoint, root, token and progress sink; `MLXModelArtifactPreparation` shares asset transfer and repair operations without accessing manager state. Lifecycle tests use identity-only fixtures that reject inference.
 
 ## Native HTTP ownership
 
@@ -20,7 +20,7 @@ Directory leases protect cooperating operations, not external blob writes, uncoo
 
 ## App task ownership
 
-`MLXTranscriber` owns recording tasks, revision checks, model leases and capture buffers. Pure policy lives in `MLXTranscriptionPlanning`, `MLXInferenceConfiguration`, `MLXTranscriptMerging` and `MLXLiveTextPreview`; detached inference and structured segment conversion have their own files.
+`MLXTranscriber` owns recording tasks, revision checks, model leases and capture buffers. `MLXAudioCaptureGraph` borrows its engine for device/format configuration and blocking-start coordination, without owning session state. Pure policy lives in `MLXTranscriptionPlanning`, `MLXInferenceConfiguration`, `MLXTranscriptMerging` and `MLXLiveTextPreview`; `MLXDetachedInference` shares final request orchestration and Native VAD options between correction and buffered transcription. The retired Swift SenseVoice probability-range reconstruction is not a second segmentation path.
 
 `MLXCorrectionPassCoordinator` owns the in-flight correction slot until its task exits, including cancelled work. Final passes wait for retiring intermediate work; the transcriber rechecks revision/model use after suspension.
 

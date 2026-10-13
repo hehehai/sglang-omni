@@ -438,6 +438,48 @@ final class FeatureSettingsStoreTests: XCTestCase {
         }
     }
 
+    func testStorageCanonicalizationPreservesTheCompleteSettingsSnapshot() throws {
+        try withEphemeralDefaults { defaults in
+            var settings = FeatureSettingsStore.deriveFromLegacy(defaults: defaults)
+            settings.availability.notesEnabled = false
+            settings.availability.appEnhancementEnabled = false
+            settings.transcription.notes.remindersSync = RemindersNoteSyncSettings(
+                enabled: true,
+                selectedListIdentifier: "list-1",
+                selectedListTitle: "Voxt"
+            )
+            settings.transcription.notes.obsidianSync = ObsidianNoteSyncSettings(
+                enabled: true,
+                vaultPath: "/tmp/Voxt-test-vault",
+                vaultBookmarkData: Data([1, 2, 3]),
+                relativeFolder: "Notes",
+                groupingMode: .daily
+            )
+            settings.transcription.prompt = "Custom transcription prompt."
+            settings.translation.prompt = "Custom translation prompt."
+            settings.rewrite.prompt = "Custom rewrite prompt."
+            settings.meeting.summaryPrompt = "Custom meeting prompt."
+            settings.meeting.summaryAutoGenerate = false
+            settings.meeting.hideOverlayFromScreenSharing = true
+            settings.translation.showResultWindow = false
+            FeatureSettingsStore.save(settings, defaults: defaults, notify: false)
+
+            let storedRaw = try XCTUnwrap(defaults.string(forKey: AppPreferenceKey.featureSettings))
+            let stored = try JSONDecoder().decode(FeatureSettings.self, from: Data(storedRaw.utf8))
+            var expected = FeatureSettingsStore.load(defaults: defaults)
+            expected.transcription.prompt = AppPromptDefaults.canonicalStoredText(expected.transcription.prompt, kind: .enhancement)
+            expected.translation.prompt = AppPromptDefaults.canonicalStoredText(expected.translation.prompt, kind: .translation)
+            expected.rewrite.prompt = AppPromptDefaults.canonicalStoredText(expected.rewrite.prompt, kind: .rewrite)
+            expected.meeting.summaryPrompt = AppPromptDefaults.canonicalStoredText(expected.meeting.summaryPrompt, kind: .transcriptSummary)
+
+            XCTAssertEqual(stored, expected)
+            XCTAssertEqual(stored.transcription.notes.remindersSync, settings.transcription.notes.remindersSync)
+            XCTAssertEqual(stored.transcription.notes.obsidianSync, settings.transcription.notes.obsidianSync)
+            XCTAssertFalse(stored.transcription.notes.enabled)
+            XCTAssertFalse(stored.rewrite.appEnhancementEnabled)
+        }
+    }
+
     func testNotePanelSettingsPersistAndClampDelays() throws {
         try withEphemeralDefaults { defaults in
             var settings = FeatureSettingsStore.load(defaults: defaults)

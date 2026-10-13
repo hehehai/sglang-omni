@@ -2,7 +2,7 @@
 
 关联：[全项目评估](RefactoringAssessment.zh-CN.md)、[源码地图](Architecture.md)、[回归矩阵](LocalRegressionMatrix.md)。
 
-状态定义：**已实施**表示代码已修改并完成可用的静态检查；**已验收**必须包含 macOS 编译、XCTest 和相关人工检查。实施环境为 Linux，没有 Swift/Xcode；下面各批均不能仅凭静态检查标记为已验收。提交及 PR 状态以 Git 历史和 GitHub 为准；合入前仍需完成下述验收。
+状态定义：**已实施**表示代码已修改并完成可用检查；**已验收**必须包含 macOS 编译、XCTest 和相关人工检查。下面阶段 0–6 的初始实施环境为 Linux，无 Swift/Xcode；各阶段后续真实 CI 结果按自己的 SHA 记录。2026 年 Native HTTP 分支的新一批精简见文末，不继承旧分支的验收结论。提交及 PR 状态以 Git 历史和 GitHub 为准。
 
 ## 阶段总览
 
@@ -425,3 +425,32 @@ xcodebuild test -project Voxt.xcodeproj -scheme Voxt -destination 'platform=macO
 人工检查：六步引导的前进/后退/关闭、三种练习、权限和麦克风切换；设置导航、通知、反馈、历史/Note 编辑、词典一键扫描及远程 provider 保存/测试；会议远程启动配置；本地 ASR live/final/取消；延迟粘贴时取消/重启、关闭答案、正常结束后的 Auto Key、切换应用/窗口和连续用户复制。核对新 suite 的测试发现数量，不能只看 xcodebuild 退出码。
 
 阶段 4–6E 的已识别代码事项已集中处理，LLM 流式故障注入已补齐；五个大型 owner 按评审决定保留。最终设备/模型/编辑器验收和运行时性能前后数据仍缺失。构建命令资源统计不代表应用/Metal 峰值内存，不宣称性能已提升或所有验收已经结束。
+
+## Native HTTP 分支精简：基线 `296ed519`（2026-10）
+
+本批在已退役 MLX Audio、已撤回 XPC 的当前分支上实施，不改共享 Native、catalog/模型目录、HTTP options/limits、Swift LLM/VLM、依赖 pin、项目/签名配置或音频 fixture。
+
+| 热点 | 本批前 | 本批后 | 真实职责边界 |
+| --- | ---: | ---: | --- |
+| MLXModelManager | 1632 | 1252 | 明确端点/root/token/progress 输入的 download attempt（196行）与 artifact preparation/repair（201行）；私有状态、任务、revision、Native ledger 和 shutdown 留在 manager |
+| MLXTranscriber | 1865 | 1703 | 借用原 engine 的 capture graph（123行），final request/VAD orchestration 复用现有 detached inference；不公开 tap/缓冲/session/release 状态 |
+| FeatureSettingsStore | 838 | 795 | 完整值拷贝后应用原来的 prompt/枚举/主开关规范化；删除仅复制bool的reconcile包装 |
+| ModelSettingsSections / Actions / ReusableSections | 1562合计 | 1135合计 | 删除7个无入口旧卡片/section、独占rows与ModelTaskSettingsCard；真实catalog和配置sheet不变 |
+
+应用源码524文件、151885→150966行，净减少919行；这是源码规模，不是binary/性能测量。仍有多个超过千行的状态owner，不以机械拆extension或扩大private访问达标。
+
+### 清理证据及测试迁移
+
+- 核实生产/测试、协议/selector、回调、条件编译、反射、资源、脚本、同步目录组及持久化格式后，移除未调用的下载验证后台包装、clearDirectory旧删除路径、app model-copy facade、meeting3个便利方法和2个展示/政策便利属性；真实验证、lease-aware删除、microphone启动/watchdog、hint和final政策保留。
+- Swift SenseVoice概率→range和split helper只剩4个内部算法测试；删除这条退役链，保留Native `OmniSpeechSegments`、真实merge/metadata与原参数。两个merge测试直接调用实际merge-result函数。
+- Qwen writable-load facade仅有测试caller；退役专属测试，新增直接操作的download/repair回归并保留shadow卸载。shadow preparation仍被read-only repair使用，不能删除兼容目录或真实修复路径。
+- 删除整个无生产入口的 ProjectDictionaryScanner、MeetingTranslationSupport 和 MeetingFileTrace。分别去掉exclusive内部测试、将custom-provider覆盖转向真实resolver（Remote用例已有）、退役未接入trace测试并修正文档；任务ID、redacted error/stage、实际生命周期日志与词典历史/自动学习仍在。
+- 旧设置卡片下游并非一概删除：ResettablePromptSection、ASR配置sheet/private控件、Model配置/安装回调和持久化字段必须保留；新产生的其他展示候选留待下一批逐项核验。
+
+### 验证及边界
+
+工具52、Artifacts独立package79、完整hooks/审计/diff检查通过。独立整合审查无blocking回归：真实FeatureSettings/meeting枚举及实际前后storage函数512组值/JSON/输入不变对照通过；实际capture/helper和family/VAD请求body经声明的CPU peers回放，不能冒充CoreAudio、Native或Metal。保留函数及private ownership等价检查通过。
+
+真实隔离Mac首轮SDK编译通过、XCTest1980：1937通过/42跳过/1失败。唯一失败为既有权限聚合fixture仍假定96提交之前的Reminders默认开启；改为显式开启sync并保留原4项权限断言，新增实际默认关闭不要求Reminders的独立测试。原失败xcresult/log保留。修正后的完整真实Mac重跑1981项：1939通过/42跳过/0失败；新增与迁移的测试已进入实际SDK套件。实际unsigned Release构建也通过；这不是签名、GUI、Native模型或性能验收。
+
+GUI catalog→ASR/Remote/LLM配置、真实device/权限/start取消/rapid restart、真实Native质量与长会议性能、下载Range/ETag/proxy/恢复仍未验证。没有CI/发布门槛激活、部署、私有凭据访问或正式App覆盖。

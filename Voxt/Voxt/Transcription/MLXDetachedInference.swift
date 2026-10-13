@@ -1,4 +1,4 @@
-// Off-actor inference consumes a resolved snapshot. Task cancellation and model leases remain in MLXTranscriber.
+// Final requests consume resolved snapshots; model leases and session tasks remain in MLXTranscriber.
 
 import Foundation
 
@@ -52,6 +52,85 @@ extension MLXTranscriber {
             )
         }
         return samples
+    }
+
+    static func runFinalInference(
+        model loadedModel: LoadedASRModel,
+        audioSamples: [Float],
+        inferenceConfiguration: ResolvedInferenceConfiguration,
+        targetSampleRate: Int,
+        inferenceTaskPriority: TaskPriority
+    ) async throws -> MLXDetachedInferenceResult {
+        try Task.checkCancellation()
+        let runtime = try loadedModel.requireOmniRuntime()
+        let speechSegments = try await omniSpeechSegmentsIfNeeded(
+            runtime: runtime,
+            audioSamples: audioSamples,
+            inferenceConfiguration: inferenceConfiguration,
+            targetSampleRate: targetSampleRate
+        )
+        let inferenceTask = Task.detached(priority: inferenceTaskPriority) {
+            try await Self.runOmniInferenceDetached(
+                runtime: runtime,
+                audioSamples: audioSamples,
+                inferenceConfiguration: inferenceConfiguration,
+                targetSampleRate: targetSampleRate,
+                speechSegments: speechSegments
+            )
+        }
+        return try await withTaskCancellationHandler {
+            try await inferenceTask.value
+        } onCancel: {
+            inferenceTask.cancel()
+        }
+    }
+
+    /// The Native server loads the provisioned Silero VAD for long-form speech cuts.
+    private static func omniSpeechSegmentsIfNeeded(
+        runtime: OmniASRRuntime,
+        audioSamples: [Float],
+        inferenceConfiguration: ResolvedInferenceConfiguration,
+        targetSampleRate: Int
+    ) async throws -> OmniSpeechSegments? {
+        let senseVoiceDirectPassMaximumDurationSeconds: Double = 30.0
+        let senseVoiceChunkMaximumDurationSeconds: Double = 24.0
+        let senseVoiceChunkOverlapSeconds: Double = 0.35
+        let senseVoiceVADThreshold: Float = 0.5
+        let senseVoiceVADMinSpeechDurationMs = 220
+        let senseVoiceVADMinSilenceDurationMs = 420
+        let senseVoiceVADSpeechPadMs = 180
+        let usesVoiceActivity: Bool
+        switch runtime.kind {
+        case .cohereTranscribe:
+            usesVoiceActivity = inferenceConfiguration.cohereLongFormStrategy == .voiceActivity
+        case .senseVoice:
+            usesVoiceActivity = true
+        default:
+            usesVoiceActivity = false
+        }
+        guard usesVoiceActivity,
+              MLXTranscriptionPlanning.shouldUseSenseVoiceVAD(
+                  sampleCount: audioSamples.count,
+                  sampleRate: targetSampleRate,
+                  directPassMaximumDurationSeconds: senseVoiceDirectPassMaximumDurationSeconds
+              )
+        else {
+            return nil
+        }
+        let modelDirectory = try await SileroVADModelProvisioner.shared.ensureModelDirectory()
+        try Task.checkCancellation()
+        return OmniSpeechSegments(
+            vadModelDirectory: modelDirectory,
+            threshold: senseVoiceVADThreshold,
+            minSpeechMilliseconds: senseVoiceVADMinSpeechDurationMs,
+            minSilenceMilliseconds: senseVoiceVADMinSilenceDurationMs,
+            speechPadMilliseconds: senseVoiceVADSpeechPadMs,
+            // Note (Dayuxiaoshui): SenseVoice splits each speech run into overlapping chunks
+            // instead of merging runs across short gaps.
+            mergeGapSeconds: runtime.kind == .senseVoice ? nil : 1.0,
+            maxChunkSeconds: Float(senseVoiceChunkMaximumDurationSeconds),
+            chunkOverlapSeconds: runtime.kind == .senseVoice ? Float(senseVoiceChunkOverlapSeconds) : nil
+        )
     }
 
     /// Native decoding retains each family's chunking, budget and stop rules.

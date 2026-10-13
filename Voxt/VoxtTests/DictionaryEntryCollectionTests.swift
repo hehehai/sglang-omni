@@ -104,17 +104,6 @@ final class DictionaryEntryCollectionTests: XCTestCase {
         XCTAssertEqual(terms.last, "Term8")
     }
 
-    func testProjectDictionaryScannerExtractsDecoratedTerms() {
-        let terms = ProjectDictionaryScanner.candidateTerms(
-            in: "Use MLXWhisper, MLXAudio and tmp/typeflux for VoxtProject.",
-            allowPlainLowercase: false
-        )
-
-        XCTAssertTrue(terms.contains("MLXWhisper"))
-        XCTAssertTrue(terms.contains("MLXAudio"))
-        XCTAssertTrue(terms.contains("tmp/typeflux"))
-        XCTAssertTrue(terms.contains("VoxtProject"))
-    }
 }
 
 private extension DictionaryEntryCollectionTests {

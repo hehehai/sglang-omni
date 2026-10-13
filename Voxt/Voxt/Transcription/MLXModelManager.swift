@@ -3,7 +3,6 @@
 
 import Foundation
 import Combine
-import CFNetwork
 import MLX
 import HuggingFace
 import OmniModelArtifacts
@@ -870,55 +869,12 @@ class MLXModelManager: ObservableObject {
         return .omni(runtime)
     }
 
-    private func writeCacheDirectory(for repo: String) -> URL? {
-        MLXModelStorageSupport.cacheDirectory(
-            for: repo,
-            rootDirectory: writeRootURL()
-        )
-    }
-
     private func downloadTempDirectory(for repo: String) -> URL? {
         guard let repoID = Repo.ID(rawValue: repo) else { return nil }
         let modelSubdir = repoID.description.replacingOccurrences(of: "/", with: "_")
         return writeRootURL()
             .appendingPathComponent("mlx-audio")
             .appendingPathComponent("\(modelSubdir)-download")
-    }
-
-    func writableLoadDirectoryIfNeeded(
-        for repo: String,
-        sourceDirectory: URL,
-        lowercasedRepo: String
-    ) async throws -> URL {
-        let writableDirectory = writableShadowDirectory(for: repo)
-        return try await Task.detached(priority: .userInitiated) {
-            guard lowercasedRepo.contains("qwen3-asr") || lowercasedRepo.contains("qwen3_asr"),
-                  !FileManager.default.fileExists(atPath: sourceDirectory.appendingPathComponent("tokenizer.json").path),
-                  let writableDirectory else { return sourceDirectory }
-            return try Self.prepareWritableShadowDirectory(from: sourceDirectory, to: writableDirectory)
-        }.value
-    }
-
-    private nonisolated static func prepareWritableShadowDirectory(from sourceDirectory: URL, to destinationDirectory: URL) throws -> URL {
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: destinationDirectory.path) {
-            try fileManager.removeItem(at: destinationDirectory)
-        }
-        try fileManager.createDirectory(
-            at: destinationDirectory.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try fileManager.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
-        let sourceEntries = try fileManager.contentsOfDirectory(
-            at: sourceDirectory,
-            includingPropertiesForKeys: nil,
-            options: []
-        )
-        for entry in sourceEntries {
-            let linkURL = destinationDirectory.appendingPathComponent(entry.lastPathComponent, isDirectory: false)
-            try fileManager.createSymbolicLink(at: linkURL, withDestinationURL: entry)
-        }
-        return destinationDirectory
     }
 
     private func writeRootURL() -> URL {
@@ -1052,18 +1008,6 @@ class MLXModelManager: ObservableObject {
         return true
     }
 
-    private func uniqueURLs(_ urls: [URL]) -> [URL] {
-        var seenPaths = Set<String>()
-        var uniqueURLs: [URL] = []
-        for url in urls {
-            let standardizedURL = url.standardizedFileURL
-            if seenPaths.insert(standardizedURL.path).inserted {
-                uniqueURLs.append(standardizedURL)
-            }
-        }
-        return uniqueURLs
-    }
-
     private func fetchRemoteSize() {
         sizeState = MLXModelDownloadSupport.validationSizeState(for: modelRepo)
     }
@@ -1071,11 +1015,6 @@ class MLXModelManager: ObservableObject {
     func remoteSizeText(repo: String) -> String {
         let canonicalRepo = Self.canonicalModelRepo(repo)
         return Self.fallbackRemoteSizeText(repo: canonicalRepo) ?? "Unknown"
-    }
-
-    private func fallbackHubBaseURL(from baseURL: URL) -> URL? {
-        guard !MLXModelDownloadSupport.isMirrorHost(baseURL) else { return nil }
-        return Self.mirrorHubBaseURL
     }
 
     private func downloadSourceCandidates() -> [ModelDownloadSourceCandidate] {
@@ -1163,252 +1102,20 @@ class MLXModelManager: ObservableObject {
         let token = ProcessInfo.processInfo.environment["HF_TOKEN"]
             ?? Bundle.main.object(forInfoDictionaryKey: "HF_TOKEN") as? String
         let session = MLXModelDownloadSupport.makeDownloadSession(for: baseURL)
-        return try await resolveOrDownloadModelUsingLFS(
+        return try await MLXModelDownloadAttempt.download(
             repoID: repoID,
             session: session,
             baseURL: baseURL,
-            bearerToken: token
-        )
-    }
-
-    private func resolveOrDownloadModelUsingLFS(
-        repoID: Repo.ID,
-        session: URLSession,
-        baseURL: URL,
-        bearerToken: String?
-    ) async throws -> URL {
-        let repo = repoID.description
-        let modelSubdir = repoID.description.replacingOccurrences(of: "/", with: "_")
-        let baseDir = writeRootURL().appendingPathComponent("mlx-audio")
-        let modelDir = baseDir.appendingPathComponent(modelSubdir)
-        let tempDir = baseDir.appendingPathComponent("\(modelSubdir)-download")
-
-        let alreadyInstalled = await Task.detached(priority: .utility) {
-            MLXModelDownloadSupport.isModelDirectoryValid(modelDir, repo: repo, fileManager: .default)
-        }.value
-        if alreadyInstalled {
-            return modelDir
-        }
-
-        let stagingLease = try await ModelDiskOperations.prepareStagingDirectory(at: tempDir)
-        defer { withExtendedLifetime(stagingLease) {} }
-
-        VoxtLog.modelInfo("Fetching model entries: \(repoID.description)")
-        let entries = try await MLXModelDownloadSupport.fetchModelEntries(
-            repo: repoID.description,
-            baseURL: baseURL,
-            session: session,
-            userAgent: Self.hubUserAgent
-        )
-        VoxtLog.modelInfo("Entry count: \(entries.count)")
-        guard !entries.isEmpty else {
-            throw MLXModelDownloadSupport.DownloadValidationError.emptyFileList
-        }
-        let totalBytes = max(entries.reduce(Int64(0)) { partial, entry in
-            partial + max(entry.size ?? 0, 0)
-        }, 1)
-        let totalFiles = entries.count
-        var completedBytes: Int64 = 0
-
-        for (index, entry) in entries.enumerated() {
-            let completedFiles = index
-            let expectedEntryBytes = max(entry.size ?? 0, 0)
-            let progress = Progress(totalUnitCount: max(expectedEntryBytes, 1))
-            let baseCompletedBytes = completedBytes
-            let isLastEntry = index == totalFiles - 1
-            let beforeFraction = totalBytes > 0 ? Double(completedBytes) / Double(totalBytes) : 0
-            setDownloadingState(
-                progress: min(1, beforeFraction),
-                completed: min(completedBytes, totalBytes),
-                total: totalBytes,
-                currentFile: entry.path,
-                completedFiles: completedFiles,
-                totalFiles: totalFiles,
+            bearerToken: token,
+            writeRoot: writeRootURL(),
+            userAgent: Self.hubUserAgent,
+            downloadSizeTolerance: downloadSizeTolerance
+        ) { [weak self] state in
+            guard case let .downloading(progress, completed, total, currentFile, completedFiles, totalFiles) = state else { return }
+            self?.setDownloadingState(
+                progress: progress, completed: completed, total: total,
+                currentFile: currentFile, completedFiles: completedFiles, totalFiles: totalFiles,
                 for: repo
-            )
-            VoxtLog.modelInfo("Download start: \(entry.path) (size=\(entry.size ?? -1))", verbose: true)
-
-            let sampler = Task { [weak self] in
-                let startTime = Date()
-                while !Task.isCancelled {
-                    let effectiveInFlight = ModelDownloadProgress.inFlightBytes(
-                        progress: progress,
-                        expectedFileBytes: expectedEntryBytes,
-                        startTime: startTime
-                    )
-                    let currentCompleted = min(baseCompletedBytes + effectiveInFlight, totalBytes)
-                    let fraction = totalBytes > 0 ? Double(currentCompleted) / Double(totalBytes) : 0
-                    let fileTransferLooksComplete = expectedEntryBytes > 0 && effectiveInFlight >= expectedEntryBytes
-                    let displayCompletedFiles = (isLastEntry && fileTransferLooksComplete) ? totalFiles : completedFiles
-                    let displayCurrentFile = (isLastEntry && fileTransferLooksComplete) ? nil : entry.path
-                    await MainActor.run {
-                        guard !Task.isCancelled else { return }
-                        self?.setDownloadingState(
-                            progress: min(1, fraction),
-                            completed: currentCompleted,
-                            total: totalBytes,
-                            currentFile: displayCurrentFile,
-                            completedFiles: displayCompletedFiles,
-                            totalFiles: totalFiles,
-                            for: repo
-                        )
-                    }
-                    try? await Task.sleep(for: .milliseconds(200))
-                }
-            }
-            defer { sampler.cancel() }
-
-            let destination = try MLXModelStorageSupport.destinationFileURL(for: entry.path, under: tempDir)
-            if MLXModelDownloadSupport.canReuseExistingDownload(
-                at: destination,
-                expectedSize: entry.size,
-                fileManager: .default
-            ) {
-                let delta = max(expectedEntryBytes, Int64((try? destination.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0))
-                completedBytes += max(delta, 0)
-                let finishedFiles = completedFiles + 1
-                let fraction = totalBytes > 0 ? Double(completedBytes) / Double(totalBytes) : 1
-                setDownloadingState(
-                    progress: min(1, fraction),
-                    completed: min(completedBytes, totalBytes),
-                    total: totalBytes,
-                    currentFile: nil,
-                    completedFiles: finishedFiles,
-                    totalFiles: totalFiles,
-                    for: repo
-                )
-                VoxtLog.modelInfo("Download resume reused existing file: \(entry.path)", verbose: true)
-                continue
-            }
-
-            try await downloadEntryWithRetry(
-                repo: repoID.description,
-                entryPath: entry.path,
-                tempDir: tempDir,
-                progress: progress,
-                baseURL: baseURL,
-                bearerToken: bearerToken
-            )
-            VoxtLog.modelInfo("Download done: \(entry.path)", verbose: true)
-            let delta = max(expectedEntryBytes, max(progress.completedUnitCount, 0))
-            completedBytes += max(delta, 0)
-            let finishedFiles = completedFiles + 1
-            let fraction = totalBytes > 0 ? Double(completedBytes) / Double(totalBytes) : 1
-            setDownloadingState(
-                progress: min(1, fraction),
-                completed: min(completedBytes, totalBytes),
-                total: totalBytes,
-                currentFile: nil,
-                completedFiles: finishedFiles,
-                totalFiles: totalFiles,
-                for: repo
-            )
-            VoxtLog.modelInfo(
-                "Download progress: files=\(finishedFiles)/\(totalFiles), bytes=\(min(completedBytes, totalBytes))/\(totalBytes)",
-                verbose: true
-            )
-        }
-
-        try await downloadMissingWhisperTokenizerAssetsIfNeeded(
-            for: repo,
-            directory: tempDir,
-            baseURL: baseURL,
-            bearerToken: bearerToken
-        )
-
-        let sizeState = MLXModelDownloadSupport.validationSizeState(for: repo)
-        let sizeTolerance = downloadSizeTolerance
-        let outcome = try await ModelDiskOperations.publish(stagingLease: stagingLease, to: modelDir) { directory in
-            try MLXModelDownloadSupport.validateDownloadedModel(
-                at: directory, repo: repo, sizeState: sizeState,
-                downloadSizeTolerance: sizeTolerance, fileManager: .default
-            )
-            let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-            if !MLXModelDownloadSupport.weightExtensions(for: repo).contains("npz")
-                || entries.contains(where: { $0.pathExtension.lowercased() == "safetensors" }) {
-                try OmniModelArtifactValidation.validateSafetensorsDirectory(at: directory)
-            }
-        }
-        if let warning = outcome.cleanupErrorDescription {
-            VoxtLog.modelWarning("Model installed; cleanup incomplete. retainedPreviousDirectory=\(outcome.retainedPreviousDirectory?.path ?? "none"), error=\(warning)")
-        }
-        VoxtLog.modelInfo("Download published atomically.", verbose: true)
-        return outcome.directory
-    }
-
-    private func downloadEntryWithRetry(
-        repo: String,
-        entryPath: String,
-        tempDir: URL,
-        progress: Progress,
-        baseURL: URL,
-        bearerToken: String?
-    ) async throws {
-        let destination = try MLXModelStorageSupport.destinationFileURL(for: entryPath, under: tempDir)
-        let remoteURL = try MLXModelDownloadSupport.fileResolveURL(
-            baseURL: baseURL,
-            repo: repo,
-            path: entryPath
-        )
-        _ = try await ResumableModelDownloadSupport.download(
-            ResumableDownloadDescriptor(
-                sourceURL: remoteURL,
-                destinationURL: destination,
-                relativePath: entryPath,
-                expectedSize: progress.totalUnitCount > 1 ? progress.totalUnitCount : nil,
-                userAgent: Self.hubUserAgent,
-                bearerToken: bearerToken,
-                disableProxy: MLXModelDownloadSupport.isMirrorHost(baseURL)
-            ),
-            progress: progress
-        )
-    }
-
-    private func downloadMissingWhisperTokenizerAssetsIfNeeded(
-        for repo: String,
-        directory: URL,
-        baseURL: URL,
-        bearerToken: String?
-    ) async throws {
-        guard let tokenizerRepo = MLXModelDownloadSupport.whisperTokenizerRepo(for: repo) else {
-            return
-        }
-        let missingPaths = MLXModelDownloadSupport.missingWhisperTokenizerAssetPaths(
-            at: directory,
-            fileManager: .default
-        )
-        guard !missingPaths.isEmpty else { return }
-
-        let session = MLXModelDownloadSupport.makeDownloadSession(for: baseURL)
-        VoxtLog.modelInfo(
-            "Fetching Whisper tokenizer entries. repo=\(repo), tokenizerRepo=\(tokenizerRepo)"
-        )
-        let availableEntries = try await MLXModelDownloadSupport.fetchModelEntries(
-            repo: tokenizerRepo,
-            baseURL: baseURL,
-            session: session,
-            userAgent: Self.hubUserAgent
-        )
-        let availableByPath = Dictionary(uniqueKeysWithValues: availableEntries.map { ($0.path, $0) })
-        let entries = try missingPaths.map { path -> MLXModelDownloadSupport.ModelFileEntry in
-            guard let entry = availableByPath[path] else {
-                throw MLXModelDownloadSupport.DownloadValidationError.missingFiles
-            }
-            return entry
-        }
-
-        VoxtLog.modelInfo(
-            "Downloading Whisper tokenizer assets. repo=\(repo), tokenizerRepo=\(tokenizerRepo), files=\(entries.map(\.path).joined(separator: ", "))"
-        )
-        for entry in entries {
-            let progress = Progress(totalUnitCount: max(entry.size ?? 0, 1))
-            try await downloadEntryWithRetry(
-                repo: tokenizerRepo,
-                entryPath: entry.path,
-                tempDir: directory,
-                progress: progress,
-                baseURL: baseURL,
-                bearerToken: bearerToken
             )
         }
     }
@@ -1527,106 +1234,19 @@ class MLXModelManager: ObservableObject {
         let token = ProcessInfo.processInfo.environment["HF_TOKEN"]
             ?? Bundle.main.object(forInfoDictionaryKey: "HF_TOKEN") as? String
         try Task.checkCancellation()
-        let repairDirectory = try await writableRepairDirectoryIfNeeded(
-            for: repo,
-            existingDirectory: existingDirectory
+        let repairDirectory = try await MLXModelArtifactPreparation.writableRepairDirectoryIfNeeded(
+            existingDirectory: existingDirectory,
+            writableDirectory: writableShadowDirectory(for: repo)
         )
 
-        try await repairIncompleteModelDirectoryIfNeeded(
+        try await MLXModelArtifactPreparation.repairIncompleteModelDirectoryIfNeeded(
             for: repo,
             existingDirectory: repairDirectory,
             baseURL: hubBaseURL,
-            bearerToken: token
+            bearerToken: token,
+            userAgent: Self.hubUserAgent,
+            mirrorBaseURL: Self.mirrorHubBaseURL
         )
         return repairDirectory
-    }
-
-    private func writableRepairDirectoryIfNeeded(
-        for repo: String,
-        existingDirectory: URL
-    ) async throws -> URL {
-        let writableDirectory = writableShadowDirectory(for: repo)
-        return try await Task.detached(priority: .utility) {
-            guard !FileManager.default.isWritableFile(atPath: existingDirectory.path),
-                  let writableDirectory else { return existingDirectory }
-            return try Self.prepareWritableShadowDirectory(from: existingDirectory, to: writableDirectory)
-        }.value
-    }
-
-    private func repairIncompleteModelDirectoryIfNeeded(
-        for repo: String,
-        existingDirectory: URL,
-        baseURL: URL,
-        bearerToken: String?
-    ) async throws {
-        do {
-            try await repairIncompleteModelDirectory(
-                for: repo,
-                existingDirectory: existingDirectory,
-                baseURL: baseURL,
-                bearerToken: bearerToken
-            )
-        } catch {
-            try Task.checkCancellation()
-            guard let fallbackBaseURL = fallbackHubBaseURL(from: baseURL) else {
-                throw error
-            }
-            VoxtLog.modelWarning(
-                "Primary model repair endpoint failed. Retrying with mirror. repo=\(repo), baseURL=\(baseURL.absoluteString), error=\(error.localizedDescription)"
-            )
-            try await repairIncompleteModelDirectory(
-                for: repo,
-                existingDirectory: existingDirectory,
-                baseURL: fallbackBaseURL,
-                bearerToken: bearerToken
-            )
-        }
-    }
-
-    private func repairIncompleteModelDirectory(
-        for repo: String,
-        existingDirectory: URL,
-        baseURL: URL,
-        bearerToken: String?
-    ) async throws {
-        if MLXModelDownloadSupport.whisperTokenizerRepo(for: repo) != nil {
-            try await downloadMissingWhisperTokenizerAssetsIfNeeded(
-                for: repo,
-                directory: existingDirectory,
-                baseURL: baseURL,
-                bearerToken: bearerToken
-            )
-            return
-        }
-
-        let session = MLXModelDownloadSupport.makeDownloadSession(for: baseURL)
-        let entries = try await MLXModelDownloadSupport.fetchModelEntries(
-            repo: repo,
-            baseURL: baseURL,
-            session: session,
-            userAgent: Self.hubUserAgent
-        )
-        let missingEntries = MLXModelDownloadSupport.missingRequiredRepairEntries(
-            at: existingDirectory,
-            repo: repo,
-            availableEntries: entries,
-            fileManager: .default
-        )
-        guard !missingEntries.isEmpty else { return }
-
-        VoxtLog.modelInfo(
-            "Repairing incomplete MLX model directory. repo=\(repo), files=\(missingEntries.map(\.path).joined(separator: ", "))"
-        )
-        for entry in missingEntries {
-            let progress = Progress(totalUnitCount: max(entry.size ?? 0, 1))
-            try await downloadEntryWithRetry(
-                repo: repo,
-                entryPath: entry.path,
-                tempDir: existingDirectory,
-                progress: progress,
-                baseURL: baseURL,
-                bearerToken: bearerToken
-            )
-        }
     }
 }

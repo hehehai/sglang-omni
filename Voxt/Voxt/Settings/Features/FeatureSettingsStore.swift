@@ -470,7 +470,7 @@ enum FeatureSettingsStore {
             settings.rewrite.asrSelectionID,
             fallback: fallback.rewrite.asrSelectionID
         )
-        let availability = reconciledAvailability(from: settings)
+        let availability = settings.availability
         var notes = sanitizedNotesSettings(
             settings.transcription.notes,
             fallbackSelectionID: fallback.transcription.notes.titleModelSelectionID
@@ -546,18 +546,6 @@ enum FeatureSettingsStore {
         )
     }
 
-    private static func reconciledAvailability(from settings: FeatureSettings) -> FeatureAvailabilitySettings {
-        // Availability is the source of truth for master toggles; keep nested flags aligned.
-        FeatureAvailabilitySettings(
-            translationEnabled: settings.availability.translationEnabled,
-            rewriteEnabled: settings.availability.rewriteEnabled,
-            notesEnabled: settings.availability.notesEnabled,
-            appEnhancementEnabled: settings.availability.appEnhancementEnabled,
-            meetingEnabled: settings.availability.meetingEnabled,
-            filesEnabled: settings.availability.filesEnabled
-        )
-    }
-
     private static func sanitizedASRSelection(
         _ selectionID: FeatureModelSelectionID,
         fallback: FeatureModelSelectionID
@@ -607,48 +595,17 @@ enum FeatureSettingsStore {
     }
 
     private static func storageRepresentation(for settings: FeatureSettings) -> FeatureSettings {
-        var notes = settings.transcription.notes
-        notes.enabled = settings.availability.notesEnabled
-        return FeatureSettings(
-            transcription: TranscriptionFeatureSettings(
-                asrSelectionID: settings.transcription.asrSelectionID,
-                llmEnabled: settings.transcription.llmEnabled,
-                llmSelectionID: settings.transcription.llmSelectionID,
-                prompt: AppPromptDefaults.canonicalStoredText(settings.transcription.prompt, kind: .enhancement),
-                promptPresetID: settings.transcription.promptPresetID,
-                notes: notes
-            ),
-            translation: TranslationFeatureSettings(
-                asrSelectionID: settings.translation.asrSelectionID,
-                modelSelectionID: settings.translation.modelSelectionID,
-                targetLanguageRawValue: settings.translation.targetLanguageRawValue,
-                prompt: AppPromptDefaults.canonicalStoredText(settings.translation.prompt, kind: .translation),
-                promptPresetID: settings.translation.promptPresetID,
-                showResultWindow: settings.translation.showResultWindow
-            ),
-            rewrite: RewriteFeatureSettings(
-                asrSelectionID: settings.rewrite.asrSelectionID,
-                llmSelectionID: settings.rewrite.llmSelectionID,
-                prompt: AppPromptDefaults.canonicalStoredText(settings.rewrite.prompt, kind: .rewrite),
-                promptPresetID: settings.rewrite.promptPresetID,
-                appEnhancementEnabled: settings.availability.appEnhancementEnabled,
-                continueShortcut: settings.rewrite.continueShortcut
-            ),
-            meeting: MeetingFeatureSettings(
-                asrSelectionID: settings.meeting.asrSelectionID,
-                summaryModelSelectionID: settings.meeting.summaryModelSelectionID,
-                summaryPrompt: AppPromptDefaults.canonicalStoredText(settings.meeting.summaryPrompt, kind: .transcriptSummary),
-                summaryAutoGenerate: settings.meeting.summaryAutoGenerate,
-                realtimeTranslateEnabled: settings.meeting.realtimeTranslateEnabled,
-                realtimeTargetLanguageRawValue: settings.meeting.realtimeTargetLanguageRawValue,
-                hideOverlayFromScreenSharing: settings.meeting.hideOverlayFromScreenSharing,
-                chunkingModeRawValue: settings.meeting.chunkingMode.rawValue,
-                sileroVADSensitivityRawValue: settings.meeting.sileroVADSensitivity.rawValue,
-                speakerDiarizationModelRawValue: settings.meeting.speakerDiarizationModel.rawValue,
-                finalTranscriptOptimizationEnabled: settings.meeting.finalTranscriptOptimizationEnabled
-            ),
-            availability: settings.availability
-        )
+        var stored = settings
+        stored.transcription.notes.enabled = settings.availability.notesEnabled
+        stored.rewrite.appEnhancementEnabled = settings.availability.appEnhancementEnabled
+        stored.transcription.prompt = AppPromptDefaults.canonicalStoredText(settings.transcription.prompt, kind: .enhancement)
+        stored.translation.prompt = AppPromptDefaults.canonicalStoredText(settings.translation.prompt, kind: .translation)
+        stored.rewrite.prompt = AppPromptDefaults.canonicalStoredText(settings.rewrite.prompt, kind: .rewrite)
+        stored.meeting.summaryPrompt = AppPromptDefaults.canonicalStoredText(settings.meeting.summaryPrompt, kind: .transcriptSummary)
+        stored.meeting.chunkingModeRawValue = settings.meeting.chunkingMode.rawValue
+        stored.meeting.sileroVADSensitivityRawValue = settings.meeting.sileroVADSensitivity.rawValue
+        stored.meeting.speakerDiarizationModelRawValue = settings.meeting.speakerDiarizationModel.rawValue
+        return stored
     }
 
     private static func sanitizedPrompt(_ prompt: String) -> String {

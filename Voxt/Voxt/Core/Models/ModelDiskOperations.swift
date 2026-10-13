@@ -56,30 +56,6 @@ nonisolated enum ModelDiskOperations {
         }
     }
 
-    static func prepareModelCopy(
-        from source: URL, to destination: URL, replaceExisting: Bool = false,
-        validate: @escaping @Sendable (URL) throws -> Void = { _ in }
-    ) async throws -> OmniModelPublication.Outcome {
-        let cancellation = PublicationCancellation()
-        return try await withTaskCancellationHandler {
-            try await perform {
-                let reader = try OmniModelDirectoryLease.acquire(for: source, mode: .sharedRead)
-                defer { withExtendedLifetime(reader) {} }
-                let target = destination.resolvingSymlinksInPath().standardizedFileURL
-                guard reader.directory.path != target.path,
-                      !target.path.hasPrefix(reader.directory.path + "/"),
-                      !reader.directory.path.hasPrefix(target.path + "/") else {
-                    throw OmniModelStorageError.stagingPathReuse(path: target.path)
-                }
-                try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-                return try OmniModelPreparation.prepare(from: reader.directory, to: target, replaceExisting: replaceExisting,
-                    validate: validate, checkCancellation: cancellation.check)
-            }
-        } onCancel: {
-            cancellation.cancel()
-        }
-    }
-
     static func removeModelDirectories(_ directories: [URL]) async throws {
         try await perform {
             var leaseDirectories: [String: URL] = [:]

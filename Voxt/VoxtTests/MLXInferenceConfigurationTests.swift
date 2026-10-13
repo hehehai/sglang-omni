@@ -81,6 +81,43 @@ final class MLXInferenceConfigurationTests: XCTestCase {
         XCTAssertNil(plan.generationParameters.language)
     }
 
+    func testFinalInferenceRejectsIdentityOnlyModelWithoutFallback() async {
+        do {
+            _ = try await MLXTranscriber.runFinalInference(
+                model: .modelUseFixture(ASRModelUseFixture()),
+                audioSamples: [0],
+                inferenceConfiguration: resolve("mlx-community/Qwen3-ASR-0.6B-4bit"),
+                targetSampleRate: 16_000,
+                inferenceTaskPriority: .userInitiated
+            )
+            XCTFail("An identity-only model must not run inference.")
+        } catch ASRModelUseFixture.InferenceError.unavailable {
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testCancelledFinalInferenceStopsBeforeResolvingRuntime() async {
+        let configuration = resolve("mlx-community/Qwen3-ASR-0.6B-4bit")
+        let inferenceTask = Task { @MainActor in
+            try await MLXTranscriber.runFinalInference(
+                model: .modelUseFixture(ASRModelUseFixture()),
+                audioSamples: [0],
+                inferenceConfiguration: configuration,
+                targetSampleRate: 16_000,
+                inferenceTaskPriority: .userInitiated
+            )
+        }
+        inferenceTask.cancel()
+        do {
+            _ = try await inferenceTask.value
+            XCTFail("Cancelled inference must not return a result.")
+        } catch is CancellationError {
+        } catch {
+            XCTFail("Cancellation must precede runtime resolution: \(error)")
+        }
+    }
+
     private func resolve(
         _ repo: String,
         stage: MLXCorrectionPassKind = .intermediate,

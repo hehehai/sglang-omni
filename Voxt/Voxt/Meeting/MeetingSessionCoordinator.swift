@@ -1106,15 +1106,6 @@ final class MeetingSessionCoordinator {
         }
     }
 
-    func switchMicrophoneInput(to deviceID: AudioDeviceID?) throws {
-        guard overlayState.captureMode.usesMicrophone else { return }
-        microphoneStartupWatchdogTask?.cancel()
-        microphoneCapture.stop()
-        microphoneCapture.setPreferredInputDevice(deviceID)
-        try startMicrophoneCapture(with: deviceID)
-        scheduleMicrophoneStartupWatchdog(with: deviceID)
-    }
-
     private func finalizeCurrentRecordingSlice() {
         if let recordingStartedAt {
             accumulatedRecordingDuration += max(Date().timeIntervalSince(recordingStartedAt), 0)
@@ -1146,10 +1137,6 @@ final class MeetingSessionCoordinator {
         await orderedLiveAudioScheduler.cancel()
         await audioAnalysisScheduler.flush()
         await orderedLiveAudioScheduler.flush()
-    }
-
-    private func flushPendingTranslations() async {
-        await realtimeTranslationScheduler.flush()
     }
 
     private func persistMeetingAudioArchive() async throws -> URL? {
@@ -1577,16 +1564,6 @@ final class MeetingSessionCoordinator {
             break
         }
         self.activeLocalEngine = nil
-    }
-
-    private func resolvedMeetingMainLanguage() -> UserMainLanguageOption {
-        let storedCodes = UserDefaults.standard.string(forKey: AppPreferenceKey.userMainLanguageCodes)
-        let selectedOptions = UserMainLanguageOption.storedSelection(from: storedCodes)
-        if let firstCode = selectedOptions.first,
-           let option = UserMainLanguageOption.option(for: firstCode) {
-            return option
-        }
-        return UserMainLanguageOption.fallbackOption()
     }
 
     private func resolvedMeetingHintPayload(
