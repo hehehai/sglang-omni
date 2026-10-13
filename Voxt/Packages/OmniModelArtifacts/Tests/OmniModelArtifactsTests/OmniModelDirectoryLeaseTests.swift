@@ -7,12 +7,21 @@ import Darwin
 import Glibc
 #endif
 
+func modelStorageTemporaryDirectory() throws -> URL {
+    // note (Codex): Foundation preserves /var on macOS while the filesystem resolves it to /private/var.
+    guard let resolved = realpath(FileManager.default.temporaryDirectory.path, nil) else {
+        throw OmniModelStorageError.filesystem(operation: "resolve temporary test directory", code: errno)
+    }
+    defer { free(resolved) }
+    return URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
+}
+
 final class OmniModelDirectoryLeaseTests: XCTestCase {
     private var root: URL!
     private var directory: URL!
 
     override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        root = try modelStorageTemporaryDirectory().appendingPathComponent(UUID().uuidString)
         directory = root.appendingPathComponent("model")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }

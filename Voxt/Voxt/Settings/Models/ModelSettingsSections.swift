@@ -86,7 +86,8 @@ extension ModelSettingsView {
                 .buttonStyle(SettingsPillButtonStyle())
             }
 
-            Text(OmniASRBackend.unavailabilityReason(for: modelRepo) ?? modelLocalizedDescription(for: modelRepo))
+            Text(OmniASRBackend.unavailabilityReason(for: modelRepo).map { LocalizedStringKey($0) }
+                ?? modelLocalizedDescription(for: modelRepo))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

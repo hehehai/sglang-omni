@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "OmniModelArtifacts",
-    platforms: [.macOS(.v10_15)],
+    platforms: [.macOS("10.15.4")],
     products: [.library(name: "OmniModelArtifacts", targets: ["OmniModelArtifacts"])],
     targets: [
         .target(name: "OmniModelStoragePOSIX"),

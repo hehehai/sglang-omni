@@ -13,7 +13,7 @@ final class OmniModelPreparationTests: XCTestCase {
     private var destination: URL!
 
     override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        root = try modelStorageTemporaryDirectory().appendingPathComponent(UUID().uuidString)
         source = root.appendingPathComponent("installed")
         destination = root.appendingPathComponent("prepared")
         try writeModel(at: source, value: 1)

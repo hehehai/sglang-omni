@@ -984,7 +984,17 @@ ABI8检查点时下一步为两family actualhelper RPC+原loadscope非evictledge
 - 独立follow-up冻结945inputs：当前Owner24+adapter9+原Qwen12+9个人probes=54/config Debug/Release通过，删除仅Owner成功关闭notification的negative control同时检出两不改regression；资源control证明reader/permit已释放但adapter仍retained，准确检出P2而非混淆GPUbarrier。strict App/helper编译、actualApp prepareModelCopy/publication→smoke.run→ASR consumer→exported helper/Core两family normal/unknown-close、expected mismatch、portable reconnect（非OSrestart）通过。初次optimizedNemotron blocked probe单次status2 busy失败保留，未定位具体时序来源；相同不改executable后5次与最终4组重跑通过，不把首次failure删掉或放宽20ms deadline。真实平台/并发验收仍pending；审查不包含后加Main smoke3 tests与docs，Main单独验证该最终source。
 - 未接入production recording/meeting默认factories，也不把仅等待Voxt tasks的旧MLXNativeLiveRuntime当Native退役证明。Core/shared/helper ABI9/69exports、数值/model实现不变；完整migration、family-specific longform、cache/blob/repair/orphan/recovery、Audio unlink和真实平台验收继续待完成。
 
-下一步是production调用方显式await Native retirement的所有权接入、meeting消费者与六family longform的family-specific语义、sharedcache/repair/blob/orphan/recovery、余下Audio迁移/unlink和真实平台门槛；不自动发布localcheckpoint。
+### 首轮真实 MacBook Air 回归（unsigned，2026-10-13）
+
+- 用户本轮明确授权经Tailscale操作关伟MacBook Air做安装/使用回归；独立userspace Tailscale socket恢复，原系统tailnet不改。主机Apple M4/24GiB、macOS26.7、Xcode26.6/SDK26.5/Swift6.3.3。用户先同意已有开发签名，随后明确改为“本地别签名，直接测试”；最终仅unsigned测试，未用证书签包/导出私钥/注册Apple资源或创建App Group，签名/CI/release gates未变。
+- 7c568086源码归档+本轮小范围修正，在独立任务cache目录构建。真实App Debug build与完整TestDebug XCTest通过：2019项、43skip、0failure（1976pass）；Contracts119/config零skip；Artifacts79/config（78pass+1既有Linux /dev/shm跨filesystem夹具skip，Mac跨卷仍待补）。完整App之前19→4→0failure与Artifacts编译/233断言失败各阶段日志保留，不重标历史便携结果。
+- 实际Native生产CMake/MLX0.32.3 arm64动态库构建，69真实导出、ABI9、Metal framework链接，不再仅static inventory/CPU替身。真实权重Qwen0.6B bf16公共英文6秒音频，当前CLI与已安装1.15 baseline文本/English/22tokens/finish stop完全一致；实际Core同model两次final、提交前cancel独立token、realtime push/finish/poll/drain与model退役通过。Silero-v6真实stream/batch Float32输出分别与baseline byte-identical；实际MLX Device(gpu,0)、Metal available=true。不凭单次速度判性能，也不声称覆盖speaker真实weights/所有家族/长音频。
+- unsigned helper SDK结构编译通过；仅build用placeholder group元数据，未运行/创建该container。真实NSXPCInterface与ObjC runtime十个speakerselectors检查，push/poll UInt64编码Q通过；不是实际IPC、codesign peer、安全AppGroup或OShelperrestart验收。
+- 测试App只复制到task installed目录，不覆盖/Applications/Voxt.app（仍1.15.0）；App/XCTest各用独立CFFIXED_USER_HOME，已核验DB真实在test-home/task目录。确切test PID存活20秒、CPU/RSS采样、TERM、onscreen820×592窗口metadata；截图失败且未绕过系统权限。启动/窗口不是全GUI录音、导入、权限体验验收。初始旧Voxt PID后续不在运行，原因未定位，不能声称旧进程全程保持；仅task PID收到本轮显式stop。
+- 修正真实SDK问题：Artifacts最低OS10.15→10.15.4匹配现有FileHandle API；SwiftUI可用性原因String?转LocalizedStringKey保持nil fallback。其余为测试/工具：POSIX临时目录身份避免Foundation /var↔/private/var别名期望错、SenseVoice fixture补原安装presence要求、Bash3.2 nounset-empty-array参数引用修正；immediate失败事件夹具预算5秒，真正deadline路径仍0.2秒且退出后reader释放断言不改。没有Native数值/ABI/production routes/模型选择变化。
+- 独立readonly14文件review无新增阻塞缺陷；27组shell引用矩阵与两negativecontrols、源码传输归档一致性、公开Qwen结果对比通过，review不自行SSH/签名。Main Linux tools64/Artifacts79回归、完整hooks另记录。剩余signed IPC/安全/跨卷/Intel/43skip/real speaker weights与longform/performance/notary/clean-machine等平台矩阵继续pending，不能把这一轮当迁移完成。
+
+下一步是production调用方显式await Native retirement的所有权接入、meeting消费者与六family longform的family-specific语义、sharedcache/repair/blob/orphan/recovery、余下Audio迁移/unlink和剩余真实平台门槛；不自动发布localcheckpoint。
 
 ### 剩余工作与硬门槛（不能宣布全部规划完成）
 

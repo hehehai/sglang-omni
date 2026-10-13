@@ -120,7 +120,7 @@ final class ModelInstallationCacheTests: XCTestCase {
     }
 
     func testPublicationResultRemainsInstalledAfterLateParentCancellation() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = try TestDoubles.canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let destination = root.appendingPathComponent("model")
         let staging = root.appendingPathComponent("staging")

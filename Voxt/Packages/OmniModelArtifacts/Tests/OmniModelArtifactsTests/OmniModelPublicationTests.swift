@@ -14,7 +14,7 @@ final class OmniModelPublicationTests: XCTestCase {
     private var staging: URL!
 
     override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        root = try modelStorageTemporaryDirectory().appendingPathComponent(UUID().uuidString)
         destination = root.appendingPathComponent("model")
         staging = root.appendingPathComponent("download")
         try writeModel(at: destination, value: 1)

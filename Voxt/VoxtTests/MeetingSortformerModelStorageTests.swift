@@ -13,7 +13,7 @@ final class MeetingSortformerModelStorageTests: XCTestCase {
     private var directory: URL!
 
     override func setUp() async throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent("voxt-sortformer-readers-\(UUID())")
+        root = try TestDoubles.canonicalTemporaryDirectory().appendingPathComponent("voxt-sortformer-readers-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         ModelStorageDirectoryManager.setAuthorizedRootURLForTesting(root)
         directory = try XCTUnwrap(MeetingSortformerModelStorage.writeModelDirectory())
@@ -29,7 +29,7 @@ final class MeetingSortformerModelStorageTests: XCTestCase {
 
     func testValidatedReaderExcludesDeleteAndReleasesWithoutMovingModel() async throws {
         var reader = try await MeetingSortformerModelStorage.validatedModelDirectoryLease()
-        XCTAssertEqual(reader?.directory.path, directory.resolvingSymlinksInPath().path)
+        XCTAssertEqual(reader?.directory.path, try TestDoubles.canonicalFileURL(for: directory).path)
         do {
             try await ModelDiskOperations.removeModelDirectories([directory])
             XCTFail("A validated reader did not exclude deletion")

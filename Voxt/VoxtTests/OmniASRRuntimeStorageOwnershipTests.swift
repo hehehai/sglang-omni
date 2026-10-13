@@ -172,7 +172,8 @@ final class OmniASRRuntimeStorageOwnershipTests: XCTestCase {
     func testFailedStartupAndStartupDeadlineReleaseReadersOnlyAfterExit() async throws {
         for script in ["#!/bin/sh\necho '{\"event\":\"failed\",\"reason\":\"fixture\"}'\n",
                        "#!/bin/sh\nexec sleep 60\n"] {
-            try await withFixture(startupTimeoutSeconds: 0.2) { fixture in
+            let startupTimeoutSeconds = script.contains("exec sleep") ? 0.2 : 5
+            try await withFixture(startupTimeoutSeconds: startupTimeoutSeconds) { fixture in
                 try script.write(to: fixture.executable, atomically: true, encoding: .utf8)
                 try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fixture.executable.path)
                 do {

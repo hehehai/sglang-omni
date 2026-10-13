@@ -159,7 +159,7 @@ final class OmniASRRuntimeLaunchTests: XCTestCase {
 
     /// The runtime binary is started directly in supervised mode, not through Python.
     func testLaunchRunsTheRuntimeInSupervisedMode() async throws {
-        let scratch = FileManager.default.temporaryDirectory
+        let scratch = try TestDoubles.canonicalTemporaryDirectory()
             .appendingPathComponent("voxt-omni-launch-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: scratch) }
@@ -194,7 +194,7 @@ final class OmniASRRuntimeLaunchTests: XCTestCase {
             .dropLast()
             .map(String.init)
         XCTAssertEqual(commandLine, [
-            runtimeExecutable.path,
+            runtimeExecutable.resolvingSymlinksInPath().path,
             "--supervised",
             "--model-kind", "qwen3_asr",
             "--model-directory", modelDirectory.path,

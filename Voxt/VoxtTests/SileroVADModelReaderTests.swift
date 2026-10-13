@@ -10,7 +10,7 @@ final class SileroVADModelReaderTests: XCTestCase {
     private var directory: URL!
 
     override func setUp() async throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent("voxt-silero-readers-\(UUID())")
+        root = try TestDoubles.canonicalTemporaryDirectory().appendingPathComponent("voxt-silero-readers-\(UUID())")
         directory = root.appendingPathComponent("model")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try Data("{}".utf8).write(to: directory.appendingPathComponent("config.json"))
@@ -28,7 +28,7 @@ final class SileroVADModelReaderTests: XCTestCase {
 
     func testValidatedReaderRejectsDeleteUntilReleased() async throws {
         var reader: OmniModelDirectoryLease? = try await SileroVADModelSupport.validatedModelDirectoryLease(from: directory)
-        XCTAssertEqual(reader?.directory.path, directory.resolvingSymlinksInPath().path)
+        XCTAssertEqual(reader?.directory.path, try TestDoubles.canonicalFileURL(for: directory).path)
         do {
             try await ModelDiskOperations.removeModelDirectories([directory])
             XCTFail("A live Silero reader allowed deletion")
