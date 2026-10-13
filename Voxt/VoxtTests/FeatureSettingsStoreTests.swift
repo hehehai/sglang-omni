@@ -390,6 +390,54 @@ final class FeatureSettingsStoreTests: XCTestCase {
         }
     }
 
+    func testRemindersSyncDefaultsToDisabledWithoutDisablingNotes() throws {
+        XCTAssertFalse(RemindersNoteSyncSettings().enabled)
+        try withEphemeralDefaults { defaults in
+            let fresh = FeatureSettingsStore.load(defaults: defaults)
+            XCTAssertTrue(fresh.transcription.notes.enabled)
+            XCTAssertFalse(fresh.transcription.notes.remindersSync.enabled)
+
+            FeatureSettingsStore.migrateIfNeeded(defaults: defaults)
+            let migrated = FeatureSettingsStore.load(defaults: defaults)
+            XCTAssertTrue(migrated.transcription.notes.enabled)
+            XCTAssertFalse(migrated.transcription.notes.remindersSync.enabled)
+        }
+    }
+
+    func testNotesWithoutRemindersSyncSettingsDecodeWithSyncDisabled() throws {
+        let selection = FeatureModelSelectionID.appleIntelligence
+        let encodedSelection = try XCTUnwrap(String(
+            data: JSONEncoder().encode(selection),
+            encoding: .utf8
+        ))
+        let payload = Data("{\"titleModelSelectionID\":\(encodedSelection)}".utf8)
+        let notes = try JSONDecoder().decode(TranscriptionNoteFeatureSettings.self, from: payload)
+
+        XCTAssertTrue(notes.enabled)
+        XCTAssertFalse(notes.remindersSync.enabled)
+        XCTAssertEqual(notes.remindersSync.selectedListIdentifier, "")
+        XCTAssertEqual(notes.remindersSync.selectedListTitle, "")
+        XCTAssertEqual(notes.titleModelSelectionID, selection)
+    }
+
+    func testRemindersSyncMigrationPreservesStoredEnabledAndDisabledChoices() throws {
+        for enabled in [true, false] {
+            try withEphemeralDefaults { defaults in
+                var settings = FeatureSettingsStore.deriveFromLegacy(defaults: defaults)
+                settings.transcription.notes.remindersSync = RemindersNoteSyncSettings(
+                    enabled: enabled,
+                    selectedListIdentifier: "list-1",
+                    selectedListTitle: "Voxt"
+                )
+                FeatureSettingsStore.save(settings, defaults: defaults, notify: false)
+
+                FeatureSettingsStore.migrateIfNeeded(defaults: defaults)
+                let reloaded = FeatureSettingsStore.load(defaults: defaults)
+                XCTAssertEqual(reloaded.transcription.notes.remindersSync, settings.transcription.notes.remindersSync)
+            }
+        }
+    }
+
     func testNotePanelSettingsPersistAndClampDelays() throws {
         try withEphemeralDefaults { defaults in
             var settings = FeatureSettingsStore.load(defaults: defaults)
