@@ -469,3 +469,36 @@ GUI catalog→ASR/Remote/LLM配置、真实device/权限/start取消/rapid resta
 真实Mac完整TestDebug **1992项：1950通过、42跳过、0失败**，unsigned Release构建通过；其中VoxtNoteStoreTests **21项**、FeatureSettingsStoreTests **32项**逐项发现并通过，覆盖实际SwiftData宏/数据库、迁移/回滚、溢出manual-rank及默认设置契约。没有使用用户笔记/凭据或覆盖正式App。
 
 工具52、完整hooks/模型栈审计通过；独立source review无blocking finding。Notes实际源码CPU differential和规范化A/B使用声明的数据库/平台peer，分别补充排序/分组/overflow/输入不变及prompt/catalog/fallback/偏好不写入的对照，不替代真实SwiftData/Mac结果。GUI布局/点击、用户旧库真实升级、外部Obsidian/Reminders同步、Native模型质量/性能和恢复仍需独立人工/模型验收。
+
+## Native HTTP 第三批：基线 `0c17436e`
+
+第二批已正常提交/push为 `0c17436e`。本批不改共享Native、项目/依赖pin、模型目录/catalog、现有数值runtime/transport、数据schema或签名/权限。
+
+- CustomLLMModelManager1431→1321行：113行download attempt从明确metadata/endpoint/目录/token输入完成有序transfer；原manager同步处理progress事件并保留200ms polling/task登记、revision、pause/cancel、load/container/use/idle/shutdown。64行diagnostics组装使用明确计时输入，真实stream/模型与发布不移出owner。新增9项契约测试。
+- DictionaryStore996→881行：131行stateless entry/category/match policy复用既有normalizer/preparer/index，接受snapshot和必要index；Store保留UUID/Date、私有Published/cache/reload、mutation/repository写入/import顺序。新增8项契约，原测试不改。既有async reload失败策略和publish-before-best-effort-write限制没有在重构中悄悄修复。
+- 删除已核实无入口的旧Hotkey logging/trigger/delay/side-toggle及5个computed flags、未实例化DictionaryTransferDocument、旧dictionary correction/match和history text/timestamp/notification refresh便利链。实际事件回调/状态、注入marker、Fn/side-key、matcher、字典JSON/panels和格式保留；DEBUG及有意义test API不机械扫除。
+- SelectedTextDictionaryHotkeySupport仅剩测试调用，移除facade并将15处调用改为真实SystemSelectionTextSupport；所有断言/测试体其余部分保持，不删除测试。应用源码150597→150490行，净减少107行；manager/policy抽离本身增加少量源码，不宣称性能收益。大型私有状态owners仍需继续分批。
+
+### 第三批实际验证与失败保留
+
+首轮真实Mac SDK编译exit65：新download file遗漏HuggingFace defining-module import，Repo.ID.description无法访问。只补显式import，保留编译失败xcresult/log；Linux shape-peer/parse不认证该边界。第二轮实际SDK通过，2009项1966通过/42跳过/1失败：新增词典fixture硬编码Latin先排序，中文系统原localizedCaseInsensitiveCompare将猫排在前。只将明确预期词条按原系统比较规则排序，保留精确数组、membership/boundary/count断言，生产locale/排序不变；原失败结果保留。
+
+最终真实Mac TestDebug **2009项：1967通过/42跳过/0失败**，unsigned Release构建通过。实际LLM download/config suites20/14项、Dictionary collection/async10/7项、SessionTextIO28项均发现执行。工具52、完整hooks/审计、独立source review通过。CPU默认transport wiring/cancel/TaskLocal/diagnostics peer与324组dict counterexample只补充接口/body证据，不冒充实际网络、GRDB、MLX/Metal或GUI。
+
+真实下载Range/ETag/token/proxy/暂停续传/root切换、LLM/VLM数值与内存、Hotkey设备/睡眠/左右修饰键、GUI词典category/import/learning、用户真实旧库升级和恢复仍未验收。无私有数据/凭据访问、正式App覆盖、CI/发布门槛激活或部署。
+
+## Native HTTP 第四批：第三批工作区快照之上
+
+本次用户仅要求继续，第三/第四批仍是未提交/push的本地组合；Git HEAD仍`0c17436e`，不能当完整比较基线。第三批2009项Mac验证与第四批不同；已保留组合前source hash和完整patch。
+
+- ModelDebugCore814行按完整独立owner分成ASRDebugViewModel388（私有recorder同文件）、LLMDebugViewModel293及共享值137行。完整原声明body/actor/private/property/Task closures不变，真实debug UI/controllers仍调用这些owner；旧文件删除不等于删除debug功能。原21项focused tests不改。
+- MeetingDetailViewModel1026→941行，131行projection只接收明确segments/failure/language snapshot并返回值；view model仍拥有所有Published/task/revision/cache/history/persist/Combine/summary/chat和取消。原21个测试体不变，新增2个public owner契约。
+- HotkeyManager1851→1778行：ranking/superset五个纯函数复用既有nonisolatedHotkeyModifierInterpreter（显式AppKit import），known modifier+10/side+1/concrete input+100、doubleTap0/longPress1/tap2与strict-superset body原样。private routed value/cache/filter/sortbusiness tiebreak、locks/tap/runloop/tasks/gesture状态不搬；新增4项known/unknown bit与side/priority契约。
+- 删除仅meeting owner无caller的inferredAudioSource（其他owner活跃同名helper留存）、inline custompaste nil predicate、两处capture callback直接调用原nonisolatedAudioLevelMeter.monoSamples并退役包装。epoch/revision/weak capture和数值格式完全保留。
+- 此批应用源码净+33行：职责分开带来少量imports/header，不是净删/性能证明，也不机械开放private state以达行数。sharedNative、project/pins/catalog/model路径/HTTPlimits、数据schema/签名/权限和Audio/XPC退役均不改。
+
+### 第四批真实组合验证
+
+Mac TestDebug全量 **2015项：1973通过、42跳过、0失败**，unsigned Release通过；ModelDebugSupport21项、Detail live/transcript4/7项、Hotkey modifiers23项实际发现执行。测试输入使用task-owned隔离workspace/home，不访问用户录音/词典/笔记/profile/certificate/Keychain。
+
+工具52、完整hooks/审计、原body等价和CPU value/projection回放补充验证；CPU SDK peers不是CoreAudio/Combine/GUI/Native证明。debug owner既有unstructured request/close后late result限制原样保留，不宣称拆文件解决cancel/drain。真实debug窗口recording/model/网络、Detail UI编辑/summary/chat、Hotkey设备/Fn jitter/侧别/恢复、长会议和性能/恢复仍需专门人工验收。

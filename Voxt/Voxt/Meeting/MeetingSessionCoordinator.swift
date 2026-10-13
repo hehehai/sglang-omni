@@ -974,7 +974,7 @@ final class MeetingSessionCoordinator {
         let generation = beginCaptureEpoch(for: .them)
         try systemAudioCapture.start { [weak self] buffer, level in
             let sampleRate = buffer.format.sampleRate
-            guard let samples = Self.extractMonoSamples(from: buffer) else {
+            guard let samples = AudioLevelMeter.monoSamples(from: buffer) else {
                 let format = buffer.format
                 let isInterleaved = format.isInterleaved
                 let channelCount = format.channelCount
@@ -1022,7 +1022,7 @@ final class MeetingSessionCoordinator {
         let generation = beginCaptureEpoch(for: .me)
         try microphoneCapture.start { [weak self] buffer, level in
             let sampleRate = buffer.format.sampleRate
-            guard let samples = Self.extractMonoSamples(from: buffer) else {
+            guard let samples = AudioLevelMeter.monoSamples(from: buffer) else {
                 let format = buffer.format
                 let isInterleaved = format.isInterleaved
                 let channelCount = format.channelCount
@@ -1324,15 +1324,6 @@ final class MeetingSessionCoordinator {
         localLivePendingAudio[speaker] = nil
     }
 
-    private func inferredAudioSource(for speaker: MeetingSpeaker) -> TranscriptAudioSource {
-        switch speaker {
-        case .me:
-            return .microphone
-        case .them:
-            return .systemAudio
-        }
-    }
-
     private func reconfigureAccumulators(for profile: MeetingChunkingProfile) {
         micAccumulator = MeetingChunkAccumulator(speaker: .me, speechThreshold: Self.micSpeechThreshold, profile: profile)
         systemAccumulator = MeetingChunkAccumulator(speaker: .them, speechThreshold: Self.systemSpeechThreshold, profile: profile)
@@ -1593,10 +1584,6 @@ final class MeetingSessionCoordinator {
             stored: stored
         )
         return (provider, configuration)
-    }
-
-    private nonisolated static func extractMonoSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {
-        AudioLevelMeter.monoSamples(from: buffer)
     }
 
     private var usesLiveSessionPath: Bool {
