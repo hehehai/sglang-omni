@@ -18,6 +18,7 @@ LOCAL_OPTIMIZATION=true
 UNIVERSAL_BUILD=false
 SIGN_APP=true
 APP_SIGN_IDENTITY="${DEVELOPER_ID_APP_IDENTITY:-}"
+PROVISIONING_PROFILE="${VOXT_PROVISIONING_PROFILE:-}"
 INSTALLER_SIGN_IDENTITY="${DEVELOPER_ID_INSTALLER_IDENTITY:-}"
 VERSION=""
 BUILD_NUMBER=""
@@ -45,6 +46,7 @@ Options:
   --universal             Build both arm64 and x86_64 via generic macOS destination.
   --app-sign-identity ID  Developer ID Application identity for app signing.
   --pkg-sign-identity ID  Developer ID Installer identity for pkg signing.
+  --provisioning-profile PATH  Explicit matching Developer ID profile required for signing.
   --native-runtime PATH   Embed a built Omni runtime in the app bundle.
   --no-sign               Do not sign the app after building.
   -h, --help              Show this help.
@@ -53,11 +55,12 @@ Optional environment:
   DEVELOPER_ID_APP_IDENTITY        Signs the app when set.
   DEVELOPER_ID_INSTALLER_IDENTITY  Signs the .pkg when set.
   VOXT_NATIVE_RUNTIME_DIR          Runtime directory used when --native-runtime is omitted.
+  VOXT_PROVISIONING_PROFILE        Explicit profile used when --provisioning-profile is omitted.
 
 Examples:
-  tools/package_local_app.sh
-  tools/package_local_app.sh --install --open
-  tools/package_local_app.sh --version 1.12.0 --build-number 101200099 --install
+  tools/package_local_app.sh --no-sign
+  tools/package_local_app.sh --provisioning-profile Voxt.provisionprofile --install --open
+  tools/package_local_app.sh --provisioning-profile Voxt.provisionprofile --version 1.12.0 --build-number 101200099
 EOF
 }
 
@@ -125,6 +128,11 @@ while [[ "$#" -gt 0 ]]; do
       [[ -n "$APP_SIGN_IDENTITY" ]] || die "--app-sign-identity requires a value"
       shift 2
       ;;
+    --provisioning-profile)
+      PROVISIONING_PROFILE="${2:-}"
+      [[ -n "$PROVISIONING_PROFILE" ]] || die "--provisioning-profile requires a value"
+      shift 2
+      ;;
     --pkg-sign-identity)
       INSTALLER_SIGN_IDENTITY="${2:-}"
       [[ -n "$INSTALLER_SIGN_IDENTITY" ]] || die "--pkg-sign-identity requires a value"
@@ -148,6 +156,16 @@ while [[ "$#" -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$SIGN_APP" == "true" ]]; then
+  [[ -n "$PROVISIONING_PROFILE" ]] || die "signed packaging requires an explicit matching Developer ID provisioning profile (--provisioning-profile or VOXT_PROVISIONING_PROFILE); use --no-sign only for unsigned inspection"
+  [[ -f "$PROVISIONING_PROFILE" ]] || die "provisioning profile not found: $PROVISIONING_PROFILE"
+  command -v python3 >/dev/null || die "python3 is required for signing profile validation"
+  command -v security >/dev/null || die "security is required for signing profile validation"
+  command -v codesign >/dev/null || die "codesign is required"
+else
+  :
+fi
 
 [[ -d "$PROJECT" ]] || die "Xcode project not found: $PROJECT"
 command -v xcodebuild >/dev/null || die "xcodebuild is required"
@@ -261,22 +279,17 @@ BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST_PA
 if [[ "$SIGN_APP" == "true" && -n "$APP_SIGN_IDENTITY" ]]; then
   log "Signing app with $APP_SIGN_IDENTITY"
 
-  APP_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$PLIST_PATH" 2>/dev/null || true)"
-  [[ -n "$APP_BUNDLE_ID" ]] || die "unable to resolve CFBundleIdentifier"
-
-  SIGNING_ENTITLEMENTS="$(mktemp)"
-  sed "s#\\\$(PRODUCT_BUNDLE_IDENTIFIER)#${APP_BUNDLE_ID}#g" \
-    "$ROOT/Voxt/Voxt.entitlements" > "$SIGNING_ENTITLEMENTS"
-  # Developer ID distribution does not use a provisioning profile. These
-  # identity and keychain-group entitlements are restricted to profile-backed
-  # signing, so custom signing must omit them for macOS to launch the app.
-  /usr/libexec/PlistBuddy -c 'Delete :com.apple.application-identifier' "$SIGNING_ENTITLEMENTS"
-  /usr/libexec/PlistBuddy -c 'Delete :com.apple.developer.team-identifier' "$SIGNING_ENTITLEMENTS"
-  /usr/libexec/PlistBuddy -c 'Delete :keychain-access-groups' "$SIGNING_ENTITLEMENTS"
-  if grep -qE '\\$\\([A-Za-z_][A-Za-z0-9_]*\\)' "$SIGNING_ENTITLEMENTS"; then
-    rm -f "$SIGNING_ENTITLEMENTS"
-    die "failed to expand signing variables in entitlements"
-  fi
+  SIGNING_DIRECTORY="$(mktemp -d)"
+  trap 'rm -rf "$SIGNING_DIRECTORY"' EXIT
+  SIGNING_ENTITLEMENTS="$SIGNING_DIRECTORY/entitlements.plist"
+  cp "$PROVISIONING_PROFILE" "$SIGNING_DIRECTORY/profile.provisionprofile"
+  python3 "$ROOT/tools/signing_profile_policy.py" \
+    --profile "$SIGNING_DIRECTORY/profile.provisionprofile" \
+    --source-entitlements "$ROOT/Voxt/Voxt.entitlements" \
+    --info-plist "$PLIST_PATH" \
+    --output-entitlements "$SIGNING_ENTITLEMENTS"
+  rm -f "$APP_PATH/Contents/embedded.provisionprofile"
+  cp "$SIGNING_DIRECTORY/profile.provisionprofile" "$APP_PATH/Contents/embedded.provisionprofile"
 
   sign_if_exists() {
     local target="$1"
@@ -323,8 +336,6 @@ if [[ "$SIGN_APP" == "true" && -n "$APP_SIGN_IDENTITY" ]]; then
     --entitlements "$SIGNING_ENTITLEMENTS" \
     --sign "$APP_SIGN_IDENTITY" \
     "$APP_PATH"
-
-  rm -f "$SIGNING_ENTITLEMENTS"
 elif [[ "$SIGN_APP" == "true" ]]; then
   die "no Developer ID Application identity found; use --no-sign only for unsigned inspection"
 else
@@ -333,7 +344,13 @@ fi
 
 if [[ "$SIGN_APP" == "true" ]]; then
   codesign --verify --deep --strict --verbose=2 "$APP_PATH" || die "codesign verification failed; refusing to package"
-  echo "codesign verification passed"
+  cmp "$SIGNING_DIRECTORY/profile.provisionprofile" "$APP_PATH/Contents/embedded.provisionprofile" || die "embedded provisioning profile differs from the supplied profile"
+  python3 "$ROOT/tools/signing_profile_policy.py" \
+    --profile "$APP_PATH/Contents/embedded.provisionprofile" \
+    --source-entitlements "$ROOT/Voxt/Voxt.entitlements" \
+    --info-plist "$PLIST_PATH" \
+    --signed-app "$APP_PATH"
+  echo "codesign and profile compatibility verification passed; not notarization or Keychain runtime proof"
 else
   echo "warning: unsigned inspection artifacts, not signed validation proof" >&2
 fi

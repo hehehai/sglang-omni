@@ -77,6 +77,9 @@ actor OmniHTTPSortformerMeetingSpeakerDiarizationEngine: MeetingSpeakerDiarizati
             threshold: 0.5, minDuration: 0, mergeGap: 0.18,
             spkcacheMax: policy.cacheMaximumFrames, fifoMax: MeetingSpeakerFeedPolicy.fifoMaximumFrames
         )
+        try model.configuration.validateEncoderCapacity(
+            cacheMaximumFrameCount: options.spkcacheMax, fifoMaximumFrameCount: options.fifoMax
+        )
         var stream = OmniDiarizationStream(endpoint: model.endpoint, options: options)
         var state = (fifo: 0, cache: 0, frames: 0)
         var previousDescriptor: MeetingAudioAssetDescriptor?

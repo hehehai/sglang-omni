@@ -85,12 +85,18 @@ Voxt/tools/package_local_app.sh \
 
 The command creates a DMG, ZIP, PKG, and SHA-256 files under a timestamped
 directory. To install the locally built app for manual verification, append
-`--install --open`. If a Developer ID identity is available locally, omit
-`--no-sign` to produce a locally signed package. These local packages are for
-development and testing; they are not Apple-notarized releases.
+`--install --open`. Signed packaging additionally requires an explicitly supplied,
+matching Developer ID provisioning profile via `--provisioning-profile PATH`
+or `VOXT_PROVISIONING_PROFILE`. It preserves the authorized application identifier
+and private Keychain group; missing, expired or mismatching authorization fails
+instead of stripping credential access. Only omit `--no-sign` when that profile
+and the authorized signing identity are available. These local packages are for
+development and testing; signature/profile checks do not prove notarization or
+functional Keychain access.
 
 The `Voxt macOS Notarized Package` workflow is also reserved and disabled by
-default. After the Apple credentials are configured, enable it by setting
+default. Its signing configuration also requires the explicitly authorized profile
+in `VOXT_DEVELOPER_ID_PROFILE_BASE64`. After the Apple credentials are configured, enable it by setting
 `VOXT_ENABLE_NOTARIZED_RELEASE=true`, then run it manually. It builds the
 Native Omni runtime, signs the app and installer with Developer ID, submits
 the ZIP, PKG, and DMG to Apple notarization, staples the PKG and DMG tickets,

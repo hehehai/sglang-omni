@@ -1,5 +1,10 @@
 import Foundation
 import OmniModelArtifacts
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 /// Blocking file operations run on a bounded Foundation queue, not Swift's
 /// cooperative executor. UI waits are cancellable at ModelInstallationCache;
@@ -77,11 +82,44 @@ nonisolated enum ModelDiskOperations {
 
     static func removeModelDirectories(_ directories: [URL]) async throws {
         try await perform {
-            let existing = Set(directories).filter { FileManager.default.fileExists(atPath: $0.path) }
-            let leases = try existing.map { try OmniModelDirectoryLease.acquire(for: $0, mode: .exclusiveMutation) }
+            var leaseDirectories: [String: URL] = [:]
+            var physicalDeletions: Set<String> = []
+            var symbolicLinks: [String: URL] = [:]
+            for directory in directories where FileManager.default.fileExists(atPath: directory.path) {
+                guard directory.isFileURL, !directory.path.utf8.contains(0) else {
+                    throw OmniModelStorageError.unsafePath(path: directory.path)
+                }
+                var targetStatus = stat()
+                guard stat(directory.path, &targetStatus) == 0 else {
+                    throw OmniModelStorageError.filesystem(operation: "stat deletion target", code: errno)
+                }
+                // note (guanwei): Inode identity also covers case aliases whose realpath spelling may differ.
+                let targetIdentity = "\(targetStatus.st_dev):\(targetStatus.st_ino)"
+                leaseDirectories[targetIdentity] = directory
+                var entryStatus = stat()
+                guard lstat(directory.path, &entryStatus) == 0 else {
+                    throw OmniModelStorageError.filesystem(operation: "lstat deletion entry", code: errno)
+                }
+                if entryStatus.st_mode & S_IFMT == S_IFLNK {
+                    guard entryStatus.st_nlink == 1 else {
+                        throw OmniModelStorageError.unsafePath(path: directory.path)
+                    }
+                    symbolicLinks["\(entryStatus.st_dev):\(entryStatus.st_ino)"] = directory
+                } else {
+                    physicalDeletions.insert(targetIdentity)
+                }
+            }
+            var leases: [String: OmniModelDirectoryLease] = [:]
+            for (identity, directory) in leaseDirectories {
+                leases[identity] = try OmniModelDirectoryLease.acquire(for: directory, mode: .exclusiveMutation)
+            }
             defer { withExtendedLifetime(leases) {} }
-            for directory in existing {
-                try FileManager.default.removeItem(at: directory)
+            // note (guanwei): Unlink leaf aliases before deleting any requested target; link-only requests never remove targets.
+            for symbolicLink in symbolicLinks.values {
+                try FileManager.default.removeItem(at: symbolicLink)
+            }
+            for (identity, lease) in leases where physicalDeletions.contains(identity) {
+                try FileManager.default.removeItem(at: lease.directory)
             }
         }
     }

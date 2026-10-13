@@ -40,6 +40,7 @@ jobs:
       DEVELOPER_ID_INSTALLER_CERT_P12: ${{ secrets.DEVELOPER_ID_INSTALLER_CERT_P12 }}
       DEVELOPER_ID_INSTALLER_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_INSTALLER_CERT_PASSWORD }}
       DEVELOPER_ID_APP_IDENTITY: ${{ secrets.DEVELOPER_ID_APP_IDENTITY }}
+      VOXT_DEVELOPER_ID_PROFILE_BASE64: ${{ secrets.VOXT_DEVELOPER_ID_PROFILE_BASE64 }}
       DEVELOPER_ID_INSTALLER_IDENTITY: ${{ secrets.DEVELOPER_ID_INSTALLER_IDENTITY }}
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
       APPLE_NOTARIZATION_KEY: ${{ secrets.APPLE_NOTARIZATION_KEY }}
@@ -66,6 +67,7 @@ jobs:
             DEVELOPER_ID_INSTALLER_CERT_P12 \
             DEVELOPER_ID_INSTALLER_CERT_PASSWORD \
             DEVELOPER_ID_APP_IDENTITY \
+            VOXT_DEVELOPER_ID_PROFILE_BASE64 \
             DEVELOPER_ID_INSTALLER_IDENTITY \
             KEYCHAIN_PASSWORD \
             APPLE_NOTARIZATION_KEY \
@@ -88,6 +90,7 @@ jobs:
 
           printf '%s' "$DEVELOPER_ID_APP_CERT_P12" | base64 --decode > "$app_cert"
           printf '%s' "$DEVELOPER_ID_INSTALLER_CERT_P12" | base64 --decode > "$installer_cert"
+          printf '%s' "$VOXT_DEVELOPER_ID_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/voxt-developer-id.provisionprofile"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
           security set-keychain-settings -t 3600 -u "$keychain"
@@ -134,13 +137,14 @@ jobs:
           fi
 
           Voxt/tools/package_local_app.sh \
-            "${version_args[@]}" \
-            "${build_number_args[@]}" \
+            ${version_args[@]+"${version_args[@]}"} \
+            ${build_number_args[@]+"${build_number_args[@]}"} \
             --optimized \
             --native-runtime "$RUNNER_TEMP/voxt-native-runtime" \
             --output-dir "$RUNNER_TEMP/voxt-package" \
             --app-sign-identity "$DEVELOPER_ID_APP_IDENTITY" \
-            --pkg-sign-identity "$DEVELOPER_ID_INSTALLER_IDENTITY"
+            --pkg-sign-identity "$DEVELOPER_ID_INSTALLER_IDENTITY" \
+            --provisioning-profile "$RUNNER_TEMP/voxt-developer-id.provisionprofile"
 
       - name: Locate package artifacts
         id: artifacts
@@ -218,4 +222,5 @@ jobs:
           rm -f \
             "$RUNNER_TEMP/voxt-app-cert.p12" \
             "$RUNNER_TEMP/voxt-installer-cert.p12" \
-            "$RUNNER_TEMP/voxt-notary-key.p8"
+            "$RUNNER_TEMP/voxt-notary-key.p8" \
+            "$RUNNER_TEMP/voxt-developer-id.provisionprofile"
