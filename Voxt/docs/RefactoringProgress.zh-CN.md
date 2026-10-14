@@ -505,7 +505,7 @@ Mac TestDebug全量 **2015项：1973通过、42跳过、0失败**，unsigned Rel
 
 ## 第五批：基线 `ae8d3973`
 
-第三/第四批已按授权一起正常提交/push为 `ae8d3973`。第五批仍是其后的本地局部重构，不继承前一2015项验收。
+第三/第四批已按授权一起正常提交/push为 `ae8d3973`，第五批随后按授权提交/push为 `1606040c`。第五批独立验证，不继承前一2015项验收。
 
 - HistoryStore934→863行，122行HistoryEntryPolicy取明确entry/text/term/snapshot/segment、period/date/calendar，复用现有entry-updating/normalizer/formatter。Store保留private Published/cache/index/total/loaded/reloadgen/pagegen/repository/audio/defaults、调度及全部写入/legacy/retention；先age deletion再读取count偏好顺序保留。原9项测试不改，新增5项owner契约。
 - 回答卡片974→500行，479行translation-menu独立owner整体原样迁移：style/SwiftUI wrapper/private representable+coordinator/privateNSView+NSMenuDelegate+selector+monitor+state/deinit同文件；conversation/private waveform、View state identity和callback/presentation/布局不改变。只新增imports/header开销，不增加layout-only测试。
@@ -517,3 +517,14 @@ Mac TestDebug全量 **2015项：1973通过、42跳过、0失败**，unsigned Rel
 Mac full TestDebug **2020项：1978通过/42跳过/0失败**，unsigned Release通过。HistoryAsync14、TranslationLanguageSwitch8、OverlayConversation9、RecentWaveform6实际发现执行；task-owned workspace/test home，无用户私有历史库/录音/Keychain/profile/cert或正式App覆盖。工具52、完整hooks和模型栈审计通过。
 
 CPU menu coordinator/style506 scenarios/mode、history实际计算/模型A/B及in-memory DB/Combine peers是补充证据，不等于实际AppKit菜单或SQLite/用户旧库验收。真实menu runloop/open/select/outside/Escape/焦点/销毁、conversation scroll/copy/waveform、声音/GUI、用户历史migration/retention/archive、模型/权限/性能/长会议与恢复仍需专门人工/模型验证。
+
+## 第六批：基线 `1606040c`
+
+用户选择录音VAD完整owner、翻译/改写纯逻辑复用及History设置无状态展示；RemoteProviderConfiguration凭据迁移不在本轮。
+
+- RecordingCaptureFlow996→719行，新281行完整FrameDecider actor/decision/stat。整个启动/权限/失败/设备切换/任务/监控/segmenter/drain/停止flush留原处，28个private状态声明及detector/warning/reset/release/threshold/backend/streamID原样。
+- TranslationSupport930→830行，新75行纯TextTransformPromptSupport。普通/strict两入口复用private执行流而保留resolve位置、可传override区别、原strict/普通诊断差异/可用性/guard；rewrite Responses/role history/structured/responseID/progress保持独立。模板/glossary读取次数和顺序、session/task/UUID/取消/发布/injection所有权不变。原PromptBuilders8项测试不改，新增4项实际prompt/delivery/budget边界契约。
+- HistorySettingsView965→861行，新177行两个无状态Notes/Entries列表，明确snapshot/尺寸/行builder和actions，不传owner/store。原所有State/AppStorage/Binding/ObservedObject/Environment、top-levelbody、row编辑/动作、height cache/query/page/generation/suppression、async/navigation/retention/storage/export/toast留原View。新View祖先边界不以source inverse冒称焦点/scroll/编辑GUI验收。
+- 应用源码净增加52行（recording+4、history+73、translation−25）；测试+110行，无删除。收益是完整职责归位及实际重复减少，不是净删/性能承诺，也不机械开放private状态。Native/project/pins/catalog/options/schema/资源/签名/凭据/HTTP边界不变。
+
+工具52、模型栈审计、完整hooks和源代码inverse/private-state/strict specialization检查通过，1061个隔离Mac输入hash一致。新实际Mac TestDebug **2024项：1982通过/42跳过/0失败**，unsigned optimized Release通过，不继承第五批2020项。PromptBuilders12、TranslationPrompt2、LanguageSwitch8、ProviderResolver4、HistorySettingsData10、RowHeightCache4、ASRPlanning34、HistoryAsync14、NoteStore21实际发现执行。Linux prompt debug/optimized投影及defaultMainActor纯模块检查仅为补充，不执行真实AppDelegate/SDK/网络/模型/GUI。真实录音VAD/设备与flush、provider/strict/refresh取消/Responses路径、History/Notes分页/搜索/编辑焦点/scroll/重排/复制/高度/设置sheet/audio/export/retention仍需专门人工验收，不操作用户私有数据。
