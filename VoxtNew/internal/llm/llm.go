@@ -74,6 +74,19 @@ type Request struct {
 	// Skill tags the call for usage accounting and its default
 	// temperature (DefaultTemperature).
 	Skill Skill
+
+	// Translate describes a translation (SkillTranslateText) for a model
+	// that takes a prompt of its own instead of Messages (a translation
+	// model: internal/llmrt's Hy-MT2). nil for other requests; chat
+	// models ignore it.
+	Translate *TranslateHint
+}
+
+// TranslateHint is what a translation model needs: the text and the
+// target language.
+type TranslateHint struct {
+	Text   string // the text to translate, as compose's input
+	Target string // the target language's code (internal/lang)
 }
 
 // F64 returns a pointer to v, for Request.Temperature and TopP.

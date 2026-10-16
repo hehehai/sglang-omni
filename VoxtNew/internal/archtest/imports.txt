@@ -20,6 +20,13 @@ helper/helpertest/cmd/fakehelper helper/helpertest
 hotkey helper/proto
 hotkey settings
 llm core
+llmrt asr
+llmrt core
+llmrt lang
+llmrt llm
+llmrt llmrt/wire
+llmrt local
+llmrt/llmrttest llmrt/wire
 local asr
 local llm
 local vad

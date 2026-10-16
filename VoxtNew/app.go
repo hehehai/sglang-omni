@@ -108,6 +108,7 @@ func (a *app) quit() {
 	a.closeOverlay()  // overlay.go
 	a.closeTray()
 	a.stopHelper()
+	a.stopLLM() // llm_link.go
 	if a.models != nil {
 		a.models.Close() // a download stops; what came is kept
 	}

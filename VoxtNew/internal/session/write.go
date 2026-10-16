@@ -169,6 +169,9 @@ func (r *run) ask(in compose.Input) (compose.Answer, string, error) {
 	if in.Answer {
 		req.Format, req.Schema = llm.FormatJSON, answerSchema
 	}
+	if in.Task == compose.Translate {
+		req.Translate = &llm.TranslateHint{Text: in.Text, Target: in.TargetLanguage}
+	}
 	ctx, cancel := context.WithTimeout(r.ctx, cfg.WriteTimeout)
 	defer cancel()
 	resp, err := r.svc.LLM.Chat(ctx, req)

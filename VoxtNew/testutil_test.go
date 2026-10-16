@@ -20,6 +20,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/llmrttest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
@@ -36,6 +37,9 @@ func TestMain(m *testing.M) {
 	}
 	if omnitest.Enabled() {
 		omnitest.Main()
+	}
+	if llmrttest.Enabled() {
+		llmrttest.Main()
 	}
 	os.Exit(m.Run())
 }
