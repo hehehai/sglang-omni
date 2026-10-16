@@ -87,7 +87,10 @@ check)
 	trap cleanup EXIT
 	git -C "$root" worktree remove --force "$base_tree" 2>/dev/null || rm -rf "$base_tree"
 	git -C "$root" worktree add --detach "$base_tree" "$base" >&2
-	render "$base_tree" "$tmp/before"
+	# The worktree is the whole repository: VoxtNew is a directory of it.
+	prefix="$(git -C "$root" rev-parse --show-prefix)"
+	[ -f "$base_tree/${prefix}go.mod" ] || { echo "$base has no ${prefix%/}: pass a BASE that has (e.g. voxtnew/dev)" >&2; exit 2; }
+	render "$base_tree/$prefix" "$tmp/before"
 	render "$root" "$tmp/after"
 	compare "$tmp/before" "$tmp/after"
 	;;
