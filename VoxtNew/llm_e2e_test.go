@@ -87,6 +87,7 @@ func llmServices(t *testing.T, tr *fakeTranscriptions, reply string, fake ...str
 			t.Skipf("%s names none of %v", llmrt.DevEnv, fake)
 		}
 		models = keep
+		t.Setenv(llmrt.DevEnv, "") // the app's own hook (withDevLLM) stays out
 	} else {
 		cfg.Bin, _ = os.Executable()
 		cfg.Env = llmrttest.Env(llmrttest.Opt("reply", reply))
