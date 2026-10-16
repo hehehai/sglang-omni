@@ -78,3 +78,28 @@ func TestLibrary(t *testing.T) {
 		t.Errorf("empty: %v", err)
 	}
 }
+
+// TestLibraryDelete: the runtime unloads a model before its files go.
+func TestLibraryDelete(t *testing.T) {
+	root := t.TempDir()
+	if err := modelstest.Seed(root, models.ASRFast); err != nil {
+		t.Fatal(err)
+	}
+	m := models.Open(root, models.Options{})
+	var unloaded []string
+	lib := NewLibrary(m, Openers{Unload: func(id string) {
+		if !m.Installed(id) {
+			t.Error("unloaded after the delete")
+		}
+		unloaded = append(unloaded, id)
+	}}, nil)
+	if err := lib.Delete(models.ASRFast); err != nil {
+		t.Fatal(err)
+	}
+	if len(unloaded) != 1 || unloaded[0] != models.ASRFast || m.Installed(models.ASRFast) {
+		t.Errorf("unloaded %q, installed %v", unloaded, m.Installed(models.ASRFast))
+	}
+	if err := NewLibrary(m, Openers{}, nil).Delete(models.ASRFast); err != nil {
+		t.Errorf("no Unload: %v", err)
+	}
+}

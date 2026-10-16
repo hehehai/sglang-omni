@@ -23,6 +23,9 @@ type LLMOpener func(ctx context.Context, id, dir string) (Chat, error)
 type Openers struct {
 	ASR ASROpener
 	LLM LLMOpener
+	// Unload stops what a runtime has loaded of model id, before its
+	// files are deleted (Library.Delete); nil: nothing to stop.
+	Unload func(id string)
 }
 
 // ErrNoRuntime: the model is installed, but this build has no runtime
@@ -56,6 +59,15 @@ func (l *Library) Installed(kind Kind) []Model {
 		}
 	}
 	return out
+}
+
+// Delete unloads model id from its runtime (Openers.Unload), then
+// deletes its files.
+func (l *Library) Delete(id string) error {
+	if l.open.Unload != nil {
+		l.open.Unload(id)
+	}
+	return l.models.Delete(id)
 }
 
 // Dir is the folder of an installed model ("" when it is not), for the

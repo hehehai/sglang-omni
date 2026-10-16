@@ -101,11 +101,15 @@ func (a *app) cancelModel(id string) {
 	a.async(func() { m.Cancel(id) })
 }
 
-// deleteModel removes model id from the disk.
+// deleteModel removes model id from the disk, after its runtime let it
+// go (local.Library.Delete).
 func (a *app) deleteModel(id string) {
-	m := a.models
+	del := a.models.Delete
+	if lib, ok := a.local.(*local.Library); ok {
+		del = lib.Delete
+	}
 	a.async(func() {
-		err := m.Delete(id)
+		err := del(id)
 		a.post(func() {
 			if err != nil {
 				a.toast(i18n.T("Could not delete the model: %v", err))
