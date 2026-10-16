@@ -1,6 +1,6 @@
 package main
 
-// App enhancement as the app holds it (M5, plan §2.2): the groups
+// App enhancement as the app holds it: the groups
 // (internal/appctx), kept in the store's document appctx:rules and in a
 // rule book sessions read from their goroutines; the reads of browser
 // addresses (the helper's browser.url, Accessibility only), what they

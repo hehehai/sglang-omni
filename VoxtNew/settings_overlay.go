@@ -1,6 +1,6 @@
 package main
 
-// Settings → Overlay style (/settings/overlay, M6): where the recording
+// Settings → Overlay style (/settings/overlay): where the recording
 // overlay shows (the bottom or the top of the display, how far from its
 // edge), how opaque its face is, how round its corners are and whether it
 // shows the recording's time (settings.Overlay), with a preview: the

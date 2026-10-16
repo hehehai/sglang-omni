@@ -1,6 +1,6 @@
 package main
 
-// The recording overlay (plan §3.2): VoxtNew's one floating window,
+// The recording overlay: VoxtNew's one floating window,
 // redone after Voxt's (10-15): a small pill with no buttons. It is
 // non-activating (floating.go, mygo patch 0003): clicking it leaves the
 // app the user dictates into in front, with its caret. It always uses the
@@ -9,7 +9,7 @@ package main
 //	recording  148×48 (Voxt's compact card): the feature's icon and a
 //	           16-bar waveform; the recording's time when Overlay.ShowTime
 //	           says so; the matched app enhancement group, short ("Team
-//	           chat"); with live text (a streaming service's, the text
+//	           chat"); with live text (the speech model's, the text
 //	           being cleaned up, the answer as the model writes it) 76
 //	           high, one line of it under them, the face as wide as the
 //	           text (measured) up to 260 and its padding, then the text

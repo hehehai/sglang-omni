@@ -1,6 +1,6 @@
 package main
 
-// The App enhancement page (/app-enhancement, plan §2.2, §3.1): the
+// The App enhancement page (/app-enhancement): the
 // switch, the groups in a list on the left (a drawer when the window is
 // narrow), and the group shown on the right: its name, whether it is on,
 // the features it applies to, its scene prompt (layered on top of the

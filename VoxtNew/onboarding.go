@@ -1,6 +1,6 @@
 package main
 
-// The setup guide (plan §2.3; AudioSmith's wizard in look, Voxt's
+// The setup guide (AudioSmith's wizard in look, Voxt's
 // OnboardingGuide in what it checks): a dialog over the window on the
 // first start, and again from Settings → General, Home or ⌘K. Seven
 // steps, each of which can be skipped:

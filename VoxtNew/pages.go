@@ -1,6 +1,6 @@
 package main
 
-// The pages of the sidebar (plan §3.1): Home (home_page.go), History
+// The pages of the sidebar: Home (home_page.go), History
 // (history_page.go), Transcribe, Translate and Rewrite
 // (feature_page.go), App enhancement (appenhance_page.go), Local models
 // (models_page.go), Dictionary (dictionary_page.go) and Logs

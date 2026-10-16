@@ -1,6 +1,6 @@
 package main
 
-// Sessions as the UI sees them (M3, M4): the session manager
+// Sessions as the UI sees them: the session manager
 // (internal/session) wired to the helper, the local models and the store;
 // the shortcuts (internal/hotkey) sent to the helper's event tap, with
 // MyGo's Carbon shortcuts as the fallback without Accessibility; the
@@ -106,7 +106,7 @@ const (
 	actionHelper      = "helper"
 )
 
-// sessionNotice is a one-line message in the overlay (plan §3.2), where
+// sessionNotice is a one-line message in the overlay, where
 // the pill's waveform goes: an error and a way forward (a click), hidden
 // after a few seconds.
 type sessionNotice struct {

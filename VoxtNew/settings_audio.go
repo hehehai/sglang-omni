@@ -1,9 +1,9 @@
 package main
 
-// Settings → Audio (/settings/audio, M6): the microphones in the user's
+// Settings → Audio (/settings/audio): the microphones in the user's
 // order of preference (settings.Audio.Devices: the first one connected
 // records, else the system's default input), whether the silence of a
-// recording is left out before a speech service gets it (Audio.VAD.Off,
+// recording is left out before the speech model gets it (Audio.VAD.Off,
 // internal/vad) and whether its sound is cleaned up (Audio.Clean.Off,
 // internal/dsp), and the sounds a recording makes when it starts and
 // stops. The helper lists the inputs

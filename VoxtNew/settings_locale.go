@@ -64,7 +64,7 @@ func languageOptions() []string {
 }
 
 // mainLanguages are the languages the main language select offers (lang
-// codes), most spoken by VoxtNew's users first; M3 adds a search.
+// codes), most spoken by VoxtNew's users first.
 var mainLanguages = []string{"zh", "en", "ja", "ko", "yue", "fr", "de", "es", "pt", "ru", "it", "vi", "th", "id", "ar"}
 
 func mainLanguageOptions() []string {

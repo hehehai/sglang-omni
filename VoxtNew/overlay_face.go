@@ -203,7 +203,7 @@ func fadeSpans(text string, off float32, measure func(string) float32) (string, 
 
 // liveText is the text the pill shows under it, the same in every flow
 // (10-15, third round): the answer as the model writes it; until then
-// what it works on: what the speech service heard so far (a file
+// what it works on: what the speech model heard so far (a file
 // service's whole text, while it is cleaned up), else the selection it
 // translates.
 func liveText(s session.Snapshot) string {

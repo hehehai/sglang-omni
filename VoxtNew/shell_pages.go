@@ -20,7 +20,7 @@ type navGroup struct {
 	pages []navPage
 }
 
-// navGroups are the sidebar's sections and pages, in order (plan §3.1).
+// navGroups are the sidebar's sections and pages, in order.
 // pages.go keeps the pages' views; their icons are below.
 var navGroups = []navGroup{
 	{"", []navPage{

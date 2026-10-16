@@ -1,6 +1,6 @@
 package main
 
-// The Dictionary page (/dictionary, plan §2.3, D4): the user's terms,
+// The Dictionary page (/dictionary): the user's terms,
 // kept by hand in 0.1. Each term has the spelling it must have, aliases
 // (what speech recognition tends to hear instead), a note and a switch.
 // Terms go to the speech model as hints (dict.Hints) and to the
@@ -304,7 +304,7 @@ func (a *app) termDialog(c *ui.Context) {
 				a.submitTerm()
 			}
 		})
-		fieldInfo(c, i18n.T("Aliases"), i18n.T("What speech recognition tends to hear instead, separated by commas: aura link, 奥拉林克. The glossary tells the model to write the term for them."), func() {
+		fieldInfo(c, i18n.T("Aliases"), i18n.T("What speech recognition tends to hear instead, separated by commas: Vox Tunew, 沃克斯牛. The glossary tells the model to write the term for them."), func() {
 			ui.TextInput(c.Key("term-aliases"), &e.aliases).Label(i18n.T("Aliases of the term")).Placeholder(i18n.T("aura link, aura-link"))
 		})
 		fieldInfo(c, i18n.T("Note"), i18n.T("For you only: it is sent nowhere."), func() {

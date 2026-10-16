@@ -1,9 +1,9 @@
 package main
 
-// The feature pages (plan §3.1): Transcribe (/transcribe), Translate
+// The feature pages: Transcribe (/transcribe), Translate
 // (/translate) and Rewrite (/rewrite) share one structure: the feature's
 // shortcuts (and, on Transcribe, the shared "paste the last result"), the
-// services it uses, its own settings (Transcribe's clean-up layers;
+// models it uses, its own settings (Transcribe's clean-up layers;
 // Translate's target language, clean-up and card; Rewrite's instruction
 // clean-up and when an answer goes to the card), the user's rules with a
 // preview of the whole prompt, and a Try area that runs a session whose

@@ -1,6 +1,6 @@
 package main
 
-// The menu bar icon (plan §2.3; AudioSmith's dictation tray, for
+// The menu bar icon (AudioSmith's dictation tray, for
 // VoxtNew): Start transcribing, Paste the last result, the last three
 // results (a click copies one), Open VoxtNew, Settings, Quit. With
 // Settings → General → "Keep running when the window closes", closing

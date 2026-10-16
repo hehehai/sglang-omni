@@ -628,7 +628,7 @@ func (ms *macSession) history(t *testing.T) []store.Entry {
 // TestMacE2ESessionLocal: a Transcribe session as the app runs it, the
 // speech sample played by the real helper in real time, then recognised
 // and cleaned up by the fake local models (local_fakes_test.go: no model
-// runs, M1 and M2 bring them): the helper's audio reaches the speech
+// runs; TestMacE2EOmni runs the real ones): the helper's audio reaches the speech
 // model whole, the result is delivered and kept with its recording.
 func TestMacE2ESessionLocal(t *testing.T) {
 	bin := macE2E(t)

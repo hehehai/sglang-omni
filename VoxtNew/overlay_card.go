@@ -1,6 +1,6 @@
 package main
 
-// The answer card (plan §3.2), redone after Voxt's WaveformAnswerCard
+// The answer card, redone after Voxt's WaveformAnswerCard
 // (10-15, docs/behavior.md §5.24): where a Translate or Rewrite result
 // that was not inserted waits, where an answer streams while the model
 // writes it, and where a Rewrite answer takes follow-ups.

@@ -1,6 +1,6 @@
 package main
 
-// Settings → Shortcuts (/settings/shortcuts, M6): every global shortcut
+// Settings → Shortcuts (/settings/shortcuts): every global shortcut
 // in one table (Transcribe's, Translate's and Rewrite's, and Paste the
 // last result), with their trigger and what hotkey.Check finds wrong:
 // clashes, keys macOS uses, keys that need Accessibility while the event

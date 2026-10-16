@@ -1,6 +1,6 @@
 package main
 
-// Settings → Permissions (/settings/permissions, plan §6): what macOS lets
+// Settings → Permissions (/settings/permissions): what macOS lets
 // VoxtNew do, why each permission matters, and how to grant it. The
 // helper, which records and posts keys, reads and asks for them
 // (permissions.*): macOS checks its permissions against the app, so they

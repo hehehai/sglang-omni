@@ -3,8 +3,8 @@ package main
 // In-process local models for the app's tests (local.Services): a speech
 // model that transcribes recordings (fakeTranscriptions) or streams
 // (fakeStreamer), and a language model (fakeChat) behind llm.Client, as
-// M2's local runtime will be. They stand where Auralink's loopback
-// servers stood, and keep what the tests read: the chat requests in the
+// internal/llmrt's backend is. They stand where the runtimes' processes
+// run in the app, and keep what the tests read: the chat requests in the
 // shape of an OpenAI request ({"messages": […], "stream": …}).
 
 import (

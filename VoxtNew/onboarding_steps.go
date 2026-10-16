@@ -30,7 +30,7 @@ func obRow(c *ui.Context, key string, ic icons.Icon, title, detail string) {
 	})
 }
 
-// obWelcomeStep is the privacy promise (plan §6).
+// obWelcomeStep is the privacy promise.
 func (a *app) obWelcomeStep(c *ui.Context) {
 	obRow(c, "ob-p-local-models", modelsIcon, i18n.T("Your audio and text stay on this Mac"),
 		i18n.T("Speech recognition and the language models run here. VoxtNew has no server of its own, no account and no analytics."))

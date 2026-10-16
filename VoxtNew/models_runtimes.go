@@ -2,10 +2,10 @@ package main
 
 // The runtimes behind the local models (internal/local's Openers): the
 // one place that says which runtime opens which model. A runtime that is
-// not wired here is "not available" (local.ErrNoRuntime): M1 fills ASR
-// (internal/omni: the speech model's folder, and the VAD's from
-// a.models.Dir(models.VADSilero)), M2 fills LLM (the voxtnew-llm
-// process).
+// not wired here is "not available" (local.ErrNoRuntime). ASR is
+// internal/omni's (the speech model's folder, and the VAD's from
+// a.models.Dir(models.VADSilero)), LLM the voxtnew-llm process's
+// (internal/llmrt).
 //
 // Developers' options, from the environment:
 //

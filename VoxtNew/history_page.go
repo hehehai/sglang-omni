@@ -1,10 +1,10 @@
 package main
 
-// The History page (/history, plan §2.3): finished sessions by feature
+// The History page (/history): finished sessions by feature
 // (Transcribe, Translate, Rewrite), newest first, searchable (the store's
 // full-text index), and the details of one in a side panel beside the
 // list, or over it when the window is narrow: its texts to copy, where it
-// went, the services and models, the time of each stage, why it failed,
+// went, the models, the time of each stage, why it failed,
 // its recording in Finder, and Delete.
 //
 // The page keeps the entries of its tab and search in memory, read in the

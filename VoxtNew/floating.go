@@ -1,7 +1,7 @@
 package main
 
-// Floating windows over other apps (the recording pill, the answer card,
-// M3/M4): they must take clicks without activating VoxtNew, or the app
+// Floating windows over other apps (the recording pill, the answer
+// card): they must take clicks without activating VoxtNew, or the app
 // the user dictates into loses its focus and caret and ⌘V pastes
 // elsewhere. MyGo patch 0003 (third_party/mygo-patches) makes such a
 // window a non-activating panel at creation; it never takes the keyboard,

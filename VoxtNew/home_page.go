@@ -1,7 +1,7 @@
 package main
 
-// Home (/home, plan §3.1): a slogan with Transcribe's shortcut in a key
-// cap; what is still missing before VoxtNew can work (a speech service,
+// Home (/home): a slogan with Transcribe's shortcut in a key
+// cap; what is still missing before VoxtNew can work (a speech model,
 // a language model, the Microphone, Accessibility, the shortcut), each
 // line the way to fix it, and nothing once all is ready; until VoxtNew
 // has given a result once, a Try area that runs a whole transcription on
