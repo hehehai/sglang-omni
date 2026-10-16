@@ -14,6 +14,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/updater"
@@ -41,6 +42,11 @@ func main() {
 	if dir := overlayCheckDir(); dir != "" {
 		runOverlayCheck(dir)
 		return
+	}
+	// The packaged app's smoke run (smoke.go, scripts/mac-regress.sh): its
+	// own data, no window, no lock.
+	if dir := argAfter("--smoke"); dir != "" {
+		os.Exit(runSmoke(dir))
 	}
 	// Dev builds are "VoxtNew Dev"; share data with the installed app.
 	mygo.App.SetName("VoxtNew")
