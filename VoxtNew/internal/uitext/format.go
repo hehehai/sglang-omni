@@ -29,6 +29,15 @@ func HumanBytes(n int64) string {
 	return fmt.Sprintf("%d B", n)
 }
 
+// MemoryBytes shows memory as Activity Monitor does, in units of 1024:
+// "3.4 GB", "512 MB" (a size on disk is HumanBytes').
+func MemoryBytes(n int64) string {
+	if n >= 1<<30 {
+		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))
+	}
+	return fmt.Sprintf("%.0f MB", float64(n)/(1<<20))
+}
+
 // ShortPath shows a path under the home folder as "~/…".
 func ShortPath(p string) string {
 	if home, err := os.UserHomeDir(); err == nil && home != "" {

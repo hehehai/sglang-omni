@@ -2,8 +2,8 @@ package main
 
 // The pages of the sidebar (plan §3.1): Home (home_page.go), History
 // (history_page.go), Transcribe, Translate and Rewrite
-// (feature_page.go), App enhancement (appenhance_page.go), Model
-// services (providers_page.go), Dictionary (dictionary_page.go) and Logs
+// (feature_page.go), App enhancement (appenhance_page.go), Local models
+// (models_page.go), Dictionary (dictionary_page.go) and Logs
 // (shell_logs.go). Permissions is a section of the settings dialog
 // (permissions.go).
 
@@ -41,6 +41,8 @@ func (a *app) pageShown(path string) {
 		a.aeShown() // appenhance_page.go
 	case "/dictionary":
 		a.dictShown() // dictionary_page.go
+	case modelsPath:
+		a.modelsShown() // models_memory.go
 	}
 }
 

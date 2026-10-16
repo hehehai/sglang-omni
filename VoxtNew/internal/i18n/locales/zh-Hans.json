@@ -349,6 +349,8 @@
   "Licence": "许可",
   "Light": "浅色",
   "Listening…": "正在听…",
+  "Loaded": "已载入",
+  "Loaded · %s in memory": "已载入 · 占用内存 %s",
   "Local models": "本地模型",
   "Log what was said": "记录说话内容",
   "Logs": "日志",

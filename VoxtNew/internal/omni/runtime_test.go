@@ -261,7 +261,13 @@ func TestIdleUnload(t *testing.T) {
 	if r := f.rt.Running(); len(r) != 1 || r[0] != ASRFast {
 		t.Errorf("running %v", r)
 	}
+	if ps := f.rt.Processes(); len(ps) != 1 || ps[0].ID != ASRFast || ps[0].PID != f.records("launch")[0].PID {
+		t.Errorf("processes %+v, launched %+v", ps, f.records("launch"))
+	}
 	eventually(t, "the idle unload", func() bool { return len(f.records("shutdown")) == 1 && len(f.rt.Running()) == 0 })
+	if ps := f.rt.Processes(); len(ps) != 0 {
+		t.Errorf("processes after the unload %+v", ps)
+	}
 	if !f.logged("unloaded after") {
 		t.Error("the unload was not logged")
 	}

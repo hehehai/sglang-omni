@@ -218,7 +218,7 @@ func TestLLMOpenerThroughLibrary(t *testing.T) {
 	a, _, _ := newTestApp(t)
 	self, _ := os.Executable()
 	rt := llmrt.New(llmrt.Config{Bin: self, Env: llmrttest.Env(llmrttest.Opt("reply", "Done.")), IdleTimeout: -1})
-	a.llmOnce.Do(func() { a.llmrt = rt })
+	a.llmrt = rt
 	t.Cleanup(rt.Stop)
 	seedModels(t, a, models.LLMBalanced, models.LLMTranslate)
 	chat, m, err := a.local.LLM(context.Background(), "")

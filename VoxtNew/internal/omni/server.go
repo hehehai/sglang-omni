@@ -271,6 +271,16 @@ func (s *server) running() bool {
 	return s.proc != nil && s.proc.alive()
 }
 
+// pid is the ready process's id, 0 when none runs.
+func (s *server) pid() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.proc == nil || !s.proc.alive() || s.proc.cmd.Process == nil {
+		return 0
+	}
+	return s.proc.cmd.Process.Pid
+}
+
 // waitDrained waits, at most a start's timeout, for the speech models'
 // servers being retired to stop, so that two models' weights are never
 // in memory at once.

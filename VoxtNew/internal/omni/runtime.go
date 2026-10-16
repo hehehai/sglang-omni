@@ -216,6 +216,26 @@ func (rt *Runtime) Running() []string {
 	return out
 }
 
+// Process is a running server: its model and process id.
+type Process struct {
+	ID  string
+	PID int
+}
+
+// Processes lists the servers that run now with their process ids (the
+// Local models page measures their memory: memory only).
+func (rt *Runtime) Processes() []Process {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	var out []Process
+	for _, s := range rt.servers {
+		if pid := s.pid(); pid > 0 {
+			out = append(out, Process{ID: s.spec.ID, PID: pid})
+		}
+	}
+	return out
+}
+
 // forget drops s from the map when it is still there (it stopped).
 func (rt *Runtime) forget(s *server) {
 	rt.mu.Lock()

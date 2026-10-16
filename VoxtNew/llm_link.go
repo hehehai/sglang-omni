@@ -22,16 +22,27 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 )
 
-// llmState is the language models' runtime.
+// llmState is the language models' runtime; goroutine-safe (the openers
+// run on sessions' goroutines, the Local models page measures it on
+// others).
 type llmState struct {
-	llmOnce sync.Once
-	llmrt   *llmrt.Runtime
+	llmMu  sync.Mutex
+	llmrt  *llmrt.Runtime
+	llmEnd bool // stopped: the app quits
 }
 
 // llmRuntime is the runtime, made on first use (off the main thread: the
-// openers run there; it starts no process).
+// openers run there; it starts no process). After stopLLM it is a stopped
+// one, whose calls fail.
 func (a *app) llmRuntime() *llmrt.Runtime {
-	a.llmOnce.Do(func() {
+	a.llmMu.Lock()
+	defer a.llmMu.Unlock()
+	switch {
+	case a.llmrt != nil:
+	case a.llmEnd:
+		a.llmrt = llmrt.New(llmrt.Config{})
+		a.llmrt.Stop()
+	default:
 		resources, _ := mygo.App.Path(mygo.PathResources)
 		logDir, _ := mygo.App.Path(mygo.PathLogs)
 		logs := a.logs
@@ -43,7 +54,14 @@ func (a *app) llmRuntime() *llmrt.Runtime {
 				}
 			},
 		})
-	})
+	}
+	return a.llmrt
+}
+
+// llmMade is the runtime when one was made, else nil (it makes none).
+func (a *app) llmMade() *llmrt.Runtime {
+	a.llmMu.Lock()
+	defer a.llmMu.Unlock()
 	return a.llmrt
 }
 
@@ -57,8 +75,7 @@ func (a *app) openLLM(ctx context.Context, id, dir string) (local.Chat, error) {
 // unloadLLM is local.Openers' Unload: before model id is deleted, the
 // process that holds it stops.
 func (a *app) unloadLLM(id string) {
-	a.llmOnce.Do(func() {}) // never made: nothing to unload
-	if rt := a.llmrt; rt != nil {
+	if rt := a.llmMade(); rt != nil { // never made: nothing to unload
 		if m := rt.Status().Model; m != nil && m.ID == id {
 			rt.Unload()
 		}
@@ -79,10 +96,14 @@ func (a *app) withDevLLM(base local.Services) local.Services {
 	return llmrt.DevServices(base, a.llmRuntime(), models)
 }
 
-// stopLLM stops the language models' process (the app quits).
+// stopLLM stops the language models' process (the app quits); a runtime
+// asked for later is a stopped one.
 func (a *app) stopLLM() {
-	a.llmOnce.Do(func() {})
-	if a.llmrt != nil {
-		a.llmrt.Stop()
+	a.llmMu.Lock()
+	a.llmEnd = true
+	rt := a.llmrt
+	a.llmMu.Unlock()
+	if rt != nil {
+		rt.Stop()
 	}
 }

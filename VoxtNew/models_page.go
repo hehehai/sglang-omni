@@ -3,8 +3,8 @@ package main
 // The Local models page (/models): the few models VoxtNew offers, by
 // kind (speech recognition, language models), each a card that says in
 // plain words what it is good at and which languages it knows, its size,
-// and whether it is installed or downloading, with Download, Cancel and
-// Delete.
+// whether it is installed or downloading, with Download, Cancel and
+// Delete, and, while it is loaded, the memory it uses (models_memory.go).
 //
 // The models on disk and their downloads are internal/models' (a.models);
 // what is installed, as the sessions open it, internal/local's (a.local,
@@ -84,6 +84,9 @@ func (a *app) modelsChanged() {
 		}
 	}
 	a.checkModels()
+	if a.currentPage() == modelsPath[1:] {
+		a.readModelMemory() // models_memory.go: a deleted model was unloaded
+	}
 }
 
 // downloadModel starts downloading model id (and the models it needs).
@@ -223,7 +226,15 @@ func (a *app) modelCard(c *ui.Context, m models.Model) {
 						caption(c, l).MinWidth(0)
 					})
 				}
-				caption(c, modelSizeText(m, st))
+				ui.Row(c).Gap(px(t, sp2)).AlignItems(ui.Center).Wrap().Children(func() {
+					caption(c, modelSizeText(m, st))
+					if mem, ok := a.modelMem[m.ID]; ok && st.Installed { // models_memory.go
+						ui.Row(c.Key("loaded")).Gap(px(t, 6)).AlignItems(ui.Center).Children(func() {
+							statusDot(c, k.Accent)
+							caption(c, modelMemText(mem))
+						})
+					}
+				})
 			})
 			ui.Row(c.Key("actions")).Gap(px(t, sp2)).Shrink(0).Children(func() { a.modelActions(c, m, st) })
 		})
@@ -261,6 +272,14 @@ func modelSizeText(m models.Model, st models.Status) string {
 		return i18n.T("Stopped: %s of %s downloaded", uitext.HumanBytes(st.Done), size)
 	}
 	return i18n.T("%s download", size)
+}
+
+// modelMemText says a loaded model's memory use (0: not measured).
+func modelMemText(b int64) string {
+	if b <= 0 {
+		return i18n.T("Loaded")
+	}
+	return i18n.T("Loaded · %s in memory", uitext.MemoryBytes(b))
 }
 
 // modelActions are a card's buttons for the model's state.

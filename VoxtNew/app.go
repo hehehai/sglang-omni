@@ -18,6 +18,7 @@ import (
 //	trayState         tray.go         the menu bar icon
 //	permissionsState  permissions.go  Settings → Permissions
 //	modelsState       models_page.go  the Local models page, the local models (internal/local)
+//	memoryState       models_memory.go  the loaded models' memory (the Local models page)
 //	omniState         models_omni.go  the speech models' runtime (internal/omni)
 //	llmState          llm_link.go     the language models' runtime (internal/llmrt)
 //	sessionState      session_link.go  sessions, shortcuts, the answer card
@@ -48,6 +49,7 @@ type app struct {
 	trayState
 	permissionsState
 	modelsState
+	memoryState
 	omniState
 	llmState
 	sessionState

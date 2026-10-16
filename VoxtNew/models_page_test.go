@@ -174,6 +174,8 @@ func modelShots(t *testing.T, a *app, tt *ui.Tester, save func(string)) {
 	a.modelStatus[models.LLMBalanced] = models.Status{Downloading: true, Done: balanced.Size() * 2 / 5, Total: balanced.Size()}
 	a.modelStatus[models.LLMFast] = models.Status{Total: 1, Err: &models.NoSpaceError{Need: 2_261_000_000, Free: 1_200_000_000}}
 	a.navigate(modelsPath)
+	// Two of them loaded (models_memory.go), as a session leaves them.
+	a.modelMem = map[string]int64{models.ASRAccurate: 2_469_606_195, models.LLMTranslate: 1_234_173_952}
 	save("models-states")
 	scrollToText(tt, i18n.T("Language models"))
 	save("models-states-language")
