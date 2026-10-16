@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // State is where an app's icon is.

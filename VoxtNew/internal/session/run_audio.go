@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/dict"
-	"github.com/hehehai/Auralink/internal/dsp"
-	"github.com/hehehai/Auralink/internal/vad"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/dict"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/dsp"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // streamer is the session's speech service as a streamer, when it streams.

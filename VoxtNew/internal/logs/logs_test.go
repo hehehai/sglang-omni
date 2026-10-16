@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 func TestRing(t *testing.T) {

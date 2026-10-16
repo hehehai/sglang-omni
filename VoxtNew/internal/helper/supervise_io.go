@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 func isClosed(ch chan struct{}) bool {

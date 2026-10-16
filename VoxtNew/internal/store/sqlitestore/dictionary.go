@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/plugins/sqlite"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // dictionaryRepo stores the user's terms (dictionary_terms).

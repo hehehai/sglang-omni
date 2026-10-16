@@ -12,11 +12,11 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // ovFlowStep is what the overlay shows at one point of a flow.
@@ -76,7 +76,7 @@ func (f *ovFlow) sample() {
 		}
 	}
 	f.steps = append(f.steps, st)
-	if os.Getenv("AURALINK_FLOW_SHOTS") != "" {
+	if os.Getenv("VOXTNEW_FLOW_SHOTS") != "" {
 		f.shots = append(f.shots, f.picture())
 	}
 }
@@ -115,13 +115,13 @@ func (f *ovFlow) String() string {
 	return b.String()
 }
 
-// TestOverlayFlowsTrace logs each flow's steps (AURALINK_FLOWS=1).
+// TestOverlayFlowsTrace logs each flow's steps (VOXTNEW_FLOWS=1).
 func TestOverlayFlowsTrace(t *testing.T) {
 	for _, fl := range overlayFlows() {
 		t.Run(fl.name, func(t *testing.T) {
 			f := fl.run(t)
 			t.Logf("%s:%v", fl.name, f)
-			if dir := os.Getenv("AURALINK_FLOW_SHOTS"); dir != "" {
+			if dir := os.Getenv("VOXTNEW_FLOW_SHOTS"); dir != "" {
 				os.MkdirAll(dir, 0o755)
 				for i, b := range f.shots {
 					os.WriteFile(filepath.Join(dir, fmt.Sprintf("%s-%02d-%s.png", fl.name, i, strings.ReplaceAll(f.steps[i].String(), "/", "-"))), b, 0o644)
@@ -220,7 +220,7 @@ func overlayFlows() []ovFlowCase {
 
 // flowSettings: the pictures in Chinese.
 func flowSettings(st *settings.Settings) {
-	if os.Getenv("AURALINK_FLOW_SHOTS") != "" {
+	if os.Getenv("VOXTNEW_FLOW_SHOTS") != "" {
 		st.General.Language = "zh-Hans"
 	}
 }

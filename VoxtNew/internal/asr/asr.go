@@ -1,4 +1,4 @@
-// Package asr is Auralink's speech recognition over remote services
+// Package asr is VoxtNew's speech recognition over remote services
 // (plan §4.4): two shapes of provider, a file transcriber that uploads a
 // finished recording (OpenAI-compatible /audio/transcriptions) and a
 // streamer that recognises while the user speaks (Doubao, Alibaba Cloud
@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-// SampleRate is the rate of the PCM Auralink records and sends, in Hz.
+// SampleRate is the rate of the PCM VoxtNew records and sends, in Hz.
 const SampleRate = 16000
 
 // Caps is what a provider can do.

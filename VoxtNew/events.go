@@ -20,7 +20,7 @@ package main
 import (
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 )
 
 // events are the observers of the app's events, main-thread only.

@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/compose"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // trySample is the input the prompt preview shows.

@@ -16,14 +16,14 @@
 # The sets, a directory each: main (TestSnapshots*, the window's default
 # size), min (the same at the smallest size), home (TestHomeSnapshots),
 # overlay (TestOverlayShots), ink (the overlay's ink checks' pictures). The
-# overlay's flows (AURALINK_FLOW_SHOTS) are left out: they run real
+# overlay's flows (VOXTNEW_FLOW_SHOTS) are left out: they run real
 # goroutines and the fake helper's process, so how many pieces of a
 # streamed draft a frame shows varies; their tests check the steps.
 #
 # check and twice exit 1 when a snapshot differs and leave the pictures of
 # the differences (before | after | red pixels) in $SNAP_TMP/diff/<set>;
 # they delete the renders (about 100 MB each) unless SNAP_KEEP=1. SNAP_TMP
-# defaults to /tmp/auralink-snapcheck-$USER. Rendering runs under
+# defaults to /tmp/voxtnew-snapcheck-$USER. Rendering runs under
 # nice -n 19 (the Linux host is shared) and takes about half a minute.
 #
 # The comparison is go run ./internal/tools/snapcmp BEFORE AFTER per set,
@@ -32,7 +32,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-tmp="${SNAP_TMP:-/tmp/auralink-snapcheck-${USER:-$(id -u)}}"
+tmp="${SNAP_TMP:-/tmp/voxtnew-snapcheck-${USER:-$(id -u)}}"
 sets=(main min home overlay ink)
 
 render() { # render SRC_DIR OUT_DIR
@@ -41,11 +41,11 @@ render() { # render SRC_DIR OUT_DIR
 	mkdir -p "${sets[@]/#/$out/}"
 	echo "rendering $(git -C "$src" rev-parse --short HEAD)$(git -C "$src" diff --quiet HEAD -- . 2>/dev/null || echo '+changes') into $out" >&2
 	run() { (cd "$src" && nice -n 19 env GOMAXPROCS=4 CGO_ENABLED=0 "$@" >&2); }
-	run env AURALINK_SNAPSHOTS="$out/main" go test -count=1 -timeout 30m -run 'TestSnapshots' .
-	run env AURALINK_SNAPSHOTS="$out/min" AURALINK_SNAPSHOTS_SIZE=min go test -count=1 -timeout 30m -run 'TestSnapshots' .
-	run env AURALINK_HOME_SHOTS="$out/home" go test -count=1 -timeout 30m -run 'TestHomeSnapshots' .
-	run env AURALINK_OVERLAY_SHOTS="$out/overlay" go test -count=1 -timeout 30m -run 'TestOverlayShots' .
-	run env AURALINK_INK="$out/ink" go test -count=1 -timeout 30m -run 'TestOverlayInk|TestAnswerCardInk' .
+	run env VOXTNEW_SNAPSHOTS="$out/main" go test -count=1 -timeout 30m -run 'TestSnapshots' .
+	run env VOXTNEW_SNAPSHOTS="$out/min" VOXTNEW_SNAPSHOTS_SIZE=min go test -count=1 -timeout 30m -run 'TestSnapshots' .
+	run env VOXTNEW_HOME_SHOTS="$out/home" go test -count=1 -timeout 30m -run 'TestHomeSnapshots' .
+	run env VOXTNEW_OVERLAY_SHOTS="$out/overlay" go test -count=1 -timeout 30m -run 'TestOverlayShots' .
+	run env VOXTNEW_INK="$out/ink" go test -count=1 -timeout 30m -run 'TestOverlayInk|TestAnswerCardInk' .
 	echo "$(find "$out" -type f | wc -l) files" >&2
 }
 

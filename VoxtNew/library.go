@@ -10,9 +10,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store/sqlitestore"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store/sqlitestore"
 )
 
 type library struct {

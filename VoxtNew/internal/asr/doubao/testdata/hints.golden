@@ -15,7 +15,7 @@ X-Api-Resource-Id: volc.bigasr.sauc.duration
   },
   "request": {
     "corpus": {
-      "context": "{\"hotwords\":[{\"word\":\"Auralink\"},{\"word\":\"火山引擎\"}],\"context_type\":\"dialog_ctx\",\"context_data\":[{\"text\":\"Meeting about Auralink.\"}]}"
+      "context": "{\"hotwords\":[{\"word\":\"VoxtNew\"},{\"word\":\"火山引擎\"}],\"context_type\":\"dialog_ctx\",\"context_data\":[{\"text\":\"Meeting about VoxtNew.\"}]}"
     },
     "enable_ddc": true,
     "enable_itn": true,
@@ -26,11 +26,11 @@ X-Api-Resource-Id: volc.bigasr.sauc.duration
     "show_utterances": true
   },
   "user": {
-    "uid": "auralink"
+    "uid": "voxtnew"
   }
 }
 > audio-only-request flags=seq ser=none comp=gzip seq=2 bytes=6400
 > audio-only-request flags=seq ser=none comp=gzip seq=3 bytes=6400
 > audio-only-request flags=seq|last ser=none comp=none seq=-4 bytes=0
 --- events
-< final: 你好，Auralink。 (model volc.bigasr.sauc.duration, duration 400ms)
+< final: 你好，VoxtNew。 (model volc.bigasr.sauc.duration, duration 400ms)

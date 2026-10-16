@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Vendors MyGo with Auralink's patches into third_party/mygo, which the
+# Vendors MyGo with VoxtNew's patches into third_party/mygo, which the
 # replace in go.mod builds against until upstream (egoist/mygo) ships the
 # fixes: the module at the version go.mod requires, from the module cache,
 # without its website, docs, examples, CI, tests and test data, with
@@ -49,11 +49,11 @@ find "$out" \( -name .gitignore -o -name .gitattributes \) -delete
 # Directories that held only tests (internal/e2e) are left empty: git keeps
 # no empty directories, so drop them, or --check sees one git cannot hold.
 find "$out" -type d -empty -delete
-# Auralink's checks run gofmt -l over the tree; a file upstream left
+# VoxtNew's checks run gofmt -l over the tree; a file upstream left
 # unformatted is formatted here.
 unformatted="$(gofmt -l "$out")"
 [[ -z "$unformatted" ]] || gofmt -w $unformatted
-echo "github.com/egoist/mygo $version + $(ls "$PATCHES"/*.patch 2>/dev/null | wc -l | tr -d ' ') patches (scripts/vendor-mygo.sh)" > "$out/AURALINK-VENDORED"
+echo "github.com/egoist/mygo $version + $(ls "$PATCHES"/*.patch 2>/dev/null | wc -l | tr -d ' ') patches (scripts/vendor-mygo.sh)" > "$out/VOXTNEW-VENDORED"
 
 if [[ "${1:-}" == "--check" ]]; then
   if ! diff -r "$out" "$DEST" > "$work/diff"; then

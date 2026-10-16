@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/hehehai/Auralink/internal/lang"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/lang"
 )
 
 // TargetLanguages are the languages Translate offers, in the menu's

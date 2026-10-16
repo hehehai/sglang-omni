@@ -86,13 +86,13 @@ private final class OnceFlag: @unchecked Sendable {
 
 // MARK: The test-only file input
 
-/// AURALINK_HELPER_CAPTURE_FILE (tests only): capture.start records this
+/// VOXTNEW_HELPER_CAPTURE_FILE (tests only): capture.start records this
 /// audio file instead of the microphone, at the pace of a microphone
-/// (AURALINK_HELPER_CAPTURE_SPEED times as fast, default 1), then
+/// (VOXTNEW_HELPER_CAPTURE_SPEED times as fast, default 1), then
 /// silence until it is stopped, without asking for the microphone.
 public struct CaptureFileConfig: Sendable, Equatable {
-    public static let fileVariable = "AURALINK_HELPER_CAPTURE_FILE"
-    public static let speedVariable = "AURALINK_HELPER_CAPTURE_SPEED"
+    public static let fileVariable = "VOXTNEW_HELPER_CAPTURE_FILE"
+    public static let speedVariable = "VOXTNEW_HELPER_CAPTURE_SPEED"
 
     public var path: String
     public var speed: Double

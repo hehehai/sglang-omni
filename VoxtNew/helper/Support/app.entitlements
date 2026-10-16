@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Entitlements of Auralink.app's own executable (mygo.json
+<!-- Entitlements of VoxtNew.app's own executable (mygo.json
      macos.entitlements); the helper's are helper.entitlements. Under the
      hardened runtime (Developer ID builds) the app asks for the microphone
      itself when the helper cannot (permissions.go), and macOS holds it

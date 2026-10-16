@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/netx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/netx"
 )
 
 // ID is the provider's preset id.
@@ -182,7 +182,7 @@ func (c *Client) post(ctx context.Context, body []byte, ctype string) (asr.Resul
 	hr.Header.Set("Content-Type", ctype)
 	hr.Header.Set("Accept", "application/json, text/plain")
 	hr.Header.Set("Authorization", "Bearer "+c.key)
-	hr.Header.Set("User-Agent", "Auralink")
+	hr.Header.Set("User-Agent", "VoxtNew")
 	resp, err := c.http.Do(hr)
 	if err != nil {
 		return asr.Result{}, asr.NetError(ctx, ID, err)

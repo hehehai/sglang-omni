@@ -50,7 +50,7 @@ func sourceKeys(t *testing.T) (keys map[string]string, dynamic []string) {
 		// package i18n itself calls are unqualified and not scanned.
 		local := ""
 		for _, imp := range f.Imports {
-			if imp.Path.Value == `"github.com/hehehai/Auralink/internal/i18n"` {
+			if imp.Path.Value == `"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"` {
 				local = "i18n"
 				if imp.Name != nil {
 					local = imp.Name.Name

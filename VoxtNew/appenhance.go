@@ -17,16 +17,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
-// selfBundleID is Auralink's bundle id (mygo.json).
-const selfBundleID = "dev.hehehai.auralink"
+// selfBundleID is VoxtNew's bundle id (mygo.json).
+const selfBundleID = "dev.hehehai.voxtnew"
 
 // urlTimeout is how long a session waits for a browser's address.
 const urlTimeout = 800 * time.Millisecond
@@ -83,7 +83,7 @@ type urlRead struct {
 }
 
 // aePreview is the App enhancement page's preview: an address read of
-// the app in front (or the last app before Auralink).
+// the app in front (or the last app before VoxtNew).
 type aePreview struct {
 	app     proto.App
 	reading bool
@@ -98,8 +98,8 @@ type appEnhanceState struct {
 	aeBook  *ruleBook
 	aeRules appctx.Rules // the page's copy (main thread)
 	aeErr   string       // the document could not be read
-	// lastOther is the last app in front that is not Auralink: the
-	// preview's app while Auralink's window is in front.
+	// lastOther is the last app in front that is not VoxtNew: the
+	// preview's app while VoxtNew's window is in front.
 	lastOther proto.App
 	// urlReads are the last address read of each browser at a shortcut.
 	urlReads  map[string]urlRead
@@ -226,13 +226,13 @@ func (a *app) syncTrees() {
 		})
 }
 
-// isSelf reports whether app is Auralink.
+// isSelf reports whether app is VoxtNew.
 func isSelf(app proto.App) bool {
 	return app.PID != 0 && app.PID == os.Getpid() || strings.EqualFold(app.BundleID, selfBundleID)
 }
 
 // frontChanged follows app.activated (helperlink.go): the last app that
-// is not Auralink, and the preview while the page shows.
+// is not VoxtNew, and the preview while the page shows.
 func (a *app) frontChanged(front proto.App) {
 	if isSelf(front) || front.PID == 0 {
 		return
@@ -244,7 +244,7 @@ func (a *app) frontChanged(front proto.App) {
 }
 
 // previewApp is the app the preview shows: the app in front, or the last
-// one before Auralink.
+// one before VoxtNew.
 func (a *app) previewApp() proto.App {
 	if a.front.PID != 0 && !isSelf(a.front) {
 		return a.front

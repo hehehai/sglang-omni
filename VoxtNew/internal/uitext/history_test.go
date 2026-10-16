@@ -3,7 +3,7 @@ package uitext
 import (
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 func TestHistoryFormat(t *testing.T) {

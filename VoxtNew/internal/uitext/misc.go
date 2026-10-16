@@ -7,13 +7,13 @@ package uitext
 import (
 	"errors"
 
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/dict"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/lang"
-	"github.com/hehehai/Auralink/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/dict"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/lang"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
 )
 
 // PatternErrorText says why a website rule is not valid.
@@ -76,7 +76,7 @@ func HelperFailText(st helper.Status) string {
 	case helper.FailProtocol:
 		return i18n.T("Helper out of date")
 	case helper.FailUpdated:
-		return i18n.T("Auralink was updated: restart it to finish.")
+		return i18n.T("VoxtNew was updated: restart it to finish.")
 	}
 	if st.State == helper.Stopped {
 		return i18n.T("Helper stopped")

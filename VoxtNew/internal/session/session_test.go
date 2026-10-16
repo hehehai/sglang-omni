@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/deliver"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/llm"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 var slack = proto.App{PID: 812, BundleID: "com.tinyspeck.slackmacgap", Name: "Slack"}
@@ -54,7 +54,7 @@ func newHarness(t *testing.T, prov asr.Provider, model LLM, cfgFn func(*Config, 
 			return svc, nil
 		},
 		Glossary: func(context.Context) ([]store.Term, error) {
-			return []store.Term{{Term: "Auralink", Aliases: []string{"aura link"}, Enabled: true}, {Term: "Off", Enabled: false}}, nil
+			return []store.Term{{Term: "VoxtNew", Aliases: []string{"aura link"}, Enabled: true}, {Term: "Off", Enabled: false}}, nil
 		},
 		OnChange: h.rec.add,
 		Log: func(level, msg string) {
@@ -127,10 +127,10 @@ func TestPipeline(t *testing.T) {
 		problem  string
 		card     bool
 	}{
-		{"stream, llm", true, &fakeLLM{text: "Hello, Auralink."}, true, true, "Hello, Auralink.", "recording recognizing composing delivering done", "", false},
+		{"stream, llm", true, &fakeLLM{text: "Hello, VoxtNew."}, true, true, "Hello, VoxtNew.", "recording recognizing composing delivering done", "", false},
 		{"stream, llm off", true, &fakeLLM{text: "unused"}, false, true, "hello aura link", "recording recognizing delivering done", "", false},
 		{"stream, no llm", true, nil, true, true, "hello aura link", "recording recognizing delivering done", "", false},
-		{"file, llm", false, &fakeLLM{text: "“Hello, Auralink.”"}, true, true, "Hello, Auralink.", "recording recognizing composing delivering done", "", false},
+		{"file, llm", false, &fakeLLM{text: "“Hello, VoxtNew.”"}, true, true, "Hello, VoxtNew.", "recording recognizing composing delivering done", "", false},
 		{"file, llm off", false, &fakeLLM{}, false, true, "hello aura link", "recording recognizing delivering done", "", false},
 		{"stream, llm fails", true, &fakeLLM{err: errors.New("503")}, true, true, "hello aura link", "recording recognizing composing delivering done", ProblemLLM, false},
 		{"file, llm times out", false, &fakeLLM{hang: true}, true, true, "hello aura link", "recording recognizing composing delivering done", ProblemLLM, false},
@@ -190,7 +190,7 @@ func TestPipeline(t *testing.T) {
 				if len(st.streams) != 1 || st.streams[0].bytes != h.audio.recorded()*len(frame) {
 					t.Errorf("streamed %d bytes of %d frames", st.streams[0].bytes, h.audio.recorded())
 				}
-				if strings.Join(st.hints, ",") != "Auralink" {
+				if strings.Join(st.hints, ",") != "VoxtNew" {
 					t.Errorf("hints %q", st.hints)
 				}
 			} else if f := prov.(*fakeFile); f.calls != 1 || f.bytes != h.audio.recorded()*len(frame) {
@@ -202,7 +202,7 @@ func TestPipeline(t *testing.T) {
 					t.Fatalf("%d llm requests", len(reqs))
 				}
 				sys, user := reqs[0].Messages[0].Content, reqs[0].Messages[1].Content
-				if !strings.Contains(sys, "Be brief.") || !strings.Contains(sys, "- Auralink") || strings.Contains(sys, "Off") ||
+				if !strings.Contains(sys, "Be brief.") || !strings.Contains(sys, "- VoxtNew") || strings.Contains(sys, "Off") ||
 					strings.Contains(sys, "hello aura link") || user != "<input>\nhello aura link\n</input>" || reqs[0].Skill != llm.SkillTranscribeEnhance {
 					t.Errorf("request %+v", reqs[0])
 				}

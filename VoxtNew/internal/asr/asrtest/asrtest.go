@@ -1,11 +1,11 @@
 // Package asrtest helps test ASR providers on Linux: a loopback
 // WebSocket server that a test scripts (read the client's frames, answer
 // with recorded ones), golden files of what a client sent, and the
-// end-to-end switches (AURALINK_E2E, the developer's keys, the speech
+// end-to-end switches (VOXTNEW_E2E, the developer's keys, the speech
 // sample).
 //
 // Golden files: Golden compares text with testdata/<name>.golden;
-// AURALINK_UPDATE_GOLDEN=1 rewrites them. Review the diff before
+// VOXTNEW_UPDATE_GOLDEN=1 rewrites them. Review the diff before
 // committing one.
 package asrtest
 
@@ -100,11 +100,11 @@ func RefuseServer(t testing.TB, status int, body string) string {
 }
 
 // Golden compares got with testdata/<name>.golden (relative to the test's
-// package), or writes it when AURALINK_UPDATE_GOLDEN=1.
+// package), or writes it when VOXTNEW_UPDATE_GOLDEN=1.
 func Golden(t testing.TB, name, got string) {
 	t.Helper()
 	path := filepath.Join("testdata", name+".golden")
-	if os.Getenv("AURALINK_UPDATE_GOLDEN") == "1" {
+	if os.Getenv("VOXTNEW_UPDATE_GOLDEN") == "1" {
 		os.MkdirAll("testdata", 0o755)
 		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
 			t.Fatal(err)
@@ -113,27 +113,27 @@ func Golden(t testing.TB, name, got string) {
 	}
 	want, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("%v (run with AURALINK_UPDATE_GOLDEN=1 to create it)", err)
+		t.Fatalf("%v (run with VOXTNEW_UPDATE_GOLDEN=1 to create it)", err)
 	}
 	if string(want) != got {
-		t.Errorf("%s differs from what the client sent (AURALINK_UPDATE_GOLDEN=1 rewrites it)\n--- got\n%s\n--- want\n%s", path, got, want)
+		t.Errorf("%s differs from what the client sent (VOXTNEW_UPDATE_GOLDEN=1 rewrites it)\n--- got\n%s\n--- want\n%s", path, got, want)
 	}
 }
 
 // ---- End-to-end tests against the real services ----
 
-// E2E skips t unless AURALINK_E2E=1.
+// E2E skips t unless VOXTNEW_E2E=1.
 func E2E(t testing.TB) {
 	t.Helper()
-	if os.Getenv("AURALINK_E2E") != "1" {
-		t.Skip("set AURALINK_E2E=1 (with keys in ~/.config/auralink-dev/keys.env) to reach the real services")
+	if os.Getenv("VOXTNEW_E2E") != "1" {
+		t.Skip("set VOXTNEW_E2E=1 (with keys in ~/.config/voxtnew-dev/keys.env) to reach the real services")
 	}
 }
 
 // KeysFile is where the developer's test keys live: KEY=value lines.
 func KeysFile() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "auralink-dev", "keys.env")
+	return filepath.Join(home, ".config", "voxtnew-dev", "keys.env")
 }
 
 // Key returns a key from the environment or KeysFile, skipping t when it

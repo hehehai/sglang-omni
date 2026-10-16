@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/dsp"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/vad"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/dsp"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // quietVoice is 100 ms of a quiet voice: a 220 Hz tone at -40 dBFS.

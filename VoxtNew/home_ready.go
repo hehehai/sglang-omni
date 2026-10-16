@@ -6,19 +6,19 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/permission"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // ---- The page ----
 
-// readiness is one thing Auralink needs, as Home lists it.
+// readiness is one thing VoxtNew needs, as Home lists it.
 type readiness struct {
 	key   string
 	title string // what it is
@@ -71,7 +71,7 @@ func (a *app) readinessList() []readiness {
 			fix: func() { a.askPermission(proto.PermissionMicrophone) }})
 	default:
 		out = append(out, readiness{key: "home-mic", title: i18n.T("Microphone"), kind: noticeError,
-			text: i18n.T("Auralink may not use the microphone: allow it in System Settings."), action: i18n.T("Open Permissions"), fix: openPerms})
+			text: i18n.T("VoxtNew may not use the microphone: allow it in System Settings."), action: i18n.T("Open Permissions"), fix: openPerms})
 	}
 	// Accessibility.
 	switch {
@@ -89,7 +89,7 @@ func (a *app) readinessList() []readiness {
 	case st.State == helper.Ready, st.State == helper.Starting:
 	case st.Reason == helper.FailUpdated:
 		out = append(out, readiness{key: "home-helper", title: i18n.T("Helper"), kind: noticeWarn,
-			text: uitext.HelperFailText(st), action: i18n.T("Restart Auralink"), fix: a.relaunch})
+			text: uitext.HelperFailText(st), action: i18n.T("Restart VoxtNew"), fix: a.relaunch})
 	default:
 		out = append(out, readiness{key: "home-helper", title: i18n.T("Helper"), kind: noticeError,
 			text: uitext.HelperFailText(st), action: i18n.T("Restart the helper"), fix: a.restartHelper})

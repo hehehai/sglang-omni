@@ -1,6 +1,6 @@
 // Package logs is the log behind the logs panel: core.LogService as a
 // ring of the newest lines in memory, also written to rotated files
-// (<dir>/auralink.log, .1, .2) by a goroutine of its own, so Append
+// (<dir>/voxtnew.log, .1, .2) by a goroutine of its own, so Append
 // never blocks on the disk.
 //
 // Sources: "app" (the Go log package, through Writer) and "helper" (the
@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 // Options configure a Ring.
@@ -28,7 +28,7 @@ type Options struct {
 	Size int
 	// Dir is where the files go (mygo.PathLogs); "" = memory only.
 	Dir string
-	// MaxFileBytes rotates auralink.log at this size; 0 = 5 MB. Keep
+	// MaxFileBytes rotates voxtnew.log at this size; 0 = 5 MB. Keep
 	// is how many rotated files stay; 0 = 2.
 	MaxFileBytes int64
 	Keep         int
@@ -54,7 +54,7 @@ type Ring struct {
 var _ core.LogService = (*Ring)(nil)
 
 // FileName is the name of the current log file in Options.Dir.
-const FileName = "auralink.log"
+const FileName = "voxtnew.log"
 
 // New starts a Ring (and its file writer when Dir is set).
 func New(o Options) *Ring {

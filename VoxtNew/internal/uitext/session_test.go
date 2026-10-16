@@ -3,8 +3,8 @@ package uitext
 import (
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 func TestWorkingTexts(t *testing.T) {

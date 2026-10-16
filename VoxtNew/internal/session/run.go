@@ -11,12 +11,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/deliver"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // run is one session. Its fields are the session goroutine's, but for
@@ -98,7 +98,7 @@ func (r *run) firstState() State {
 
 // canSelect says whether the session reads the selection: Translate and
 // Rewrite with a selector, not a try, not a follow-up, in an app that is
-// not Auralink.
+// not VoxtNew.
 func (r *run) canSelect() bool {
 	cfg := r.m.cfg
 	t := r.req.Target

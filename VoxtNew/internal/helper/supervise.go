@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // LogSource is the source of the helper's lines in the logs.

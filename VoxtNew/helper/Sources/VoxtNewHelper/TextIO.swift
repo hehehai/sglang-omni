@@ -1,6 +1,6 @@
 import AppKit
 import ApplicationServices
-import AuralinkHelperKit
+import VoxtNewHelperKit
 import Carbon
 import Foundation
 
@@ -20,7 +20,7 @@ final class TextIO: @unchecked Sendable {
     static let textRoles: Set<String> = ["AXTextArea", "AXTextField", "AXComboBox", "AXSearchField"]
 
     private func requireTrust() throws {
-        guard AXIsProcessTrusted() else { throw RPCError.denied(PermissionName.accessibility, "Auralink may not use Accessibility") }
+        guard AXIsProcessTrusted() else { throw RPCError.denied(PermissionName.accessibility, "VoxtNew may not use Accessibility") }
     }
 
     private func focusedElement(pid: pid_t?) -> AXUIElement? {
@@ -202,7 +202,7 @@ final class TextIO: @unchecked Sendable {
 }
 
 /// Posts one key press (down and up) at the HID level, marked as
-/// Auralink's own (the event tap lets it through).
+/// VoxtNew's own (the event tap lets it through).
 func postKey(_ key: UInt16, flags: CGEventFlags) {
     let src = CGEventSource(stateID: .hidSystemState)
     for down in [true, false] {

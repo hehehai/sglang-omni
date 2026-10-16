@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/vad"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // A variant of the speech sample: what a microphone might give.
@@ -105,11 +105,11 @@ func cutWords(s []float64, at int, spans []vad.Span) (cut, total int) {
 // TestCompareVariants processes each variant as a file and as a stream
 // and reports the levels before and after, what the voice activity
 // detection keeps of it before and after, and the gains. The table goes to
-// the log (go test -v -run TestCompareVariants); AURALINK_DSP_OUT=dir also
+// the log (go test -v -run TestCompareVariants); VOXTNEW_DSP_OUT=dir also
 // writes each variant before and after as WAV files.
 func TestCompareVariants(t *testing.T) {
 	s := loadSample(t)
-	dir := os.Getenv("AURALINK_DSP_OUT")
+	dir := os.Getenv("VOXTNEW_DSP_OUT")
 	var tab strings.Builder
 	fmt.Fprintf(&tab, "\n| variant | RMS | peak | speech | floor | VAD kept | speech frames cut | gain (file) | gain (stream, end; min–max) | limited |\n|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, v := range variants {

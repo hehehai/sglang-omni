@@ -1,4 +1,4 @@
-// Package datadir is where Auralink's data folder is (from AudioSmith): the
+// Package datadir is where VoxtNew's data folder is (from AudioSmith): the
 // default one (mygo.PathUserData), or another the user moved it to in
 // Settings → Storage, which a small file in the default folder points at
 // (location.json). Moving and erasing finish at the next start, before
@@ -31,7 +31,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/store/sqlitestore"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store/sqlitestore"
 )
 
 // Files of the default data folder that are about the folder itself.

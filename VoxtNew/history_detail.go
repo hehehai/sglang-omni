@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // entryService is a service and its model as the details show them: the

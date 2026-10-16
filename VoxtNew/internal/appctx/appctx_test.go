@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 func TestParseAddress(t *testing.T) {
@@ -16,7 +16,7 @@ func TestParseAddress(t *testing.T) {
 		in   string
 		want string // "" = not an address
 	}{
-		{"https://github.com/hehehai/Auralink?tab=readme#top", "github.com/hehehai/auralink"},
+		{"https://github.com/hehehai/voxtnew?tab=readme#top", "github.com/hehehai/voxtnew"},
 		{"http://WWW.Example.COM", "example.com/"},
 		{"https://www.example.com:8443/a/b/", "example.com/a/b/"},
 		{"github.com/x", "github.com/x"},
@@ -96,14 +96,14 @@ func TestMatchPattern(t *testing.T) {
 		pattern, url string
 		want         bool
 	}{
-		{"github.com", "https://github.com/hehehai/Auralink", true},
+		{"github.com", "https://github.com/hehehai/voxtnew", true},
 		{"github.com", "https://github.com", true},
 		{"github.com", "https://gist.github.com/x", false},
 		{"github.com", "https://notgithub.com/", false},
-		{"github.com/hehehai/*", "https://github.com/hehehai/Auralink", true},
+		{"github.com/hehehai/*", "https://github.com/hehehai/voxtnew", true},
 		{"github.com/hehehai/*", "https://github.com/other/x", false},
 		{"github.com/hehehai", "https://github.com/hehehai", true},
-		{"github.com/hehehai", "https://github.com/hehehai/auralink", false},
+		{"github.com/hehehai", "https://github.com/hehehai/voxtnew", false},
 		{"*.notion.so", "https://www.notion.so/page", true},
 		{"*.notion.so", "https://team.notion.so/page", true},
 		{"*.notion.so", "https://notion.so/", true},
@@ -172,7 +172,7 @@ func TestResolve(t *testing.T) {
 		host    string
 	}{
 		{"url rule in a browser", Context{App: safari, Browser: true, URL: "https://github.com/golang/go"}, Transcribe, "g-github", SourceURL, "github.com", "github.com"},
-		{"more specific rule wins over an earlier group", Context{App: safari, Browser: true, URL: "https://github.com/hehehai/Auralink"}, Transcribe, "g-work", SourceURL, "github.com/hehehai/*", "github.com"},
+		{"more specific rule wins over an earlier group", Context{App: safari, Browser: true, URL: "https://github.com/hehehai/voxtnew"}, Transcribe, "g-work", SourceURL, "github.com/hehehai/*", "github.com"},
 		{"url rule of the browser's own group", Context{App: chrome, Browser: true, URL: "https://linear.app/team"}, Transcribe, "g-work", SourceURL, "linear.app", "linear.app"},
 		{"browser app group when no rule matches", Context{App: chrome, Browser: true, URL: "https://news.ycombinator.com/"}, Transcribe, "g-work", SourceBrowserApp, "", "news.ycombinator.com"},
 		{"browser app group without an address", Context{App: chrome, Browser: true}, Transcribe, "g-work", SourceBrowserApp, "", ""},

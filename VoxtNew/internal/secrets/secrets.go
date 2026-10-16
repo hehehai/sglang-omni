@@ -1,6 +1,6 @@
-// Package secrets keeps Auralink's secrets (provider API keys) in the
+// Package secrets keeps VoxtNew's secrets (provider API keys) in the
 // macOS login Keychain, as generic password items of the service
-// "Auralink", one account per secret: "asr.<provider>" and "llm.<provider>"
+// "VoxtNew", one account per secret: "asr.<provider>" and "llm.<provider>"
 // (settings.Provider.ID). Secrets never go into the settings, the
 // database or the logs.
 //
@@ -21,19 +21,19 @@ import (
 	"strings"
 )
 
-// Service is the Keychain service of Auralink's secrets.
-const Service = "Auralink"
+// Service is the Keychain service of VoxtNew's secrets.
+const Service = "VoxtNew"
 
 // ErrNoKeychain is returned off macOS, where there is no Keychain to use.
 var ErrNoKeychain = errors.New("no keychain on this system")
 
 // Item is a generic password item of the login keychain (or of the
 // keychain file File, for tests). Label is what Keychain Access shows; ""
-// uses "Auralink <account>".
+// uses "VoxtNew <account>".
 type Item struct{ Service, Account, Label, File string }
 
-// Secret is the Keychain item of one of Auralink's secrets, e.g.
-// Secret("llm.deepseek", "Auralink DeepSeek API key").
+// Secret is the Keychain item of one of VoxtNew's secrets, e.g.
+// Secret("llm.deepseek", "VoxtNew DeepSeek API key").
 func Secret(account, label string) Item {
 	return Item{Service: Service, Account: account, Label: label}
 }
@@ -100,7 +100,7 @@ func (k Item) Set(value string) error {
 	}
 	label := k.Label
 	if label == "" {
-		label = "Auralink " + k.Account
+		label = "VoxtNew " + k.Account
 	}
 	cmd := fmt.Sprintf("add-generic-password -U -s %q -a %q -l %q -w \"%s\"", k.Service, k.Account, label, value)
 	if k.File != "" {

@@ -5,7 +5,7 @@
 # docs/media and docs/media/zh with the full-size MP4s beside them. Needs
 # ImageMagick, pngquant and ffmpeg with libwebp and libx264.
 #
-#   rsync -a mac-air:auralink-demo-run/{shots,takes} "$SRC"/
+#   rsync -a mac-air:voxtnew-demo-run/{shots,takes} "$SRC"/
 #   SRC=/tmp/almedia scripts/readme-media/post.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

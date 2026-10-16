@@ -1,8 +1,8 @@
 # internal/llm
 
-Auralink's chat-model layer: pure Go (standard library only), goroutine-safe, blocking — call it from goroutines, never from a build pass. Errors are `*llm.Error` with a stable `Code` and `Params`, never user text; they unwrap to `core.Err*` sentinels.
+VoxtNew's chat-model layer: pure Go (standard library only), goroutine-safe, blocking — call it from goroutines, never from a build pass. Errors are `*llm.Error` with a stable `Code` and `Params`, never user text; they unwrap to `core.Err*` sentinels.
 
-Taken from AudioSmith's `internal/llm` (@f171c86, Apache-2.0) and cut to what Auralink needs.
+Taken from AudioSmith's `internal/llm` (@f171c86, Apache-2.0) and cut to what VoxtNew needs.
 
 | Piece | API |
 |---|---|
@@ -10,7 +10,7 @@ Taken from AudioSmith's `internal/llm` (@f171c86, Apache-2.0) and cut to what Au
 | Backend (one attempt) | `Backend{Info(); Chat(ctx, Request); Models(ctx)}`; `OnDelta != nil` streams (SSE) |
 | Transports | `NewOpenAI(preset, *http.Client, Secrets)` (chat/completions + /models; json_schema / json_object / prompt modes; asks again without `stream_options`, `temperature`/`top_p` or the preset's `extraBody` when a server rejects them), `NewAnthropic(...)` (Messages API) |
 | Presets (data) | `presets.json`, in the Model services page's order (table below). `Presets()`, `LookupPreset`, `ProviderConfig{ID, Preset, Name, BaseURL, Model, Headers, JSONMode, ExtraBody}.Resolve()`: https only, plain http only to a loopback host, no user or password in the URL |
-| Keys | `Secrets{Secret(ctx, name)}` → `ErrNoSecret` when absent; names `llm.<provider>` (`Preset.SecretName()`), the Keychain accounts of `internal/secrets`; `StaticSecrets`, `EnvSecrets` (`AURALINK_LLM_<ID>`, dev), `SecretsFunc` |
+| Keys | `Secrets{Secret(ctx, name)}` → `ErrNoSecret` when absent; names `llm.<provider>` (`Preset.SecretName()`), the Keychain accounts of `internal/secrets`; `StaticSecrets`, `EnvSecrets` (`VOXTNEW_LLM_<ID>`, dev), `SecretsFunc` |
 | Client | `Client{Backend, Timeout, Retry, Meter, Sleep}`: `Chat` (per-attempt timeout, retries 429/5xx/529/timeouts/resets with full-jitter backoff, honours Retry-After up to 60 s, never retries after streamed text, strips `<think>` blocks incl. from deltas, estimates usage when absent), `JSON(ctx, req, &out, repairs)` (extract → validate `Schema` → decode, repair turns quoting the errors) |
 | Probe | `Probe(ctx, backend, model)`: the connection test — one non-streamed request with `max_tokens` 8, no retries; a reply cut short counts as working, 400/422 do not (with the server's detail) |
 | Schema | `Object/Array/String/Number/Integer/Boolean/Enum`, `.Range`, `.Count`, `.Describe`, `Nullable`, `Closed`; `Validate`, `ExtractJSON` |
@@ -36,10 +36,10 @@ Taken from AudioSmith's `internal/llm` (@f171c86, Apache-2.0) and cut to what Au
 | openrouter, groq, xai, mistral, together, fireworks, cerebras, nvidia | as AudioSmith's | | | — |
 | custom | the user's (https, or http on loopback) | the user's | prompt | — |
 
-Models and endpoints of the four added presets (Volcengine Ark, MiniMax, StepFun, Xiaomi MiMo) follow Voxt @baa6f31 (`RemoteModelConfiguration.swift`, `RemoteLLMEndpoints.swift`), except MiniMax, which Auralink reaches through its OpenAI-compatible API (`/v1/chat/completions`) instead of the native `chatcompletion_v2`. Thinking is turned off by default wherever the provider lets a request do so, as Voxt's generation settings do: a voice-input reply is short, and thinking spends its budget and seconds before any text.
+Models and endpoints of the four added presets (Volcengine Ark, MiniMax, StepFun, Xiaomi MiMo) follow Voxt @baa6f31 (`RemoteModelConfiguration.swift`, `RemoteLLMEndpoints.swift`), except MiniMax, which VoxtNew reaches through its OpenAI-compatible API (`/v1/chat/completions`) instead of the native `chatcompletion_v2`. Thinking is turned off by default wherever the provider lets a request do so, as Voxt's generation settings do: a voice-input reply is short, and thinking spends its budget and seconds before any text.
 
 ## Changes from AudioSmith
 
-- Dropped: `local.go` (`EngineBackend`, the MLX engine), the dubbing skills (`translate`, `translate_cinematic`, `fit_rewrite`, `glossary_extract`, `dictation_cleanup`, `direction_parse`) and their parent chain, `Router.SetLocalOnly`, the Ollama and LM Studio presets (Auralink has no local models; `custom` may still point at a loopback server).
+- Dropped: `local.go` (`EngineBackend`, the MLX engine), the dubbing skills (`translate`, `translate_cinematic`, `fit_rewrite`, `glossary_extract`, `dictation_cleanup`, `direction_parse`) and their parent chain, `Router.SetLocalOnly`, the Ollama and LM Studio presets (VoxtNew has no local models; `custom` may still point at a loopback server).
 - Added: the skills above; presets volcengine, minimax, stepfun, mimo; `Preset.ExtraBody` (+ `ProviderConfig.ExtraBody`) and the retry without it; `Preset.KeyURL`; `Probe`; `Models` is the suggested list of every preset; https-only base URLs; "Model Not Exist" (DeepSeek) maps to `llm.model_not_found`.
-- Renamed: `UserAgent` "Auralink", `EnvSecrets` prefix `AURALINK_`, OpenRouter's `HTTP-Referer`/`X-Title`.
+- Renamed: `UserAgent` "VoxtNew", `EnvSecrets` prefix `VOXTNEW_`, OpenRouter's `HTTP-Referer`/`X-Title`.

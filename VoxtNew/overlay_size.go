@@ -11,8 +11,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // overlaySize is the face's size for mode, and whether its width is the

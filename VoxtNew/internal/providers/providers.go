@@ -15,11 +15,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/asr/aliyun"
-	"github.com/hehehai/Auralink/internal/asr/doubao"
-	"github.com/hehehai/Auralink/internal/asr/openai"
-	"github.com/hehehai/Auralink/internal/llm"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/aliyun"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/doubao"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/openai"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // Kind is a list of services: speech recognition or language models.

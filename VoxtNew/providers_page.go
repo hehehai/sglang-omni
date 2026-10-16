@@ -1,7 +1,7 @@
 package main
 
 // The Model services page (/providers, plan §3.1): the speech (ASR) and
-// language (LLM) services Auralink sends audio and text to. Two tabs;
+// language (LLM) services VoxtNew sends audio and text to. Two tabs;
 // each lists which service each feature uses, then a card per service
 // (its state, model, saved key and a connection test). A card opens the
 // service's dialog: its key, endpoint, model and, for speech, its
@@ -19,14 +19,14 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/logs"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/secrets"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/logs"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/secrets"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // keyring keeps the providers' keys, by Keychain account ("asr.doubao").
@@ -160,7 +160,7 @@ func (a *app) providersPage(c *ui.Context) {
 	}
 	ui.Scroll(c.Key("prov-scroll")).Grow(1).MinHeight(0).Children(func() {
 		ui.Column(c).Padding(0, px(t, sp6), px(t, sp6)).Gap(px(t, sp4)).MaxWidth(px(t, 880)).Children(func() {
-			caption(c, i18n.T("Auralink sends your audio and text only to the services you set up here, and has no server of its own. Keys stay in this Mac's Keychain."))
+			caption(c, i18n.T("VoxtNew sends your audio and text only to the services you set up here, and has no server of its own. Keys stay in this Mac's Keychain."))
 			segmentedFit(c.Key("prov-tab"), &a.provTab, i18n.T("Speech recognition"), i18n.T("Language models")).Label(i18n.T("Kind of service"))
 			a.providerUse(c, kind)
 			a.providerCards(c, kind)

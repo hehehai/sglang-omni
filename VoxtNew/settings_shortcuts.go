@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // featurePath is the page a shortcut changes on.
@@ -118,7 +118,7 @@ func (a *app) shortcutRow(c *ui.Context, feature string, i int, h *settings.Hotk
 						if !a.hotkeys.Installed {
 							col = k.Warning
 						}
-						iconMark(c, icons.Accessibility, col, i18n.T("Works only while Auralink may use Accessibility."))
+						iconMark(c, icons.Accessibility, col, i18n.T("Works only while VoxtNew may use Accessibility."))
 					}
 					if len(problems) > 0 {
 						iconMark(c, icons.DangerTriangle, k.Warning, strings.Join(problems, "\n"))

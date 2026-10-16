@@ -13,7 +13,7 @@ const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>Auralink</string>
+	<string>VoxtNew</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -48,7 +48,7 @@ func TestShortVersion(t *testing.T) {
 // Contents/Resources.
 func bundle(t *testing.T, version string) string {
 	t.Helper()
-	contents := filepath.Join(t.TempDir(), "Auralink.app", "Contents")
+	contents := filepath.Join(t.TempDir(), "VoxtNew.app", "Contents")
 	res := filepath.Join(contents, "Resources")
 	if err := os.MkdirAll(res, 0o755); err != nil {
 		t.Fatal(err)

@@ -9,12 +9,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/compose"
-	"github.com/hehehai/Auralink/internal/deliver"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // openAnswer opens the answer card on an ended session: its result (or

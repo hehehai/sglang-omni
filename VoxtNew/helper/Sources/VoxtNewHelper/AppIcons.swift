@@ -1,5 +1,5 @@
 import AppKit
-import AuralinkHelperKit
+import VoxtNewHelperKit
 
 /// app.icons: apps' icons as the Finder shows them, drawn into PNGs of
 /// side × side pixels off the main thread (NSWorkspace's icons and

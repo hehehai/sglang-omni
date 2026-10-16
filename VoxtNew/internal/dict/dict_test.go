@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 var t0 = time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
 
 func TestCleanAndCheck(t *testing.T) {
-	got := Clean(store.Term{Term: "  Aura\nlink ", Aliases: []string{" aura link", "AURA LINK", "", "Aura link", "auralink", "aura  lynx "}, Note: " n "})
-	want := store.Term{Term: "Aura link", Aliases: []string{"auralink", "aura lynx"}, Note: "n"}
+	got := Clean(store.Term{Term: "  Aura\nlink ", Aliases: []string{" aura link", "AURA LINK", "", "Aura link", "voxtnew", "aura  lynx "}, Note: " n "})
+	want := store.Term{Term: "Aura link", Aliases: []string{"voxtnew", "aura lynx"}, Note: "n"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Clean = %+v", got)
 	}
@@ -25,7 +25,7 @@ func TestCleanAndCheck(t *testing.T) {
 	if n := len(Clean(many).Aliases); n != MaxAliases {
 		t.Errorf("%d aliases", n)
 	}
-	for in, want := range map[string]error{"Auralink": nil, "": ErrEmpty, "  ": ErrEmpty, "a\nb": ErrNewline, strings.Repeat("长", 81): ErrLong, strings.Repeat("长", 80): nil} {
+	for in, want := range map[string]error{"VoxtNew": nil, "": ErrEmpty, "  ": ErrEmpty, "a\nb": ErrNewline, strings.Repeat("长", 81): ErrLong, strings.Repeat("长", 80): nil} {
 		if err := Check(store.Term{Term: in}); !errors.Is(err, want) && err != want {
 			t.Errorf("Check(%q) = %v", in, err)
 		}
@@ -37,14 +37,14 @@ func TestCleanAndCheck(t *testing.T) {
 
 func TestHints(t *testing.T) {
 	terms := []store.Term{
-		{Term: "Auralink", Enabled: true, UpdatedAt: t0},
+		{Term: "VoxtNew", Enabled: true, UpdatedAt: t0},
 		{Term: "Kubernetes", Enabled: true, UpdatedAt: t0.Add(2 * time.Hour)},
 		{Term: "Off", Enabled: false, UpdatedAt: t0.Add(3 * time.Hour)},
-		{Term: "auralink", Enabled: true, UpdatedAt: t0.Add(-time.Hour)},
+		{Term: "voxtnew", Enabled: true, UpdatedAt: t0.Add(-time.Hour)},
 		{Term: "  火山 引擎 ", Aliases: []string{"火山引擎"}, Enabled: true, UpdatedAt: t0.Add(time.Hour)},
 		{Term: " ", Enabled: true},
 	}
-	if got := Hints(terms); !reflect.DeepEqual(got, []string{"Kubernetes", "火山 引擎", "Auralink"}) {
+	if got := Hints(terms); !reflect.DeepEqual(got, []string{"Kubernetes", "火山 引擎", "VoxtNew"}) {
 		t.Errorf("Hints = %q", got)
 	}
 	if Hints(nil) != nil {
@@ -54,7 +54,7 @@ func TestHints(t *testing.T) {
 
 func TestExportImport(t *testing.T) {
 	terms := []store.Term{
-		{Term: "Auralink", Aliases: []string{"aura link", "奥拉林克"}, Note: "our app, \"quoted\", with a comma", Enabled: true},
+		{Term: "VoxtNew", Aliases: []string{"aura link", "奥拉林克"}, Note: "our app, \"quoted\", with a comma", Enabled: true},
 		{Term: "MyGo", Enabled: false},
 	}
 	csvData := Export(terms, CSV)
@@ -66,11 +66,11 @@ func TestExportImport(t *testing.T) {
 		t.Errorf("csv round trip %+v %d %v", back, skipped, err)
 	}
 	txt := Export(terms, Text)
-	if !strings.Contains(string(txt), "\nAuralink = aura link, 奥拉林克\n# MyGo\n") {
+	if !strings.Contains(string(txt), "\nVoxtNew = aura link, 奥拉林克\n# MyGo\n") {
 		t.Errorf("txt %q", txt)
 	}
 	back, _, err = Import(txt, Text)
-	if err != nil || len(back) != 1 || back[0].Term != "Auralink" || len(back[0].Aliases) != 2 {
+	if err != nil || len(back) != 1 || back[0].Term != "VoxtNew" || len(back[0].Aliases) != 2 {
 		t.Errorf("txt round trip %+v %v", back, err)
 	}
 }
@@ -81,14 +81,14 @@ func TestImportVariants(t *testing.T) {
 		want               []store.Term
 		skipped            int
 	}{
-		{"csv without a header", CSV, "Auralink,aura link;auralynx,note\n,,\nMyGo\n", []store.Term{
-			{Term: "Auralink", Aliases: []string{"aura link", "auralynx"}, Note: "note", Enabled: true},
+		{"csv without a header", CSV, "VoxtNew,aura link;auralynx,note\n,,\nMyGo\n", []store.Term{
+			{Term: "VoxtNew", Aliases: []string{"aura link", "auralynx"}, Note: "note", Enabled: true},
 			{Term: "MyGo", Enabled: true},
 		}, 1},
 		{"csv header in another order, Chinese names", CSV, "启用,备注,词条,别名\n否,内部,豆包,\"dou bao, 逗包\"\n", []store.Term{
 			{Term: "豆包", Aliases: []string{"dou bao", "逗包"}, Note: "内部", Enabled: false},
 		}, 0},
-		{"csv with an unknown column", CSV, "Term,Weight\nAuralink,5\n", []store.Term{{Term: "Auralink", Enabled: true}}, 0},
+		{"csv with an unknown column", CSV, "Term,Weight\nVoxtNew,5\n", []store.Term{{Term: "VoxtNew", Enabled: true}}, 0},
 		{"text with tabs and comments", Text, "# list\n\nKubernetes\tk8s, kube\nDeepSeek = deep seek\n// skip\r\nGo\n", []store.Term{
 			{Term: "Kubernetes", Aliases: []string{"k8s", "kube"}, Enabled: true},
 			{Term: "DeepSeek", Aliases: []string{"deep seek"}, Enabled: true},
@@ -113,12 +113,12 @@ func TestImportVariants(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	have := []store.Term{
-		{ID: "1", Term: "Auralink", Aliases: []string{"aura link"}, Enabled: true, CreatedAt: t0},
+		{ID: "1", Term: "VoxtNew", Aliases: []string{"aura link"}, Enabled: true, CreatedAt: t0},
 		{ID: "2", Term: "MyGo", Note: "kept", Enabled: false},
 		{ID: "3", Term: "Same", Aliases: []string{"x"}, Enabled: true},
 	}
 	imported := []store.Term{
-		{Term: "auralink", Aliases: []string{"Aura Link", "奥拉林克"}, Note: "new note", Enabled: true},
+		{Term: "voxtnew", Aliases: []string{"Aura Link", "奥拉林克"}, Note: "new note", Enabled: true},
 		{Term: "MyGo", Note: "ignored", Enabled: true},
 		{Term: "Same", Aliases: []string{"X"}},
 		{Term: "New", Enabled: true},
@@ -129,7 +129,7 @@ func TestMerge(t *testing.T) {
 		t.Errorf("added %d updated %d", added, updated)
 	}
 	want := []store.Term{
-		{ID: "1", Term: "Auralink", Aliases: []string{"aura link", "奥拉林克"}, Note: "new note", Enabled: true, CreatedAt: t0},
+		{ID: "1", Term: "VoxtNew", Aliases: []string{"aura link", "奥拉林克"}, Note: "new note", Enabled: true, CreatedAt: t0},
 		{Term: "New", Aliases: []string{"neu"}, Enabled: true},
 	}
 	if !reflect.DeepEqual(put, want) {

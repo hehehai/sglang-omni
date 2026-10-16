@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/compose"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // SceneConfig is app enhancement's side of the Manager. Rules and URL are

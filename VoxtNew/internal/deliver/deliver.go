@@ -5,7 +5,7 @@
 // snapshotted, written, ⌘V posted, keys pressed after it, the clipboard
 // restored unless someone wrote to it meanwhile). Otherwise nothing is
 // typed and the caller shows the answer card, which offers Insert and
-// Copy. When Auralink itself came to the front (a click on its window),
+// Copy. When VoxtNew itself came to the front (a click on its window),
 // the target is activated again first (macx.Activate).
 //
 // Policy is here, the mechanics in the helper: the restore delay, the
@@ -20,7 +20,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // TextIO is the helper's text I/O (textio.focus, textio.paste).
@@ -43,7 +43,7 @@ const (
 	// ReasonNotEditable: the focused element takes no text (or nothing
 	// has the focus).
 	ReasonNotEditable Reason = "notEditable"
-	// ReasonNoAccess: Auralink may not post keys (Accessibility).
+	// ReasonNoAccess: VoxtNew may not post keys (Accessibility).
 	ReasonNoAccess Reason = "noAccess"
 	// ReasonFailed: the helper failed (Result.Err).
 	ReasonFailed Reason = "failed"
@@ -68,7 +68,7 @@ type Request struct {
 	// waits before restoring it (0: the helper's 500).
 	KeepClipboard  bool
 	RestoreDelayMS int
-	// Self is Auralink's pid. When Auralink is in front, Activate (nil:
+	// Self is VoxtNew's pid. When VoxtNew is in front, Activate (nil:
 	// none) gives the front back to Target before pasting.
 	Self     int
 	Activate func(pid int) bool
@@ -103,7 +103,7 @@ var nonText = map[string]bool{
 }
 
 // Writable says whether a focused element takes text: an editable one,
-// or one Auralink cannot tell (no Accessibility answer, a web area, a
+// or one VoxtNew cannot tell (no Accessibility answer, a web area, a
 // group: contenteditable editors look so), but not nothing at all, nor a
 // button, a list or another control that never does.
 func Writable(f proto.FocusResult) bool {

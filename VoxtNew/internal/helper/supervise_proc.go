@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // spawn starts a process. auto marks an automatic restart.
@@ -33,7 +33,7 @@ func (s *supervisor) spawn(auto bool) {
 		s.ready = make(chan struct{})
 	}
 	if s.cfg.Bin == "" {
-		s.failLocked(FailMissing, BinName+" was not found: build it (helper/README.md), or set AURALINK_HELPER", "")
+		s.failLocked(FailMissing, BinName+" was not found: build it (helper/README.md), or set VOXTNEW_HELPER", "")
 		st := s.statusLocked()
 		s.mu.Unlock()
 		s.publish(st)
@@ -199,7 +199,7 @@ func (s *supervisor) handshake(p *proc) {
 }
 
 // errUpdated is Status.Err of FailUpdated.
-const errUpdated = "Auralink was updated: restart it to finish the update (the helper on disk is the new version's)"
+const errUpdated = "VoxtNew was updated: restart it to finish the update (the helper on disk is the new version's)"
 
 // stale asks Config.Stale.
 func (s *supervisor) stale() bool { return s.cfg.Stale != nil && s.cfg.Stale() }

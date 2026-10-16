@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 // fake is a scripted HTTP server: each request gets the next handler
@@ -565,7 +565,7 @@ func TestPresets(t *testing.T) {
 	}
 	for _, id := range []string{"ollama", "lmstudio"} {
 		if seen[id] {
-			t.Errorf("local preset %s (Auralink has no local models)", id)
+			t.Errorf("local preset %s (VoxtNew has no local models)", id)
 		}
 	}
 	if p := Presets()[0]; p.ID != "deepseek" {
@@ -762,7 +762,7 @@ func TestEstimateTokensAndEnvSecrets(t *testing.T) {
 	if n := EstimateTokens("abcdefgh"); n != 2 {
 		t.Fatal(n)
 	}
-	t.Setenv("AURALINK_LLM_OPENAI", "env-key")
+	t.Setenv("VOXTNEW_LLM_OPENAI", "env-key")
 	v, err := EnvSecrets{}.Secret(context.Background(), "llm.openai")
 	if err != nil || v != "env-key" {
 		t.Fatal(v, err)

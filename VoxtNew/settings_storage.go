@@ -1,6 +1,6 @@
 package main
 
-// Settings → Storage (AudioSmith's, for Auralink's files): what takes
+// Settings → Storage (AudioSmith's, for VoxtNew's files): what takes
 // room, opening the folders, moving the data folder (internal/datadir) and
 // the reset tiers: the look, all settings, everything.
 
@@ -14,12 +14,12 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/datadir"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/secrets"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store/sqlitestore"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/datadir"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/secrets"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store/sqlitestore"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // storageState is the Storage page's state.
@@ -132,14 +132,14 @@ func (a *app) loadStorage() {
 	})
 }
 
-// startMove copies the data folder to dir/Auralink (or dir, when it is
-// called Auralink or empty), then restarts to finish (internal/datadir).
+// startMove copies the data folder to dir/VoxtNew (or dir, when it is
+// called VoxtNew or empty), then restarts to finish (internal/datadir).
 func (a *app) startMove(dir string) {
 	from := a.dataDir()
 	to := dir
-	if filepath.Base(dir) != "Auralink" {
+	if filepath.Base(dir) != "VoxtNew" {
 		if ents, err := os.ReadDir(dir); err != nil || len(ents) > 0 {
-			to = filepath.Join(dir, "Auralink")
+			to = filepath.Join(dir, "VoxtNew")
 		}
 	}
 	if filepath.Clean(to) == filepath.Clean(a.home()) && from != a.home() {
@@ -239,7 +239,7 @@ func (a *app) resetSettings() {
 	a.toast(i18n.T("Every setting is back to its default"))
 }
 
-// keychainItems are the Keychain items Auralink may have saved: a key
+// keychainItems are the Keychain items VoxtNew may have saved: a key
 // per configured provider.
 func (a *app) keychainItems() []secrets.Item {
 	var items []secrets.Item
@@ -342,7 +342,7 @@ func (a *app) storageSettings(c *ui.Context) {
 			a.resetAsk = "settings"
 		}
 	})
-	settingRow(c, "st-erase", i18n.T("Erase everything"), i18n.T("Deletes your history, recordings, dictionary, app enhancement rules, settings and logs, then restarts Auralink as new."), func() {
+	settingRow(c, "st-erase", i18n.T("Erase everything"), i18n.T("Deletes your history, recordings, dictionary, app enhancement rules, settings and logs, then restarts VoxtNew as new."), func() {
 		if ui.Button(c.Key("st-erase"), i18n.T("Erase…")).Clicked() {
 			a.resetAsk, a.resetText = "everything", ""
 		}
@@ -373,7 +373,7 @@ func (a *app) storageDialogs(c *ui.Context) {
 	erase := a.resetAsk == "everything"
 	ui.Modal(c.Key("st-ask-erase"), &erase, func() {
 		ui.Text(c, i18n.T("Erase everything?")).Bold()
-		ui.Text(c, i18n.T("This deletes your history and its recordings, your dictionary, your app enhancement rules, every setting and the logs. It cannot be undone. Auralink restarts as on its first day.")).Width(px(t, 420))
+		ui.Text(c, i18n.T("This deletes your history and its recordings, your dictionary, your app enhancement rules, every setting and the logs. It cannot be undone. VoxtNew restarts as on its first day.")).Width(px(t, 420))
 		ui.Checkbox(c.Key("st-erase-keys"), &a.resetKeys, i18n.T("Also delete the API keys saved in the Keychain"))
 		ui.Text(c, i18n.T("Type DELETE to confirm.")).FontSize(px(t, fsCaption)).TextColor(t.TextMuted)
 		ui.TextInput(c.Key("st-erase-text"), &a.resetText).Placeholder("DELETE").Width(px(t, 200)).Label(i18n.T("Type DELETE to confirm."))
@@ -395,7 +395,7 @@ func (a *app) storageDialogs(c *ui.Context) {
 		panel.Width(px(t, 440)).Radius(px(t, radiusCard)).Background(t.Background).Border(1, t.Border).Padding(px(t, sp5)).Label(i18n.T("Moving the data folder"))
 		ui.Column(c).Gap(px(t, 10)).Children(func() {
 			ui.Text(c, i18n.T("Moving the data folder")).Bold()
-			ui.Text(c, i18n.T("Copying to %s. Auralink restarts when the copy is checked, and finishes the move as it starts.", uitext.ShortPath(a.moveTo))).FontSize(px(t, fsCaption))
+			ui.Text(c, i18n.T("Copying to %s. VoxtNew restarts when the copy is checked, and finishes the move as it starts.", uitext.ShortPath(a.moveTo))).FontSize(px(t, fsCaption))
 			frac := 0.0
 			if a.moveTotal > 0 {
 				frac = float64(a.moveDone) / float64(a.moveTotal)

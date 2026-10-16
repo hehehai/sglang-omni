@@ -4,24 +4,24 @@ package main
 
 // The demo build: the README's screenshots and recordings
 // (scripts/readme-media/). Built with -tags demo into an app of its own
-// (bundle ID dev.hehehai.auralink.demo, scripts/readme-media/build.sh),
-// it never touches the user's Auralink:
+// (bundle ID dev.hehehai.voxtnew.demo, scripts/readme-media/build.sh),
+// it never touches the user's VoxtNew:
 //
-//   - its data, logs and cache are in $AURALINK_DEMO_DIR (it will not
-//     start without one, nor as dev.hehehai.auralink);
-//   - its keys come from the file $AURALINK_DEMO_KEYS (STEPFUN_API_KEY,
+//   - its data, logs and cache are in $VOXTNEW_DEMO_DIR (it will not
+//     start without one, nor as dev.hehehai.voxtnew);
+//   - its keys come from the file $VOXTNEW_DEMO_KEYS (STEPFUN_API_KEY,
 //     DEEPSEEK_API_KEY), never the Keychain, and Model services shows
 //     none of them;
-//   - the first start seeds sample data ($AURALINK_DEMO_LANG: en or zh):
+//   - the first start seeds sample data ($VOXTNEW_DEMO_LANG: en or zh):
 //     settings, app enhancement groups, a dictionary and a history;
 //   - the services' HTTP goes through a recorder: in a "take" (the
 //     script's command), each request is saved with its response and its
 //     timing, and played back the next time the take runs, so that a
 //     retake costs no call; calls.log counts the real ones;
 //   - the recording script drives it with commands, files it drops in
-//     $AURALINK_DEMO_DIR/ctl (demoCommand): the shortcuts' events, pages,
+//     $VOXTNEW_DEMO_DIR/ctl (demoCommand): the shortcuts' events, pages,
 //     the answer card's buttons. The helper records a file
-//     (AURALINK_HELPER_CAPTURE_FILE), so no microphone is asked for.
+//     (VOXTNEW_HELPER_CAPTURE_FILE), so no microphone is asked for.
 
 import (
 	"context"
@@ -36,11 +36,11 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/hehehai/Auralink/internal/demo"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/permission"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/demo"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 func init() {
@@ -49,7 +49,7 @@ func init() {
 	demoReady = demoControl
 	demoPerms = func(r *proto.PermissionsResult) {
 		// The helper records a file: the microphone is not needed.
-		if os.Getenv("AURALINK_HELPER_CAPTURE_FILE") != "" {
+		if os.Getenv("VOXTNEW_HELPER_CAPTURE_FILE") != "" {
 			r.Microphone = proto.PermGranted
 		}
 	}
@@ -57,7 +57,7 @@ func init() {
 	// In English, the system apps' English names (this Mac runs in
 	// Chinese).
 	demoFront = func(a proto.App) proto.App {
-		if os.Getenv("AURALINK_DEMO_LANG") != "zh" {
+		if os.Getenv("VOXTNEW_DEMO_LANG") != "zh" {
 			if n, ok := map[string]string{"com.apple.TextEdit": "TextEdit", "com.apple.Notes": "Notes", "com.apple.mail": "Mail",
 				"com.apple.finder": "Finder", "com.apple.Safari": "Safari"}[a.BundleID]; ok {
 				a.Name = n
@@ -72,7 +72,7 @@ func init() {
 		var out []proto.CaptureDevice
 		for _, d := range ds {
 			if d.Transport == "builtin" {
-				if os.Getenv("AURALINK_DEMO_LANG") != "zh" {
+				if os.Getenv("VOXTNEW_DEMO_LANG") != "zh" {
 					d.Name = "MacBook Air Microphone"
 				}
 				out = append(out, d)
@@ -84,22 +84,22 @@ func init() {
 
 // demoBundleID is the demo app's bundle ID; the user's is realBundleID.
 const (
-	demoBundleID = "dev.hehehai.auralink.demo"
-	realBundleID = "dev.hehehai.auralink"
+	demoBundleID = "dev.hehehai.voxtnew.demo"
+	realBundleID = "dev.hehehai.voxtnew"
 )
 
 var demoDir string
 
 func demoFatal(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "auralink demo: "+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, "voxtnew demo: "+format+"\n", args...)
 	os.Exit(2)
 }
 
 // demoSetup points the app at the demo's folders and keys.
 func demoSetup() {
-	demoDir = os.Getenv("AURALINK_DEMO_DIR")
+	demoDir = os.Getenv("VOXTNEW_DEMO_DIR")
 	if demoDir == "" || !filepath.IsAbs(demoDir) {
-		demoFatal("AURALINK_DEMO_DIR must name the demo's folder (absolute)")
+		demoFatal("VOXTNEW_DEMO_DIR must name the demo's folder (absolute)")
 	}
 	if id := demo.BundleID(); id == realBundleID {
 		demoFatal("a demo build must not be %s", realBundleID)
@@ -112,7 +112,7 @@ func demoSetup() {
 		mygo.App.SetPath(name, p)
 	}
 	keys := demo.Keyring{M: map[string]string{}}
-	if f := os.Getenv("AURALINK_DEMO_KEYS"); f != "" {
+	if f := os.Getenv("VOXTNEW_DEMO_KEYS"); f != "" {
 		env := demo.ReadEnvFile(f)
 		if v := env["STEPFUN_API_KEY"]; v != "" {
 			keys.M["asr.stepfun"], keys.M["llm.stepfun"] = v, v
@@ -126,10 +126,10 @@ func demoSetup() {
 	demoHTTP = &http.Client{Transport: demoRec}
 }
 
-// demoControl watches $AURALINK_DEMO_DIR/ctl for commands: files named
+// demoControl watches $VOXTNEW_DEMO_DIR/ctl for commands: files named
 // <n>.cmd, run in name order, each answered with <n>.ok (or .err).
 func demoControl(a *app) {
-	if os.Getenv("AURALINK_HELPER_CAPTURE_FILE") != "" {
+	if os.Getenv("VOXTNEW_HELPER_CAPTURE_FILE") != "" {
 		a.permSys = demo.PermSys{System: permission.Native()}
 	}
 	dir := filepath.Join(demoDir, "ctl")
@@ -173,9 +173,9 @@ func demoCommand(a *app, line string) string {
 	}
 	switch f[0] {
 	case "fire": // fire transcribe|translate|rewrite: the feature's first shortcut, tapped
-		// Only into the apps the script works in (AURALINK_DEMO_TARGETS):
+		// Only into the apps the script works in (VOXTNEW_DEMO_TARGETS):
 		// another app that came to the front gets nothing.
-		if t := os.Getenv("AURALINK_DEMO_TARGETS"); t != "" && !slices.Contains(strings.Split(t, ","), a.front.BundleID) && !a.answer.open {
+		if t := os.Getenv("VOXTNEW_DEMO_TARGETS"); t != "" && !slices.Contains(strings.Split(t, ","), a.front.BundleID) && !a.answer.open {
 			return "error: " + a.front.BundleID + " is in front"
 		}
 		a.hotkeyFired(proto.HotkeyEventParams{Binding: hotkey.ID(arg(1), 0), Phase: proto.PhaseTrigger})

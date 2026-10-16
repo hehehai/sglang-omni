@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/vad"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 func db(g float64) float64 { return 20 * math.Log10(g) }

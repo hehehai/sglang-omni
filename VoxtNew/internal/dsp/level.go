@@ -5,7 +5,7 @@ import (
 	"math"
 	"slices"
 
-	"github.com/hehehai/Auralink/internal/vad"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // fullScale is PCM16's full scale: a sample of x is x/fullScale in [-1, 1].

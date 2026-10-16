@@ -1,5 +1,5 @@
-// Package helpertest is a scripted auralink-helper for tests: a test
-// binary runs it instead of its tests when AURALINK_FAKE_HELPER is set,
+// Package helpertest is a scripted voxtnew-helper for tests: a test
+// binary runs it instead of its tests when VOXTNEW_FAKE_HELPER is set,
 // so the supervisor spawns a real process and talks to it over real
 // pipes, without macOS. In the test package:
 //
@@ -12,7 +12,7 @@
 //
 // and point helper.Config at os.Executable() with Env: helpertest.Env(opts).
 // cmd/fakehelper builds the same fake as a program of its own, to try the
-// app without the Swift helper (AURALINK_HELPER=path/to/fakehelper).
+// app without the Swift helper (VOXTNEW_HELPER=path/to/fakehelper).
 //
 // The fake serves every method of package proto, so whole sessions run on
 // Linux: capture.start plays a 440 Hz tone, or a recording (pcm=), in real
@@ -26,7 +26,7 @@
 package helpertest
 
 //
-// AURALINK_FAKE_HELPER is a comma-separated list of options; values are
+// VOXTNEW_FAKE_HELPER is a comma-separated list of options; values are
 // URL-query escaped (a comma is %2C):
 //
 //	(empty)          speak the protocol (the default)
@@ -74,10 +74,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
-const fakeEnv = "AURALINK_FAKE_HELPER"
+const fakeEnv = "VOXTNEW_FAKE_HELPER"
 
 // Enabled reports whether this process should be the fake helper.
 func Enabled() bool {
@@ -124,7 +124,7 @@ var Apps = map[string]proto.App{
 var Browsers = map[string]string{
 	"com.apple.Safari":           "https://developer.apple.com/documentation/",
 	"com.google.Chrome":          "https://mail.google.com/mail/u/0/#inbox",
-	"com.microsoft.edgemac":      "https://github.com/hehehai/Auralink/pulls",
+	"com.microsoft.edgemac":      "https://github.com/sgl-project/sglang-omni/VoxtNew/pulls",
 	"com.brave.Browser":          "https://news.ycombinator.com/",
 	"company.thebrowser.Browser": "https://linear.app/team/issue/AUR-12",
 }

@@ -1,4 +1,4 @@
-// Command gen writes the Solar icons Auralink uses as Go source
+// Command gen writes the Solar icons VoxtNew uses as Go source
 // (../solar_gen.go), from the @iconify-json/solar package at a pinned
 // version, checked against its SHA-256. Only the icons listed in
 // ../names.txt are written, each in its Linear and Bold variants.

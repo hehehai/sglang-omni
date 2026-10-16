@@ -17,14 +17,14 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/macx"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
 )
 
 // The test binary is also the fake helper (helpertest).

@@ -1,4 +1,4 @@
-// Package netx is how Auralink reaches the network: the proxy every
+// Package netx is how VoxtNew reaches the network: the proxy every
 // request goes through (settings.Network.Proxy) and the HTTP client built
 // on it. Remote ASR and LLM providers (M2) use NewHTTPClient, so the one
 // proxy setting applies to all of them. (From AudioSmith's hub/proxy.go.)

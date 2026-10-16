@@ -1,20 +1,20 @@
 package main
 
-// Where a try runs (home_page.go): a shortcut pressed while Auralink is in
+// Where a try runs (home_page.go): a shortcut pressed while VoxtNew is in
 // front starts a try on the page it shows, and Home offers its Try area
 // until the first result.
 
 import (
 	"os"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // ---- Try places ----
 
-// tryPlace is where a shortcut pressed while Auralink is in front runs
+// tryPlace is where a shortcut pressed while VoxtNew is in front runs
 // as a try.
 type tryPlace int
 
@@ -27,7 +27,7 @@ const (
 )
 
 // tryPlace decides where a shortcut of kind, pressed with target in
-// front, runs: a try when target is Auralink and what shows has a Try
+// front, runs: a try when target is VoxtNew and what shows has a Try
 // area for it (the setup guide's step, Home, the feature's page).
 func (a *app) tryPlace(kind store.Kind, target proto.App) tryPlace {
 	if target.PID == 0 || target.PID != os.Getpid() {
@@ -64,7 +64,7 @@ func (a *app) tryStarted(place tryPlace, kind store.Kind, id string, n *sessionN
 	}
 }
 
-// homeShowsTry says whether Home offers its Try area: until Auralink has
+// homeShowsTry says whether Home offers its Try area: until VoxtNew has
 // given a result once (Setup.Tried, or a result in the history, read
 // before the flag existed). Once shown, it stays through this visit to
 // Home while its try runs or shows a result, or says why it did not
@@ -78,7 +78,7 @@ func (a *app) homeShowsTry(mine bool) bool {
 	return hm.tryOn && (mine || hm.block != nil)
 }
 
-// markTried records that Auralink has given a result (Home's Try area
+// markTried records that VoxtNew has given a result (Home's Try area
 // goes for good, the history cleared or not).
 func (a *app) markTried() {
 	if !a.prefs.Setup.Tried {

@@ -1,4 +1,4 @@
-// Package llm is Auralink's provider-agnostic chat-model layer, taken from
+// Package llm is VoxtNew's provider-agnostic chat-model layer, taken from
 // AudioSmith's internal/llm (@f171c86) without its local engine backend
 // and its dubbing skills.
 //
@@ -36,7 +36,7 @@ const (
 	Assistant Role = "assistant"
 )
 
-// Message is one chat turn. Text only: Auralink sends no images.
+// Message is one chat turn. Text only: VoxtNew sends no images.
 type Message struct {
 	Role    Role   `json:"role"`
 	Content string `json:"content"`

@@ -21,11 +21,11 @@ X-Api-Resource-Id: volc.seedasr.sauc.duration
     "show_utterances": true
   },
   "user": {
-    "uid": "auralink"
+    "uid": "voxtnew"
   }
 }
 > audio-only-request flags=seq ser=none comp=gzip seq=2 bytes=6400
 > audio-only-request flags=seq ser=none comp=gzip seq=3 bytes=6400
 > audio-only-request flags=seq|last ser=none comp=none seq=-4 bytes=0
 --- events
-< final: 你好，Auralink。 (model volc.seedasr.sauc.duration, duration 400ms)
+< final: 你好，VoxtNew。 (model volc.seedasr.sauc.duration, duration 400ms)

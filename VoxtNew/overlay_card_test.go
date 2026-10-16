@@ -10,16 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/compose"
-	"github.com/hehehai/Auralink/internal/deliver"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/overlay/ink"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/ink"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // cardLong is a translation longer than the card's 220 of text.
@@ -167,7 +167,7 @@ func TestAnswerCardInk(t *testing.T) {
 		if scrolls := a.ov.cardScroll.MaxY > 0; scrolls != (st.body == layout.CardBodyMax) && !v.conversation {
 			t.Errorf("%s: scrolls %v (%v)", st.name, scrolls, a.ov.cardScroll.MaxY)
 		}
-		if dir := os.Getenv("AURALINK_INK"); dir != "" {
+		if dir := os.Getenv("VOXTNEW_INK"); dir != "" {
 			var b bytes.Buffer
 			png.Encode(&b, img)
 			os.WriteFile(filepath.Join(dir, "card-"+st.name+".png"), b.Bytes(), 0o644)

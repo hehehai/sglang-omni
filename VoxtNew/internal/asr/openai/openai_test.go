@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 // recorder is a fake transcription server: it prints each request (its
@@ -84,14 +84,14 @@ func newClient(t *testing.T, endpoint string, cfg asr.Config) *Client {
 // PCM, the model, json, the language and the prompt with the hints.
 func TestGoldenRequest(t *testing.T) {
 	r := &recorder{status: []int{200}, answers: []string{"response-json.json"}}
-	c := newClient(t, serve(t, r), asr.Config{Prompt: "Auralink, a voice input app."})
+	c := newClient(t, serve(t, r), asr.Config{Prompt: "VoxtNew, a voice input app."})
 	res, err := c.Transcribe(context.Background(), asr.FileRequest{
-		Audio: asr.Silence(time.Second), Format: "pcm", Lang: "zh-Hans", Hints: []string{"Auralink", "DeepSeek", " "},
+		Audio: asr.Silence(time.Second), Format: "pcm", Lang: "zh-Hans", Hints: []string{"VoxtNew", "DeepSeek", " "},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Text != "今天我们用 Auralink 测试一下 speech recognition。" || res.Model != DefaultModel {
+	if res.Text != "今天我们用 VoxtNew 测试一下 speech recognition。" || res.Model != DefaultModel {
 		t.Errorf("result %+v", res)
 	}
 	asrtest.Golden(t, "request-pcm-hints", r.log.String())
@@ -104,7 +104,7 @@ func TestGoldenRequestPlain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Text != "今天我们用 Auralink 测试一下 speech recognition。" || res.Lang != "chinese" || res.Duration != 5200*time.Millisecond {
+	if res.Text != "今天我们用 VoxtNew 测试一下 speech recognition。" || res.Lang != "chinese" || res.Duration != 5200*time.Millisecond {
 		t.Errorf("result %+v", res)
 	}
 	asrtest.Golden(t, "request-wav-plain", r.log.String())
@@ -220,7 +220,7 @@ func TestPrompt(t *testing.T) {
 	}
 }
 
-// TestE2E transcribes the speech sample with OpenAI (AURALINK_E2E=1 and
+// TestE2E transcribes the speech sample with OpenAI (VOXTNEW_E2E=1 and
 // OPENAI_API_KEY).
 func TestE2E(t *testing.T) {
 	asrtest.E2E(t)

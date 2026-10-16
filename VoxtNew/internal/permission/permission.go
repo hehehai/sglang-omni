@@ -1,5 +1,5 @@
 // Package permission reads and asks for the macOS privacy permissions
-// Auralink's own process holds: the Microphone (the helper records under
+// VoxtNew's own process holds: the Microphone (the helper records under
 // the app's identity) and Accessibility (pasting into other apps, reading
 // the selection, the helper's event tap). On darwin it calls AVFoundation
 // and HIServices through purego (no cgo); elsewhere Native knows nothing,
@@ -35,10 +35,10 @@ type System interface {
 	// only System Settings changes it) and calls done with the outcome,
 	// on a goroutine of its own.
 	RequestMicrophone(done func(granted bool))
-	// AccessibilityTrusted reports whether Auralink may send keys and
+	// AccessibilityTrusted reports whether VoxtNew may send keys and
 	// read other apps' text.
 	AccessibilityTrusted() bool
-	// PromptAccessibility shows the system's prompt, which adds Auralink
+	// PromptAccessibility shows the system's prompt, which adds VoxtNew
 	// to Privacy & Security → Accessibility.
 	PromptAccessibility()
 }

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 func TestBook(t *testing.T) {

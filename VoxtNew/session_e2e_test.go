@@ -24,14 +24,14 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // fakeChat is a chat-completions server: it answers each request with
@@ -297,7 +297,7 @@ func fileSetup(t *testing.T, asrText string, chat *fakeChat) (func(*settings.Set
 // TestSessionEndToEnd: fn, speak, fn: the cleaned-up text is pasted into
 // the app that was in front, kept in the history, and ⌃⌘V pastes it again.
 func TestSessionEndToEnd(t *testing.T) {
-	chat := &fakeChat{text: "Hello, Auralink."}
+	chat := &fakeChat{text: "Hello, VoxtNew."}
 	set, keys, tr := fileSetup(t, "hello aura link", chat)
 	ev := script(t,
 		hotkeyLine(0, "transcribe/0", proto.PhaseTrigger),
@@ -320,7 +320,7 @@ func TestSessionEndToEnd(t *testing.T) {
 	}
 	a.pump("the end", func() bool { seen(); return a.sess.State.Ended() })
 	end := a.sess
-	if end.State != session.Done || end.Result != "Hello, Auralink." || end.Raw != "hello aura link" || !end.Inserted || end.Target.Name != "Slack" {
+	if end.State != session.Done || end.Result != "Hello, VoxtNew." || end.Raw != "hello aura link" || !end.Inserted || end.Target.Name != "Slack" {
 		t.Fatalf("end %+v", end)
 	}
 	if got := fmt.Sprint(modes); got != "[recording working hidden]" { // nothing after the insert
@@ -328,14 +328,14 @@ func TestSessionEndToEnd(t *testing.T) {
 	}
 	a.pump("the second paste", func() bool { return len(a.pasted()) == 2 })
 	p := a.pasted()
-	if p[0].Text != "Hello, Auralink." || p[0].TargetPID != 812 || p[1].Text != "Hello, Auralink." {
+	if p[0].Text != "Hello, VoxtNew." || p[0].TargetPID != 812 || p[1].Text != "Hello, VoxtNew." {
 		t.Errorf("pasted %+v", p)
 	}
 	if strings.Contains(a.hotkeysSent, "Active:true") {
 		t.Errorf("still active: %s", a.hotkeysSent)
 	}
 	es := a.history()
-	if len(es) != 1 || es[0].Result != "Hello, Auralink." || es[0].RawText != "hello aura link" || es[0].ASRProvider != "openai" ||
+	if len(es) != 1 || es[0].Result != "Hello, VoxtNew." || es[0].RawText != "hello aura link" || es[0].ASRProvider != "openai" ||
 		es[0].LLMProvider != "deepseek" || es[0].LLMModel != "deepseek-flash" || es[0].Delivery != "insert" || es[0].AppName != "Slack" || es[0].AudioMS < 300 {
 		t.Errorf("history %+v", es)
 	}
@@ -359,7 +359,7 @@ func TestSessionEndToEnd(t *testing.T) {
 // recording; the app in front takes no text, so the result waits in the
 // answer card, whose Insert pastes it anyway.
 func TestSessionStreamingCard(t *testing.T) {
-	url := aliyunServer(t, "你好，Auralink")
+	url := aliyunServer(t, "你好，VoxtNew")
 	ev := script(t, hotkeyLine(0, "transcribe/0", proto.PhaseTrigger), hotkeyLine(600, "transcribe/0", proto.PhaseTrigger))
 	a := newSessionApp(t, "readonly,"+ev, func(s *settings.Settings) {
 		s.Providers.ASR = []settings.Provider{{ID: "aliyun", Enabled: true, Endpoint: url}}
@@ -374,7 +374,7 @@ func TestSessionStreamingCard(t *testing.T) {
 		t.Error("no partial while recording")
 	}
 	end := a.sess
-	if end.State != session.Done || end.Result != "你好，Auralink" || end.Inserted || !end.Card || a.ov.mode != ovAnswer || !a.answer.open {
+	if end.State != session.Done || end.Result != "你好，VoxtNew" || end.Inserted || !end.Card || a.ov.mode != ovAnswer || !a.answer.open {
 		t.Fatalf("end %+v, overlay %s", end, a.ov.mode)
 	}
 	if len(a.pasted()) != 0 {
@@ -385,7 +385,7 @@ func TestSessionStreamingCard(t *testing.T) {
 	}
 	a.insertAnswer()
 	a.pump("the insert", func() bool { return !a.answer.open })
-	if p := a.pasted(); len(p) != 1 || p[0].Text != "你好，Auralink" {
+	if p := a.pasted(); len(p) != 1 || p[0].Text != "你好，VoxtNew" {
 		t.Errorf("pasted %+v", p)
 	}
 	a.pump("the history", func() bool {
@@ -513,7 +513,7 @@ func (p *pasteText) Paste(_ context.Context, pp proto.PasteParams) (proto.PasteR
 
 // TestE2ESessionReal runs the speech sample through each real speech
 // service the developer has a key for, and DeepSeek, with the app's
-// resolver (AURALINK_E2E=1; keys from ~/.config/auralink-dev/keys.env).
+// resolver (VOXTNEW_E2E=1; keys from ~/.config/voxtnew-dev/keys.env).
 func TestE2ESessionReal(t *testing.T) {
 	asrtest.E2E(t)
 	data, err := os.ReadFile(asrtest.SamplePath())

@@ -112,7 +112,7 @@ func activate(pid int, wait time.Duration, runOnMain func(func())) (bool, time.D
 			if app == 0 {
 				return
 			}
-			// macOS 14+: the active app (Auralink, after a click on one of
+			// macOS 14+: the active app (VoxtNew, after a click on one of
 			// its windows) hands activation over, then the target takes it.
 			nsApp := class("NSApplication").Send(selSharedApp)
 			if nsApp != 0 && objc.Send[bool](nsApp, selIsActive) && objc.Send[bool](nsApp, selResponds, selYield) {

@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/coder/websocket"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
 )
 
 // A script is a testdata/*.jsonl file the fake service plays: one JSON

@@ -12,9 +12,9 @@ import (
 	"os"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/overlay/ink"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/ink"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // overlayInkWant is what the face shows now, for the ink check: the

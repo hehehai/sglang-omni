@@ -1,12 +1,12 @@
 package main
 
 // Settings → Permissions (/settings/permissions, plan §6): what macOS lets
-// Auralink do, why each permission matters, and how to grant it. The
+// VoxtNew do, why each permission matters, and how to grant it. The
 // helper, which records and posts keys, reads and asks for them
 // (permissions.*): macOS checks its permissions against the app, so they
-// are Auralink's. Before the helper is ready the Microphone and
+// are VoxtNew's. Before the helper is ready the Microphone and
 // Accessibility are read here (internal/permission). The section reads
-// them again when it opens, when Auralink comes to the front and with
+// them again when it opens, when VoxtNew comes to the front and with
 // Check again. Browser addresses are read through Accessibility only, so
 // there is no Automation permission to ask for.
 
@@ -15,11 +15,11 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/permission"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // System Settings panes.
@@ -117,7 +117,7 @@ func (a *app) permissionsSettings(c *ui.Context) {
 			statusMark(c, icons.DangerTriangle, t.Warning, text)
 		}
 	}
-	caption(c, i18n.T("macOS asks you before Auralink may record or work with other apps. Each row says what needs it; you can change them any time in System Settings."))
+	caption(c, i18n.T("macOS asks you before VoxtNew may record or work with other apps. Each row says what needs it; you can change them any time in System Settings."))
 
 	micText, micOK := uitext.PermissionText(a.perms.mic)
 	settingRow(c, "perm-mic", i18n.T("Microphone"), i18n.T("Transcribe, translate and rewrite by voice record while you hold or tap their shortcut."), func() {
@@ -137,10 +137,10 @@ func (a *app) permissionsSettings(c *ui.Context) {
 	if accOK {
 		accText = i18n.T("Allowed")
 	}
-	settingRow(c, "perm-access", i18n.T("Accessibility"), i18n.T("Lets Auralink type results where your cursor is, read the selected text and the address of the browser tab in front, and use fn and other single keys as shortcuts. Without it results are copied for you to paste."), func() {
+	settingRow(c, "perm-access", i18n.T("Accessibility"), i18n.T("Lets VoxtNew type results where your cursor is, read the selected text and the address of the browser tab in front, and use fn and other single keys as shortcuts. Without it results are copied for you to paste."), func() {
 		badge(accText, accOK)
 		if !accOK {
-			if ghostButton(c.Key("perm-access-ask"), i18n.T("Ask")).Tooltip(i18n.T("Adds Auralink to the list in System Settings")).Clicked() {
+			if ghostButton(c.Key("perm-access-ask"), i18n.T("Ask")).Tooltip(i18n.T("Adds VoxtNew to the list in System Settings")).Clicked() {
 				a.askPermission(proto.PermissionAccessibility)
 			}
 			if ghostIconButton(c.Key("perm-access-open"), icons.SquareArrowRightUp, i18n.T("Open System Settings")).Label(i18n.T("Open System Settings")).Clicked() {
@@ -152,6 +152,6 @@ func (a *app) permissionsSettings(c *ui.Context) {
 		if secondaryIconButton(c.Key("perm-recheck"), icons.Refresh, i18n.T("Check again")).Label(i18n.T("Check again")).Clicked() {
 			a.recheckPermissions()
 		}
-		infoTip(c.Key("perm-note"), i18n.T("After you change a permission, macOS may ask to quit and reopen Auralink. Updating an ad hoc signed build can make macOS forget Accessibility: turn it off and on again."))
+		infoTip(c.Key("perm-note"), i18n.T("After you change a permission, macOS may ask to quit and reopen VoxtNew. Updating an ad hoc signed build can make macOS forget Accessibility: turn it off and on again."))
 	})
 }

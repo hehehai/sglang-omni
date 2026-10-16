@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
 )
 
 // segmentedFit is ui.Segmented as wide as its segments, for a form's

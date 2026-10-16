@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 var (
@@ -79,7 +79,7 @@ func TestScene(t *testing.T) {
 		press   []proto.KeyPress
 		urlRead bool
 	}{
-		{name: "url group", target: safari, url: &fakeURL{urls: map[string]string{safari.BundleID: "https://github.com/hehehai/Auralink"}},
+		{name: "url group", target: safari, url: &fakeURL{urls: map[string]string{safari.BundleID: "https://github.com/sgl-project/sglang-omni/VoxtNew"}},
 			group: "g-code", source: appctx.SourceURL, host: "github.com", prompt: "Use Markdown for code.", app: "Safari", urlRead: true},
 		{name: "browser app group", target: chrome, url: &fakeURL{urls: map[string]string{chrome.BundleID: "https://news.ycombinator.com/"}},
 			group: "g-browser", source: appctx.SourceBrowserApp, host: "news.ycombinator.com", prompt: "Keep it formal in Google Chrome.", app: "Google Chrome", urlRead: true},
@@ -177,7 +177,7 @@ func (h *harness) llmRequest(t *testing.T) string {
 	return reqs[0].Messages[0].Content
 }
 
-// TestSceneSkipped: no app enhancement for a try, for Auralink itself,
+// TestSceneSkipped: no app enhancement for a try, for VoxtNew itself,
 // or for a feature the group does not apply to.
 func TestSceneSkipped(t *testing.T) {
 	u := &fakeURL{urls: map[string]string{chrome.BundleID: "https://github.com/"}}
@@ -186,7 +186,7 @@ func TestSceneSkipped(t *testing.T) {
 		req  StartRequest
 	}{
 		{"try", StartRequest{Kind: store.KindTranscribe, Target: slack, Try: true}},
-		{"auralink in front", StartRequest{Kind: store.KindTranscribe, Target: proto.App{PID: 4242, BundleID: "dev.hehehai.auralink", Name: "Auralink"}}},
+		{"voxtnew in front", StartRequest{Kind: store.KindTranscribe, Target: proto.App{PID: 4242, BundleID: "dev.hehehai.voxtnew", Name: "VoxtNew"}}},
 		{"no target", StartRequest{Kind: store.KindTranscribe}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -195,7 +195,7 @@ func TestSceneSkipped(t *testing.T) {
 				c.Scene = &SceneConfig{Rules: func() (appctx.Rules, bool) {
 					r := sceneRules()
 					r.Groups = append(r.Groups, appctx.Group{ID: "all", Name: "All", Enabled: true, Prompt: "Everywhere.",
-						Apps: []appctx.App{{BundleID: "dev.hehehai.auralink"}}, Features: appctx.DefaultFeatures})
+						Apps: []appctx.App{{BundleID: "dev.hehehai.voxtnew"}}, Features: appctx.DefaultFeatures})
 					return r, true
 				}, IsBrowser: func(string) bool { return true }, URL: u.read}
 			})

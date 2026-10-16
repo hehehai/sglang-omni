@@ -11,23 +11,23 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // TestSnapshots renders each page, the settings sections and the shell's
 // overlays to PNG with MyGo's renderer, for looking at the layout without
 // a Mac screen, light and dark, in English (<name>-light.png) and Chinese
-// (<name>-light-zh-Hans.png), at 2×. Set AURALINK_SNAPSHOTS to a
+// (<name>-light-zh-Hans.png), at 2×. Set VOXTNEW_SNAPSHOTS to a
 // directory:
 //
-//	AURALINK_SNAPSHOTS=/tmp/shots go test -run TestSnapshots .
+//	VOXTNEW_SNAPSHOTS=/tmp/shots go test -run TestSnapshots .
 //
-// AURALINK_SNAPSHOTS_SIZE=680x440 renders at the window's smallest size
+// VOXTNEW_SNAPSHOTS_SIZE=680x440 renders at the window's smallest size
 // (snapshotSize).
-func TestSnapshots(t *testing.T) { runSnapshots(t, "AURALINK_SNAPSHOTS", snapshotsMain) }
+func TestSnapshots(t *testing.T) { runSnapshots(t, "VOXTNEW_SNAPSHOTS", snapshotsMain) }
 
 func snapshotsMain(t *testing.T, out string) {
 	w, h := snapshotSize()
@@ -72,7 +72,7 @@ func snapshotsMain(t *testing.T, out string) {
 			if p.path == "/logs" {
 				at := time.Date(2026, 10, 15, 9, 30, 0, 0, time.Local)
 				for i, l := range []core.LogEntry{
-					{Source: "app", Message: "Auralink 0.1.0 started"},
+					{Source: "app", Message: "VoxtNew 0.1.0 started"},
 					{Source: helper.LogSource, Message: "fake helper ready"},
 					{Source: helper.LogSource, Level: core.SeverityWarning, Message: "AirPods Pro gave no audio within 1.2 s: recording from the default input"},
 					{Source: "app", Level: core.SeverityError, Message: "settings: could not save: disk full"},
@@ -160,7 +160,7 @@ func snapshotsMain(t *testing.T, out string) {
 		save("rail-notices")
 		a.noticesOpen = false
 		a.setRail(false)
-		fs.set(helper.Status{State: helper.Failed, Reason: helper.FailMissing, Err: "auralink-helper was not found"})
+		fs.set(helper.Status{State: helper.Failed, Reason: helper.FailMissing, Err: "voxtnew-helper was not found"})
 		a.navigate("/settings/permissions")
 		save("permissions-no-helper")
 		a.settingsOpen = false
@@ -169,10 +169,10 @@ func snapshotsMain(t *testing.T, out string) {
 		save("rail")
 		a.setRail(false)
 
-		// An update installed while Auralink runs (updates.go): its card,
+		// An update installed while VoxtNew runs (updates.go): its card,
 		// and Settings → About.
 		a.clearNotices()
-		fs.set(helper.Status{State: helper.Failed, Reason: helper.FailUpdated, Err: "Auralink was updated"})
+		fs.set(helper.Status{State: helper.Failed, Reason: helper.FailUpdated, Err: "VoxtNew was updated"})
 		save("sidebar-notices-update")
 		a.navigate("/settings/about")
 		scrollToText(tt, i18n.T("Updates"))
@@ -202,9 +202,9 @@ func scrollToText(tt *ui.Tester, s string) {
 }
 
 // snapshotSize is the window's size for snapshots: its default size, or
-// its smallest with AURALINK_SNAPSHOTS_SIZE=680x440 (or "min").
+// its smallest with VOXTNEW_SNAPSHOTS_SIZE=680x440 (or "min").
 func snapshotSize() (w, h int) {
-	switch os.Getenv("AURALINK_SNAPSHOTS_SIZE") {
+	switch os.Getenv("VOXTNEW_SNAPSHOTS_SIZE") {
 	case "min", fmt.Sprintf("%dx%d", windowMinWidth, windowMinHeight):
 		return windowMinWidth, windowMinHeight
 	}

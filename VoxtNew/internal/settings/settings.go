@@ -3,7 +3,7 @@
 // Key, read from memory by any goroutine, changed through Service.Update
 // and announced with Changed on the core.Bus.
 //
-// Version 1 is Auralink's first: it owes nothing to Voxt's UserDefaults
+// Version 1 is VoxtNew's first: it owes nothing to Voxt's UserDefaults
 // keys and has no migration code yet. A field added later reads as its
 // zero value in an older document until Migrate fills it in, so zero
 // values must be valid.
@@ -62,9 +62,9 @@ type General struct {
 	// "" = from the UI language.
 	MainLanguage   string   `json:"mainLanguage,omitempty"`
 	OtherLanguages []string `json:"otherLanguages,omitempty"`
-	// LaunchAtLogin opens Auralink when the user logs in (M6).
+	// LaunchAtLogin opens VoxtNew when the user logs in (M6).
 	LaunchAtLogin bool `json:"launchAtLogin,omitempty"`
-	// MenuBar shows the menu bar icon; CloseToTray keeps Auralink running
+	// MenuBar shows the menu bar icon; CloseToTray keeps VoxtNew running
 	// there when its window closes, so the shortcuts keep working.
 	MenuBar     bool `json:"menuBar"`
 	CloseToTray bool `json:"closeToTray"`
@@ -86,7 +86,7 @@ type Appearance struct {
 	ClosedSections []string `json:"closedSections,omitempty"`
 }
 
-// Network: how Auralink reaches the providers.
+// Network: how VoxtNew reaches the providers.
 type Network struct {
 	// Proxy: "" = automatic (the environment, then the macOS system
 	// proxy), ProxyDirect, or a proxy URL (http, https, socks5).
@@ -96,7 +96,7 @@ type Network struct {
 // ProxyDirect is Network.Proxy for no proxy at all.
 const ProxyDirect = "direct"
 
-// Privacy: what Auralink keeps on this Mac and what it logs.
+// Privacy: what VoxtNew keeps on this Mac and what it logs.
 type Privacy struct {
 	// KeepHistory saves each result in the history; KeepAudio also saves
 	// its recording (M3).
@@ -116,7 +116,7 @@ type Audio struct {
 	Devices     []string          `json:"devices,omitempty"`
 	DeviceNames map[string]string `json:"deviceNames,omitempty"`
 	// MuteOutput lowers the system's output while recording, restoring
-	// only what Auralink changed (P1). Sounds plays a cue when recording
+	// only what VoxtNew changed (P1). Sounds plays a cue when recording
 	// starts and another when it stops (M6).
 	MuteOutput bool `json:"muteOutput,omitempty"`
 	Sounds     bool `json:"sounds"`
@@ -307,7 +307,7 @@ type Rewrite struct {
 type AppEnhancement struct {
 	Enabled bool `json:"enabled"`
 	// Browsers are browsers the user added to the built-in ones, whose
-	// tab URL Auralink tries to read.
+	// tab URL VoxtNew tries to read.
 	Browsers []Browser `json:"browsers,omitempty"`
 }
 

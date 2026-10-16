@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // Hooks of the demo build (demo.go, built with -tags demo), which makes
@@ -18,7 +18,7 @@ var (
 	demoHTTP    *http.Client                                      // the services' HTTP (record and replay)
 	demoPerms   func(*proto.PermissionsResult)                    // the helper's permissions, as the demo sees them
 	demoMask    func(key string) string                           // a saved key as Model services shows it
-	demoNoKeys  bool                                              // no global shortcuts: the user's own Auralink keeps fn
+	demoNoKeys  bool                                              // no global shortcuts: the user's own VoxtNew keeps fn
 	demoDevices func([]proto.CaptureDevice) []proto.CaptureDevice // the microphones listed
 	demoFront   func(proto.App) proto.App                         // the app in front, as named
 )

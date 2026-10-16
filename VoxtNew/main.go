@@ -1,8 +1,8 @@
-// Auralink is a voice input app for macOS that uses remote models only:
+// VoxtNew is a voice input app for macOS that uses remote models only:
 // hold a shortcut to transcribe what you say into any text field, to
 // translate speech or the selection, or to rewrite the selection (or write
 // new text) from a spoken instruction, with per-app scene rules. The
-// window is MyGo native UI in Go; a small Swift helper (auralink-helper)
+// window is MyGo native UI in Go; a small Swift helper (voxtnew-helper)
 // records the microphone, watches the keyboard and reads browser URLs.
 //
 // Package main is the UI (views and their state); the domain lives in
@@ -20,12 +20,12 @@ import (
 	// MyGo's own strings (a text field's menu, a dialog's buttons) in
 	// Chinese, when the app shows it (showLanguage).
 	_ "github.com/egoist/mygo/locales/zh-Hans"
-	"github.com/hehehai/Auralink/internal/datadir"
-	"github.com/hehehai/Auralink/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/datadir"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 )
 
 func main() {
-	// The languages Auralink is written in, of which MyGo shows one
+	// The languages VoxtNew is written in, of which MyGo shows one
 	// (showLanguage, settings_locale.go).
 	mygo.App.SetLanguages(i18n.Supported()...)
 	// The update check of -tags updatecheck builds (update_check.go) runs
@@ -40,18 +40,18 @@ func main() {
 		runOverlayCheck(dir)
 		return
 	}
-	// Dev builds are "Auralink Dev"; share data with the installed app.
-	mygo.App.SetName("Auralink")
+	// Dev builds are "VoxtNew Dev"; share data with the installed app.
+	mygo.App.SetName("VoxtNew")
 	if demoStart != nil {
 		demoStart() // demo.go (-tags demo): a data folder and keys of its own
 	}
-	// One Auralink at a time (one library, one set of global shortcuts);
+	// One VoxtNew at a time (one library, one set of global shortcuts);
 	// a second launch shows the first one's window.
 	if !mygo.App.RequestSingleInstanceLock() {
 		return
 	}
 	// Updates (updates.go): the update window in native UI, in the
-	// language Auralink shows (App.Locale), checking once a day; it
+	// language VoxtNew shows (App.Locale), checking once a day; it
 	// installs only when the user says so, unless they turn on
 	// Settings → About → Install updates automatically.
 	mygo.Use(native.New(updater.Options{}))

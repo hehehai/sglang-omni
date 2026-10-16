@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Entitlements of auralink-helper inside Auralink.app
+<!-- Entitlements of voxtnew-helper inside VoxtNew.app
      (mygo.json macos.helperEntitlements). Under the hardened runtime
      (Developer ID builds) the helper records from the microphone; it reads
      browser addresses through Accessibility, which needs no entitlement

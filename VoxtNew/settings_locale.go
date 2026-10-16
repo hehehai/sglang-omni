@@ -1,13 +1,13 @@
 package main
 
-// The language Auralink shows (shell_settings.go): applying it, the
+// The language VoxtNew shows (shell_settings.go): applying it, the
 // system's, the language MyGo shows, and the lists of languages the settings
 // offer.
 
 import (
 	"github.com/egoist/mygo"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // applyLocale switches the UI to the settings' language, or the system's,
@@ -29,7 +29,7 @@ func (a *app) applyLocale() {
 }
 
 // systemLanguage is the user's first preferred language, as the system
-// lists them, "" when it lists none: the language Auralink follows unless
+// lists them, "" when it lists none: the language VoxtNew follows unless
 // the settings name one. (Before MyGo 0.5, mygo.App.Locale; it is now the
 // language the app shows, of those it is written in.)
 func systemLanguage() string {
@@ -64,7 +64,7 @@ func languageOptions() []string {
 }
 
 // mainLanguages are the languages the main language select offers (lang
-// codes), most spoken by Auralink's users first; M3 adds a search.
+// codes), most spoken by VoxtNew's users first; M3 adds a search.
 var mainLanguages = []string{"zh", "en", "ja", "ko", "yue", "fr", "de", "es", "pt", "ru", "it", "vi", "th", "id", "ar"}
 
 func mainLanguageOptions() []string {

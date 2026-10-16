@@ -15,17 +15,17 @@ import (
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/compose"
-	"github.com/hehehai/Auralink/internal/deliver"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/overlay/ink"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/ink"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 var slackApp = proto.App{PID: 812, BundleID: "com.tinyspeck.slackmacgap", Name: "Slack"}
@@ -210,7 +210,7 @@ func TestSessionProblemTexts(t *testing.T) {
 		action string
 	}{
 		{session.Problem{Code: session.ProblemNoASR}, "No speech service is set up.", actionProviders},
-		{session.Problem{Code: session.ProblemMicrophone, Err: errors.New("x")}, "Auralink may not use the microphone.", actionPermissions},
+		{session.Problem{Code: session.ProblemMicrophone, Err: errors.New("x")}, "VoxtNew may not use the microphone.", actionPermissions},
 		{session.Problem{Code: session.ProblemHelper}, "The helper stopped: try again in a moment.", actionHelper},
 		{session.Problem{Code: session.ProblemNoSpeech}, "Nothing was heard.", actionNone},
 		{session.Problem{Code: session.ProblemTooShort}, "", actionNone},
@@ -308,13 +308,13 @@ func overlayShots(t *testing.T, a *app, out, suffix string, dark bool) {
 		{"overlay-live-text", session.Snapshot{State: session.Recording, StartedAt: now, HeardAt: now.Add(-47 * time.Second), Levels: wave(),
 			Partial: "So the plan for the release is to finish the onboarding first, then the history page, and after that we look at the translation card"}, nil, nil},
 		{"overlay-live-text-zh", session.Snapshot{State: session.Recording, StartedAt: now, HeardAt: now.Add(-20 * time.Second), Levels: wave(),
-			Partial: "那个我们明天，不对，后天下午三点开会，讨论一下 Auralink 的发布计划，然后把引导页和历史页先做完"}, nil, nil},
+			Partial: "那个我们明天，不对，后天下午三点开会，讨论一下 VoxtNew 的发布计划，然后把引导页和历史页先做完"}, nil, nil},
 		{"overlay-recording-scene", session.Snapshot{State: session.Recording, StartedAt: now, HeardAt: now.Add(-5 * time.Second), Levels: wave(),
 			Target: proto.App{Name: "Slack"}, Scene: sceneMatch("Team chat", appctx.SourceApp, "")}, nil, nil},
 		{"overlay-working-scene", session.Snapshot{State: session.Composing, Target: proto.App{Name: "Google Chrome"},
 			Scene: sceneMatch("Code review", appctx.SourceURL, "github.com")}, nil, nil},
 		{"overlay-recognizing", session.Snapshot{State: session.Recognizing}, nil, nil},
-		{"overlay-composing", session.Snapshot{State: session.Composing, Partial: "那个我们明天，不对，后天下午三点开会，讨论一下 Auralink 的发布计划"}, nil, nil},
+		{"overlay-composing", session.Snapshot{State: session.Composing, Partial: "那个我们明天，不对，后天下午三点开会，讨论一下 VoxtNew 的发布计划"}, nil, nil},
 		{"overlay-error", session.Snapshot{State: session.Failed, Problem: &session.Problem{Code: session.ProblemASR, Err: &asr.Error{Kind: asr.KindAuth}}}, nil, nil},
 		{"overlay-no-speech", session.Snapshot{State: session.Done, Problem: &session.Problem{Code: session.ProblemNoSpeech}}, nil, nil},
 		{"overlay-warning", session.Snapshot{State: session.Done, Result: "x", Inserted: true, Problem: &session.Problem{Code: session.ProblemLLM, Degraded: true,
@@ -595,7 +595,7 @@ func TestOverlayInk(t *testing.T) {
 	now := time.Now()
 	short, shortZh := "Meet at three tomorrow", "明天三点开会"
 	long := "So the plan for the release is to finish the onboarding first, then the history page, and after that the translation card"
-	longZh := "那个我们明天，不对，后天下午三点开会，讨论一下 Auralink 的发布计划，然后把引导页和历史页先做完"
+	longZh := "那个我们明天，不对，后天下午三点开会，讨论一下 VoxtNew 的发布计划，然后把引导页和历史页先做完"
 	rec := func(k store.Kind, partial string) session.Snapshot {
 		return session.Snapshot{Kind: k, State: session.Recording, StartedAt: now, HeardAt: now, Levels: previewSession().Levels, Partial: partial}
 	}
@@ -644,7 +644,7 @@ func TestOverlayInk(t *testing.T) {
 				t.Error(b)
 			}
 			t.Logf("%s: %v", c.name, k)
-			if dir := os.Getenv("AURALINK_INK"); dir != "" {
+			if dir := os.Getenv("VOXTNEW_INK"); dir != "" {
 				var b bytes.Buffer
 				png.Encode(&b, img)
 				os.WriteFile(filepath.Join(dir, c.name+".png"), b.Bytes(), 0o644)
@@ -663,8 +663,8 @@ func TestOverlayInk(t *testing.T) {
 // TestOverlayShots renders the overlay's states alone (overlayShots),
 // English over a light desktop and Chinese over a dark one:
 //
-//	AURALINK_OVERLAY_SHOTS=/tmp/ov go test -run TestOverlayShots .
-func TestOverlayShots(t *testing.T) { runSnapshots(t, "AURALINK_OVERLAY_SHOTS", snapshotsOverlay) }
+//	VOXTNEW_OVERLAY_SHOTS=/tmp/ov go test -run TestOverlayShots .
+func TestOverlayShots(t *testing.T) { runSnapshots(t, "VOXTNEW_OVERLAY_SHOTS", snapshotsOverlay) }
 
 func snapshotsOverlay(t *testing.T, out string) {
 	for _, run := range []struct {

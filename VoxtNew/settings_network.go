@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/netx"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/netx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // netCheck is the result of reaching one host.
@@ -114,7 +114,7 @@ func (a *app) networkSettings(c *ui.Context) {
 	if a.proxyInfo == "" {
 		a.loadProxyInfo()
 	}
-	caption(c, i18n.T("Auralink talks only to the speech and language services you set up. These settings apply to all of them."))
+	caption(c, i18n.T("VoxtNew talks only to the speech and language services you set up. These settings apply to all of them."))
 	settingRowNote(c, "proxy", i18n.T("Proxy"), a.proxyInfo, func() {
 		opts := proxyOptions()
 		if ui.Select(c.Key("proxy-select"), &a.proxyMode, opts).Label(i18n.T("Proxy")).Width(px(t, 240)).Changed() {

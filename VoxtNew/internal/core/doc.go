@@ -1,4 +1,4 @@
-// Package core holds what every Auralink package shares: the event bus,
+// Package core holds what every VoxtNew package shares: the event bus,
 // the error sentinels, ULIDs, and the few entities of the shell
 // (notifications, log lines) with the service interfaces behind them.
 //

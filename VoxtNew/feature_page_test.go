@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // trTester is the test app on the Transcribe page, in a window tall
@@ -61,7 +61,7 @@ func TestTranscribePageRenders(t *testing.T) {
 	if !has(tt, "Open Permissions") {
 		t.Error("no Accessibility notice")
 	}
-	if _, ok := tt.Find("Works only while Auralink may use Accessibility."); !ok {
+	if _, ok := tt.Find("Works only while VoxtNew may use Accessibility."); !ok {
 		t.Error("fn is not marked as needing Accessibility")
 	}
 	click(t, tt, "Open Permissions")
@@ -358,11 +358,11 @@ func transcribeShots(a *app, tt *ui.Tester, save func(string)) {
 // TestTranscribeFullPage renders the whole feature pages (a tall window)
 // with a done try and the preview open, for looking at them:
 //
-//	AURALINK_SNAPSHOTS=/tmp/shots go test -run TestTranscribeFullPage .
+//	VOXTNEW_SNAPSHOTS=/tmp/shots go test -run TestTranscribeFullPage .
 func TestTranscribeFullPage(t *testing.T) {
-	out := os.Getenv("AURALINK_SNAPSHOTS")
+	out := os.Getenv("VOXTNEW_SNAPSHOTS")
 	if out == "" {
-		t.Skip("set AURALINK_SNAPSHOTS to a directory")
+		t.Skip("set VOXTNEW_SNAPSHOTS to a directory")
 	}
 	os.MkdirAll(out, 0o755)
 	w, _ := snapshotSize()

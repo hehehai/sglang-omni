@@ -9,8 +9,8 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
 )
 
 // pages builds the page the router shows.

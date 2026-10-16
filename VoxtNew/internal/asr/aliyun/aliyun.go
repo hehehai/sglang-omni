@@ -27,7 +27,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 // ID is the provider's preset id.
@@ -50,7 +50,7 @@ const (
 
 // Models are the models offered in the model menu, grouped as Voxt groups
 // them (any id may be typed). The 8 kHz telephone models are left out:
-// they take 8 kHz audio only and Auralink records at 16 kHz (New refuses
+// they take 8 kHz audio only and VoxtNew records at 16 kHz (New refuses
 // them).
 var Models = []string{
 	// Qwen-Audio ASR streaming (inference protocol, inline hot words).
@@ -247,7 +247,7 @@ func New(cfg asr.Config) (*Client, error) {
 	}
 	info := modelInfo(name)
 	if info.rate8k {
-		return nil, asr.Errorf(ID, asr.KindConfig, "model %s takes 8 kHz telephone audio only; Auralink records at 16 kHz", name)
+		return nil, asr.Errorf(ID, asr.KindConfig, "model %s takes 8 kHz telephone audio only; VoxtNew records at 16 kHz", name)
 	}
 	ep := Endpoint(cfg.Endpoint, name)
 	if _, err := asr.CheckEndpoint(ID, ep, "wss"); err != nil {

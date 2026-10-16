@@ -7,13 +7,13 @@
 #   scripts/mac.sh go test ./internal/secrets
 #   scripts/mac.sh --pull build/darwin-arm64   # copy a path back
 #
-# MAC_HOST (default mac-air) and MAC_DIR (default code/Auralink) pick the
+# MAC_HOST (default mac-air) and MAC_DIR (default code/VoxtNew) pick the
 # target; MAC_GOPROXY its Go module proxy (proxy.golang.org times out there).
 set -euo pipefail
 
 HOST="${MAC_HOST:-mac-air}"
 GOPROXY_MAC="${MAC_GOPROXY:-https://goproxy.cn,direct}"
-DIR="${MAC_DIR:-code/Auralink}"
+DIR="${MAC_DIR:-code/VoxtNew}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [[ "${1:-}" == "--pull" ]]; then
@@ -29,7 +29,7 @@ ssh "$HOST" "mkdir -p '$DIR'"
 rsync -a --delete \
   --exclude .git --exclude /build --exclude /.mygo \
   --exclude /helper/.build --exclude /resources/darwin-arm64 \
-  --exclude /Auralink \
+  --exclude /VoxtNew \
   "$ROOT/" "$HOST:$DIR/"
 
 [[ $# -eq 0 ]] && exit 0

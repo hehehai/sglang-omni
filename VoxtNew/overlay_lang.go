@@ -1,7 +1,7 @@
 package main
 
 // The answer card's language menu (10-15, second round): the target
-// languages in Auralink's own dropdown, not the system's menu. The card's
+// languages in VoxtNew's own dropdown, not the system's menu. The card's
 // window is as large as the card (overlay.go), far too small for the list,
 // and growing it would move the card's material in a transaction of its
 // own (a frame of the wrong shape); so the list is a window of its own, a
@@ -19,11 +19,11 @@ package main
 import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/compose"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // Sizes of the language menu, in DIPs.
@@ -116,7 +116,7 @@ func (a *app) syncLangMenu() {
 		return // tests: the state is enough
 	}
 	if m.win == nil {
-		m.win = mygo.NewWindow(floatingWindowOptions("Auralink languages", frame.Width, frame.Height, hudContent(a.langMenuView)))
+		m.win = mygo.NewWindow(floatingWindowOptions("VoxtNew languages", frame.Width, frame.Height, hudContent(a.langMenuView)))
 	}
 	if moved {
 		m.win.SetContentBounds(frame)

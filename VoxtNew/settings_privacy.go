@@ -1,15 +1,15 @@
 package main
 
 // Settings → Privacy: what leaves this Mac (only what the user's
-// providers need), and what Auralink keeps here: the history, its
+// providers need), and what VoxtNew keeps here: the history, its
 // recordings, the text in the logs (plan §6).
 
 import (
 	"context"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 func (a *app) privacySettings(c *ui.Context) {
@@ -17,10 +17,10 @@ func (a *app) privacySettings(c *ui.Context) {
 	sectionTitle(c, i18n.T("What leaves this Mac"))
 	ui.Column(c.Key("priv-list")).Gap(px(t, sp1)).Children(func() {
 		for _, s := range []string{
-			i18n.T("Your recordings and the text to clean up, translate or rewrite go to the speech and language services you set up, and nowhere else. Auralink has no server of its own."),
+			i18n.T("Your recordings and the text to clean up, translate or rewrite go to the speech and language services you set up, and nowhere else. VoxtNew has no server of its own."),
 			i18n.T("API keys stay in this Mac's Keychain."),
 			i18n.T("The address of the browser tab in front is read only to pick your scene rules. It is never sent to a model; only the app's name is."),
-			i18n.T("Auralink collects no usage data, crash reports or identifiers."),
+			i18n.T("VoxtNew collects no usage data, crash reports or identifiers."),
 		} {
 			ui.Text(c, "• "+s).FontSize(px(t, fsCaption)).TextColor(t.TextMuted)
 		}

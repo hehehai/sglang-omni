@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks a build of Auralink (docs/release.md): its signatures, the
+# Checks a build of VoxtNew (docs/release.md): its signatures, the
 # entitlements of the app and of the helper and, for a Developer ID build,
 # the hardened runtime, the timestamps, Gatekeeper's verdict, the stapled
 # notarization tickets and the update files. The release workflow runs it
@@ -17,8 +17,8 @@ dir="${1:?the build directory, e.g. build/darwin-arm64}"
 mode="${2:?developer-id or ad-hoc}"
 want_dmg=1
 [[ "${3:-}" == --no-dmg ]] && want_dmg=0
-app="$dir/Auralink.app"
-helper="$app/Contents/Resources/helper/auralink-helper"
+app="$dir/VoxtNew.app"
+helper="$app/Contents/Resources/helper/voxtnew-helper"
 fails=0
 
 check() { # check "what" command...
@@ -49,11 +49,11 @@ entitled() { # entitled CODE KEY: CODE is signed with the entitlement KEY
 [[ -d "$app" ]] || { echo "no $app" >&2; exit 1; }
 [[ -f "$helper" ]] || { echo "no $helper" >&2; exit 1; }
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
-echo "Auralink $version ($mode) in $dir"
+echo "VoxtNew $version ($mode) in $dir"
 
 check "the app's signature (deep, strict)" codesign --verify --deep --strict --verbose=2 "$app"
 check "the helper's signature (strict)" codesign --verify --strict --verbose=2 "$helper"
-check "the helper is dev.hehehai.auralink.helper" has "$helper" '^Identifier=dev\.hehehai\.auralink\.helper$'
+check "the helper is dev.hehehai.voxtnew.helper" has "$helper" '^Identifier=dev\.hehehai\.voxtnew\.helper$'
 check "the app may use the microphone (audio-input)" entitled "$app" com.apple.security.device.audio-input
 check "the helper may use the microphone (audio-input)" entitled "$helper" com.apple.security.device.audio-input
 check "the helper is arm64" test "$(lipo -archs "$helper")" = arm64

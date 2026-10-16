@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # The overlay's visual check on a Mac (docs/manual-test.md §10.5): builds
-# the app as a small accessory bundle (not the installed Auralink: another
+# the app as a small accessory bundle (not the installed VoxtNew: another
 # bundle ID, no data, no helper), opens it in the background (open -g: it
 # never comes to the front), and captures each state of the overlay it
 # walks through over a light and a dark backdrop at the overlay's own
 # place (about a second each, ~15 s in all). Captures are screencapture's,
 # from this script: the window alone (-l) and the backdrop with the
 # overlay on it (-R); the clipboard, the keyboard and the app in front are
-# left alone. Niced, two jobs; it stops when less than AURALINK_MIN_FREE
+# left alone. Niced, two jobs; it stops when less than VOXTNEW_MIN_FREE
 # percent of memory (40) is free; nothing stays running.
 #
-#   MAC_DIR=code/Auralink-ov scripts/mac.sh scripts/mac-overlay-check.sh
+#   MAC_DIR=code/VoxtNew-ov scripts/mac.sh scripts/mac-overlay-check.sh
 #   scripts/mac.sh --pull build/overlay-check     # (same MAC_DIR) bring the results back
 #
 # Output in build/overlay-check/shots: step-N-window.png, step-N-screen.png,
@@ -19,7 +19,7 @@
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "run it on a Mac: MAC_DIR=code/Auralink-ov scripts/mac.sh scripts/mac-overlay-check.sh" >&2
+  echo "run it on a Mac: MAC_DIR=code/VoxtNew-ov scripts/mac.sh scripts/mac-overlay-check.sh" >&2
   exit 1
 fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -28,27 +28,27 @@ export GOMAXPROCS=2 GOFLAGS=-p=2
 
 free="$(memory_pressure -Q | sed -n 's/.*percentage: \([0-9]*\)%.*/\1/p')"
 echo "== free memory ${free}%"
-if (( ${free:-0} < ${AURALINK_MIN_FREE:-40} )); then
-  echo "less than ${AURALINK_MIN_FREE:-40}% of memory is free: not starting" >&2
+if (( ${free:-0} < ${VOXTNEW_MIN_FREE:-40} )); then
+  echo "less than ${VOXTNEW_MIN_FREE:-40}% of memory is free: not starting" >&2
   exit 3
 fi
 
 out="$ROOT/build/overlay-check"
-app="$out/AuralinkOverlayCheck.app"
+app="$out/VoxtNewOverlayCheck.app"
 shots="$out/shots"
 rm -rf "$out"
 mkdir -p "$app/Contents/MacOS" "$shots"
 
 echo "== build"
-nice -n 10 go build -o "$app/Contents/MacOS/AuralinkOverlayCheck" .
+nice -n 10 go build -o "$app/Contents/MacOS/VoxtNewOverlayCheck" .
 cat >"$app/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key><string>dev.hehehai.auralink.overlaycheck</string>
-  <key>CFBundleName</key><string>AuralinkOverlayCheck</string>
-  <key>CFBundleExecutable</key><string>AuralinkOverlayCheck</string>
+  <key>CFBundleIdentifier</key><string>dev.hehehai.voxtnew.overlaycheck</string>
+  <key>CFBundleName</key><string>VoxtNewOverlayCheck</string>
+  <key>CFBundleExecutable</key><string>VoxtNewOverlayCheck</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
@@ -66,7 +66,7 @@ n=0
 reniced=0
 deadline=$((SECONDS + 120))
 while [[ ! -f "$shots/finished" ]]; do
-  if ((reniced == 0)) && pid="$(pgrep -f "$app/Contents/MacOS/AuralinkOverlayCheck")"; then
+  if ((reniced == 0)) && pid="$(pgrep -f "$app/Contents/MacOS/VoxtNewOverlayCheck")"; then
     renice -n 10 -p $pid >/dev/null || true
     reniced=1
   fi
@@ -85,7 +85,7 @@ while [[ ! -f "$shots/finished" ]]; do
   if ((SECONDS > deadline)) || ! kill -0 "$opener" 2>/dev/null; then
     echo "the check did not finish" >&2
     tail -40 "$out/check.log" >&2 || true
-    pkill -f "$app/Contents/MacOS/AuralinkOverlayCheck" || true
+    pkill -f "$app/Contents/MacOS/VoxtNewOverlayCheck" || true
     exit 1
   fi
   sleep 0.05
@@ -97,7 +97,7 @@ rm -f "$shots"/*.ready "$shots"/*.done "$shots/finished"
 cat "$shots/frames.txt"
 echo "== in front before: $before, after: $after; $(ls "$shots"/*-screen.png | wc -l | tr -d ' ') states captured; $shots/sheet.png"
 status=0
-if pgrep -f "$app/Contents/MacOS/AuralinkOverlayCheck" >/dev/null; then
+if pgrep -f "$app/Contents/MacOS/VoxtNewOverlayCheck" >/dev/null; then
   echo "FAIL the check is still running" >&2
   status=1
 fi

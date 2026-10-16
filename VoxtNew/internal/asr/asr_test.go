@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 func TestCheckEndpoint(t *testing.T) {

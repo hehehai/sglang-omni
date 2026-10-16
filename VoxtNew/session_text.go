@@ -8,10 +8,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/llm"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // sessionProblemText says what went wrong in a session, its detail (the
@@ -22,7 +22,7 @@ func sessionProblemText(p *session.Problem) (text, more, action string) {
 	case session.ProblemNoASR:
 		return i18n.T("No speech service is set up."), "", actionProviders
 	case session.ProblemMicrophone:
-		return i18n.T("Auralink may not use the microphone."), errText(p.Err), actionPermissions
+		return i18n.T("VoxtNew may not use the microphone."), errText(p.Err), actionPermissions
 	case session.ProblemDevice:
 		return i18n.T("No microphone gave any sound."), errText(p.Err), actionNone
 	case session.ProblemHelper:

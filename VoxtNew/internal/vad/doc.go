@@ -1,4 +1,4 @@
-// Package vad is a small energy voice activity detector for Auralink's
+// Package vad is a small energy voice activity detector for VoxtNew's
 // recordings (PCM16 mono, little-endian, any rate; 16 kHz in practice).
 // It is pure DSP with no model, and it is deliberately conservative: when it
 // is unsure it keeps audio. Sending a second of silence costs a little time

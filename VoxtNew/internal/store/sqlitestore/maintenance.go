@@ -4,7 +4,7 @@ package sqlitestore
 // moving the data folder (done while the database is closed, at the
 // app's next start: the plugin refuses VACUUM INTO), the path rewrite of a
 // copied database and an integrity check. (From AudioSmith's
-// sqlitestore/maintenance.go; its usage statistics are not Auralink's.)
+// sqlitestore/maintenance.go; its usage statistics are not VoxtNew's.)
 
 import (
 	"context"

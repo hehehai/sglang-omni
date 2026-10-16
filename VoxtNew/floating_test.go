@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestFloatingWindowOptions: floating windows never activate Auralink
+// TestFloatingWindowOptions: floating windows never activate VoxtNew
 // (mygo patch 0003), and start hidden above other windows.
 func TestFloatingWindowOptions(t *testing.T) {
 	o := floatingWindowOptions("pill", 220, 48, nil)

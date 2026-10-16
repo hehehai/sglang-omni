@@ -9,7 +9,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // Icon is the fake's icon of an app: a rounded square of a colour of its

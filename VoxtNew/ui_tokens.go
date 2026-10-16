@@ -53,7 +53,7 @@ var (
 type accentSet struct{ light, dark string }
 
 // accents are the brand accent candidates; AudioSmith's design review
-// (2026-10-14) chose teal, and Auralink keeps it for now (plan D3).
+// (2026-10-14) chose teal, and VoxtNew keeps it for now (plan D3).
 // accentName is the one in use: changing it re-colours the app.
 var accents = map[string]accentSet{
 	"blue":   {"#2f6bf0", "#4f86f7"},

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// BytesPerSecond is the size of a second of Auralink's PCM.
+// BytesPerSecond is the size of a second of VoxtNew's PCM.
 const BytesPerSecond = SampleRate * 2
 
 // Duration is how long pcm (PCM16 mono at rate Hz; 0: SampleRate) plays.
@@ -49,7 +49,7 @@ func WAV(pcm []byte, rate int) []byte {
 }
 
 // ReadWAV returns the PCM of a 16-bit PCM WAV file and its rate and
-// channels. Callers that need Auralink's format check them (16 kHz mono).
+// channels. Callers that need VoxtNew's format check them (16 kHz mono).
 func ReadWAV(data []byte) (pcm []byte, rate, channels int, err error) {
 	if len(data) < 12 || string(data[:4]) != "RIFF" || string(data[8:12]) != "WAVE" {
 		return nil, 0, 0, errors.New("not a WAV file")

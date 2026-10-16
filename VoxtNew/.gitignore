@@ -7,7 +7,7 @@ mygo_windows_*.syso
 /helper/.build/
 /helper/.swiftpm/
 /resources/darwin-arm64/helper/
-/Auralink
+/VoxtNew
 
 # The repository's root .gitignore drops *.txt, *.wav and *.log for the
 # Python tree; here they are sources (templates, fixtures, allowlists).

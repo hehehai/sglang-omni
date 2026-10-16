@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // Rewrite's scenarios end to end, after Voxt's (10-15, docs/behavior.md

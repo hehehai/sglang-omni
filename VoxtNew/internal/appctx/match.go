@@ -3,8 +3,8 @@ package appctx
 import (
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // Source says how a group matched.
@@ -116,7 +116,7 @@ func Resolve(r Rules, ctx Context, feature string) Match {
 	return m
 }
 
-// Browser is a browser whose front tab Auralink reads.
+// Browser is a browser whose front tab VoxtNew reads.
 type Browser struct {
 	BundleID string
 	Name     string
@@ -132,7 +132,7 @@ const (
 	Gecko    = "gecko"
 )
 
-// Builtin are the browsers Auralink knows; the user adds others by bundle
+// Builtin are the browsers VoxtNew knows; the user adds others by bundle
 // id (settings.AppEnhancement.Browsers).
 var Builtin = []Browser{
 	{"com.apple.Safari", "Safari", WebKit},

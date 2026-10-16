@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // ---- hotkeys ----
@@ -18,7 +18,7 @@ func (f *fake) hotkeyStatus() proto.HotkeyStatus {
 	defer f.mu.Unlock()
 	st := proto.HotkeyStatus{Installed: f.installed, Accessibility: f.trusted, Bindings: f.bindings}
 	if f.bindings > 0 && !f.trusted {
-		st.Error = "CGEvent.tapCreate failed: Auralink may not use Accessibility; retrying every 2 s"
+		st.Error = "CGEvent.tapCreate failed: VoxtNew may not use Accessibility; retrying every 2 s"
 	}
 	return st
 }
@@ -98,7 +98,7 @@ func (f *fake) playScript(bindings []proto.HotkeyBinding) {
 
 func (f *fake) textio(m proto.Message) {
 	if !f.isTrusted() {
-		f.failData(m.ID, proto.CodePermissionDenied, map[string]string{"permission": proto.PermissionAccessibility}, "Auralink may not use Accessibility")
+		f.failData(m.ID, proto.CodePermissionDenied, map[string]string{"permission": proto.PermissionAccessibility}, "VoxtNew may not use Accessibility")
 		return
 	}
 	front := f.front()

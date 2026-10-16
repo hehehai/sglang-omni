@@ -16,5 +16,5 @@ recognised texts are made up.
 
 The `.golden` files are what the client sent (JSON with sorted keys, ids
 as `<task-id>` / `<event-id>`, audio as its size, repeated lines as `×n`)
-and the events it delivered. `AURALINK_UPDATE_GOLDEN=1 go test .` rewrites
+and the events it delivered. `VOXTNEW_UPDATE_GOLDEN=1 go test .` rewrites
 them; review the diff.

@@ -3,7 +3,7 @@ package proto
 // ---- permissions.* ----
 
 // PermissionsResult answers permissions.status and permissions.request.
-// macOS checks the helper's permissions against Auralink.app, its
+// macOS checks the helper's permissions against VoxtNew.app, its
 // responsible process: they are the app's.
 type PermissionsResult struct {
 	Microphone    string `json:"microphone"`    // a Perm* state
@@ -20,7 +20,7 @@ const (
 
 // PermissionsRequestParams asks for one permission: the microphone shows
 // macOS's prompt once (answered when the user chose); accessibility shows
-// the prompt that adds Auralink to the list in System Settings (answered
+// the prompt that adds VoxtNew to the list in System Settings (answered
 // at once: the user grants it there).
 type PermissionsRequestParams struct {
 	Permission string `json:"permission"` // PermissionMicrophone | PermissionAccessibility

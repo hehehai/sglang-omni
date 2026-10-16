@@ -12,7 +12,7 @@ package main
 //
 // The tries are real sessions (the microphone, the speech service, the
 // language model; nothing is inserted or kept: session.StartRequest.Try),
-// started with Start or the feature's own shortcut while Auralink is in
+// started with Start or the feature's own shortcut while VoxtNew is in
 // front. A step passes only when the session it started (by id) ends
 // done with a result: a key press, a selection or an older session's late
 // snapshot never does. While its try runs the guide cannot move on, and
@@ -23,11 +23,11 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // The guide's steps.

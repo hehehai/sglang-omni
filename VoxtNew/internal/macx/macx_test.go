@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// TestActivate: off macOS nothing happens; on a Mac (AURALINK_MAC=1) the
+// TestActivate: off macOS nothing happens; on a Mac (VOXTNEW_MAC=1) the
 // app in front is reactivated at once.
 func TestActivate(t *testing.T) {
 	run := func(fn func()) { fn() }
@@ -17,8 +17,8 @@ func TestActivate(t *testing.T) {
 		}
 		return
 	}
-	if os.Getenv("AURALINK_MAC") == "" {
-		t.Skip("set AURALINK_MAC=1 on a Mac")
+	if os.Getenv("VOXTNEW_MAC") == "" {
+		t.Skip("set VOXTNEW_MAC=1 on a Mac")
 	}
 	front := Frontmost()
 	t.Logf("front: %+v", front)
@@ -33,7 +33,7 @@ func TestActivate(t *testing.T) {
 	}
 }
 
-// TestPlay: off macOS a no-op; on a Mac (AURALINK_MAC=1) both cues start.
+// TestPlay: off macOS a no-op; on a Mac (VOXTNEW_MAC=1) both cues start.
 func TestPlay(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		if err := Play(SoundStart); err != nil {
@@ -41,8 +41,8 @@ func TestPlay(t *testing.T) {
 		}
 		return
 	}
-	if os.Getenv("AURALINK_MAC") == "" {
-		t.Skip("set AURALINK_MAC=1 on a Mac")
+	if os.Getenv("VOXTNEW_MAC") == "" {
+		t.Skip("set VOXTNEW_MAC=1 on a Mac")
 	}
 	for _, s := range []Sound{SoundStart, SoundStop} {
 		if _, err := os.Stat("/System/Library/Sounds/" + string(s) + ".aiff"); err != nil {

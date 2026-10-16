@@ -1,4 +1,4 @@
-// Package store is Auralink's persistence contract: a repository for each
+// Package store is VoxtNew's persistence contract: a repository for each
 // kind of record. The app uses internal/store/sqlitestore (SQLite through
 // the MyGo plugin github.com/egoist/mygo/plugins/sqlite; schema in its
 // migrations/*.sql).
@@ -147,7 +147,7 @@ type History interface {
 // written.
 type Term struct {
 	ID   string
-	Term string // as it must be written: "Auralink", "Kubernetes"
+	Term string // as it must be written: "VoxtNew", "Kubernetes"
 	// Aliases are what speech recognition tends to make of it ("aura
 	// link"), for the glossary's "write X for Y".
 	Aliases   []string

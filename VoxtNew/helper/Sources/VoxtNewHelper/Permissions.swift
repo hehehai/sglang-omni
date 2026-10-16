@@ -1,11 +1,11 @@
 import ApplicationServices
-import AuralinkHelperKit
+import VoxtNewHelperKit
 @preconcurrency import AVFoundation
 import Foundation
 
 /// The permissions the helper's work needs, as the helper sees them. Inside
-/// Auralink.app macOS checks them against the app (the responsible
-/// process): the prompts and the lists in System Settings name Auralink.
+/// VoxtNew.app macOS checks them against the app (the responsible
+/// process): the prompts and the lists in System Settings name VoxtNew.
 enum Permissions {
     static func microphone() -> String {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
@@ -25,7 +25,7 @@ enum Permissions {
     }
 
     /// Shows macOS's prompt, then reports: the microphone's waits for the
-    /// user's answer; Accessibility's adds Auralink to the list in System
+    /// user's answer; Accessibility's adds VoxtNew to the list in System
     /// Settings and answers at once (the user grants it there).
     static func request(_ permission: String) async throws -> PermissionsResult {
         switch permission {

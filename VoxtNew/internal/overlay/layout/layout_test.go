@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // TestWaveBars: the bars follow a word up quickly and down slowly, and

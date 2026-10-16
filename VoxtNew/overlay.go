@@ -1,6 +1,6 @@
 package main
 
-// The recording overlay (plan §3.2): Auralink's one floating window,
+// The recording overlay (plan §3.2): VoxtNew's one floating window,
 // redone after Voxt's (10-15): a small pill with no buttons. It is
 // non-activating (floating.go, mygo patch 0003): clicking it leaves the
 // app the user dictates into in front, with its caret. It always uses the
@@ -39,8 +39,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 )
 
 // overlayMode is what the overlay shows.
@@ -218,7 +218,7 @@ func (a *app) overlaySync() {
 		return // tests: the state is enough
 	}
 	if a.ov.win == nil {
-		opts := floatingWindowOptions("Auralink", frame.Width, frame.Height, hudContent(a.overlayView))
+		opts := floatingWindowOptions("VoxtNew", frame.Width, frame.Height, hudContent(a.overlayView))
 		opts.Vibrancy = mygo.VibrancyHUD
 		a.ov.win = mygo.NewWindow(opts)
 		a.ov.passThrough = false

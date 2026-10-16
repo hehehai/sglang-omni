@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 // protocol is one of the two wire protocols: it builds the client's

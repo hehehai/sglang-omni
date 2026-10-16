@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The beta channel's test (docs/release.md §6): five versions of Auralink,
+# The beta channel's test (docs/release.md §6): five versions of VoxtNew,
 # signed ad hoc with a test key, published one after another as GitHub
 # would hold them, betas as prereleases, on a fake GitHub
 # (scripts/update-server -github: an HTTPS proxy that answers for
@@ -21,31 +21,31 @@
 # delta when there is one and the archive when it fails, and with the
 # GitHub API refused (its limit) betas fall back to the latest release.
 #
-# Its own bundle ID (dev.hehehai.auralink.betatest), repository name
-# (auralink-test/Auralink) and directory, on a Mac that may be busy with
+# Its own bundle ID (dev.hehehai.voxtnew.betatest), repository name
+# (voxtnew-test/VoxtNew) and directory, on a Mac that may be busy with
 # other work: no window, no app activated, no key, no clipboard, no helper
 # started, no keychain; niced, two jobs, and it stops when less than
-# AURALINK_MIN_FREE percent of memory (40) is free. The test key, the
+# VOXTNEW_MIN_FREE percent of memory (40) is free. The test key, the
 # builds and the fake GitHub are removed at the end (KEEP=1 keeps them in
 # build/beta-e2e).
 #
-#   MAC_DIR=code/Auralink-upd scripts/mac.sh scripts/mac-beta-e2e.sh
+#   MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-beta-e2e.sh
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "run it on a Mac: MAC_DIR=code/Auralink-upd scripts/mac.sh scripts/mac-beta-e2e.sh" >&2
+  echo "run it on a Mac: MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-beta-e2e.sh" >&2
   exit 1
 fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-if [[ "$ROOT" == "$HOME/code/Auralink" ]]; then
-  echo "not in the app's own checkout: use MAC_DIR=code/Auralink-upd" >&2
+if [[ "$ROOT" == "$HOME/code/VoxtNew" ]]; then
+  echo "not in the app's own checkout: use MAC_DIR=code/VoxtNew-upd" >&2
   exit 1
 fi
 export GOMAXPROCS=2 GOFLAGS=-p=2 SWIFT_BUILD_JOBS=2
-unset AURALINK_HELPER GH_TOKEN GITHUB_TOKEN
-ID=dev.hehehai.auralink.betatest
-REPO=auralink-test/Auralink
+unset VOXTNEW_HELPER GH_TOKEN GITHUB_TOKEN
+ID=dev.hehehai.voxtnew.betatest
+REPO=voxtnew-test/VoxtNew
 B1=0.1.0-beta.1 B2=0.1.0-beta.2 R1=0.1.0 B3=0.2.0-beta.1 R2=0.1.1
 WORK="$ROOT/build/beta-e2e"
 GH="$WORK/github"
@@ -55,8 +55,8 @@ step() {
   local free
   free="$(memory_pressure -Q | sed -n 's/.*percentage: \([0-9]*\)%.*/\1/p')"
   echo "== $1 (free memory ${free}%)"
-  if ((${free:-0} < ${AURALINK_MIN_FREE:-40})); then
-    echo "less than ${AURALINK_MIN_FREE:-40}% of memory is free: stopping" >&2
+  if ((${free:-0} < ${VOXTNEW_MIN_FREE:-40})); then
+    echo "less than ${VOXTNEW_MIN_FREE:-40}% of memory is free: stopping" >&2
     exit 3
   fi
 }
@@ -164,7 +164,7 @@ publish() {
 # (notPublished, an error's words, or "" for nothing).
 expect() {
   local name="$1" from="$2" beta="$3" want="$4" how="${5:-}" note="${6:-}"
-  local r="$WORK/report-$name.json" app="$WORK/inst/Auralink.app" args=()
+  local r="$WORK/report-$name.json" app="$WORK/inst/VoxtNew.app" args=()
   RUNS=$((RUNS + 1))
   echo "-- $name: $from, beta $beta → ${want:-nothing}${how:+ ($how)}"
   rm -rf "$WORK/inst" && mkdir -p "$WORK/inst"
@@ -173,7 +173,7 @@ expect() {
   [[ "$beta" != default ]] && args=(--update-beta "$beta")
   local before
   before="$(wc -l <"$WORK/server.log")"
-  github nice -n 10 "$app/Contents/MacOS/Auralink" --update-check "$r" ${args[@]+"${args[@]}"}
+  github nice -n 10 "$app/Contents/MacOS/VoxtNew" --update-check "$r" ${args[@]+"${args[@]}"}
   local served
   served="$(tail -n +"$((before + 1))" "$WORK/server.log")"
   local on=false
@@ -201,14 +201,14 @@ expect() {
   check "installed without an error" test -z "$(jq -r '.checkErr + .installErr' "$r")"
   check "downloaded $how $totals" test "$(jq -c .totals "$r")" = "$totals"
   check "the notes are $want's, English and Chinese" bash -c "jq -r .notes '$r' | grep -qF 'Test version $want.' && jq -r .notes '$r' | grep -qF '测试版本 ${want}。'"
-  check "the bundle is $want's, file for file" diff -r "$app" "$WORK/out-$want/darwin-arm64/Auralink.app"
+  check "the bundle is $want's, file for file" diff -r "$app" "$WORK/out-$want/darwin-arm64/VoxtNew.app"
   check "its signature verifies (deep, strict)" codesign --verify --deep --strict "$app"
   check "CFBundleVersion is $want's numbers" test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" = "${want%%-*}"
   check "the old app starts no helper (updated)" test "$(jq -r '"\(.diskVersion) \(.helperState) \(.helperReason) \(.helperPID)"' "$r")" = "$want failed updated 0"
   if [[ "$how" == delta ]]; then
     check "GitHub served the delta, not the archive" bash -c "grep -q '\.delta' <<<\"\$1\" && ! grep -q '\.tar\.gz' <<<\"\$1\"" _ "$served"
   fi
-  check "nothing left next to the app" test -z "$(find "$WORK/inst" -maxdepth 1 -name '.Auralink.app.*' -print)"
+  check "nothing left next to the app" test -z "$(find "$WORK/inst" -maxdepth 1 -name '.VoxtNew.app.*' -print)"
 }
 
 step "build $B1, the first beta: nothing published yet"
@@ -264,7 +264,7 @@ files="$(grep -c ' github.com/' "$WORK/server.log" || true)"
 echo "  $api API requests, $files file requests, $RUNS update checks"
 check "no other host was asked" test "$(grep -c REFUSED "$WORK/server.log" || true)" = 0
 check "no draft was taken" bash -c "! grep -q 'v0.3.0-beta.1/' '$WORK/server.log'"
-if pgrep -f "$WORK/inst/Auralink.app/Contents/Resources/helper/auralink-helper" >/dev/null; then
+if pgrep -f "$WORK/inst/VoxtNew.app/Contents/Resources/helper/voxtnew-helper" >/dev/null; then
   echo "  FAIL a helper is running" && FAILS=$((FAILS + 1))
 fi
 if ((FAILS > 0)); then

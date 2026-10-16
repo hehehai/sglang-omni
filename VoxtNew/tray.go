@@ -1,8 +1,8 @@
 package main
 
 // The menu bar icon (plan §2.3; AudioSmith's dictation tray, for
-// Auralink): Start transcribing, Paste the last result, the last three
-// results (a click copies one), Open Auralink, Settings, Quit. With
+// VoxtNew): Start transcribing, Paste the last result, the last three
+// results (a click copies one), Open VoxtNew, Settings, Quit. With
 // Settings → General → "Keep running when the window closes", closing
 // the window hides it, so the shortcuts keep working; the Dock icon or
 // the menu brings it back. Start transcribing records for the app in
@@ -16,10 +16,10 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/transfer"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/trayicon"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/trayicon"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // trayState is the menu bar icon.
@@ -58,7 +58,7 @@ func (a *app) applyTray() {
 	live := a.sess.State.Live()
 	// Voxt's microphone, a 36 px template image MyGo shows 18 pt tall
 	// (Voxt: 18×18 pt, template); while recording it has a dot.
-	t, err := mygo.NewTray(mygo.TrayOptions{Icon: trayicon.Icon(live), IconIsTemplate: true, ToolTip: "Auralink"})
+	t, err := mygo.NewTray(mygo.TrayOptions{Icon: trayicon.Icon(live), IconIsTemplate: true, ToolTip: "VoxtNew"})
 	if err != nil {
 		a.toast(i18n.T("The menu bar icon could not be made: %v", err))
 		return
@@ -145,13 +145,13 @@ func (a *app) trayItems() []*mygo.MenuItem {
 	}
 	items = append(items,
 		mygo.Separator(),
-		&mygo.MenuItem{Label: i18n.T("Open Auralink"), Click: act(a.showMainWindow)},
+		&mygo.MenuItem{Label: i18n.T("Open VoxtNew"), Click: act(a.showMainWindow)},
 		&mygo.MenuItem{Label: i18n.T("Settings…"), Click: act(func() { a.showMainWindow(); a.navigate("/settings") })},
 	)
 	items = append(items, a.updateMenuItems(act)...) // updates.go
 	return append(items,
 		mygo.Separator(),
-		&mygo.MenuItem{Label: i18n.T("Quit Auralink"), Click: act(func() { a.quitting = true; mygo.App.Quit() })},
+		&mygo.MenuItem{Label: i18n.T("Quit VoxtNew"), Click: act(func() { a.quitting = true; mygo.App.Quit() })},
 	)
 }
 
@@ -174,9 +174,9 @@ func (a *app) showMainWindow() {
 	}
 }
 
-// connectWindowLife keeps Auralink in the menu bar when its window closes
+// connectWindowLife keeps VoxtNew in the menu bar when its window closes
 // (the setting, while the menu bar icon shows), and quits otherwise; it
-// reads the permissions again whenever Auralink comes to the front
+// reads the permissions again whenever VoxtNew comes to the front
 // (System Settings may have changed them).
 func (a *app) connectWindowLife() {
 	if a.win == nil {

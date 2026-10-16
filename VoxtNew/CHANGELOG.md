@@ -1,16 +1,16 @@
 # Changelog
 
-All notable changes to Auralink. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). Each version's section is what the update window shows: English first, then the same in Chinese under matching headings (docs/release.md).
+All notable changes to VoxtNew. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). Each version's section is what the update window shows: English first, then the same in Chinese under matching headings (docs/release.md).
 
 ## [Unreleased]
 
 ### Changed
 
-- Auralink's licence is now the GNU Affero General Public License, version 3 or later (AGPL-3.0-or-later; it was the Apache License 2.0 up to 0.1.0-beta.1). Contributions come in under a Contributor License Agreement (CLA.md). Settings → About shows the copyright and the licence, with links to the licence, the source code and the third-party notices.
+- VoxtNew's licence is now the GNU Affero General Public License, version 3 or later (AGPL-3.0-or-later; it was the Apache License 2.0 up to 0.1.0-beta.1). Contributions come in under a Contributor License Agreement (CLA.md). Settings → About shows the copyright and the licence, with links to the licence, the source code and the third-party notices.
 
 ### 变更
 
-- Auralink 的许可改为 GNU Affero 通用公共许可证第 3 版或更高版本（AGPL-3.0-or-later；0.1.0-beta.1 及以前是 Apache License 2.0），新增贡献者许可协议（CLA.md）。设置 → 诊断与关于显示版权和许可，并链接到许可全文、源代码和第三方声明。
+- VoxtNew 的许可改为 GNU Affero 通用公共许可证第 3 版或更高版本（AGPL-3.0-or-later；0.1.0-beta.1 及以前是 Apache License 2.0），新增贡献者许可协议（CLA.md）。设置 → 诊断与关于显示版权和许可，并链接到许可全文、源代码和第三方声明。
 
 ## [0.1.0-beta.1] - 2026-10-16
 
@@ -32,9 +32,9 @@ The first version, a beta: voice input for macOS on remote models. It updates to
 - Silence left out before recognition (a light energy detector, no model): a file service gets the recording without the silence around the speech and with long pauses shortened, a streaming service nothing before the speech starts, and a recording without speech is not sent at all (Settings → Audio → Skip silence).
 - Sound optimization before recognition (pure DSP, no model): a high-pass filter at 80 Hz takes out hum and rumble, and one gain measured on the speech alone raises a quiet voice (up to +12 dB, never lifting the room's noise over -50 dBFS) or lowers a very loud one a little, with a limiter at -1 dBFS; a stream's gain follows slowly and holds through pauses. The recording kept in the history is the original; the history says what was done and the gain (Settings → Audio → Optimize sound, on by default).
 - A small window (800×520 by default, 680×440 at the least) with no status bar: notifications stack as cards at the foot of the sidebar (a dot on Settings when it shows only icons), and a missing service or a stopped helper becomes a card with the action that fixes it.
-- The menu bar icon: start or stop transcribing, paste the last result, the last three results to copy (one short line each, the whole in the tooltip); it changes while recording. Closing the window keeps Auralink there, and it can open at login.
+- The menu bar icon: start or stop transcribing, paste the last result, the last three results to copy (one short line each, the whole in the tooltip); it changes while recording. Closing the window keeps VoxtNew there, and it can open at login.
 - Settings: General (languages, the menu bar, login, the setup guide), Permissions, Audio (the microphones in your order of preference, skipping silence, optimizing the sound, sounds), Overlay style (place, opacity, corners, the recording time, with a live preview over a desktop picture), Shortcuts (every feature's keys and their conflicts), Appearance (the sidebar shrinks to icons in a narrow window), Network (proxy), Privacy, Storage, About (versions, updates, the self-check, reporting a problem); English and Simplified Chinese.
-- Signed with a Developer ID and notarised. Updates from GitHub Releases: a daily check, the new version's notes in a window of its own, a download of only what changed, installed when you say so; Check for Updates… in the app menu, the menu bar icon's menu and Settings → About. An update installed while Auralink runs asks for a restart instead of starting the new helper.
+- Signed with a Developer ID and notarised. Updates from GitHub Releases: a daily check, the new version's notes in a window of its own, a download of only what changed, installed when you say so; Check for Updates… in the app menu, the menu bar icon's menu and Settings → About. An update installed while VoxtNew runs asks for a restart instead of starting the new helper.
 - Beta updates (Settings → About): betas too, or releases only; on by default in a beta. Turning it off never goes back to an older version: a beta stays until a release newer than it.
 
 ### Known limitations

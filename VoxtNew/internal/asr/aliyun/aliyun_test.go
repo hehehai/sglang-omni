@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 func TestProtocolFor(t *testing.T) {

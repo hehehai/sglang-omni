@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // memKeyring is a keyring in memory: the view tests never reach the
@@ -192,8 +192,8 @@ func TestProvidersKeychainFailure(t *testing.T) {
 }
 
 // TestSnapshotsProviders renders the Model services page in its states
-// (AURALINK_SNAPSHOTS, as TestSnapshots).
-func TestSnapshotsProviders(t *testing.T) { runSnapshots(t, "AURALINK_SNAPSHOTS", snapshotsProviders) }
+// (VOXTNEW_SNAPSHOTS, as TestSnapshots).
+func TestSnapshotsProviders(t *testing.T) { runSnapshots(t, "VOXTNEW_SNAPSHOTS", snapshotsProviders) }
 
 func snapshotsProviders(t *testing.T, out string) {
 	w, h := snapshotSize()
@@ -251,7 +251,7 @@ func snapshotsProviders(t *testing.T, out string) {
 		save("providers-dialog-doubao")
 		a.provDlg = providerDialog{}
 		a.openProviderDialog(providers.ASR, "openai")
-		a.provDlg.prompt = "Auralink, DeepSeek, MyGo"
+		a.provDlg.prompt = "VoxtNew, DeepSeek, MyGo"
 		a.provDlg.test = providerTest{res: providers.TestResult{Err: &asr.Error{Kind: asr.KindAuth, Provider: "openai", Status: 401, Detail: "Incorrect API key provided"}, At: time.Now()}}
 		save("providers-dialog-openai")
 		a.provDlg = providerDialog{}

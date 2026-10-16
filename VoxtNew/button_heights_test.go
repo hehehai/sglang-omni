@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
 )
 
 // TestButtonHeights: the kit's text buttons — ink, secondary, ghost, with

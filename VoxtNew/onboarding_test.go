@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // obTester is the test app with the setup guide open.
@@ -33,7 +33,7 @@ func obSnap(a *app, id string, kind store.Kind, st session.State) session.Snapsh
 
 func TestOnboardingSteps(t *testing.T) {
 	a, tt := obTester(t)
-	for _, s := range []string{"Welcome to Auralink", "Your audio and text go only to the services you set up", "Keys stay in this Mac's Keychain", "Get started"} {
+	for _, s := range []string{"Welcome to VoxtNew", "Your audio and text go only to the services you set up", "Keys stay in this Mac's Keychain", "Get started"} {
 		if !has(tt, s) {
 			t.Errorf("welcome: no %q in %q", s, tt.Texts())
 		}
@@ -76,7 +76,7 @@ func TestOnboardingSteps(t *testing.T) {
 	}
 	a.obGo(obMore)
 	frames(tt)
-	for _, s := range []string{"More to explore", "App enhancement", "Dictionary", "Your shortcuts", "fn ⇧", "⌃⌘V", "Start using Auralink"} {
+	for _, s := range []string{"More to explore", "App enhancement", "Dictionary", "Your shortcuts", "fn ⇧", "⌃⌘V", "Start using VoxtNew"} {
 		if !has(tt, s) {
 			t.Errorf("more: no %q in %q", s, tt.Texts())
 		}
@@ -117,7 +117,7 @@ func TestOnboardingTryPasses(t *testing.T) {
 	drain()
 	a.obGo(obTranscribe)
 	frames(tt)
-	// The shortcut, Auralink in front: a try of this step.
+	// The shortcut, VoxtNew in front: a try of this step.
 	a.hotkeyFired(proto.HotkeyEventParams{Binding: "transcribe/0", Phase: proto.PhaseTrigger, Behavior: proto.BehaviorTap, Front: selfFront()})
 	drain()
 	frames(tt)

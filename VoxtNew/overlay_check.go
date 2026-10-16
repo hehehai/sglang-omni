@@ -37,17 +37,17 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/deliver"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/macx"
-	"github.com/hehehai/Auralink/internal/overlay/ink"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/ink"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // overlayCheckDir is the directory --overlay-check names ("": not the
@@ -77,7 +77,7 @@ func ovCheckSteps(lang string) []ovCheckStep {
 	levels := previewSession().Levels
 	short, long := "Meet at three tomorrow", "So the plan for the release is to finish the onboarding first, then the history page, and after that the translation card"
 	if lang != "en" {
-		short, long = "明天三点开会", "那个我们明天，不对，后天下午三点开会，讨论一下 Auralink 的发布计划，然后把引导页和历史页先做完"
+		short, long = "明天三点开会", "那个我们明天，不对，后天下午三点开会，讨论一下 VoxtNew 的发布计划，然后把引导页和历史页先做完"
 	}
 	rec := func(id, partial string) func(*app) {
 		return func(a *app) {
@@ -220,7 +220,7 @@ func (a *app) overlayCheck(dir string) {
 			wide := layout.Frame(area, a.prefs.Overlay, max(layout.NoticeW2, layout.AnswerW), layout.CardMaxH+langMenuHeight()+ovLangGap)
 			bw, bh := wide.Width+60, wide.Height+40
 			region = mygo.Rectangle{X: wide.X - 30, Y: wide.Y + wide.Height - layout.Pad + 20 - bh, Width: bw, Height: bh}
-			opts := floatingWindowOptions("Auralink overlay check", bw, bh, ui.View(func(c *ui.Context) { ovCheckBackdrop(c, bd.dark) }))
+			opts := floatingWindowOptions("VoxtNew overlay check", bw, bh, ui.View(func(c *ui.Context) { ovCheckBackdrop(c, bd.dark) }))
 			opts.Transparent = false
 			back = mygo.NewWindow(opts)
 			showFloating(back, region.X, region.Y)

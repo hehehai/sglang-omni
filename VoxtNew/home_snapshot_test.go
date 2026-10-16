@@ -7,18 +7,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/permission"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // TestHomeSnapshots renders Home in its three states (first use and not
 // ready, first use and ready, a returning user), at the window's default
 // and smallest sizes, Chinese dark and English light:
 //
-//	AURALINK_HOME_SHOTS=/tmp/home go test -run TestHomeSnapshots .
+//	VOXTNEW_HOME_SHOTS=/tmp/home go test -run TestHomeSnapshots .
 //
 // Files: home-<state>-<w>x<h>-<lang>-<theme>.png.
-func TestHomeSnapshots(t *testing.T) { runSnapshots(t, "AURALINK_HOME_SHOTS", snapshotsHome) }
+func TestHomeSnapshots(t *testing.T) { runSnapshots(t, "VOXTNEW_HOME_SHOTS", snapshotsHome) }
 
 func snapshotsHome(t *testing.T, out string) {
 	for _, size := range [][2]int{{windowWidth, windowHeight}, {windowMinWidth, windowMinHeight}} {

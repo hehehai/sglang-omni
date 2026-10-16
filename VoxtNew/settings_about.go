@@ -1,6 +1,6 @@
 package main
 
-// Settings → About (诊断与关于; AudioSmith's, for Auralink): versions
+// Settings → About (诊断与关于; AudioSmith's, for VoxtNew): versions
 // and the machine, a self-check (library, helper, data folder, network,
 // Keychain, permissions), "Copy diagnostics", a diagnostic bundle (a ZIP
 // of the logs, the settings and the diagnostics) and Report a bug, which
@@ -22,27 +22,28 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/netx"
-	"github.com/hehehai/Auralink/internal/secrets"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/netx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/secrets"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // The project's addresses: issuesURL is where bugs are reported; the
 // licence, the source and the third-party notices are linked from
 // Settings → About.
 const (
-	repoURL    = "https://github.com/hehehai/Auralink"
+	repoURL    = "https://github.com/sgl-project/sglang-omni"
+	sourceURL  = repoURL + "/tree/main/VoxtNew"
 	issuesURL  = repoURL + "/issues/new"
-	licenceURL = repoURL + "/blob/main/LICENSE"
-	noticeURL  = repoURL + "/blob/main/NOTICE"
+	licenceURL = repoURL + "/blob/main/VoxtNew/LICENSE"
+	noticeURL  = repoURL + "/blob/main/VoxtNew/NOTICE"
 )
 
-// copyrightHolder is who holds Auralink's copyright (NOTICE, README,
+// copyrightHolder is who holds VoxtNew's copyright (NOTICE, README,
 // mygo.json's copyright and the CLA name it too; the CLA's §1 is where its
 // legal name goes).
 const copyrightHolder = "actnow"
@@ -74,7 +75,7 @@ func (a *app) diagnosticsText() string {
 		ver = "dev"
 	}
 	st := a.helperStatus()
-	line("Auralink", ver)
+	line("VoxtNew", ver)
 	hv := string(st.State)
 	if st.Hello != nil {
 		hv = st.Hello.Version + " (" + hv + ")"
@@ -111,7 +112,7 @@ func moduleVersion(path string) string {
 	return ""
 }
 
-// runSelfCheck checks what Auralink needs, in the background.
+// runSelfCheck checks what VoxtNew needs, in the background.
 func (a *app) runSelfCheck() {
 	if a.selfChecking {
 		return
@@ -143,7 +144,7 @@ func (a *app) runSelfCheck() {
 		}
 		// The data folder.
 		os.MkdirAll(data, 0o755)
-		if tmp, err := os.CreateTemp(data, ".auralink-check-*"); err != nil {
+		if tmp, err := os.CreateTemp(data, ".voxtnew-check-*"); err != nil {
 			add("data", i18n.T("Data folder"), "fail", i18n.T("Cannot write in %s: %v", data, err))
 		} else {
 			tmp.Close()
@@ -246,7 +247,7 @@ var bundleDir string
 // saveBundle asks where, then writes the diagnostic bundle.
 func (a *app) saveBundle() {
 	diag, prefs, logs := a.diagnosticsText(), a.prefs, a.logDir
-	name := "Auralink diagnostics " + time.Now().Format("2006-01-02 1504") + ".zip"
+	name := "VoxtNew diagnostics " + time.Now().Format("2006-01-02 1504") + ".zip"
 	write := func(dst string) {
 		a.async(func() {
 			err := writeBundle(dst, diag, prefs, logs)
@@ -300,7 +301,7 @@ func (a *app) aboutSettings(c *ui.Context) {
 		hv = st.Hello.Version
 	}
 	rows := [][2]string{
-		{"Auralink", ver},
+		{"VoxtNew", ver},
 		{i18n.T("Helper"), hv},
 		{i18n.T("Helper protocol"), fmt.Sprint(proto.Version)},
 	}
@@ -319,11 +320,11 @@ func (a *app) aboutSettings(c *ui.Context) {
 	})
 	// The "appropriate legal notices" an interactive program shows under the
 	// GNU AGPL (§0, §5 d): the copyright, no warranty, the licence.
-	caption(c, i18n.T("Copyright © 2026 %s and the Auralink contributors.", copyrightHolder))
-	caption(c, i18n.T("Auralink is free software under the GNU Affero General Public License, version 3 or later, and comes with no warranty. Parts of it come from AudioSmith."))
+	caption(c, i18n.T("Copyright © 2026 %s and the VoxtNew contributors.", copyrightHolder))
+	caption(c, i18n.T("VoxtNew is free software under the GNU Affero General Public License, version 3 or later, and comes with no warranty. Parts of it come from AudioSmith."))
 	ui.Row(c.Key("about-licence")).Gap(px(t, sp3)).AlignItems(ui.Center).Wrap().Children(func() {
 		ui.Link(c.Key("about-licence-agpl"), i18n.T("Licence"), licenceURL).FontSize(px(t, fsCaption))
-		ui.Link(c.Key("about-licence-source"), i18n.T("Source code"), repoURL).FontSize(px(t, fsCaption))
+		ui.Link(c.Key("about-licence-source"), i18n.T("Source code"), sourceURL).FontSize(px(t, fsCaption))
 		ui.Link(c.Key("about-licence-notices"), i18n.T("Third-party notices"), noticeURL).FontSize(px(t, fsCaption))
 	})
 	ui.Row(c.Key("about-icons")).Gap(px(t, 6)).AlignItems(ui.Center).Wrap().Children(func() {
@@ -334,7 +335,7 @@ func (a *app) aboutSettings(c *ui.Context) {
 	a.updateSettingsSection(c) // updates.go
 
 	sectionTitle(c, i18n.T("Self-check"))
-	settingRow(c, "about-check", i18n.T("Check Auralink"), i18n.T("The library, the helper, the data folder, the network, the Keychain and the permissions."), func() {
+	settingRow(c, "about-check", i18n.T("Check VoxtNew"), i18n.T("The library, the helper, the data folder, the network, the Keychain and the permissions."), func() {
 		if a.selfChecking {
 			ui.Spinner(c)
 		}

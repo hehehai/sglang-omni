@@ -15,7 +15,7 @@ X-Api-Resource-Id: volc.seedasr.sauc.duration
   },
   "request": {
     "corpus": {
-      "context": "{\"hotwords\":[{\"word\":\"Auralink\"},{\"word\":\"豆包\"},{\"word\":\"Kubernetes\"}],\"context_type\":\"dialog_ctx\",\"context_data\":[{\"text\":\"Dictation in Chinese and English.\"}]}"
+      "context": "{\"hotwords\":[{\"word\":\"VoxtNew\"},{\"word\":\"豆包\"},{\"word\":\"Kubernetes\"}],\"context_type\":\"dialog_ctx\",\"context_data\":[{\"text\":\"Dictation in Chinese and English.\"}]}"
     },
     "enable_ddc": true,
     "enable_itn": true,
@@ -25,11 +25,11 @@ X-Api-Resource-Id: volc.seedasr.sauc.duration
     "show_utterances": true
   },
   "user": {
-    "uid": "auralink"
+    "uid": "voxtnew"
   }
 }
 > audio-only-request flags=seq ser=none comp=gzip seq=2 bytes=6400
 > audio-only-request flags=seq ser=none comp=gzip seq=3 bytes=6400
 > audio-only-request flags=seq|last ser=none comp=none seq=-4 bytes=0
 --- events
-< final: 你好，Auralink。 (model volc.seedasr.sauc.duration, duration 400ms)
+< final: 你好，VoxtNew。 (model volc.seedasr.sauc.duration, duration 400ms)

@@ -5,8 +5,8 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // sidebarRow chooses the sidebar's layout: automatic, names and icons,

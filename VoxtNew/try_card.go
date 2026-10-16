@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // ---- Try it ----
@@ -26,7 +26,7 @@ func (a *app) trySessionOf(feature string) bool {
 }
 
 // tryIntro is what a feature's Try area says before a try: its shortcut
-// (pressed while Auralink is in front, it starts a try here) or Start.
+// (pressed while VoxtNew is in front, it starts a try here) or Start.
 func (a *app) tryIntro(feature string) string {
 	keys := a.featureKeys(feature)
 	switch feature {

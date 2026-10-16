@@ -5,8 +5,8 @@
 // Layout of a store directory (the app's mygo.PathUserData, unless the
 // user moved it):
 //
-//	auralink.db             the database (WAL journal)
-//	auralink.db.bak-<v>     copy taken before migrating from version v
+//	voxtnew.db             the database (WAL journal)
+//	voxtnew.db.bak-<v>     copy taken before migrating from version v
 //	audio/                  recordings kept with history entries (store.History.AudioDir)
 //
 // The schema lives in migrations/NNN_*.sql; PRAGMA user_version records
@@ -35,15 +35,15 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/plugins/sqlite"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // audioDir holds the recordings kept with history entries.
 const audioDir = "audio"
 
 // FileName is the database's name in the store directory.
-const FileName = "auralink.db"
+const FileName = "voxtnew.db"
 
 //go:embed migrations/*.sql
 var migrationFiles embed.FS

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 func TestCenter(t *testing.T) {

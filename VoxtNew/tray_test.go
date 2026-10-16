@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/trayicon"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/trayicon"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 func TestTrayIcons(t *testing.T) {
@@ -55,7 +55,7 @@ func TestTrayRecent(t *testing.T) {
 		{"短句。", "短句。"},
 		{strings.Repeat("一二三四五六七八九十", 5), "一二三四五六七八九十一二…"},
 		{"Please send the meeting notes to the whole team before Friday.", "Please send the meeting…"},
-		{"讨论一下 Auralink 的发布计划，然后把引导页做完", "讨论一下 Auralink 的发布…"},
+		{"讨论一下 VoxtNew 的发布计划，然后把引导页做完", "讨论一下 VoxtNew 的发布计…"},
 		{"今天下午三点开会，讨论发布计划，然后把引导页做完", "今天下午三点开会，讨论发…"},
 		{"\n  Exactly twenty-six chars\t", "Exactly twenty-six chars"},
 		{"Supercalifragilisticexpialidocious words", "Supercalifragilisticexpia…"},

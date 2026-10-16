@@ -1,6 +1,6 @@
 import AppKit
 import ApplicationServices
-import AuralinkHelperKit
+import VoxtNewHelperKit
 import Foundation
 
 /// The app in front, kept from NSWorkspace's activation notifications, so
@@ -20,7 +20,7 @@ final class FrontApps: @unchecked Sendable {
     private var started = false
     private var electron: [String: Bool] = [:] // bundle path → is Electron
     let manual = ManualAccessibility()
-    private let queue = DispatchQueue(label: "auralink.front", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "voxtnew.front", qos: .userInitiated)
 
     init(out: Writer) { self.out = out }
 

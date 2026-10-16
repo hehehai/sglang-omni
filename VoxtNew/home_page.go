@@ -1,11 +1,11 @@
 package main
 
 // Home (/home, plan §3.1): a slogan with Transcribe's shortcut in a key
-// cap; what is still missing before Auralink can work (a speech service,
+// cap; what is still missing before VoxtNew can work (a speech service,
 // a language model, the Microphone, Accessibility, the shortcut), each
-// line the way to fix it, and nothing once all is ready; until Auralink
+// line the way to fix it, and nothing once all is ready; until VoxtNew
 // has given a result once, a Try area that runs a whole transcription on
-// the page (Start, or the shortcut pressed while Auralink is in front);
+// the page (Start, or the shortcut pressed while VoxtNew is in front);
 // today's count of results and characters; the last five results, to
 // copy or open in History.
 //
@@ -20,13 +20,13 @@ import (
 	"unicode"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // homeRecent is how many recent results Home lists.
@@ -195,7 +195,7 @@ func sloganHint(h *settings.Hotkey) (before, keys, after string) {
 	return before, uitext.HotkeyText(h.Keys), after
 }
 
-// homeSlogan is the line under Home's title: what Auralink does, then how
+// homeSlogan is the line under Home's title: what VoxtNew does, then how
 // to start it (Transcribe's shortcut in a key cap, or a link to add one).
 func (a *app) homeSlogan(c *ui.Context) {
 	t := c.Theme()

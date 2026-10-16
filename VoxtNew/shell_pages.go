@@ -4,8 +4,8 @@ package main
 // badges, the ⌘1–⌘6 shortcuts and the paths that moved.
 
 import (
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
 )
 
 // navPage is a page of the sidebar.

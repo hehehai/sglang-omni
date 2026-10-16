@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 func TestParse(t *testing.T) {

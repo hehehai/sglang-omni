@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // seedTerms puts sample terms in the dictionary.
@@ -17,7 +17,7 @@ func seedTerms(t *testing.T, a *app) {
 	t.Helper()
 	t0 := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
 	for i, tm := range []store.Term{
-		{ID: "t1", Term: "Auralink", Aliases: []string{"aura link", "奥拉林克"}, Note: "Our app", Enabled: true},
+		{ID: "t1", Term: "VoxtNew", Aliases: []string{"aura link", "奥拉林克"}, Note: "Our app", Enabled: true},
 		{ID: "t2", Term: "Kubernetes", Aliases: []string{"cooper netties", "k8s"}, Enabled: true},
 		{ID: "t3", Term: "豆包", Aliases: []string{"逗包"}, Note: "火山引擎的大模型", Enabled: true},
 		{ID: "t4", Term: "MyGo", Enabled: false, Note: "UI toolkit"},
@@ -59,39 +59,39 @@ func TestDictionaryAddEditDelete(t *testing.T) {
 		t.Errorf("empty term saved: %q", firstTexts(tt))
 	}
 	click(t, tt, "Term as written")
-	tt.Type("Auralink")
+	tt.Type("VoxtNew")
 	click(t, tt, "Aliases of the term")
 	tt.Type("aura link，奥拉林克, aura link")
 	click(t, tt, "Save")
 	ts := terms(t, a)
-	if len(ts) != 1 || ts[0].Term != "Auralink" || strings.Join(ts[0].Aliases, "|") != "aura link|奥拉林克" || !ts[0].Enabled || a.dv.editOpen {
+	if len(ts) != 1 || ts[0].Term != "VoxtNew" || strings.Join(ts[0].Aliases, "|") != "aura link|奥拉林克" || !ts[0].Enabled || a.dv.editOpen {
 		t.Fatalf("terms %+v", ts)
 	}
-	if !has(tt, "Auralink") || !tt.HasText("heard as aura link, 奥拉林克") || !has(tt, "1 term") {
+	if !has(tt, "VoxtNew") || !tt.HasText("heard as aura link, 奥拉林克") || !has(tt, "1 term") {
 		t.Errorf("list %q", firstTexts(tt))
 	}
 	// The same spelling again is refused.
 	click(t, tt, "Add term")
 	click(t, tt, "Term as written")
-	tt.Type("auralink")
+	tt.Type("voxtnew")
 	click(t, tt, "Save")
 	if !has(tt, "This term is in the dictionary already.") || len(terms(t, a)) != 1 {
 		t.Errorf("duplicate: %q", firstTexts(tt))
 	}
 	click(t, tt, "Cancel")
 	// Edit: a note; switch it off from the list.
-	click(t, tt, "Edit Auralink")
+	click(t, tt, "Edit VoxtNew")
 	click(t, tt, "Note on the term")
 	tt.Type("our app")
 	click(t, tt, "Save")
 	if ts := terms(t, a); ts[0].Note != "our app" || ts[0].ID == "" {
 		t.Errorf("edited %+v", ts)
 	}
-	click(t, tt, "Use Auralink")
+	click(t, tt, "Use VoxtNew")
 	if ts := terms(t, a); ts[0].Enabled {
 		t.Errorf("still on %+v", ts)
 	}
-	click(t, tt, "Delete Auralink")
+	click(t, tt, "Delete VoxtNew")
 	if len(terms(t, a)) != 0 || !has(tt, "Names and terms you use") {
 		t.Errorf("not deleted: %q", firstTexts(tt))
 	}
@@ -132,7 +132,7 @@ func TestDictionaryImportExport(t *testing.T) {
 	seedTerms(t, a)
 	dir := t.TempDir()
 	in := filepath.Join(dir, "terms.csv")
-	os.WriteFile(in, []byte("term,aliases,note\nauralink,AuraLink App;aura-link,\nGemini,gemeni,Google\n,,\n"), 0o644)
+	os.WriteFile(in, []byte("term,aliases,note\nvoxtnew,VoxtNew App;aura-link,\nGemini,gemeni,Google\n,,\n"), 0o644)
 	saved := chooseImportFile
 	t.Cleanup(func() { chooseImportFile = saved })
 	chooseImportFile = func(a *app, then func(string)) { then(in) }
@@ -146,7 +146,7 @@ func TestDictionaryImportExport(t *testing.T) {
 		t.Errorf("toasts %q", a.toasts)
 	}
 	for _, tm := range ts {
-		if tm.Term == "Auralink" && strings.Join(tm.Aliases, "|") != "aura link|奥拉林克|AuraLink App|aura-link" {
+		if tm.Term == "VoxtNew" && strings.Join(tm.Aliases, "|") != "aura link|奥拉林克|VoxtNew App|aura-link" {
 			t.Errorf("merged %+v", tm)
 		}
 	}
@@ -156,7 +156,7 @@ func TestDictionaryImportExport(t *testing.T) {
 	for _, format := range []string{"csv", "txt"} {
 		out := filepath.Join(dir, "out."+format)
 		chooseExportFile = func(a *app, name string, then func(string)) {
-			if name != "auralink-dictionary."+format {
+			if name != "voxtnew-dictionary."+format {
 				t.Errorf("name %q", name)
 			}
 			then(out)

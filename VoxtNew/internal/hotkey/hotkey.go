@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // Chord is a parsed settings.Hotkey.Keys: modifier families (proto.Mod*)

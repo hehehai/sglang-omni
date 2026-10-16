@@ -5,12 +5,12 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/macx"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 func TestAudioSettingsDevices(t *testing.T) {
@@ -19,7 +19,7 @@ func TestAudioSettingsDevices(t *testing.T) {
 	if !slices.Contains(fs.methods(), proto.MethodCaptureDevices) {
 		t.Fatalf("the section did not list the inputs: %v", fs.methods())
 	}
-	if !has(tt, "No microphone chosen: Auralink records from the system's default input.") || !has(tt, "MacBook Air Microphone") {
+	if !has(tt, "No microphone chosen: VoxtNew records from the system's default input.") || !has(tt, "MacBook Air Microphone") {
 		t.Fatalf("empty list: %q", firstTexts(tt))
 	}
 	if !has(tt, "Skip silence") || !has(tt, "Optimize sound") {

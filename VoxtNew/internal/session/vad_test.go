@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // speech says, frame by frame (100 ms), a recording of 7.5 s: 2 s of a

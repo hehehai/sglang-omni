@@ -15,7 +15,7 @@ import (
 	"image"
 	"math"
 
-	"github.com/hehehai/Auralink/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
 )
 
 // Want is what the face should show.

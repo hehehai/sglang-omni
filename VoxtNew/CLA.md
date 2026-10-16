@@ -1,8 +1,8 @@
-# Auralink Contributor License Agreement
+# VoxtNew Contributor License Agreement
 
 Version 1.0, 16 October 2026
 
-Thank you for your interest in contributing to Auralink (https://github.com/hehehai/Auralink), a project of **actnow (https://actnow.dev)** ("We", "Us" or "Our"; see Section 1).
+Thank you for your interest in contributing to VoxtNew (https://github.com/sgl-project/sglang-omni/VoxtNew), a project of **actnow (https://actnow.dev)** ("We", "Us" or "Our"; see Section 1).
 
 This Contributor License Agreement ("Agreement") sets out the rights You grant to Us in Your Contributions. **You keep the copyright in Your Contributions**: this Agreement is a license, not a transfer of ownership. It lets Us distribute Your Contributions under the GNU Affero General Public License and also under other terms, including commercial ones (Section 4). Please read it carefully. You accept it by commenting on a pull request as described in [How to sign](#how-to-sign).
 
@@ -12,7 +12,7 @@ A [Chinese summary](#中文说明) follows the Agreement. It is for convenience 
 
 ### 1. Definitions
 
-**"We", "Us" or "Our"** means actnow (https://actnow.dev), the owner of the Auralink project, and its successors and assigns.
+**"We", "Us" or "Our"** means actnow (https://actnow.dev), the owner of the VoxtNew project, and its successors and assigns.
 
 **"You" or "Your"** means the copyright owner, or the legal entity authorized by the copyright owner, that makes this Agreement with Us. For legal entities, the entity making a Contribution and all other entities that control, are controlled by, or are under common control with that entity are considered a single contributor. "Control" means (i) the power, direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, (ii) ownership of fifty percent (50%) or more of the outstanding shares, or (iii) beneficial ownership of such entity.
 
@@ -58,9 +58,9 @@ We are not obliged to accept, include or use any Contribution. Whether and how W
 
 ### 10. Scope, changes and transfer
 
-1. This Agreement applies to all Contributions You submit to the Auralink project, past and future, from the time You accept it.
+1. This Agreement applies to all Contributions You submit to the VoxtNew project, past and future, from the time You accept it.
 2. If We publish a new version of this Agreement, Contributions You submitted under this version stay under this version; We will ask You to accept the new version before We accept further Contributions under it.
-3. We may assign or transfer Our rights and obligations under this Agreement, in whole or in part, to a successor of the Auralink project (for example a company that acquires actnow or the project). The successor is bound by the condition of Section 4.
+3. We may assign or transfer Our rights and obligations under this Agreement, in whole or in part, to a successor of the VoxtNew project (for example a company that acquires actnow or the project). The successor is bound by the condition of Section 4.
 
 ## How to sign
 
@@ -68,7 +68,7 @@ When You open a pull request, the CLA Assistant bot checks whether every author 
 
 > I have read the CLA Document and I hereby sign the CLA
 
-Your signature covers all Your Contributions to Auralink (Section 10). The bot records Your GitHub user name and ID, the pull request and the time of the comment in `signatures/cla.json` on the repository's `cla-signatures` branch. If You contribute on behalf of a company, say so in the pull request before You sign.
+Your signature covers all Your Contributions to VoxtNew (Section 10). The bot records Your GitHub user name and ID, the pull request and the time of the comment in `signatures/cla.json` on the repository's `cla-signatures` branch. If You contribute on behalf of a company, say so in the pull request before You sign.
 
 ## Origin of this text
 
@@ -80,7 +80,7 @@ Sections 1–3 and 5–8 are adapted from the Apache Software Foundation's Indiv
 
 **本节只是方便阅读的摘要，不具法律效力，以上面的英文为准。**
 
-Auralink 由 actnow（https://actnow.dev）拥有和维护。向 Auralink 提交代码、文档或其他内容前，需要签署这份贡献者许可协议（CLA）。
+VoxtNew 由 actnow（https://actnow.dev）拥有和维护。向 VoxtNew 提交代码、文档或其他内容前，需要签署这份贡献者许可协议（CLA）。
 
 - **版权仍然归你**：这是许可，不是转让。你可以照常以任何方式使用自己的贡献，包括以别的协议授权给别人（第 5 条）。
 - **版权许可**（第 2 条）：你授予 actnow 以及 actnow 所发布软件的接收者一项永久、全球、非独占、免费、不可撤销的版权许可，可以复制、修改、展示、表演、再许可（可多级）和发布你的贡献。
@@ -90,7 +90,7 @@ Auralink 由 actnow（https://actnow.dev）拥有和维护。向 Auralink 提交
 - **不担保、不需支持**（第 7 条）：贡献按“原样”提供，你不需要提供支持。
 - **不是你自己的作品**（第 8 条）：单独提交，并写明来源和许可。
 - **不承诺采用**（第 9 条）：是否采用你的贡献由 actnow 决定。
-- **范围、新版本和转让**（第 10 条）：签一次覆盖你对 Auralink 的全部贡献；协议出新版本时，旧贡献仍按旧版本，新版本要重新签；actnow 可以把本协议下的权利义务转给项目的继任者，继任者同样受第 4 条的条件约束。
+- **范围、新版本和转让**（第 10 条）：签一次覆盖你对 VoxtNew 的全部贡献；协议出新版本时，旧贡献仍按旧版本，新版本要重新签；actnow 可以把本协议下的权利义务转给项目的继任者，继任者同样受第 4 条的条件约束。
 
 **怎么签**：提交 PR 后，CLA Assistant 机器人会检查每个提交的作者是否已签。没签的话，它会在 PR 里留言；你回复一条评论，内容必须是：
 

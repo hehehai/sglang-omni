@@ -1,13 +1,13 @@
 package main
 
 // Floating windows over other apps (the recording pill, the answer card,
-// M3/M4): they must take clicks without activating Auralink, or the app
+// M3/M4): they must take clicks without activating VoxtNew, or the app
 // the user dictates into loses its focus and caret and ⌘V pastes
 // elsewhere. MyGo patch 0003 (third_party/mygo-patches) makes such a
 // window a non-activating panel at creation; it never takes the keyboard,
 // so it holds no text input (Escape comes from the helper's event tap
 // while a session is active). A window that needs typing is an ordinary
-// one, and before inserting, Auralink gives the front back to the target
+// one, and before inserting, VoxtNew gives the front back to the target
 // with activateTarget (plan B of the M0 spike S3).
 
 import (
@@ -15,7 +15,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/macx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 )
 
 // hudSmoothing is whether the floating windows' text is drawn with Core
@@ -47,7 +47,7 @@ func floatingWindowOptions(title string, width, height int, content mygo.Content
 }
 
 // showFloating shows a floating window at x, y (screen DIPs) on every
-// Space, without activating Auralink. Main thread.
+// Space, without activating VoxtNew. Main thread.
 func showFloating(w *mygo.Window, x, y int) {
 	w.SetVisibleOnAllWorkspaces(true)
 	w.SetPosition(x, y)
@@ -55,7 +55,7 @@ func showFloating(w *mygo.Window, x, y int) {
 }
 
 // activateTarget brings the app with pid back to the front (at most
-// 600 ms), for a paste after a click on an ordinary Auralink window.
+// 600 ms), for a paste after a click on an ordinary VoxtNew window.
 // Call it from a goroutine: it waits.
 func activateTarget(pid int) (bool, time.Duration) {
 	return macx.Activate(pid, 600*time.Millisecond, mygo.RunOnMain)

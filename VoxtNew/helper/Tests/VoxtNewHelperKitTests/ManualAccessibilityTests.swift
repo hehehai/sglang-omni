@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import AuralinkHelperKit
+@testable import VoxtNewHelperKit
 
 /// Which apps get AXManualAccessibility (Electron apps, app.configure's
 /// bundle ids) and that each process gets it once per reason.

@@ -1,5 +1,5 @@
 # Release (docs/release.md): on a tag v0.x.y (a release) or v0.x.y-beta.n
-# (a beta, a GitHub prerelease), build Auralink for Apple
+# (a beta, a GitHub prerelease), build VoxtNew for Apple
 # silicon on a macOS runner, sign it with the Developer ID, notarize it
 # with the Apple ID's app-specific password, sign its update with the updater's
 # key, and upload the disk image, the update archive, the deltas from the
@@ -233,7 +233,7 @@ jobs:
         if: env.UPLOAD != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: Auralink-${{ env.VERSION }}-darwin-arm64
+          name: VoxtNew-${{ env.VERSION }}-darwin-arm64
           path: |
             build/darwin-arm64/*.dmg
             build/darwin-arm64/*.tar.gz
@@ -255,10 +255,10 @@ jobs:
             --jq '"draft: \(.isDraft), prerelease: \(.isPrerelease)", (.assets[] | "  \(.name) \(.size)")'
           if [[ "$PRERELEASE" == true ]]; then
             publish="gh release edit v$VERSION --repo $GITHUB_REPOSITORY --draft=false"
-            what="a beta: only Auralink with Beta updates on sees it"
+            what="a beta: only VoxtNew with Beta updates on sees it"
           else
             publish="gh release edit v$VERSION --repo $GITHUB_REPOSITORY --draft=false --latest"
-            what="a release: every Auralink sees it"
+            what="a release: every VoxtNew sees it"
           fi
           echo "Check the draft ($what), then publish it: \`$publish\`" >>"$GITHUB_STEP_SUMMARY"
 

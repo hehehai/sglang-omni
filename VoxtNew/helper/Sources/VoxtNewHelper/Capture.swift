@@ -1,4 +1,4 @@
-import AuralinkHelperKit
+import VoxtNewHelperKit
 @preconcurrency import AVFoundation
 import CoreAudio
 import Foundation
@@ -22,7 +22,7 @@ import Foundation
 //   rebuilds the engine; the chosen device going away ends the recording
 //   (deviceLost), unless it was the default input, which follows the new
 //   default.
-// - Tests only: AURALINK_HELPER_CAPTURE_FILE names an audio file that
+// - Tests only: VOXTNEW_HELPER_CAPTURE_FILE names an audio file that
 //   stands in for the microphone (CaptureFileConfig): the same conversion,
 //   framing, notifications and endings, at a microphone's pace, without
 //   asking for the microphone.
@@ -127,7 +127,7 @@ func cpuSeconds() -> Double {
 /// Runs one recording at a time.
 final class CaptureManager: @unchecked Sendable {
     let out: Writer
-    /// The test-only file input (AURALINK_HELPER_CAPTURE_FILE), else nil.
+    /// The test-only file input (VOXTNEW_HELPER_CAPTURE_FILE), else nil.
     let file: CaptureFileConfig?
     private let lock = NSLock()
     private var run: CaptureRun?
@@ -145,10 +145,10 @@ final class CaptureManager: @unchecked Sendable {
             case .authorized: break
             case .notDetermined:
                 if !(await AVCaptureDevice.requestAccess(for: .audio)) {
-                    throw RPCError.denied(PermissionName.microphone, "Auralink may not use the microphone")
+                    throw RPCError.denied(PermissionName.microphone, "VoxtNew may not use the microphone")
                 }
             default:
-                throw RPCError.denied(PermissionName.microphone, "Auralink may not use the microphone")
+                throw RPCError.denied(PermissionName.microphone, "VoxtNew may not use the microphone")
             }
         }
         let r: CaptureRun = try lock.withLock {
@@ -198,7 +198,7 @@ private final class CaptureRun: @unchecked Sendable {
     let onEnd: (CaptureRun) -> Void
     private let rate: Int
     private let maxSamples: Int?
-    private let queue = DispatchQueue(label: "auralink.capture", qos: .userInteractive)
+    private let queue = DispatchQueue(label: "voxtnew.capture", qos: .userInteractive)
     private let lock = NSLock()
 
     private var engine: AVAudioEngine?
@@ -347,7 +347,7 @@ private final class CaptureRun: @unchecked Sendable {
             inputFormat = player.format
             return generation
         }
-        let t = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "auralink.capture.file", qos: .userInteractive))
+        let t = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "voxtnew.capture.file", qos: .userInteractive))
         t.schedule(deadline: .now(), repeating: .milliseconds(10), leeway: .milliseconds(2))
         t.setEventHandler { [weak self] in
             for b in player.due(now: monotonicMs()) { self?.receive(b, generation: gen) }

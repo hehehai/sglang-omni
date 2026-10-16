@@ -5,7 +5,7 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
 )
 
 // ---- Layout ----

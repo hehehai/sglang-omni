@@ -3,7 +3,7 @@ package aliyun
 import (
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 // serviceError classifies an error the service reported inside the

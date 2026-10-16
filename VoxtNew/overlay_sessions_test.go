@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/overlay/layout"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // ovStep is what the overlay is after a step: its mode, the window's
@@ -190,7 +190,7 @@ func TestOverlayAnchorAndRestyle(t *testing.T) {
 // file service's, while the model cleans it up) grows the overlay; the
 // second starts as the pill, with no text, at the same anchor.
 func TestOverlayTwoSessionsEndToEnd(t *testing.T) {
-	chat := &fakeChat{text: "Hello, Auralink."}
+	chat := &fakeChat{text: "Hello, VoxtNew."}
 	set, keys, _ := fileSetup(t, "hello aura link, the second line of a longer text", chat)
 	chat.delay = 300 * time.Millisecond // cleaning up shows a while
 	ev := script(t,
@@ -281,11 +281,11 @@ func TestOverlayCheckSteps(t *testing.T) {
 	}
 	old := os.Args
 	t.Cleanup(func() { os.Args = old })
-	os.Args = []string{"Auralink", "--overlay-check", "/tmp/x"}
+	os.Args = []string{"VoxtNew", "--overlay-check", "/tmp/x"}
 	if overlayCheckDir() != "/tmp/x" {
 		t.Error("the flag")
 	}
-	os.Args = []string{"Auralink"}
+	os.Args = []string{"VoxtNew"}
 	if overlayCheckDir() != "" {
 		t.Error("no flag")
 	}

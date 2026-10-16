@@ -22,13 +22,13 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/dict"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/dict"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // dictionaryState is the Dictionary page's view state.
@@ -295,8 +295,8 @@ func (a *app) termDialog(c *ui.Context) {
 		title = i18n.T("Edit term")
 	}
 	dialogFrame(c, "term-dlg", &d.editOpen, title, "", 460, func() {
-		fieldInfo(c, i18n.T("Term"), i18n.T("As it must be written: Auralink, Kubernetes, 豆包."), func() {
-			in := ui.TextInput(c.Key("term-term"), &e.term).Label(i18n.T("Term as written")).Placeholder("Auralink").AutoFocus()
+		fieldInfo(c, i18n.T("Term"), i18n.T("As it must be written: VoxtNew, Kubernetes, 豆包."), func() {
+			in := ui.TextInput(c.Key("term-term"), &e.term).Label(i18n.T("Term as written")).Placeholder("VoxtNew").AutoFocus()
 			if in.Changed() {
 				e.err = ""
 			}
@@ -444,7 +444,7 @@ func (a *app) importFile(path string) {
 
 // exportTerms writes every term to a file the user picks.
 func (a *app) exportTerms(format string) {
-	name := "auralink-dictionary." + format
+	name := "voxtnew-dictionary." + format
 	chooseExportFile(a, name, func(dst string) { a.exportFile(dst, format) })
 }
 

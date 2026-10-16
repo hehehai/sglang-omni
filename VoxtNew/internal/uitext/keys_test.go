@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 )
 
 func TestHotkeyText(t *testing.T) {

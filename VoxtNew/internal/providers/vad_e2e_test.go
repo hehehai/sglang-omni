@@ -10,21 +10,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/vad"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // TestE2ETrimmedStepFun sends StepFun (step-asr) the speech sample with 3 s
 // of a noisy room before and after it and 2 s inside it, once whole and
 // once as internal/vad trims it, and checks the trimmed one is recognised
-// no worse: two real requests. It runs with AURALINK_E2E=1 and
+// no worse: two real requests. It runs with VOXTNEW_E2E=1 and
 // STEPFUN_API_KEY set.
 func TestE2ETrimmedStepFun(t *testing.T) {
 	key := os.Getenv("STEPFUN_API_KEY")
-	if os.Getenv("AURALINK_E2E") != "1" || key == "" {
-		t.Skip("set AURALINK_E2E=1 and STEPFUN_API_KEY")
+	if os.Getenv("VOXTNEW_E2E") != "1" || key == "" {
+		t.Skip("set VOXTNEW_E2E=1 and STEPFUN_API_KEY")
 	}
 	data, err := os.ReadFile("../../testdata/speech/sample-zh-en.wav")
 	if err != nil {
@@ -46,7 +46,7 @@ func TestE2ETrimmedStepFun(t *testing.T) {
 		t.Fatal(err)
 	}
 	ft := prov.(asr.FileTranscriber)
-	golden := "今天下午三点开会讨论auralink的发布计划pleasesendthemeetingnotestotheteam"
+	golden := "今天下午三点开会讨论voxtnew的发布计划pleasesendthemeetingnotestotheteam"
 	run := func(name string, audio []byte) float64 {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()

@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import AuralinkHelperKit
+@testable import VoxtNewHelperKit
 
 /// Decodes every message of helper/Fixtures with the Swift types and
 /// re-encodes it: the result must equal the fixture, so the Swift types

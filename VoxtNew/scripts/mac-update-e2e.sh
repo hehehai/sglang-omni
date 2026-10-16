@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The update test (docs/release.md, "Testing updates"): two versions of
-# Auralink, 0.1.0-test and 0.1.1-test, signed ad hoc, with a test key
+# VoxtNew, 0.1.0-test and 0.1.1-test, signed ad hoc, with a test key
 # that signs their updates, published on a feed served over HTTPS on the
 # loopback interface (scripts/update-server); the installed 0.1.0-test is
 # then updated by the real updater, driven without a window
@@ -13,29 +13,29 @@
 #   C. the archive after a delta that fails (an installed file changed);
 #   D. 0.1.1-test is up to date.
 #
-# Its own bundle ID (dev.hehehai.auralink.updtest) and directory, on a Mac
+# Its own bundle ID (dev.hehehai.voxtnew.updtest) and directory, on a Mac
 # that may be busy with other work: no window, no app activated, no key,
 # no clipboard, no helper started, no keychain; niced, two jobs, and it
-# stops when less than AURALINK_MIN_FREE percent of memory (40) is free.
+# stops when less than VOXTNEW_MIN_FREE percent of memory (40) is free.
 # The test key, the builds and the feed are removed at the end
 # (KEEP=1 keeps them in build/update-e2e).
 #
-#   MAC_DIR=code/Auralink-upd scripts/mac.sh scripts/mac-update-e2e.sh
+#   MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-update-e2e.sh
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "run it on a Mac: MAC_DIR=code/Auralink-upd scripts/mac.sh scripts/mac-update-e2e.sh" >&2
+  echo "run it on a Mac: MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-update-e2e.sh" >&2
   exit 1
 fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-if [[ "$ROOT" == "$HOME/code/Auralink" ]]; then
-  echo "not in the app's own checkout: use MAC_DIR=code/Auralink-upd" >&2
+if [[ "$ROOT" == "$HOME/code/VoxtNew" ]]; then
+  echo "not in the app's own checkout: use MAC_DIR=code/VoxtNew-upd" >&2
   exit 1
 fi
 export GOMAXPROCS=2 GOFLAGS=-p=2 SWIFT_BUILD_JOBS=2
-unset AURALINK_HELPER
-ID=dev.hehehai.auralink.updtest
+unset VOXTNEW_HELPER
+ID=dev.hehehai.voxtnew.updtest
 V0=0.1.0-test V1=0.1.1-test
 WORK="$ROOT/build/update-e2e"
 FAILS=0
@@ -44,8 +44,8 @@ step() {
   local free
   free="$(memory_pressure -Q | sed -n 's/.*percentage: \([0-9]*\)%.*/\1/p')"
   echo "== $1 (free memory ${free}%)"
-  if (( ${free:-0} < ${AURALINK_MIN_FREE:-40} )); then
-    echo "less than ${AURALINK_MIN_FREE:-40}% of memory is free: stopping" >&2
+  if (( ${free:-0} < ${VOXTNEW_MIN_FREE:-40} )); then
+    echo "less than ${VOXTNEW_MIN_FREE:-40}% of memory is free: stopping" >&2
     exit 3
   fi
 }
@@ -142,7 +142,7 @@ install_v0() {
 
 # run REPORT: the installed app's update check.
 run_check() {
-  SSL_CERT_FILE="$WORK/cert.pem" nice -n 10 "$WORK/inst/Auralink.app/Contents/MacOS/Auralink" --update-check "$1"
+  SSL_CERT_FILE="$WORK/cert.pem" nice -n 10 "$WORK/inst/VoxtNew.app/Contents/MacOS/VoxtNew" --update-check "$1"
 }
 
 step "build $V0"
@@ -150,11 +150,11 @@ build "$V0"
 publish "$V0"
 step "build $V1 (with its delta from $V0)"
 build "$V1"
-NEW="$WORK/out-$V1/darwin-arm64/Auralink.app"
-OLD="$WORK/out-$V0/darwin-arm64/Auralink.app"
+NEW="$WORK/out-$V1/darwin-arm64/VoxtNew.app"
+OLD="$WORK/out-$V0/darwin-arm64/VoxtNew.app"
 check "$V1 has a delta from $V0" bash -c "compgen -G '$WORK/out-$V1/darwin-arm64/*-to-$V1-*.delta' >/dev/null"
 check "the helpers of the two versions differ" \
-  bash -c "! cmp -s '$OLD/Contents/Resources/helper/auralink-helper' '$NEW/Contents/Resources/helper/auralink-helper'"
+  bash -c "! cmp -s '$OLD/Contents/Resources/helper/voxtnew-helper' '$NEW/Contents/Resources/helper/voxtnew-helper'"
 check "the build passes release-verify.sh (ad hoc)" scripts/release-verify.sh "$WORK/out-$V1/darwin-arm64" ad-hoc --no-dmg
 publish "$V1"
 MANIFEST="$WORK/feed/update-darwin-arm64.json"
@@ -166,7 +166,7 @@ echo "  delta $delta_size bytes, archive $archive_size bytes"
 # verify REPORT TOTALS: the installed app is V1, exactly the published
 # bundle; TOTALS the downloads the report must show.
 verify() {
-  local r="$1" totals="$2" app="$WORK/inst/Auralink.app"
+  local r="$1" totals="$2" app="$WORK/inst/VoxtNew.app"
   check "it found $V1" test "$(jq -r .found "$r")" = "$V1"
   check "it was enabled and ran $V0" test "$(jq -r '"\(.enabled) \(.running)"' "$r")" = "true $V0"
   check "the notes are $V1's, English and Chinese" bash -c "jq -r .notes '$r' | grep -q 'The update test' && jq -r .notes '$r' | grep -q '更新测试'"
@@ -176,11 +176,11 @@ verify() {
   check "the bundle is the published one, file for file" diff -r "$app" "$NEW"
   check "its signature verifies (deep, strict)" codesign --verify --deep --strict "$app"
   check "the same code directory hash" test "$(codesign -dv "$app" 2>&1 | grep CDHash=)" = "$(codesign -dv "$NEW" 2>&1 | grep CDHash=)"
-  check "the helper is the new one" cmp -s "$app/Contents/Resources/helper/auralink-helper" "$NEW/Contents/Resources/helper/auralink-helper"
-  check "the helper's signature verifies" codesign --verify --strict "$app/Contents/Resources/helper/auralink-helper"
+  check "the helper is the new one" cmp -s "$app/Contents/Resources/helper/voxtnew-helper" "$NEW/Contents/Resources/helper/voxtnew-helper"
+  check "the helper's signature verifies" codesign --verify --strict "$app/Contents/Resources/helper/voxtnew-helper"
   check "the old app sees the update" test "$(jq -r '"\(.diskVersion) \(.stale)"' "$r")" = "$V1 true"
   check "its supervisor starts no helper (updated)" test "$(jq -r '"\(.helperState) \(.helperReason) \(.helperPID)"' "$r")" = "failed updated 0"
-  check "nothing left next to the app" test -z "$(find "$WORK/inst" -maxdepth 1 -name '.Auralink.app.*' -print)"
+  check "nothing left next to the app" test -z "$(find "$WORK/inst" -maxdepth 1 -name '.VoxtNew.app.*' -print)"
 }
 
 step "A: the delta"
@@ -200,7 +200,7 @@ verify "$WORK/report-archive.json" "[$archive_size]"
 step "C: the archive after a delta that fails (the installed app was changed)"
 cp "$WORK/manifest-with-delta.json" "$MANIFEST"
 install_v0
-printf 'x' >>"$WORK/inst/Auralink.app/Contents/Resources/icon.png"
+printf 'x' >>"$WORK/inst/VoxtNew.app/Contents/Resources/icon.png"
 run_check "$WORK/report-fallback.json"
 verify "$WORK/report-fallback.json" "[$delta_size,$archive_size]"
 
@@ -208,7 +208,7 @@ step "D: $V1 is up to date"
 run_check "$WORK/report-current.json"
 check "nothing found" test "$(jq -r '"\(.running) [\(.found)] [\(.checkErr)] \(.stale)"' "$WORK/report-current.json")" = "$V1 [] [] false"
 
-if pgrep -f "$WORK/inst/Auralink.app/Contents/Resources/helper/auralink-helper" >/dev/null; then
+if pgrep -f "$WORK/inst/VoxtNew.app/Contents/Resources/helper/voxtnew-helper" >/dev/null; then
   echo "  FAIL a helper is running" && FAILS=$((FAILS + 1))
 fi
 if (( FAILS > 0 )); then

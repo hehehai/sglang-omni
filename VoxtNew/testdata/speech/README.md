@@ -4,19 +4,19 @@
 a 16 kHz, mono, 16-bit PCM WAV file (44-byte header, no extra chunks). The
 `TestE2E` tests of `internal/asr/{openai,doubao,aliyun}` and
 `TestE2ESessionReal` recognise it with the real services when
-`AURALINK_E2E=1` and their keys are set; without the file they skip. They
+`VOXTNEW_E2E=1` and their keys are set; without the file they skip. They
 only check that the transcript is not empty; the golden text below is for
 reading the logs.
 
 ## Golden text
 
 ```
-今天下午三点开会，讨论 Auralink 的发布计划。Please send the meeting notes to the team.
+今天下午三点开会，讨论 VoxtNew 的发布计划。Please send the meeting notes to the team.
 ```
 
-"Auralink" is a made-up word, so services write it in several ways
+"VoxtNew" is a made-up word, so services write it in several ways
 (other takes of the same text came back as "Aura Link", "Oralink",
-"R-Link", "Our Link"); a dictionary entry "Auralink" should fix that.
+"R-Link", "Our Link"); a dictionary entry "VoxtNew" should fix that.
 
 ## Where it came from
 
@@ -41,11 +41,11 @@ Checked with two local recognisers (AudioSmith's engine):
 
 | Recogniser | Transcript |
 |---|---|
-| Whisper large-v3 turbo (4-bit) | 今天下午三点开会,讨论Auralink的发布计划。Please send the meeting notes to the team. |
+| Whisper large-v3 turbo (4-bit) | 今天下午三点开会,讨论VoxtNew的发布计划。Please send the meeting notes to the team. |
 | Qwen3-ASR 0.6B (4-bit) | 今天下午三点开会，讨论Aura Link的发布计划。Please send the meeting notes to the team. |
 
 Kokoro-82M (Apache-2.0) was tried first, with every Chinese voice: its
-Chinese front end reads "开会" as "开开会" and cannot say "Auralink", so
+Chinese front end reads "开会" as "开开会" and cannot say "VoxtNew", so
 recognisers got "讨论" as "偷懒" and dropped or mangled the name.
 Do not replace this file with macOS `say` output: its voices' terms do not
 clearly allow redistribution.

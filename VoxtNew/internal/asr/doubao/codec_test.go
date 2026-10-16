@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 // Wire bytes worked out by hand from the docs' header table.

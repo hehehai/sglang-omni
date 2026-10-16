@@ -1,9 +1,9 @@
-// Package compose is Auralink's prompt composer (plan §4.3): it builds the
+// Package compose is VoxtNew's prompt composer (plan §4.3): it builds the
 // one language-model request of a session from layers, in a fixed order,
 // instead of a long prompt per feature that repeats the same rules (Voxt's
 // docs/TextEnhancementPromptLayeringPlan, which Voxt itself never landed):
 //
-//	system = Role            what Auralink is doing
+//	system = Role            what VoxtNew is doing
 //	       + Input policy    what the input is (speech, a selection, an instruction)
 //	       + [Cleanup]       basic clean-up of speech recognition
 //	       + [Structure]     lists and paragraphs (Transcribe only), or Form: keep it as said
@@ -45,7 +45,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/hehehai/Auralink/internal/lang"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/lang"
 )
 
 // Task is the feature a request is for.

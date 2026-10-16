@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
 )
 
 // ---- The scripted server ----
@@ -361,7 +361,7 @@ func TestStreamHints(t *testing.T) {
 		cfg.Model = ModelV1
 		cfg.Prompt = "provider prompt, overridden by the request's"
 	})
-	req := asr.StreamRequest{Lang: "zh-TW", Hints: []string{"Auralink", " auralink ", "火山引擎"}, Prompt: "Meeting about Auralink."}
+	req := asr.StreamRequest{Lang: "zh-TW", Hints: []string{"VoxtNew", " voxtnew ", "火山引擎"}, Prompt: "Meeting about VoxtNew."}
 	events, evs := drive(t, c, req, pcm(400*time.Millisecond))
 	got := srv.wait(t)
 	checkEvents(t, evs)
@@ -560,7 +560,7 @@ func TestNew(t *testing.T) {
 // ---- End to end ----
 
 // TestE2E recognises the speech sample with the real service:
-// AURALINK_E2E=1 with DOUBAO_APP_ID and DOUBAO_ACCESS_TOKEN (the old
+// VOXTNEW_E2E=1 with DOUBAO_APP_ID and DOUBAO_ACCESS_TOKEN (the old
 // console's credentials).
 func TestE2E(t *testing.T) {
 	asrtest.E2E(t)
@@ -579,7 +579,7 @@ func TestE2E(t *testing.T) {
 		req  asr.StreamRequest
 	}{
 		{"plain", asr.StreamRequest{}},
-		{"hints and prompt", asr.StreamRequest{Hints: []string{"Auralink"}, Prompt: "Dictation in Chinese and English."}},
+		{"hints and prompt", asr.StreamRequest{Hints: []string{"VoxtNew"}, Prompt: "Dictation in Chinese and English."}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c, err := New(asr.Config{AppID: appID, Key: token})

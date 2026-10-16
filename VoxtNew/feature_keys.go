@@ -9,11 +9,11 @@ import (
 	"slices"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // keyRow is a shortcut's controls.
@@ -250,7 +250,7 @@ func (a *app) keyRowView(c *ui.Context, feature string, i int, h settings.Hotkey
 				if !a.hotkeys.Installed {
 					col = k.Warning
 				}
-				iconMark(c, icons.Accessibility, col, i18n.T("Works only while Auralink may use Accessibility."))
+				iconMark(c, icons.Accessibility, col, i18n.T("Works only while VoxtNew may use Accessibility."))
 			}
 			if iconButton(c.Key("remove"), icons.TrashBinMinimalistic, i18n.T("Remove shortcut %d", n)).Clicked() {
 				a.setHotkeys(feature, true, func(hs []settings.Hotkey) []settings.Hotkey {

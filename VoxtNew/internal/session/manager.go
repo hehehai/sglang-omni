@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // Manager runs one session at a time. Goroutine-safe.

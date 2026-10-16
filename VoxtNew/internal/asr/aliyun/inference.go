@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/coder/websocket"
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 // The inference protocol (Model Studio: "Fun-ASR-Realtime WebSocket API",

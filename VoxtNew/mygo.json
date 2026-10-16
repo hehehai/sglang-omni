@@ -1,21 +1,21 @@
 {
-  "name": "Auralink",
-  "identifier": "dev.hehehai.auralink",
+  "name": "VoxtNew",
+  "identifier": "dev.hehehai.voxtnew",
   "version": "0.1.0-beta.1",
-  "copyright": "Copyright © 2026 actnow and the Auralink contributors. Licensed under the GNU AGPL 3.0 or later.",
+  "copyright": "Copyright © 2026 actnow and the VoxtNew contributors. Licensed under the GNU AGPL 3.0 or later.",
   "out": "build",
   "urlSchemes": [
-    "auralink"
+    "voxtnew"
   ],
   "macos": {
     "minimumSystemVersion": "15.0",
     "infoPlist": {
       "LSApplicationCategoryType": "public.app-category.productivity",
-      "NSMicrophoneUsageDescription": "Auralink records your voice while you hold its shortcut and sends the audio to the speech service you set up. 录音只在你按下快捷键时进行，并发送给你配置的语音识别服务。"
+      "NSMicrophoneUsageDescription": "VoxtNew records your voice while you hold its shortcut and sends the audio to the speech service you set up. 录音只在你按下快捷键时进行，并发送给你配置的语音识别服务。"
     },
     "entitlements": "helper/Support/app.entitlements",
     "helperEntitlements": {
-      "helper/auralink-helper": "helper/Support/helper.entitlements"
+      "helper/voxtnew-helper": "helper/Support/helper.entitlements"
     }
   }
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/hehehai/Auralink/internal/netx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/netx"
 )
 
 // WSClient is the HTTP client WebSocket handshakes go through: the proxy

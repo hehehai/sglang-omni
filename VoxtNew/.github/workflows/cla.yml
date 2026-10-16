@@ -57,7 +57,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          path-to-document: https://github.com/hehehai/Auralink/blob/main/CLA.md
+          path-to-document: https://github.com/sgl-project/sglang-omni/VoxtNew/blob/main/CLA.md
           path-to-signatures: signatures/cla.json
           branch: cla-signatures
           # The owner, and bots that cannot sign. Exact names, no wildcard:
@@ -66,10 +66,10 @@ jobs:
           custom-pr-sign-comment: I have read the CLA Document and I hereby sign the CLA
           custom-notsigned-prcomment: >-
             Thank you for your pull request. Before it can be merged, every author of its
-            commits signs the [Auralink Contributor License Agreement](https://github.com/hehehai/Auralink/blob/main/CLA.md)
-            (you keep your copyright; [CONTRIBUTING.md](https://github.com/hehehai/Auralink/blob/main/CONTRIBUTING.md)
+            commits signs the [VoxtNew Contributor License Agreement](https://github.com/sgl-project/sglang-omni/VoxtNew/blob/main/CLA.md)
+            (you keep your copyright; [CONTRIBUTING.md](https://github.com/sgl-project/sglang-omni/VoxtNew/blob/main/CONTRIBUTING.md)
             explains it). To sign, reply to this pull request with a comment that reads exactly the sentence below.<br/>
-            感谢你的 PR。合并前，每个提交的作者都要签署 Auralink 贡献者许可协议（版权仍归你，CLA.md 末尾有中文说明）：回复一条评论，内容为下面这句英文。
+            感谢你的 PR。合并前，每个提交的作者都要签署 VoxtNew 贡献者许可协议（版权仍归你，CLA.md 末尾有中文说明）：回复一条评论，内容为下面这句英文。
           custom-allsigned-prcomment: All authors have signed the CLA. 所有作者都已签署 CLA。
           signed-commit-message: "cla: $contributorName signed the CLA in $owner/$repo"
           create-file-commit-message: "cla: create the signatures file"

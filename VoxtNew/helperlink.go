@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/hehehai/Auralink/internal/appbundle"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appbundle"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // helperHost holds the supervisor: newHelperHost finds the executable,

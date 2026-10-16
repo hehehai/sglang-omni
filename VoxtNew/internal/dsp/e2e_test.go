@@ -7,20 +7,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
-	"github.com/hehehai/Auralink/internal/asr/openai"
-	"github.com/hehehai/Auralink/internal/vad"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/openai"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // TestE2EStepFun sends StepFun the speech sample's "quiet + hum" variant
 // as a session would without the sound processing (trimmed by the voice
 // activity detection alone) and with it: two real requests. It needs
-// AURALINK_DSP_E2E=1 (AURALINK_E2E alone does not run it) and
+// VOXTNEW_DSP_E2E=1 (VOXTNEW_E2E alone does not run it) and
 // STEPFUN_API_KEY.
 func TestE2EStepFun(t *testing.T) {
-	if os.Getenv("AURALINK_DSP_E2E") != "1" {
-		t.Skip("set AURALINK_DSP_E2E=1 (and STEPFUN_API_KEY) for two real StepFun requests")
+	if os.Getenv("VOXTNEW_DSP_E2E") != "1" {
+		t.Skip("set VOXTNEW_DSP_E2E=1 (and STEPFUN_API_KEY) for two real StepFun requests")
 	}
 	key := asrtest.Key(t, "STEPFUN_API_KEY")
 	s := loadSample(t)

@@ -16,7 +16,7 @@
     "show_utterances": true
   },
   "user": {
-    "uid": "auralink"
+    "uid": "voxtnew"
   }
 }
 == async, lang en (not sent), hints, prompt
@@ -30,7 +30,7 @@
   },
   "request": {
     "corpus": {
-      "context": "{\"hotwords\":[{\"word\":\"Auralink\"},{\"word\":\"火山引擎\"}],\"context_type\":\"dialog_ctx\",\"context_data\":[{\"text\":\"A note about \\\"Auralink\\\".\"}]}"
+      "context": "{\"hotwords\":[{\"word\":\"VoxtNew\"},{\"word\":\"火山引擎\"}],\"context_type\":\"dialog_ctx\",\"context_data\":[{\"text\":\"A note about \\\"VoxtNew\\\".\"}]}"
     },
     "enable_ddc": true,
     "enable_itn": true,
@@ -40,7 +40,7 @@
     "show_utterances": true
   },
   "user": {
-    "uid": "auralink"
+    "uid": "voxtnew"
   }
 }
 == async, traditional Chinese
@@ -62,7 +62,7 @@
     "show_utterances": true
   },
   "user": {
-    "uid": "auralink"
+    "uid": "voxtnew"
   }
 }
 == duplex, hints
@@ -85,7 +85,7 @@
     "show_utterances": true
   },
   "user": {
-    "uid": "auralink"
+    "uid": "voxtnew"
   }
 }
 == nostream, lang ja
@@ -106,6 +106,6 @@
     "show_utterances": true
   },
   "user": {
-    "uid": "auralink"
+    "uid": "voxtnew"
   }
 }

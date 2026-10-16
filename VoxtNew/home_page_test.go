@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/permission"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // homeTester is the test app on Home, in a window tall enough to show all
@@ -145,7 +145,7 @@ func TestHomeReadinessLive(t *testing.T) {
 	}
 }
 
-// TestHomeTryFirstUse: Home offers Try it until Auralink has given a
+// TestHomeTryFirstUse: Home offers Try it until VoxtNew has given a
 // result once; then never again, the history cleared or not.
 func TestHomeTryFirstUse(t *testing.T) {
 	a, tt := homeTester(t)
@@ -336,9 +336,9 @@ func TestHomeRecent(t *testing.T) {
 	}
 }
 
-// selfFront is Auralink as the app in front.
+// selfFront is VoxtNew as the app in front.
 func selfFront() *proto.App {
-	return &proto.App{PID: os.Getpid(), BundleID: "dev.hehehai.auralink", Name: "Auralink"}
+	return &proto.App{PID: os.Getpid(), BundleID: "dev.hehehai.voxtnew", Name: "VoxtNew"}
 }
 
 func TestTryPlace(t *testing.T) {
@@ -379,7 +379,7 @@ func TestTryPlace(t *testing.T) {
 	_ = tt
 }
 
-// TestHomeTryByShortcut: the shortcut pressed while Home shows (Auralink
+// TestHomeTryByShortcut: the shortcut pressed while Home shows (VoxtNew
 // in front) runs a try on the page; in another app, a session as usual.
 func TestHomeTryByShortcut(t *testing.T) {
 	a, tt := homeTester(t)

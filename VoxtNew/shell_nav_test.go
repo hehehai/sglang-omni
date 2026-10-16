@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 func TestAutoRail(t *testing.T) {

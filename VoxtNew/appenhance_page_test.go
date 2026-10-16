@@ -8,12 +8,12 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // sampleRules are the groups the tests and snapshots use.
@@ -63,7 +63,7 @@ var chromeApp = proto.App{PID: 901, BundleID: "com.google.Chrome", Name: "Google
 func aeTester(t *testing.T) (*app, *fakeSupervisor, *ui.Tester) {
 	t.Helper()
 	a, fs, tt := newTestApp(t)
-	browserURLs(fs, map[string]string{chromeApp.BundleID: "https://github.com/hehehai/Auralink/pulls"})
+	browserURLs(fs, map[string]string{chromeApp.BundleID: "https://github.com/hehehai/voxtnew/pulls"})
 	tt.SetSize(windowWidth, 1600)
 	a.navigate("/app-enhancement")
 	frames(tt)
@@ -198,14 +198,14 @@ func TestAppEnhancementPreview(t *testing.T) {
 	// Chrome in front: its address matches Code review by its rule.
 	a.helperNotified(appActivated(chromeApp))
 	frames(tt)
-	if !has(tt, "In front: Google Chrome") || !has(tt, "github.com/hehehai/auralink/pulls") || !has(tt, "Matches Code review, by the website rule github.com") {
+	if !has(tt, "In front: Google Chrome") || !has(tt, "github.com/hehehai/voxtnew/pulls") || !has(tt, "Matches Code review, by the website rule github.com") {
 		t.Errorf("preview %q", firstTexts(tt))
 	}
-	// Auralink comes to the front: the preview keeps Chrome.
-	a.helperNotified(appActivated(proto.App{PID: 77, BundleID: selfBundleID, Name: "Auralink"}))
+	// VoxtNew comes to the front: the preview keeps Chrome.
+	a.helperNotified(appActivated(proto.App{PID: 77, BundleID: selfBundleID, Name: "VoxtNew"}))
 	frames(tt)
 	if !has(tt, "In front: Google Chrome") {
-		t.Errorf("preview after Auralink %q", firstTexts(tt))
+		t.Errorf("preview after VoxtNew %q", firstTexts(tt))
 	}
 	// Slack: its group.
 	a.helperNotified(appActivated(proto.App{PID: 812, BundleID: "com.tinyspeck.slackmacgap", Name: "Slack"}))
@@ -328,7 +328,7 @@ func TestSceneConfig(t *testing.T) {
 // dialogs, and the whole page in a tall window (TestSnapshots).
 func appEnhanceShots(a *app, fs *fakeSupervisor, tt *ui.Tester, save func(string)) {
 	a.clearNotices() // the README shows the page without the services' card
-	browserURLs(fs, map[string]string{chromeApp.BundleID: "https://github.com/hehehai/Auralink/pulls"})
+	browserURLs(fs, map[string]string{chromeApp.BundleID: "https://github.com/hehehai/voxtnew/pulls"})
 	a.setRules(sampleRules())
 	a.urlReads["com.google.Chrome"] = urlRead{ok: true}
 	a.urlReads["com.apple.Safari"] = urlRead{err: "no web area"}

@@ -1,4 +1,4 @@
-// Package icons holds the Solar icons Auralink shows, each in its
+// Package icons holds the Solar icons VoxtNew shows, each in its
 // Linear variant (everywhere) and its Bold one (the sidebar's chosen
 // page, active toggles). solar_gen.go is generated from the
 // @iconify-json/solar package at a pinned version:

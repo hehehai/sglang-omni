@@ -1,9 +1,9 @@
 import Foundation
 
-// Helper protocol 1 between Auralink (Go) and auralink-helper: the Swift
+// Helper protocol 1 between VoxtNew (Go) and voxtnew-helper: the Swift
 // mirror of internal/helper/proto. The spec is docs/helper-protocol.md;
 // the golden transcripts in helper/Fixtures are decoded by both sides
-// (Tests/AuralinkHelperKitTests/FixtureTests.swift here, go test
+// (Tests/VoxtNewHelperKitTests/FixtureTests.swift here, go test
 // ./internal/helper/proto there), so a field added on one side and not
 // the other fails a test.
 //

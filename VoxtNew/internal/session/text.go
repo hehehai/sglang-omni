@@ -3,8 +3,8 @@ package session
 import (
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/lang"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/lang"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // TranslateTarget is the language Translate writes in: override when
@@ -38,7 +38,7 @@ func MainLanguage(s settings.Settings, locale string) string {
 	return lang.Canonical(locale)
 }
 
-// AllowCopy says whether Auralink may press ⌘C in an app to read its
+// AllowCopy says whether VoxtNew may press ⌘C in an app to read its
 // selection when Accessibility shows none (the helper's allowCopy).
 // Not in editors that copy the whole line when nothing is selected (VS
 // Code and its forks, Sublime Text, Zed, JetBrains IDEs…): the "selection"

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 type fakeIO struct {
@@ -60,9 +60,9 @@ func TestInsert(t *testing.T) {
 		{name: "no accessibility", req: Request{Text: "hi", Target: slack}, io: fakeIO{focusErr: &proto.Error{Code: proto.CodePermissionDenied, Message: "no"}}, reason: ReasonNoAccess},
 		{name: "paste refused", req: Request{Text: "hi", Target: slack}, io: fakeIO{focus: []proto.FocusResult{textArea}, pasteErr: &proto.Error{Code: proto.CodePermissionDenied}}, reason: ReasonNoAccess, pastes: 1},
 		{name: "helper gone", req: Request{Text: "hi", Target: slack}, io: fakeIO{focusErr: errors.New("helper exited")}, reason: ReasonFailed},
-		{name: "Auralink in front: activate the target", req: Request{Text: "hi", Target: slack, Self: 77, Activate: func(int) bool { return true }},
+		{name: "VoxtNew in front: activate the target", req: Request{Text: "hi", Target: slack, Self: 77, Activate: func(int) bool { return true }},
 			io: fakeIO{focus: []proto.FocusResult{{PID: 77, Role: "AXWindow"}, textArea}, paste: posted}, inserted: true, pastes: 1, activate: true},
-		{name: "Auralink in front, activation failed", req: Request{Text: "hi", Target: slack, Self: 77, Activate: func(int) bool { return false }},
+		{name: "VoxtNew in front, activation failed", req: Request{Text: "hi", Target: slack, Self: 77, Activate: func(int) bool { return false }},
 			io: fakeIO{focus: []proto.FocusResult{{PID: 77}}}, reason: ReasonNotFront},
 	} {
 		io := tc.io
@@ -94,7 +94,7 @@ func TestCheck(t *testing.T) {
 	io = &fakeIO{focus: []proto.FocusResult{{PID: 77}}}
 	res := Check(context.Background(), io, Request{Text: "x", Target: slack, Self: 77, Activate: func(int) bool { activated = true; return true }})
 	if res.Reason != ReasonNotFront || activated || len(io.pasted) != 0 {
-		t.Errorf("check with Auralink in front %+v (activated %v)", res, activated)
+		t.Errorf("check with VoxtNew in front %+v (activated %v)", res, activated)
 	}
 	io = &fakeIO{focus: []proto.FocusResult{{PID: 812, Role: "AXButton"}}}
 	if res := Check(context.Background(), io, Request{Text: "x", Target: slack}); res.Reason != ReasonNotEditable {

@@ -1,4 +1,4 @@
-// Package dict is the user's dictionary as the rest of Auralink uses it
+// Package dict is the user's dictionary as the rest of VoxtNew uses it
 // (plan §2.3, D4; 0.1 is kept by hand): checking a term, the hints sent to
 // speech recognition, and importing and exporting the terms as CSV or
 // plain text. The terms live in the store (store.Dictionary); the
@@ -18,7 +18,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // Limits of a term.
@@ -133,7 +133,7 @@ var csvHeader = []string{"term", "aliases", "note", "enabled"}
 func Export(terms []store.Term, format string) []byte {
 	var b bytes.Buffer
 	if format == Text {
-		b.WriteString("# Auralink dictionary: a term per line, \"Term = alias, alias\" for what speech recognition hears instead.\n")
+		b.WriteString("# VoxtNew dictionary: a term per line, \"Term = alias, alias\" for what speech recognition hears instead.\n")
 		for _, t := range terms {
 			line := t.Term
 			if len(t.Aliases) > 0 {

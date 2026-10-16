@@ -54,7 +54,7 @@ func (t *httpTransport) headers(ctx context.Context) (http.Header, error) {
 }
 
 // UserAgent is sent with every request.
-var UserAgent = "Auralink"
+var UserAgent = "VoxtNew"
 
 // send POSTs (or GETs when body is nil) and returns the response when the
 // status is 2xx, else an *Error from the body.

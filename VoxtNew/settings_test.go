@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 func TestOverlayStyleSettings(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/dict"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/dict"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // dictionaryTerms is a dictionary as the store returns it: A to Z, one
@@ -14,8 +14,8 @@ import (
 func dictionaryTerms() []store.Term {
 	t0 := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
 	return []store.Term{
-		{Term: "auralink", Enabled: true, UpdatedAt: t0},
-		{Term: "Auralink", Aliases: []string{"aura link"}, Enabled: true, UpdatedAt: t0.Add(3 * time.Hour)},
+		{Term: "voxtnew", Enabled: true, UpdatedAt: t0},
+		{Term: "VoxtNew", Aliases: []string{"aura link"}, Enabled: true, UpdatedAt: t0.Add(3 * time.Hour)},
 		{Term: "Disabled", Enabled: false, UpdatedAt: t0.Add(4 * time.Hour)},
 		{Term: "Kubernetes", Aliases: []string{"cooper netties"}, Enabled: true, UpdatedAt: t0.Add(time.Hour)},
 		{Term: "百炼", Enabled: true, UpdatedAt: t0.Add(2 * time.Hour)},
@@ -31,7 +31,7 @@ func TestDictionaryGolden(t *testing.T) {
 		name: "dictionary-context", model: "fun-asr-realtime", path: inferencePath,
 		req:   asr.StreamRequest{Hints: hints, Prompt: "A note about Go."},
 		audio: audioLen, chunk: 2000,
-		final: "你好，世界。我在用 Auralink。Hello world.",
+		final: "你好，世界。我在用 VoxtNew。Hello world.",
 	}, {
 		name: "dictionary-vocabulary", model: "qwen-audio-3.0-asr-flash-streaming", path: inferencePath,
 		req:   asr.StreamRequest{Hints: hints, Prompt: "Engineering stand-up."},

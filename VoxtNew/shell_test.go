@@ -9,16 +9,16 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/lang"
-	"github.com/hehehai/Auralink/internal/permission"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/lang"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 func TestSidebarAndShortcuts(t *testing.T) {
@@ -99,11 +99,11 @@ func TestPaletteAndDeepLinks(t *testing.T) {
 	a.updateSettings(func(s *settings.Settings) { s.General.Language = "en" })
 
 	for link, want := range map[string]string{
-		"auralink://history":           "/history",
-		"auralink:///translate":        "/translate",
-		"auralink://settings/network":  "/settings/network",
-		"/settings/privacy":            "/settings/privacy",
-		"AURALINK://app-enhancement/x": "/app-enhancement",
+		"voxtnew://history":           "/history",
+		"voxtnew:///translate":        "/translate",
+		"voxtnew://settings/network":  "/settings/network",
+		"/settings/privacy":           "/settings/privacy",
+		"VOXTNEW://app-enhancement/x": "/app-enhancement",
 	} {
 		a.settingsOpen = false
 		a.openURL(link)
@@ -112,7 +112,7 @@ func TestPaletteAndDeepLinks(t *testing.T) {
 		}
 	}
 	a.toasts = nil
-	a.openURL("auralink://studio")
+	a.openURL("voxtnew://studio")
 	a.openURL("https://example.com/history")
 	if len(a.toasts) != 2 || !strings.Contains(a.toasts[0], "Unknown link") {
 		t.Errorf("unknown links: %q", a.toasts)
@@ -194,7 +194,7 @@ func TestProblemCards(t *testing.T) {
 		t.Errorf("its action: %s", a.router.Path())
 	}
 	// The helper: a card while it does not run, the newest on top.
-	fs.set(helper.Status{State: helper.Failed, Reason: helper.FailMissing, Err: "auralink-helper was not found"})
+	fs.set(helper.Status{State: helper.Failed, Reason: helper.FailMissing, Err: "voxtnew-helper was not found"})
 	if !has(tt, "Helper missing") || !has(tt, "2 notifications") || a.notices[0].ID != problemHelper {
 		t.Fatalf("missing helper: %q", firstTexts(tt))
 	}
@@ -204,7 +204,7 @@ func TestProblemCards(t *testing.T) {
 	}
 	a.problemDismissed = nil
 	a.checkServices()
-	fs.set(helper.Status{State: helper.Failed, Reason: helper.FailMissing, Err: "auralink-helper was not found"})
+	fs.set(helper.Status{State: helper.Failed, Reason: helper.FailMissing, Err: "voxtnew-helper was not found"})
 	if !has(tt, "Helper missing") {
 		t.Fatalf("missing helper again: %q", firstTexts(tt))
 	}
@@ -297,8 +297,8 @@ func TestPermissionsMoved(t *testing.T) {
 	}
 	for _, open := range []func(){
 		func() { a.navigate("/permissions") },
-		func() { a.openURL("auralink://permissions") },
-		func() { a.openURL("auralink://settings/permissions") },
+		func() { a.openURL("voxtnew://permissions") },
+		func() { a.openURL("voxtnew://settings/permissions") },
 		func() { a.navigate("/home"); frames(tt); click(t, tt, "Accessibility: Open Permissions") },
 	} {
 		a.settingsOpen = false
@@ -356,10 +356,10 @@ func TestNotificationsAndLogs(t *testing.T) {
 	}
 	a.settingsOpen = false
 	a.logs.Append(core.LogEntry{Time: time.Now(), Level: core.SeverityInfo, Source: helper.LogSource, Message: "fake helper ready"})
-	a.logs.Append(core.LogEntry{Time: time.Now(), Level: core.SeverityInfo, Source: "app", Message: "Auralink started"})
+	a.logs.Append(core.LogEntry{Time: time.Now(), Level: core.SeverityInfo, Source: "app", Message: "VoxtNew started"})
 	a.navigate("/logs")
 	a.logsSource = helper.LogSource
-	if !has(tt, "fake helper ready") || has(tt, "Auralink started") {
+	if !has(tt, "fake helper ready") || has(tt, "VoxtNew started") {
 		t.Errorf("logs: %q", firstTexts(tt))
 	}
 	tt.Key(ui.Cmd|ui.Shift, ui.KeyL)

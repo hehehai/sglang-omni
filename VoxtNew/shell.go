@@ -24,11 +24,11 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/logs"
-	"github.com/hehehai/Auralink/internal/notify"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/logs"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/notify"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // The main window's size, DIPs: by default and at the least. A size the
@@ -201,7 +201,7 @@ func section(path string) string {
 
 // openWindow opens the main window; it runs in App.WhenReady. Opened
 // at login, with the menu bar icon and "Keep running when the window
-// closes" on, Auralink starts in the menu bar: the window waits hidden.
+// closes" on, VoxtNew starts in the menu bar: the window waits hidden.
 func (a *app) openWindow() {
 	a.version = mygo.App.Version()
 	a.systemLocale = systemLanguage() // settings_locale.go
@@ -209,7 +209,7 @@ func (a *app) openWindow() {
 	a.applyLocale() // the system's language, unless the settings name one
 	a.buildMenu()
 	a.win = mygo.NewWindow(mygo.WindowOptions{
-		Title:          "Auralink",
+		Title:          "VoxtNew",
 		Width:          windowWidth,
 		Height:         windowHeight,
 		MinWidth:       windowMinWidth,
@@ -225,7 +225,7 @@ func (a *app) openWindow() {
 }
 
 // startHidden says whether the window waits hidden at start: opened at
-// login, when Auralink stays in the menu bar.
+// login, when VoxtNew stays in the menu bar.
 func startHidden(atLogin bool, g settings.General) bool {
 	return atLogin && g.MenuBar && g.CloseToTray
 }
@@ -323,7 +323,7 @@ func (a *app) syncNav() {
 	}
 }
 
-// showFatal explains, in a dialog, why Auralink cannot start (its library
+// showFatal explains, in a dialog, why VoxtNew cannot start (its library
 // did not open), then quits. It runs instead of the app.
 func showFatal(err error) {
 	log.Print(err)
@@ -333,10 +333,10 @@ func showFatal(err error) {
 			dataDir, _ := mygo.App.Path(mygo.PathUserData)
 			res, _ := mygo.Dialog.Message(mygo.MessageOptions{
 				Type:    mygo.MessageError,
-				Title:   "Auralink",
-				Message: i18n.T("Auralink cannot open its library"),
+				Title:   "VoxtNew",
+				Message: i18n.T("VoxtNew cannot open its library"),
 				Detail: i18n.T("Your history, dictionary and settings are kept in a database in %s. It could not be opened: %v", dataDir, err) +
-					"\n\n" + i18n.T("If a newer Auralink created it, use that version. Nothing was changed."),
+					"\n\n" + i18n.T("If a newer VoxtNew created it, use that version. Nothing was changed."),
 				Buttons: []string{i18n.T("Quit"), i18n.T("Show the folder")},
 			})
 			if res.Button == 1 {

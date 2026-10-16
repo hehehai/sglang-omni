@@ -4,7 +4,7 @@ import (
 	"github.com/egoist/mygo"
 )
 
-// app is Auralink's UI state: the view state of every page, and handles
+// app is VoxtNew's UI state: the view state of every page, and handles
 // to the domain (the library, the helper). Every field is read and
 // written on the main thread: work on other goroutines reaches it through
 // post.

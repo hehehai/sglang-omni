@@ -8,18 +8,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/appicons"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appicons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // snapshotIcons makes the fake supervisor answer app.icons with the fake
 // helper's icons, none for com.example.* (a removed app), and counts the
 // apps asked for. With a dir it answers the PNGs there (<bundle id>.png,
 // as TestMacHelperIcons saves real ones), none for the others: the
-// snapshots pass AURALINK_SNAPSHOT_ICONS, the tests of the icons' states
+// snapshots pass VOXTNEW_SNAPSHOT_ICONS, the tests of the icons' states
 // "" (with it set to a dir without their apps they saw none).
 func snapshotIcons(fs *fakeSupervisor, dir string) *[][]string {
 	var asked [][]string

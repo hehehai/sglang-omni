@@ -1,6 +1,6 @@
 import AppKit
 import ApplicationServices
-import AuralinkHelperKit
+import VoxtNewHelperKit
 import Foundation
 
 // The URL of a browser's front tab, for app enhancement's URL rules,
@@ -27,7 +27,7 @@ import Foundation
 // thread-safe), each element answering within the messaging timeout.
 
 enum Browser {
-    private static let queue = DispatchQueue(label: "auralink.browser", qos: .userInitiated, attributes: .concurrent)
+    private static let queue = DispatchQueue(label: "voxtnew.browser", qos: .userInitiated, attributes: .concurrent)
 
     /// Nodes the breadth-first search visits at most.
     static let maxNodes = 400

@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // TestSnapshotsShortcuts saves the feature pages' Shortcuts sections (and
 // App enhancement's Apps) at the default and the smallest window, Chinese
 // dark and English light, and the sections with nothing in them.
-func TestSnapshotsShortcuts(t *testing.T) { runSnapshots(t, "AURALINK_SNAPSHOTS", snapshotsShortcuts) }
+func TestSnapshotsShortcuts(t *testing.T) { runSnapshots(t, "VOXTNEW_SNAPSHOTS", snapshotsShortcuts) }
 
 func snapshotsShortcuts(t *testing.T, out string) {
 	for _, size := range [][2]int{{windowWidth, windowHeight}, {windowMinWidth, windowMinHeight}} {

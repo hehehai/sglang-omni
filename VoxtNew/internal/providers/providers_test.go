@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/aliyun"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
-	"github.com/hehehai/Auralink/internal/asr/doubao"
-	"github.com/hehehai/Auralink/internal/asr/openai"
-	"github.com/hehehai/Auralink/internal/llm"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/aliyun"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/doubao"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/openai"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 func keys(accounts ...string) func(string) bool {
@@ -226,7 +226,7 @@ func TestTest(t *testing.T) {
 }
 
 // TestE2EDeepSeek has one short conversation with DeepSeek's default
-// model, thinking off (AURALINK_E2E=1 and DEEPSEEK_API_KEY).
+// model, thinking off (VOXTNEW_E2E=1 and DEEPSEEK_API_KEY).
 func TestE2EDeepSeek(t *testing.T) {
 	asrtest.E2E(t)
 	key := asrtest.Key(t, "DEEPSEEK_API_KEY")
@@ -241,7 +241,7 @@ func TestE2EDeepSeek(t *testing.T) {
 	resp, err := c.Chat(ctx, llm.Request{
 		Messages: []llm.Message{
 			{Role: llm.System, Content: "You clean up dictated text. Reply with the cleaned text only."},
-			{Role: llm.User, Content: "嗯 那个 我们明天 uh 下午三点 开会 讨论 Auralink 的 release plan"},
+			{Role: llm.User, Content: "嗯 那个 我们明天 uh 下午三点 开会 讨论 VoxtNew 的 release plan"},
 		},
 		Temperature: llm.F64(0.1),
 		OnDelta:     func(s string) { streamed.WriteString(s) },

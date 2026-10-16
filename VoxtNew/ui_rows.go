@@ -6,7 +6,7 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
 )
 
 // settingRow is a setting: its name, a ⓘ telling what it does (desc, ""

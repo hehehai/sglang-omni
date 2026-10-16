@@ -10,10 +10,10 @@ import (
 
 // Address is a tab's address as rules see it: host and path, lower case,
 // without the scheme, "www.", the port, the query and the fragment
-// ("github.com/hehehai/auralink").
+// ("github.com/hehehai/voxtnew").
 type Address struct {
 	Host string // "github.com"
-	Path string // "/hehehai/auralink" ("/" at least)
+	Path string // "/hehehai/voxtnew" ("/" at least)
 }
 
 // String is host + path.

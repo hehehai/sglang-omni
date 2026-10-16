@@ -6,7 +6,7 @@ package main
 // the features it applies to, its scene prompt (layered on top of the
 // feature's own clean-up), its apps, its website rules, and the key
 // pressed after inserting. A preview at the top says which app is in
-// front (the last one before Auralink), its address and the group it
+// front (the last one before VoxtNew), its address and the group it
 // falls in, live. Browsers (built in and the user's) are listed in a
 // dialog that says which ones gave an address at the last shortcut.
 //
@@ -18,11 +18,11 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // Widths (DIPs at 100 %): the group list, and the least the group's

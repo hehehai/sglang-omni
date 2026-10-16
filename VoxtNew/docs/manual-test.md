@@ -12,8 +12,8 @@
 
 | 名称 | 位置 |
 |---|---|
-| 日志面板 | Auralink 里按 ⇧⌘L |
-| 日志文件 | `~/Library/Logs/Auralink/auralink.log`（app）、`helper.log`（辅助进程：热键、AX、粘贴、URL） |
+| 日志面板 | VoxtNew 里按 ⇧⌘L |
+| 日志文件 | `~/Library/Logs/VoxtNew/voxtnew.log`（app）、`helper.log`（辅助进程：热键、AX、粘贴、URL） |
 | 历史详情 | 每次会话的原文、结果、交付方式、服务和模型、各阶段耗时、命中的规则 |
 | 系统设置 | 隐私与安全 → 辅助功能 / 麦克风 / 自动化 |
 
@@ -22,11 +22,11 @@
 ## 0. 准备（约 5 分钟）
 
 **0.1 构建产物**
-- 已经打好的版本：`~/code/Auralink/build/darwin-arm64/Auralink.app`。
-- 要重打时，在 Linux 上执行：`MAC_DIR=code/Auralink scripts/mac.sh 'scripts/build-helper.sh && go tool mygo build'`。
+- 已经打好的版本：`~/code/VoxtNew/build/darwin-arm64/VoxtNew.app`。
+- 要重打时，在 Linux 上执行：`MAC_DIR=code/VoxtNew scripts/mac.sh 'scripts/build-helper.sh && go tool mygo build'`。
 - 包是 ad-hoc 签名，每次重打以后，macOS 都会忘掉授权。
 
-**0.2 Key 文件**：`~/.config/auralink-dev/keys.env`。app 本身不读这个文件，它只给第 8 节的自动测试用；建好以后，下一步往 app 里填 Key 也从这里复制。
+**0.2 Key 文件**：`~/.config/voxtnew-dev/keys.env`。app 本身不读这个文件，它只给第 8 节的自动测试用；建好以后，下一步往 app 里填 Key 也从这里复制。
 
 ```sh
 # 有哪个写哪个，没有的行删掉
@@ -38,13 +38,13 @@ STEPFUN_API_KEY=...        # 阶跃星辰（语音识别用 step-asr）
 DEEPSEEK_API_KEY=...
 ```
 
-执行一次 `chmod 600 ~/.config/auralink-dev/keys.env`，Mac 和 Linux 上各放一份。
+执行一次 `chmod 600 ~/.config/voxtnew-dev/keys.env`，Mac 和 Linux 上各放一份。
 
 **0.3 打开 app 并授权**
 - **做**：
-  1. 打开 `Auralink.app`。第一次打开（或者这台 Mac 上的数据里还没有记过“引导已完成”）会弹出**设置引导**：先点右上角 × 关掉它，第 9.2 节再完整走一遍。
+  1. 打开 `VoxtNew.app`。第一次打开（或者这台 Mac 上的数据里还没有记过“引导已完成”）会弹出**设置引导**：先点右上角 × 关掉它，第 9.2 节再完整走一遍。
   2. 进入设置（⌘,）→ 权限，授予辅助功能和麦克风。
-  3. 如果系统设置里已经有一条旧的 Auralink 记录，而且它是打开的但不起作用，用 − 删掉，再重新添加。
+  3. 如果系统设置里已经有一条旧的 VoxtNew 记录，而且它是打开的但不起作用，用 − 删掉，再重新添加。
 - **应看到**：
   - 第 1 步弹出了设置引导；关掉以后再重启 app，不会再弹。
   - 权限页的两项都显示已授权。
@@ -73,7 +73,7 @@ DEEPSEEK_API_KEY=...
 **1.1 基本流程**
 - **做**：
   1. 在 TextEdit 里点一下，先复制一段别的文字，用来检查剪贴板会不会恢复。
-  2. 按 fn，说一句中英混合的话，例如“今天下午三点开会，讨论 Auralink 的发布计划”，再按 fn。
+  2. 按 fn，说一句中英混合的话，例如“今天下午三点开会，讨论 VoxtNew 的发布计划”，再按 fn。
 - **应看到**：
   - 按下 fn 时响一声（Pop），浮窗出现在屏幕下方，不抢焦点：只有功能图标和波形（没有按钮、默认没有计时），说话时波形起伏，不说话时 bar 轻微地呼吸；流式服务的实时文字显示在下面。
   - 停止录音时再响一声（Tink）；按 Esc 取消时不响。
@@ -129,7 +129,7 @@ DEEPSEEK_API_KEY=...
   - 切回 TextEdit 后点“插入”，文字插进 TextEdit。
 
 **1.6 粘贴最近结果**
-- **做**：按 ⌃⌘V。然后退出 Auralink（菜单栏 → 退出），重新打开，再按一次 ⌃⌘V。
+- **做**：按 ⌃⌘V。然后退出 VoxtNew（菜单栏 → 退出），重新打开，再按一次 ⌃⌘V。
 - **应看到**：两次都粘出最近一次转录的结果。重启后的结果是从历史里读的。
 
 **1.7 菜单栏**
@@ -140,12 +140,12 @@ DEEPSEEK_API_KEY=...
   - 开始后，菜单项变成“停止转录”；录音期间菜单栏图标变成“波形加一个实心圆点”，结束后恢复。
   - 文字插入 TextEdit，也就是点菜单之前在前台的 App。
   - 菜单里列出最近 3 条结果，每条只有一行短预览（约 13 个汉字或 26 个字母，末尾“…”），菜单不比“粘贴最近结果 ⌃⌘V”那一行宽多少；鼠标停住时 tooltip 显示全文；点一条会复制它的全文。
-  - 菜单里还有“粘贴最近结果”“打开 Auralink”“设置…”“退出 Auralink”。
+  - 菜单里还有“粘贴最近结果”“打开 VoxtNew”“设置…”“退出 VoxtNew”。
 
 **1.8 试一试**
-- **做**：在转录页的“试一试”点“开始”录一次；再在转录页直接按 fn 录一次（Auralink 在前台）。
+- **做**：在转录页的“试一试”点“开始”录一次；再在转录页直接按 fn 录一次（VoxtNew 在前台）。
 - **应看到**：
-  - 两次的结果、原文和各阶段耗时都显示在页面里，不会粘贴到 Auralink 自己的输入框。
+  - 两次的结果、原文和各阶段耗时都显示在页面里，不会粘贴到 VoxtNew 自己的输入框。
   - 不弹浮窗，也不写历史。
 
 **1.9 〔可选〕右 ⌘ 长按**
@@ -225,7 +225,7 @@ DEEPSEEK_API_KEY=...
 **4.1 没有自动化权限**
 - **做**：打开系统设置 → 隐私与安全 → 自动化。
 - **应看到**：
-  - 列表里没有 Auralink。
+  - 列表里没有 VoxtNew。
   - 整个验证过程中，都不应该弹出“想要控制 Safari/Chrome”的对话框。
 
 **4.2 按网址和浏览器匹配**
@@ -245,7 +245,7 @@ DEEPSEEK_API_KEY=...
 
 **4.3 预览和浏览器对话框**
 - **做**：
-  1. 回到 Auralink 的应用增强页，看顶部的预览，点“重新读取”。
+  1. 回到 VoxtNew 的应用增强页，看顶部的预览，点“重新读取”。
   2. 点“把 github.com 加入 …”。
   3. 点页头右上角的地球图标，打开“浏览器”对话框。
 - **应看到**：
@@ -292,11 +292,11 @@ DEEPSEEK_API_KEY=...
 
 **5.1 别名纠正**
 - **做**：
-  1. 在词典页添加词条“Auralink”，别名填“aura link”。
+  1. 在词典页添加词条“VoxtNew”，别名填“aura link”。
   2. 在 TextEdit 里说“我在用 aura link 写东西”。
-- **应看到**：输出里写的是“Auralink”。
+- **应看到**：输出里写的是“VoxtNew”。
 - **不对时看**：
-  - 历史详情的原文：ASR 是否已经识别成 Auralink（靠热词）。
+  - 历史详情的原文：ASR 是否已经识别成 VoxtNew（靠热词）。
   - 结果：语言模型是否把它改回来了（靠术语表）。
 
 **5.2 导出和导入**
@@ -338,7 +338,7 @@ DEEPSEEK_API_KEY=...
 
 **6.3 去掉辅助功能**
 - **做**：
-  1. 在系统设置里把 Auralink 的辅助功能关掉，回到 Auralink 看转录页。
+  1. 在系统设置里把 VoxtNew 的辅助功能关掉，回到 VoxtNew 看转录页。
   2. 按 ⌃⌘V。
   3. 按 fn。
   4. 把辅助功能打开，不重启 app，再按 fn。
@@ -372,10 +372,10 @@ DEEPSEEK_API_KEY=...
 - **做**：在 Mac 或 Linux 上执行（需要 0.2 的 keys.env；语音样本 `testdata/speech/sample-zh-en.wav` 已经在仓库里）：
 
   ```sh
-  AURALINK_E2E=1 go test -run 'TestE2E' -v . ./internal/asr/... ./internal/providers
+  VOXTNEW_E2E=1 go test -run 'TestE2E' -v . ./internal/asr/... ./internal/providers
   ```
 
-- **应看到**：有 Key 的服务都通过，没有 Key 的跳过。日志里的识别结果接近样本原文：“今天下午三点开会，讨论 Auralink 的发布计划。Please send the meeting notes to the team.”
+- **应看到**：有 Key 的服务都通过，没有 Key 的跳过。日志里的识别结果接近样本原文：“今天下午三点开会，讨论 VoxtNew 的发布计划。Please send the meeting notes to the team.”
 
 ---
 
@@ -383,7 +383,7 @@ DEEPSEEK_API_KEY=...
 
 **9.1 首页**
 - **做**：
-  1. 打开首页（⌘1），看标题下的标语和顶部的就绪情况；再到系统设置里关掉 Auralink 的辅助功能，回到首页看，然后打开。
+  1. 打开首页（⌘1），看标题下的标语和顶部的就绪情况；再到系统设置里关掉 VoxtNew 的辅助功能，回到首页看，然后打开。
   2. 第一次用（没有任何结果）时，在首页按 fn 说一句话，再按 fn；然后切到历史页再回首页。
   3. 看“今天”和“最近结果”，在最近结果里点一条的复制按钮，再点这一条本身。
   4. 按 ⇧⌘L 打开日志面板，把窗口缩到最小（680×440）。
@@ -434,11 +434,11 @@ DEEPSEEK_API_KEY=...
 **9.6 设置 → 通用**
 - **做**：
   1. 在“其他语言”里添加英语，再把主要语言改成英语。
-  2. 打开“登录时打开”，然后到 系统设置 → 通用 → 登录项 里看；在登录项里把 Auralink 关掉，回到 Auralink 关窗再打开（或重启 app），看这个开关。
+  2. 打开“登录时打开”，然后到 系统设置 → 通用 → 登录项 里看；在登录项里把 VoxtNew 关掉，回到 VoxtNew 关窗再打开（或重启 app），看这个开关。
   3. 〔可选〕把“登录时打开”打开，注销再登录。
 - **应看到**：
   - 第 1 步：主要语言改成英语后，“其他语言”里的英语自动去掉。
-  - 第 2 步：登录项里出现 Auralink；在系统设置里关掉以后，Auralink 里的开关也跟着变成关。
+  - 第 2 步：登录项里出现 VoxtNew；在系统设置里关掉以后，VoxtNew 里的开关也跟着变成关。
   - 第 3 步：登录后只有菜单栏图标，不弹主窗口（“在菜单栏显示”和“关闭窗口后继续运行”都开着时）。
 
 **9.7 窗口和侧边栏**
@@ -452,7 +452,7 @@ DEEPSEEK_API_KEY=...
 **9.8 通知卡片（没有状态栏）**
 - **做**：
   1. 在 设置 → 模型服务 里把所有服务关掉（或者用一个没有配置的新数据目录）。
-  2. 在“活动监视器”里结束 `auralink-helper` 进程。
+  2. 在“活动监视器”里结束 `voxtnew-helper` 进程。
   3. 点卡片上的“重启辅助进程”；再点服务卡片右上角的 ×。
   4. 把窗口缩到 740 宽以下（侧边栏变成图标），再重复第 2 步。
 - **应看到**：
@@ -470,41 +470,41 @@ DEEPSEEK_API_KEY=...
 - 不开窗口，不改变前台 App，不抢焦点；
 - 不发按键，不装事件 tap（只调用 `hotkey.status`，不调用 `hotkey.configure`）；
 - 不碰剪贴板，不做真实粘贴（文本输入输出是只记录文字的假实现，只读调用真实的 `textio.focus`）；
-- 不用麦克风，也不会弹出授权窗口：辅助进程的录音改成读取 WAV 文件（`AURALINK_HELPER_CAPTURE_FILE`，**仅用于测试**，见 [helper-protocol.md](helper-protocol.md) 第 4 节）。读出来的音频和麦克风走同一条链路：混成单声道、重采样、`PCMFramer`、`capture.level` 和 `capture.pcm` 通知、停止、取消和 maxSeconds 的结束方式都一样；
+- 不用麦克风，也不会弹出授权窗口：辅助进程的录音改成读取 WAV 文件（`VOXTNEW_HELPER_CAPTURE_FILE`，**仅用于测试**，见 [helper-protocol.md](helper-protocol.md) 第 4 节）。读出来的音频和麦克风走同一条链路：混成单声道、重采样、`PCMFramer`、`capture.level` 和 `capture.pcm` 通知、停止、取消和 maxSeconds 的结束方式都一样；
 - 只读取已经在运行的浏览器的网址（按 pid），不启动、不激活浏览器；
-- 占用资源少：`nice -n 10`，Swift 和 Go 都只用 2 个并行任务（`GOMAXPROCS=2`、`GOFLAGS=-p=2`），各步骤依次执行；每一步开始前检查空闲内存，低于 40%（`AURALINK_MIN_FREE`）就停止；结束时确认没有残留的辅助进程。
+- 占用资源少：`nice -n 10`，Swift 和 Go 都只用 2 个并行任务（`GOMAXPROCS=2`、`GOFLAGS=-p=2`），各步骤依次执行；每一步开始前检查空闲内存，低于 40%（`VOXTNEW_MIN_FREE`）就停止；结束时确认没有残留的辅助进程。
 
 **10.1 怎么跑**
 
 ```sh
-# 在 Linux 上执行。同步到独立目录（不要用 code/Auralink，那是给人用的构建）
-MAC_DIR=code/Auralink-mt scripts/mac.sh scripts/mac-e2e.sh --offline   # 不调用真实服务
-MAC_DIR=code/Auralink-mt scripts/mac.sh scripts/mac-e2e.sh             # 再加真实服务：阶跃 1 次，DeepSeek 3 次
+# 在 Linux 上执行。同步到独立目录（不要用 code/VoxtNew，那是给人用的构建）
+MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh --offline   # 不调用真实服务
+MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh             # 再加真实服务：阶跃 1 次，DeepSeek 3 次
 ```
 
-真实服务的 Key 从 Mac 上的环境变量或 `~/.config/auralink-dev/keys.env` 读取，缺哪个就跳过对应的测试。如果不想在 Mac 上放 Key 文件，可以从 Linux 通过 stdin 传过去（Key 不落盘，也不出现在命令行参数里；测试日志只打印长度和耗时）：
+真实服务的 Key 从 Mac 上的环境变量或 `~/.config/voxtnew-dev/keys.env` 读取，缺哪个就跳过对应的测试。如果不想在 Mac 上放 Key 文件，可以从 Linux 通过 stdin 传过去（Key 不落盘，也不出现在命令行参数里；测试日志只打印长度和耗时）：
 
 ```sh
-MAC_DIR=code/Auralink-mt scripts/mac.sh   # 只同步
-grep -E '^(STEPFUN_API_KEY|DEEPSEEK_API_KEY)=' ~/.config/auralink-dev/keys.env | \
-  ssh mac-air 'cd code/Auralink-mt && set -a && . /dev/stdin && set +a &&
+MAC_DIR=code/VoxtNew-mt scripts/mac.sh   # 只同步
+grep -E '^(STEPFUN_API_KEY|DEEPSEEK_API_KEY)=' ~/.config/voxtnew-dev/keys.env | \
+  ssh mac-air 'cd code/VoxtNew-mt && set -a && . /dev/stdin && set +a &&
     export PATH=/opt/homebrew/bin:$PATH GOTOOLCHAIN=auto GOPROXY=https://goproxy.cn,direct && scripts/mac-e2e.sh'
 ```
 
-单独跑某一项：`AURALINK_MAC_E2E=1 AURALINK_HELPER=<辅助进程路径> go test -run 'TestMacHelperReadOnly' -v .`（在 Mac 上执行；辅助进程用 `scripts/build-helper.sh --out DIR` 编译）。
+单独跑某一项：`VOXTNEW_MAC_E2E=1 VOXTNEW_HELPER=<辅助进程路径> go test -run 'TestMacHelperReadOnly' -v .`（在 Mac 上执行；辅助进程用 `scripts/build-helper.sh --out DIR` 编译）。
 
-**10.2 覆盖了什么**（`mac_e2e_test.go`、`helper/Tests/AuralinkHelperKitTests/CaptureFileTests.swift`）
+**10.2 覆盖了什么**（`mac_e2e_test.go`、`helper/Tests/VoxtNewHelperKitTests/CaptureFileTests.swift`）
 
 | 测试 | 内容 | 2026-10-15 在 mac-air（macOS 26.7，M4）上的结果 |
 |---|---|---|
 | `swift test` | 协议 fixture、热键识别、PCM 分帧；新增的文件输入：22.05 kHz 立体声 fixture 按实时节奏读出，混成单声道并重采样到 16 kHz，分帧连续，电平正确；哪些 App 设置 `AXManualAccessibility`、每个进程一次（`ManualAccessibilityTests`） | 32 个用例全部通过 |
-| `TestMacHelperIcons` | 真实的辅助进程画 App 图标（`app.icons`）：访达、Safari 按 bundle ID，微信、Arc 装了才算，已安装列表里的前几个按路径，加一个不存在的 App（应当没有图标）；`AURALINK_E2E_ICONS=<目录>` 时把 PNG 存下来 | 10-15 通过：10 个图标 309 ms（第一次，之后系统有缓存），每个 64×64、4–7 KB；不存在的 App 没有图标 |
+| `TestMacHelperIcons` | 真实的辅助进程画 App 图标（`app.icons`）：访达、Safari 按 bundle ID，微信、Arc 装了才算，已安装列表里的前几个按路径，加一个不存在的 App（应当没有图标）；`VOXTNEW_E2E_ICONS=<目录>` 时把 PNG 存下来 | 10-15 通过：10 个图标 309 ms（第一次，之后系统有缓存），每个 64×64、4–7 KB；不存在的 App 没有图标 |
 | `TestMacHelperReadOnly` | 真实的 supervisor 加真实的辅助进程：`helper.hello`、`permissions.status`、`hotkey.status`（没有绑定时不装 tap）、`app.frontmost`、`app.list`（运行中的、已安装的）、`capture.devices`、对已经在运行的浏览器按 pid 调三轮 `browser.url`（第二轮之前发 `app.configure`，列出 Chromium 系浏览器：读不到网页区域的会被设置 `AXManualAccessibility` 后重试）、`textio.focus`、`textio.selection`（不允许 ⌘C）；前后的权限状态不变，没有收到任何热键通知 | 通过。从 ssh 跑时：麦克风 `notDetermined`，辅助功能 `true`；前台是 Arc；7 个运行中的 App，117 个已安装的 App；2 个输入设备。Chrome 在后台：`ax-document`，18 ms。**Arc 在前台却读不到网址**（`via none`，查了 400 个节点，641 ms），`textio.focus` 也是“没有焦点元素”，见 10.3。修复后（#12）：Arc 在后台，第一轮 `none`（717 ms），`app.configure` 之后重试读到（`ax-focus`，1230 ms，`retried`），之后 2–5 ms；Chrome 一直是 `ax-document`，1–22 ms |
 | `TestMacHelperCaptureFile` | 辅助进程以 4 倍速读语音样本：`capture.started` 报告文件名、16 kHz、单声道；帧序号和偏移连续；录到的 PCM 和文件逐样本一致；电平约 20 Hz；`capture.stop`、取消、`maxSeconds` 三种结束方式；22.05 kHz 立体声的 fixture 混音后峰值是 0.375；麦克风的权限状态没有变 | 通过：和文件的相关系数 1.00000，延迟 0 个样本；`maxSeconds=1` 时正好 16000 个样本 |
-| `TestMacE2ESessionReal` | 和 app 一样组装的 `session.Manager`：辅助进程按实时节奏读样本，阶跃 step-asr 识别，DeepSeek 整理（词典里有“Auralink”），文字交给假的文本输出，历史写进临时目录里的 SQLite，同时保存录音 | 通过：录音 10.82 s，识别 774 ms（原文“…讨论AurLink的发布计划…”），整理 850 ms，结果“今天下午三点开会讨论 Auralink 的发布计划。Please send the meeting notes to the team.”；历史里各字段和录音文件都对 |
+| `TestMacE2ESessionReal` | 和 app 一样组装的 `session.Manager`：辅助进程按实时节奏读样本，阶跃 step-asr 识别，DeepSeek 整理（词典里有“VoxtNew”），文字交给假的文本输出，历史写进临时目录里的 SQLite，同时保存录音 | 通过：录音 10.82 s，识别 774 ms（原文“…讨论AurLink的发布计划…”），整理 850 ms，结果“今天下午三点开会讨论 VoxtNew 的发布计划。Please send the meeting notes to the team.”；历史里各字段和录音文件都对 |
 | `TestMacE2EWriteReal` | 从文本开始的翻译（选中文字译成简体中文）和转写（按指令改写选中的文字），DeepSeek，交付和历史同上 | 通过：翻译 1.3 s，转写 0.5 s，都没有触发严格重试 |
 | 文字测量 | `TestTextFitsItsOwnWidth`、`TestTranslationsFit`（strict）：Core Text 下每条中英文字符串按自身宽度排版不折行 | 通过：中文 843 条、英文 874 条，0 条折行 |
-| 快照（可选，`AURALINK_SNAPSHOTS`） | 离屏渲染各页面，用 Core Text 排版 | 880×580 和 720×480、中英文的页面都看过一遍，没有发现被截断的文字。只有窄窗口下历史列表的副标题按设计以“…”结尾（如“→ Simplified Chine…”） |
+| 快照（可选，`VOXTNEW_SNAPSHOTS`） | 离屏渲染各页面，用 Core Text 排版 | 880×580 和 720×480、中英文的页面都看过一遍，没有发现被截断的文字。只有窄窗口下历史列表的副标题按设计以“…”结尾（如“→ Simplified Chine…”） |
 
 **10.3 发现的问题**
 
@@ -514,11 +514,11 @@ grep -E '^(STEPFUN_API_KEY|DEEPSEEK_API_KEY)=' ~/.config/auralink-dev/keys.env |
 
 自动测试碰不到：授权弹窗、真实按键和事件 tap、浮窗的外观、在各 App 里真实粘贴（会改剪贴板）、前台的 Safari 和 Arc、引导界面的交互。按顺序做下面 7 步，每步写“✓ / ✗ + 一句话”。
 
-1. **授权（2 分钟）**：做 0.3。麦克风的授权弹窗以 Auralink 的名义出现；辅助功能打开后不重启 app，2 秒内 fn 就能用（6.3 第 4 步）。
+1. **授权（2 分钟）**：做 0.3。麦克风的授权弹窗以 VoxtNew 的名义出现；辅助功能打开后不重启 app，2 秒内 fn 就能用（6.3 第 4 步）。
 2. **真实按键、浮窗、粘贴（2.5 分钟）**：做 1.1 和 1.4。fn 开始和停止，有提示音；浮窗不抢焦点，波形在动，半透明、背后模糊、阴影完整；插入后浮窗马上淡出（不再停在“已插入”）；文字插进 TextEdit；⌘V 粘出来的仍是原来剪贴板里的内容。
 3. **Esc（0.5 分钟）**：做 1.3 第 1 步。什么都不插入，也不写历史。
 4. **各 App 里粘贴（2 分钟）**：在备忘录、Slack（或微信）、Chrome 网页的输入框里各转录一次（1.2 的简化版），都直接插入。
-5. **浏览器网址（2 分钟）**：做 4.2 的第 3、4 步，只做 Safari 和 Arc，**都放在前台**。在应用增强页看预览，或看 `helper.log` 里 `browser.url` 的 `via`，填进“结果怎么报”的浏览器表。Arc 要在 Auralink 启动之后切到前台过一次（辅助进程那时给它设置 `AXManualAccessibility`），读到的应是 `ax-focus` 或 `ax-weburl`；读不到时，记下它是否在输入框里有焦点，以及日志面板（debug 级别，来源 helper）里有没有 “AXManualAccessibility on company.thebrowser.Browser … set”（见 10.3）。
+5. **浏览器网址（2 分钟）**：做 4.2 的第 3、4 步，只做 Safari 和 Arc，**都放在前台**。在应用增强页看预览，或看 `helper.log` 里 `browser.url` 的 `via`，填进“结果怎么报”的浏览器表。Arc 要在 VoxtNew 启动之后切到前台过一次（辅助进程那时给它设置 `AXManualAccessibility`），读到的应是 `ax-focus` 或 `ax-weburl`；读不到时，记下它是否在输入框里有焦点，以及日志面板（debug 级别，来源 helper）里有没有 “AXManualAccessibility on company.thebrowser.Browser … set”（见 10.3）。
 6. **选中文字翻译（1 分钟）**：在 TextEdit 里选中一句英文按 fn⇧（2.1），译文替换选区。
 7. **引导（1 分钟）**：做 9.2 的第 1、2 步，再关掉引导，看界面是否正常。
 
@@ -527,12 +527,12 @@ grep -E '^(STEPFUN_API_KEY|DEEPSEEK_API_KEY)=' ~/.config/auralink-dev/keys.env |
 `scripts/mac-overlay-check.sh` 让真正的浮窗窗口依次走过各个状态，每一步截图并记录窗口的 frame。它不是无界面的：浮窗和它下面的一块背景板会在屏幕底部（浮窗平常的位置，鼠标所在的显示器）出现约 15 秒，每个状态约 1 秒；但两者都是不激活的面板，不抢焦点、不改前台 App，也不碰剪贴板和按键。
 
 ```sh
-# 在 Linux 上执行。同步到独立目录（不要用 code/Auralink）
-MAC_DIR=code/Auralink-ov scripts/mac.sh scripts/mac-overlay-check.sh
-MAC_DIR=code/Auralink-ov scripts/mac.sh --pull build/overlay-check     # 把结果拿回来
+# 在 Linux 上执行。同步到独立目录（不要用 code/VoxtNew）
+MAC_DIR=code/VoxtNew-ov scripts/mac.sh scripts/mac-overlay-check.sh
+MAC_DIR=code/VoxtNew-ov scripts/mac.sh --pull build/overlay-check     # 把结果拿回来
 ```
 
-- 怎么做的：脚本把 app 编译成一个单独的 accessory bundle（`dev.hehehai.auralink.overlaycheck`，`LSUIElement`，不是装好的 Auralink，不读写它的数据，不启动辅助进程、不建菜单栏图标），用 `open -g` 在后台打开，app 以 `--overlay-check <dir>` 运行 `overlay_check.go`：浅色背景板 + 英文、深色背景板 + 中文各走一遍“迷你胶囊 → 短文本 → 长文本（滚动）→ 处理中 → 插入后消失 → 下一次会话的胶囊 → 出错提示 → 消失”，再走一遍答案卡片：“流式翻译 → 短译文 → 换语言中 → 已复制 → 插入失败的小字 → 长译文（滚动）→ 转写回答 → 追问录音中 → 对话 → 失败 → 消失”。截图由脚本在外面用 `screencapture` 做（`-l` 只截浮窗窗口，`-R` 截背景板连同浮窗），app 自己不需要屏幕录制权限。`nice`、2 个并行任务，空闲内存低于 40% 不启动，跑完退出，最后检查没有残留进程、前台 App 没变。
+- 怎么做的：脚本把 app 编译成一个单独的 accessory bundle（`dev.hehehai.voxtnew.overlaycheck`，`LSUIElement`，不是装好的 VoxtNew，不读写它的数据，不启动辅助进程、不建菜单栏图标），用 `open -g` 在后台打开，app 以 `--overlay-check <dir>` 运行 `overlay_check.go`：浅色背景板 + 英文、深色背景板 + 中文各走一遍“迷你胶囊 → 短文本 → 长文本（滚动）→ 处理中 → 插入后消失 → 下一次会话的胶囊 → 出错提示 → 消失”，再走一遍答案卡片：“流式翻译 → 短译文 → 换语言中 → 已复制 → 插入失败的小字 → 长译文（滚动）→ 转写回答 → 追问录音中 → 对话 → 失败 → 消失”。截图由脚本在外面用 `screencapture` 做（`-l` 只截浮窗窗口，`-R` 截背景板连同浮窗），app 自己不需要屏幕录制权限。`nice`、2 个并行任务，空闲内存低于 40% 不启动，跑完退出，最后检查没有残留进程、前台 App 没变。
 - 看什么：`build/overlay-check/shots/sheet.png`（左列浅色英文，右列深色中文；红线是第一次胶囊的底边和水平中心，每一步浮窗的底边都应该落在红线上、左右对称），`frames.txt`（每一步请求的 frame 和窗口实际的 frame、是否可见、前台 App，以及从窗口截图里量出的浮窗：`ink` 行给出浮窗尺寸、图标左侧和波形右侧的留白、图标和波形的中线、文字左右的留白；出现 `FAIL` 行脚本就返回非 0：锚点（底边或中心）移动了、窗口不在请求的位置、可见性不对、检查程序跑到了前台，或者像素检查不过：胶囊不是 148×48、图标左侧和波形右侧的留白差或中线差超过 1 pt、短文本不居中或浮窗没贴合文字、长文本时浮窗不是 300 宽或文字末尾不在右侧 20 处；答案卡片的笔画不是从左侧 18 开始，或者最下面的笔画不在底部 16 的内边距之上一行以内（有空白或被裁）；`internal/overlay/ink`，Linux 上 `TestOverlayInk` 用同一套量法），以及每一步的 `step-N-window.png`、`step-N-screen.png`。
 - 2026-10-15 在 mac-air 上：16 步全部通过，12 个状态有截图；所有可见的 frame 底边都是 1029、水平中心都是 855（胶囊 186×84 → 短文本 228×108 → 长文本 376×108 → 出错提示 456×84，窗口含 18 的阴影边距）；前台一直是 Arc。第一次跑时发现 `macx.Frontmost` 在 goroutine 里会崩（自动释放池跨线程），已修（`macx.pooled` 锁定线程）。
 - 2026-10-15 第二次（按 Voxt 的数值改尺寸之后，一次跑通）：16 步全部通过，没有 `FAIL`。像素检查：胶囊 148.0×48.0，图标左侧 17.0、波形右侧 16.5，图标和波形的中线都是 24.0（浮窗正中）；英文短文本浮窗 177 宽、文字左右各 21.0；中文短文本比那一行短，浮窗 160 宽、文字居中（45.0 / 45.0）；长文本中英都是 300 宽，文字末尾离右边 21.0；窗口 184×84 → 213×112 → 336×112，底边和中心不动；前台一直是 Arc，没有残留进程。

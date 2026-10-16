@@ -1,11 +1,11 @@
 import ApplicationServices
-import AuralinkHelperKit
+import VoxtNewHelperKit
 import CoreGraphics
 import Foundation
 
 // The global hotkey event tap. A modifying (.defaultTap) session tap: macOS
 // authorizes it with Accessibility alone (a listen-only or HID tap would
-// need Input Monitoring), checked against Auralink.app, the helper's
+// need Input Monitoring), checked against VoxtNew.app, the helper's
 // responsible process. It runs on its own thread with its own run loop;
 // the callback decides synchronously, with the recognizer, whether to
 // swallow the event, and queues hotkey.event notifications, each with the
@@ -15,10 +15,10 @@ import Foundation
 // and sends hotkey.state once in (no restart needed after the user grants
 // it). Accessibility taken away removes the tap, and it retries again.
 //
-// Events Auralink posts itself (⌘V, ⌘C, Return) carry injectedMarker in
+// Events VoxtNew posts itself (⌘V, ⌘C, Return) carry injectedMarker in
 // eventSourceUserData and pass untouched.
 
-/// eventSourceUserData of the events Auralink posts ("AURA").
+/// eventSourceUserData of the events VoxtNew posts ("AURA").
 let injectedMarker: Int64 = 0x4155_5241
 
 final class HotkeyTap: @unchecked Sendable {
@@ -35,7 +35,7 @@ final class HotkeyTap: @unchecked Sendable {
     private var maxCallbackMicros: Double = 0
     private var lastError: String?
     /// hotkey.event goes out in order, off the tap's thread.
-    private let sendQueue = DispatchQueue(label: "auralink.hotkey.send", qos: .userInteractive)
+    private let sendQueue = DispatchQueue(label: "voxtnew.hotkey.send", qos: .userInteractive)
 
     init(out: Writer, front: FrontApps) {
         self.out = out
@@ -80,7 +80,7 @@ final class HotkeyTap: @unchecked Sendable {
                 let trusted = AXIsProcessTrusted()
                 lock.withLock {
                     lastError = trusted ? "CGEvent.tapCreate failed; retrying every 2 s"
-                        : "CGEvent.tapCreate failed: Auralink may not use Accessibility; retrying every 2 s"
+                        : "CGEvent.tapCreate failed: VoxtNew may not use Accessibility; retrying every 2 s"
                 }
                 ready.signal()
                 scheduleRetry()
@@ -102,7 +102,7 @@ final class HotkeyTap: @unchecked Sendable {
             watchTrust()
             CFRunLoopRun()
         }
-        thread.name = "auralink.hotkey"
+        thread.name = "voxtnew.hotkey"
         thread.qualityOfService = .userInteractive
         thread.start()
         _ = ready.wait(timeout: .now() + 1)

@@ -18,7 +18,7 @@ import (
 // are read from every non-test file whatever its build constraints.
 const (
 	mygoUI   = "github.com/egoist/mygo/ui"
-	i18nPath = "github.com/hehehai/Auralink/internal/i18n"
+	i18nPath = "github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 )
 
 // leaves import no internal package: the bottom layer.

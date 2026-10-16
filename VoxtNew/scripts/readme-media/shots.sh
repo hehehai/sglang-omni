@@ -5,7 +5,7 @@
 #   shots.sh en|zh [name:/path …]      # into $RUN/shots/<lang>
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-RUN="${RUN:-$HOME/auralink-demo-run}"
+RUN="${RUN:-$HOME/voxtnew-demo-run}"
 lang="$1"; shift
 demo() { "$ROOT/scripts/readme-media/demo.sh" "$@"; }
 pid="$(demo pid "$lang")"
@@ -18,7 +18,7 @@ pages=("$@")
 demo ctl "$lang" "window show" >/dev/null
 "$ROOT/build/alcap" activate "$pid"
 sleep 0.6
-wid() { "$ROOT/build/alcap" windows | awk -v p="pid=$pid" '$2 == p && $4 == "owner=Auralink" && $5 == "name=Auralink" { sub("id=", "", $1); print $1; exit }'; }
+wid() { "$ROOT/build/alcap" windows | awk -v p="pid=$pid" '$2 == p && $4 == "owner=VoxtNew" && $5 == "name=VoxtNew" { sub("id=", "", $1); print $1; exit }'; }
 for p in "${pages[@]}"; do
   name="${p%%:*}"; path="${p#*:}"
   case "$path" in

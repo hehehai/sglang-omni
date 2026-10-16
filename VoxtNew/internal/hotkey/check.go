@@ -1,8 +1,8 @@
 package hotkey
 
 import (
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // Problem codes of Check.
@@ -75,7 +75,7 @@ func SystemShortcut(c Chord) string {
 
 // NeedsTap reports whether a hotkey works only through the helper's
 // event tap, that is with Accessibility: fn, a modifier-only chord, a
-// sided modifier, a double tap or a long press. Without it Auralink falls
+// sided modifier, a double tap or a long press. Without it VoxtNew falls
 // back to Carbon shortcuts, which know none of these.
 func NeedsTap(h settings.Hotkey) bool {
 	c, err := Parse(h.Keys)

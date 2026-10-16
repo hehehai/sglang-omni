@@ -1,11 +1,11 @@
 package main
 
-// Headless end-to-end tests on a real Mac (AURALINK_MAC_E2E=1), for what
+// Headless end-to-end tests on a real Mac (VOXTNEW_MAC_E2E=1), for what
 // Linux cannot reach: the real supervisor and the real Swift helper. They
 // open no window, never change the app in front, post no key, install no
 // event tap and leave the clipboard alone:
 //
-//   - the helper records from a file (AURALINK_HELPER_CAPTURE_FILE, the
+//   - the helper records from a file (VOXTNEW_HELPER_CAPTURE_FILE, the
 //     test-only input), never the microphone, so no prompt shows;
 //   - text I/O is macText: the real, read-only textio.focus, and a paste
 //     that only keeps the text;
@@ -21,7 +21,7 @@ package main
 // TestMacE2ESessionReal (StepFun's step-asr and DeepSeek: one call each)
 // and TestMacE2EWriteReal (DeepSeek: two or three calls) need
 // STEPFUN_API_KEY and DEEPSEEK_API_KEY in the environment or
-// ~/.config/auralink-dev/keys.env. docs/manual-test.md, "Automatic Mac
+// ~/.config/voxtnew-dev/keys.env. docs/manual-test.md, "Automatic Mac
 // tests (headless)", says how to run them.
 
 import (
@@ -43,40 +43,40 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // The helper's test-only file input (helper/README.md).
 const (
-	envCaptureFile  = "AURALINK_HELPER_CAPTURE_FILE"
-	envCaptureSpeed = "AURALINK_HELPER_CAPTURE_SPEED"
+	envCaptureFile  = "VOXTNEW_HELPER_CAPTURE_FILE"
+	envCaptureSpeed = "VOXTNEW_HELPER_CAPTURE_SPEED"
 )
 
-// macE2E skips t unless AURALINK_MAC_E2E=1 on macOS, and returns the
-// helper to run: $AURALINK_HELPER, else the staged one
+// macE2E skips t unless VOXTNEW_MAC_E2E=1 on macOS, and returns the
+// helper to run: $VOXTNEW_HELPER, else the staged one
 // (scripts/build-helper.sh).
 func macE2E(t *testing.T) string {
 	t.Helper()
-	if os.Getenv("AURALINK_MAC_E2E") != "1" {
-		t.Skip("set AURALINK_MAC_E2E=1 on a Mac (docs/manual-test.md, automatic Mac tests)")
+	if os.Getenv("VOXTNEW_MAC_E2E") != "1" {
+		t.Skip("set VOXTNEW_MAC_E2E=1 on a Mac (docs/manual-test.md, automatic Mac tests)")
 	}
 	if runtime.GOOS != "darwin" {
 		t.Skip("macOS only")
 	}
-	bin := os.Getenv("AURALINK_HELPER")
+	bin := os.Getenv("VOXTNEW_HELPER")
 	if bin == "" {
-		bin = filepath.Join("resources", "darwin-arm64", "helper", "auralink-helper")
+		bin = filepath.Join("resources", "darwin-arm64", "helper", "voxtnew-helper")
 	}
 	if _, err := os.Stat(bin); err != nil {
-		t.Fatalf("no helper at %s: scripts/build-helper.sh [--out DIR], or AURALINK_HELPER (%v)", bin, err)
+		t.Fatalf("no helper at %s: scripts/build-helper.sh [--out DIR], or VOXTNEW_HELPER (%v)", bin, err)
 	}
 	abs, _ := filepath.Abs(bin)
 	return abs
@@ -152,7 +152,7 @@ func macCall[T any](t *testing.T, h helper.Supervisor, method string, params any
 // TestMacHelperIcons asks the real helper for apps' icons (app.icons):
 // the Finder's and Safari's by bundle id, WeChat's and Arc's when they
 // are installed, the first installed apps by path, and a removed app's
-// (none). With AURALINK_E2E_ICONS=<dir> it
+// (none). With VOXTNEW_E2E_ICONS=<dir> it
 // saves them there to look at. Read-only: no window, no focus.
 func TestMacHelperIcons(t *testing.T) {
 	h := startMacHelper(t, macE2E(t))
@@ -174,7 +174,7 @@ func TestMacHelperIcons(t *testing.T) {
 	if len(icons.Icons) != len(refs) {
 		t.Fatalf("app.icons: %d icons for %d apps", len(icons.Icons), len(refs))
 	}
-	iconDir := os.Getenv("AURALINK_E2E_ICONS")
+	iconDir := os.Getenv("VOXTNEW_E2E_ICONS")
 	for i, ic := range icons.Icons {
 		if ic.BundleID != refs[i].BundleID {
 			t.Errorf("app.icons %d: %s, asked for %s", i, ic.BundleID, refs[i].BundleID)
@@ -563,7 +563,7 @@ func newMacSession(t *testing.T, h helper.Supervisor, target proto.App, keys map
 		t.Fatal(err)
 	}
 	t.Cleanup(lib.close)
-	if err := lib.store.Dictionary().Put(context.Background(), store.Term{ID: "t1", Term: "Auralink", Aliases: []string{"Aura Link", "Oralink"}, Enabled: true}); err != nil {
+	if err := lib.store.Dictionary().Put(context.Background(), store.Term{ID: "t1", Term: "VoxtNew", Aliases: []string{"Aura Link", "Oralink"}, Enabled: true}); err != nil {
 		t.Fatal(err)
 	}
 	s := settings.Defaults()
@@ -616,7 +616,7 @@ func (ms *macSession) history(t *testing.T) []store.Entry {
 
 // TestMacE2ESessionReal: a Transcribe session as the app runs it, the
 // speech sample played by the real helper in real time, recognised by
-// StepFun and cleaned up by DeepSeek with the dictionary's "Auralink":
+// StepFun and cleaned up by DeepSeek with the dictionary's "VoxtNew":
 // one call to each.
 func TestMacE2ESessionReal(t *testing.T) {
 	bin := macE2E(t)
@@ -657,8 +657,8 @@ func TestMacE2ESessionReal(t *testing.T) {
 	if end.State != session.Done || end.Raw == "" || !end.Inserted || end.Problem != nil {
 		t.Fatalf("end %s %+v", end.State, end.Problem)
 	}
-	if !strings.Contains(end.Result, "Auralink") {
-		t.Errorf("the result lacks Auralink: %q", end.Result)
+	if !strings.Contains(end.Result, "VoxtNew") {
+		t.Errorf("the result lacks VoxtNew: %q", end.Result)
 	}
 	if end.ASR.ID != "stepfun" || end.LLM.ID != "deepseek" || end.Device != "sample-zh-en.wav" {
 		t.Errorf("services %+v %+v, device %q", end.ASR, end.LLM, end.Device)
@@ -705,10 +705,10 @@ func TestMacE2EWriteReal(t *testing.T) {
 		lang string
 		want func(string) bool
 	}{
-		{"translate a selection", store.KindTranslate, session.TextInput{Selection: "Auralink 0.1 ships on Friday; the tests are still running."}, "zh-Hans",
-			func(s string) bool { return strings.Contains(s, "Auralink") && strings.ContainsAny(s, "周五星期") }},
-		{"rewrite a selection", store.KindRewrite, session.TextInput{Raw: "改得更正式一些", Selection: "hey all, auralink release slips to friday, sorry!"}, "",
-			func(s string) bool { return s != "" && s != "hey all, auralink release slips to friday, sorry!" }},
+		{"translate a selection", store.KindTranslate, session.TextInput{Selection: "VoxtNew 0.1 ships on Friday; the tests are still running."}, "zh-Hans",
+			func(s string) bool { return strings.Contains(s, "VoxtNew") && strings.ContainsAny(s, "周五星期") }},
+		{"rewrite a selection", store.KindRewrite, session.TextInput{Raw: "改得更正式一些", Selection: "hey all, voxtnew release slips to friday, sorry!"}, "",
+			func(s string) bool { return s != "" && s != "hey all, voxtnew release slips to friday, sorry!" }},
 	} {
 		in := tc.in
 		id, err := ms.Start(session.StartRequest{Kind: tc.kind, Target: front, Text: &in, TargetLanguage: tc.lang})

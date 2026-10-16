@@ -14,6 +14,6 @@ The format is AudioSmith's engine fixtures', with the helper in the engine's pla
 
 The fake helper (`internal/helper/helpertest`) can replay a fixture (`replay=PATH`).
 
-`audio/tone-22050-stereo.wav` (0.4 s of 440 Hz, 22.05 kHz, 16-bit stereo: the left channel at 0.5, the right at 0.25) is the test-only file input's (`AURALINK_HELPER_CAPTURE_FILE`): `CaptureFileTests` and `TestMacHelperCaptureFile` check that it comes out resampled to 16 kHz and mixed to mono at 0.375.
+`audio/tone-22050-stereo.wav` (0.4 s of 440 Hz, 22.05 kHz, 16-bit stereo: the left channel at 0.5, the right at 0.25) is the test-only file input's (`VOXTNEW_HELPER_CAPTURE_FILE`): `CaptureFileTests` and `TestMacHelperCaptureFile` check that it comes out resampled to 16 kHz and mixed to mono at 0.375.
 
 Change a fixture together with the Go types, the Swift types and the spec.

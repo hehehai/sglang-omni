@@ -1,16 +1,16 @@
-# 行为对照：Voxt 怎么做 / Auralink 怎么做 / 为什么
+# 行为对照：Voxt 怎么做 / VoxtNew 怎么做 / 为什么
 
-Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0），代码按自己的结构重写，不逐行移植（方案 §1）。每个模块落地时，在这里补一节对照表，作为评审依据：
+VoxtNew 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0），代码按自己的结构重写，不逐行移植（方案 §1）。每个模块落地时，在这里补一节对照表，作为评审依据：
 
 - **Voxt 怎么做**：写清楚出处（源码文件或文档），只描述行为，不抄代码。
-- **Auralink 怎么做**：写实际实现的行为，并指向实现它的包或文件。
+- **VoxtNew 怎么做**：写实际实现的行为，并指向实现它的包或文件。
 - **为什么**：保留的写保留理由；改掉的写改的理由。
 
 状态：✅ 已实现　◐ 部分实现（骨架或接口已经有了）　○ 计划中（写明负责的里程碑）
 
 ## 1. 架构原则（方案 §1）
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
 | 1.1 | 会话状态分散在 `AppDelegate` 的 43 个 extension 里（`Voxt/App/*Flow.swift`、`Recording/`），取消和收尾由各个 Flow 各自处理 | 一个 `Session` 状态机（idle → recording → recognizing → composing → delivering → done/cancelled/failed）是会话唯一的所有者；所有异步回调都带 sessionID，迟到的一律丢弃 | 身份、取消、“只收尾一次”集中在一个地方，才能写表驱动测试；迟到回调不会污染下一次会话 | ✅ M3：`internal/session`（§5）；helper 的 job 通知也带 `job`，supervisor 丢弃已结束 job 的迟到通知 |
 | 1.2 | 语音翻译“先增强、再翻译”，两次 LLM 请求（`docs/Prompt.zh-CN.md`“语音翻译”一节） | 一次会话最多一次 LLM 请求：Prompt Composer 按“功能 × 能力 × 场景 × 词典 × 语言”拼出一个请求 | 少一次往返，延迟和费用减半；两段式在第二段会丢掉第一段的上下文 | ✅ M3 转录、M4 翻译和转写（`internal/compose`，§5、§6）；翻译只有“看起来没翻译”时才多一次严格重试 |
@@ -21,19 +21,19 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 
 ## 2. 骨架（M1）
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
 | 2.1 | SwiftUI 设置窗口和菜单栏 | AudioSmith 的外壳（Go + MyGo）：侧边栏、⌘K、设置对话框、菜单栏图标；没有底部状态栏（见 2.7） | actnow 家族统一 UI（RULES） | ✅ |
 | 2.2 | 录音、热键、粘贴都在 app 主进程里 | 录音、事件 tap、AX 读写放在 Swift helper 子进程；Go 进程负责 UI、业务和网络 | MyGo 不能录音；事件 tap 的回调必须同步决定是否吞键；helper 崩溃不会带走 UI（方案 §4.1） | ✅ helper（`helper/`，Swift）和协议 1（`docs/helper-protocol.md`）已完成：录音、热键、textio、前台 App、浏览器 URL、权限 |
 | 2.3 | 历史存在自己的数据库（`Core/VoxtDatabase.swift`） | SQLite（MyGo 插件）迁移 001：`history`（带 trigram FTS，覆盖原文、选中文本、口述指令、结果）、`dictionary_terms`、`documents`；迁移前自动备份，拒绝打开更新版本 app 的数据库 | 中文子串搜索可用；数据可以整体搬家（设置 → 存储） | ✅ |
-| 2.4 | API Key 存在钥匙串 | 钥匙串 service "Auralink"，账号 `asr.<id>`、`llm.<id>`（`internal/secrets`） | 同样的做法 | ✅ |
-| 2.5 | 权限说明分散在 onboarding 和各设置页 | 权限是设置对话框里的一节（设置 → 权限，在“通用”之后，`/settings/permissions`）：只有麦克风和辅助功能两行，各自说明用途并提供授权入口；首页的“打开权限”、⌘K、深链 `auralink://permissions` 和旧路径 `/permissions` 都打开这一节（`permissions.go`、`shell.go` 的 `movedPaths`） | 只剩两项权限，看一次就走，不值得占侧边栏的位置；浏览器网址只用辅助功能（AX）读，不需要浏览器自动化授权（用户 10-15 决定） | ✅ 状态和授权都走 helper（`permissions.*`）；helper 没起来时由 app 自己读。M5 已删除 helper 的 `automation.*`、AppleScript 和 Apple Events 声明 |
+| 2.4 | API Key 存在钥匙串 | 钥匙串 service "VoxtNew"，账号 `asr.<id>`、`llm.<id>`（`internal/secrets`） | 同样的做法 | ✅ |
+| 2.5 | 权限说明分散在 onboarding 和各设置页 | 权限是设置对话框里的一节（设置 → 权限，在“通用”之后，`/settings/permissions`）：只有麦克风和辅助功能两行，各自说明用途并提供授权入口；首页的“打开权限”、⌘K、深链 `voxtnew://permissions` 和旧路径 `/permissions` 都打开这一节（`permissions.go`、`shell.go` 的 `movedPaths`） | 只剩两项权限，看一次就走，不值得占侧边栏的位置；浏览器网址只用辅助功能（AX）读，不需要浏览器自动化授权（用户 10-15 决定） | ✅ 状态和授权都走 helper（`permissions.*`）；helper 没起来时由 app 自己读。M5 已删除 helper 的 `automation.*`、AppleScript 和 Apple Events 声明 |
 | 2.6 | 主窗口 820×560 | 主窗口默认 800×520，最小 680×440（`shell.go`；用户 10-15 两次缩小，原来是 880×580 / 720×480）；窗口记住的尺寸优先，旧版本留下的大窗口不会被缩小。按这两个尺寸排版：800 宽时显示完整侧边栏（窄于 740 才自动收成图标，见 9.9），页面宽 600；侧边栏行距收紧，520 高时一屏放得下全部页面；图标 rail 在 440 高时放得下全部图标，更矮时列表滚动，底部渐隐；模型服务卡片最小 260 宽，两种尺寸下都是两列；历史详情（290 宽，列表至少 300）和应用增强的分组列表（200 宽，右侧至少 380）在两种尺寸下都并排显示，不变成抽屉；设置对话框、引导、模型服务对话框、快捷键表的宽高都跟着窗口走，内容滚动，底部按钮始终可见 | 比 Voxt 还小一点，常驻桌面不占地方；比 AudioSmith 的 1100×720 更适合输入工具 | ✅ |
 | 2.7 | 状态写在设置和菜单栏里 | 没有底部状态栏（用户 10-15）。版本号在侧边栏底部“设置”一行的右侧；通知是“设置”上方的一叠卡片（`shell_notices.go`）：最新的一张完整显示（图标、标题、一两行说明、可选的操作、右上角 ×），后面最多两张露出底边；× 关掉一张，下一张浮上来；多于一张时有“N 条通知 · 全部清除”；没有通知时什么都不显示。侧边栏收成图标时，“设置”图标上有红点，点它弹出同样的卡片（下面是“设置”入口）。卡片来自通知中心（`internal/notify`，新增 `Dismiss`），原来的铃铛、通知弹窗和未读数都去掉了。状态栏上的“ASR … · LLM …”和“辅助进程就绪”正常时不显示，出问题时变成卡片：服务没就绪（`problem/services`，带“打开模型服务”），辅助进程停了（`problem/helper`，带“重启辅助进程”）；问题解决后卡片自动消失；用户关掉的卡片，同一个问题本次运行不再出现。日志面板只留 ⇧⌘L、⌘K 命令和“日志”页 | 正常时没有要看的状态，底部 26 px 留给页面；出问题时卡片带着修复的操作，比一行状态更容易看到 | ✅ |
 
 ## 3. 远程模型（M2）
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
 | 3.1 | ASR 的配置、连接测试、错误展示分散在 `Core/RemoteProviders/*` 和 `Transcription/RemoteASR/*` 的十几个文件里，错误多是带文案的 `NSError` | `internal/asr` 只有两种接口（`FileTranscriber` 上传、`Streamer`/`Stream` 流式，事件 Partial/Final/Error），每家一个子包；错误是带 `Kind` 的 `*asr.Error`（config/auth/quota/network/protocol/server/audio/cancelled），文案由 UI 按 Kind 给出 | 会话（M3）只面对一个接口；UI 能按错误类别告诉用户去改哪里 | ✅ |
 | 3.2 | Endpoint 允许 http/ws，只有带凭据时才要求 https（`RemoteEndpointSecurityPolicy`） | Endpoint 一律只允许 https/wss，http/ws 只限 loopback，URL 里不能带用户名密码（`asr.CheckEndpoint`、`llm.ProviderConfig.Resolve`）；日志里的 endpoint 去掉 query | Key 总会随请求发出，没有“不带凭据”的情况 | ✅ |
@@ -61,20 +61,20 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 
 做法来自 M0 spike 的实测（项目 `research/spikes.md`），协议见 `docs/helper-protocol.md`。
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
-| 4.1 | 录音、热键、读选中文本、粘贴、读 URL 都在 app 主进程里，各自在不同的 Flow 中调用 | 全部放在一个 Swift 子进程里；Go 只下发策略（设备顺序、是否允许 ⌘C、延迟、粘贴后的按键），helper 不存任何设置 | 事件 tap、AX、剪贴板、注入事件的标记在同一个进程里，不需要来回通信；权限按负责进程算在 Auralink 名下（spike S2 实测） | ✅ |
-| 4.2 | 热键：`Hotkey/HotkeyManager.swift` 按修饰键状态判定，单按和双击共用时单按走 `scheduleTapFallback` 延迟触发 | 识别器（`AuralinkHelperKit/HotkeyRecognizer.swift`）按“修饰键会话”判定：从第一个修饰键按下到全部松开算一个和弦；第二次按下在窗口内开始就算双击（默认 500 ms，取系统双击间隔，最多 800 ms）；单按最长 1500 ms；某个修饰键的事件来了状态却没变，说明系统丢了事件，丢弃当前和弦 | 真实按键补测：双击两次松开相隔 450 ms 但第二次按下只隔 303 ms；⇧+fn 按住 983 ms；fn+⌃ 之后 fn 的松开事件会丢 | ✅ 识别器；真实右⌘ 待测 |
+| 4.1 | 录音、热键、读选中文本、粘贴、读 URL 都在 app 主进程里，各自在不同的 Flow 中调用 | 全部放在一个 Swift 子进程里；Go 只下发策略（设备顺序、是否允许 ⌘C、延迟、粘贴后的按键），helper 不存任何设置 | 事件 tap、AX、剪贴板、注入事件的标记在同一个进程里，不需要来回通信；权限按负责进程算在 VoxtNew 名下（spike S2 实测） | ✅ |
+| 4.2 | 热键：`Hotkey/HotkeyManager.swift` 按修饰键状态判定，单按和双击共用时单按走 `scheduleTapFallback` 延迟触发 | 识别器（`VoxtNewHelperKit/HotkeyRecognizer.swift`）按“修饰键会话”判定：从第一个修饰键按下到全部松开算一个和弦；第二次按下在窗口内开始就算双击（默认 500 ms，取系统双击间隔，最多 800 ms）；单按最长 1500 ms；某个修饰键的事件来了状态却没变，说明系统丢了事件，丢弃当前和弦 | 真实按键补测：双击两次松开相隔 450 ms 但第二次按下只隔 303 ms；⇧+fn 按住 983 ms；fn+⌃ 之后 fn 的松开事件会丢 | ✅ 识别器；真实右⌘ 待测 |
 | 4.3 | 读选中文本：AX → 浏览器 AppleScript → 模拟 ⌘C；“空选区会复制整行”的 App 名单里不模拟（`SelectedTextSystemSelectionSupport.shouldAttemptSimulatedCopy`）；焦点元素在但没有选区范围时也不模拟 | AX 选中文本 → 选区范围取字符串 → WebKit/Chromium text marker；只有光标没有选区时直接返回空；其余情况由 Go 决定 `allowCopy`（M3 维护整行复制名单）；不用 AppleScript 读浏览器选区 | 策略留在 Go 便于测试；text marker 已覆盖浏览器里的选区（spike S4：Safari、Chrome、Cursor 都能读到），少一次自动化授权 | ✅ helper；名单 ✅ M4（`session.AllowCopy`，§6.2） |
 | 4.4 | Electron App 和 Chromium 系浏览器都不做特殊处理（Voxt 不设置 `AXManualAccessibility`） | App 切到前台时，helper 给 Electron App 和 Chromium 系浏览器设置 `AXManualAccessibility`，每个进程一次，热键按下时 AX 树已经建好。浏览器名单由 Go 用 `app.configure` 下发（`appctx.TreeOnDemand`：内置的 Chromium 系加用户添加的；应用增强关闭时为空）；`browser.url` 查不到网页区域时再对这个进程设置一次，等 150 ms 重读（结果带 `retried`）。不设置 `AXEnhancedUserInterface` | Chromium 只有被要求时才建 AX 树，而且要过一会儿才生效（spike S4：Cursor 第一次读为空；10-15 mac-air：Arc 读不到网页区域，设置后 `ax-focus` 读到，之后 2 ms）。名单由 Go 下发是因为用户可以添加浏览器，helper 不存设置；`AXEnhancedUserInterface` 会拖慢窗口动画，Chromium 也不需要它 | ✅ Electron；✅ Arc（10-15，按 pid 实测）；切到前台时设置待人工补测 |
 | 4.5 | 粘贴：写剪贴板、⌘V，按 changeCount 判断后恢复（`PasteboardTextWriter`） | 同样按 changeCount 只恢复自己写的内容；另外保存全部 item 和类型，写入时带 `org.nspasteboard.TransientType`，剪贴板管理器不记录；`targetPid` 不在前台就不粘贴；粘贴后可以按任意键（`press`） | 剪贴板里的图片、文件不会因为恢复而丢掉；不会粘贴到别的窗口 | ✅ |
 | 4.6 | 读 URL：直接跑 AppleScript，失败（-1743）后 5 分钟内不再尝试，再退回 AX（`BrowserContextResolver`）；每次都重新编译脚本 | 只用 AX（`browser.url`）：先找焦点所在的最外层 `AXWebArea` 的 `AXURL`，再看窗口的 `AXDocument`，最后广度优先找第一个网页区域；按热键时的 pid 读，所有浏览器走同一条路径；Chromium 系查不到网页区域时设置 `AXManualAccessibility` 后重试一次（4.4） | 不用 AppleScript 就不需要每个浏览器的自动化授权（用户 10-15 决定）；焦点所在的网页区域就是用户正在输入的标签页，分屏时也对（spike S5：Chrome 的 AXDocument 28–39 ms，Arc 的网页区域 24–92 ms） | ✅ M5；Safari 在前台时、Edge、Brave 待真机验证 |
 | 4.7 | 浏览器授权：权限设置页请求；浏览器没开时直接失败（`PermissionsSettingsView.requestBrowserAutomationPermission`，appNotRunning） | 不请求浏览器自动化授权：设置 → 权限里没有浏览器一栏；helper 没有 `automation.*`，Info.plist 没有 `NSAppleEventsUsageDescription`，helper 的签名不带 apple-events | 网址只用 AX 读（4.6），用户不必为每个浏览器授权（用户 10-15 决定） | ✅ M5 |
-| 4.8 | 浮窗是普通窗口，插入前重新激活目标 App | 录音浮窗用 MyGo 补丁 0003 的 `NonActivating`：点击不激活 Auralink，目标 App 保持焦点；需要打字的窗口才走重新激活（`macx.Activate`） | spike S3：非激活 panel 7/7 生效；重新激活会让焦点闪一下 | ✅ M3：录音浮窗和答案卡片（`overlay.go`）；Auralink 自己在前台时才 `macx.Activate` |
+| 4.8 | 浮窗是普通窗口，插入前重新激活目标 App | 录音浮窗用 MyGo 补丁 0003 的 `NonActivating`：点击不激活 VoxtNew，目标 App 保持焦点；需要打字的窗口才走重新激活（`macx.Activate`） | spike S3：非激活 panel 7/7 生效；重新激活会让焦点闪一下 | ✅ M3：录音浮窗和答案卡片（`overlay.go`）；VoxtNew 自己在前台时才 `macx.Activate` |
 
 ## 5. 会话与转录（M3）
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
 | 5.1 | 会话身份和收尾在 `RecordingSessionLifecycle` 里，录音、识别、增强、交付、历史分散在各个 Flow 扩展（`App/Recording/*`、`SessionTextIO.swift`）里，靠 `activeRecordingSessionID` 比对丢弃过期回调 | `session.Manager` 一次只跑一个会话，一个 goroutine 按顺序走完 录音 → 识别 → 整理 → 交付 → 历史；每个回调先过 `Manager.update`：不是当前会话、或者已经收尾，就丢弃；`end` 只生效一次。快照带递增的 `Rev`，UI 只收更新的 | 一个所有者、一个顺序，Linux 上能用假实现把每条路径（取消、超时、迟到回调）都测到（`internal/session` 的表驱动测试） | ✅ |
 | 5.2 | 按下热键后先做一串准备（静音、提示音、预热 LLM），再开始录音 | 按下即录音：`capture.start` 立刻发出，服务和词典在另一个 goroutine 里并行解析（读钥匙串、建客户端）；流式服务连上之前的音频先存在内存里，连上后补发 | 用户已经开口了；钥匙串和建连都要时间（spike S1：开始录音本身就要 200–400 ms） | ✅ |
@@ -82,7 +82,7 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 | 5.4 | 很短的录音、什么都没识别到时各处各有判断 | 不到 0.3 s 的录音直接取消，不送服务、不留记录；本地 VAD 没听到语音（§5.22）、识别为空或 LLM 说“没有内容”时结束为“没有听到说话”的提示，不插入 | 误触热键不应该花钱，也不应该留下空记录 | ✅ |
 | 5.5 | LLM 增强失败时插入原文 | 同样插入原文，浮窗用警告色提示“已插入识别原文”，历史里记下错误；LLM 超时默认 8 s（`session.DefaultLLMTimeout`），识别超时（停止后）30 s | 转录的首要目标是把字放进去；超时要短，否则用户以为卡住了 | ✅ |
 | 5.6 | 停止录音的请求和开始录音的请求可能交错 | `capture.stop` 3 s 内没结束录音（和 `capture.start` 交错了），就 `job.cancel` 并把已录的音频当作完整录音继续识别 | 不会出现“停不下来的录音”，也不丢已经说的话 | ✅ |
-| 5.7 | 插入：有辅助功能权限就粘贴，否则写剪贴板并提示（`TextOutputDelivery.typeText`）；不检查焦点 | `internal/deliver`：先 `textio.focus`，前台还是按下热键时的 App、且焦点元素能接收文字，才 `textio.paste`（带 `targetPid`）；否则不粘贴，结果留在答案卡片里（插入、复制、关闭）。只有 Auralink 自己在前台时才先 `macx.Activate` 目标 App | 防止把文字粘到别的窗口或没有输入框的地方；答案卡片不抢焦点，用户点回输入框再点“插入”即可 | ✅ |
+| 5.7 | 插入：有辅助功能权限就粘贴，否则写剪贴板并提示（`TextOutputDelivery.typeText`）；不检查焦点 | `internal/deliver`：先 `textio.focus`，前台还是按下热键时的 App、且焦点元素能接收文字，才 `textio.paste`（带 `targetPid`）；否则不粘贴，结果留在答案卡片里（插入、复制、关闭）。只有 VoxtNew 自己在前台时才先 `macx.Activate` 目标 App | 防止把文字粘到别的窗口或没有输入框的地方；答案卡片不抢焦点，用户点回输入框再点“插入”即可 | ✅ |
 | 5.8 | — | “能否接收文字”只在确定不行时才算不行：没有焦点元素，或者焦点是按钮、列表、静态文字这类控件；AX 读不出来、网页区域（AXWebArea、AXGroup，contenteditable 常常这样）都照常粘贴 | 宁可多粘一次，也不要让富文本编辑器里的转录都落进卡片 | ✅ 待真机验证各 App |
 | 5.9 | 粘贴最近结果：内存里的最近结果，没有时读历史 | 同样（`Manager.Last`，启动时从历史读最近一条成功的结果）；目标不可写时只提示，不弹卡片 | 和 Voxt 一样 | ✅ |
 | 5.10 | 热键规则和 common stop 写在 `HotkeyManager` 和各 Flow 里 | `internal/hotkey.Route`：空闲时 tap/双击开始，长按的 down 开始、它自己的 up 停止；录音时任何功能的热键都是“停止”（helper 在 `active` 时 tap 立即触发）；识别、整理中只有 Esc（取消）有效；答案卡片打开时 Esc 关闭卡片 | 纯函数、表驱动测试；Voxt 文档里“普通键 binding 不能 common stop”的问题不存在：所有 binding 都走同一条规则 | ✅ |
@@ -99,9 +99,9 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 | 5.18c | — | 浮窗的定时器（提示的 5 s、淡出）都走 `a.later`，测试用 `fakeTimers` 推进时间：插入、Esc、提示到时、关卡片之后 150 ms 内离开屏幕，之后不再设定时器；连续两次会话时，上一次的淡出和提示定时器不会藏掉下一次（提示有单调递增的 `noticeSeq`）。**043324a 的“已插入”不消失**：`overlaySync` 在 0.7 s 定时器里把 `ov.done` 清空后又调了自己，看到“已插入、还没打勾”又重新打勾、重新设 0.7 s 定时器，无限循环；测试没有窗口时不设定时器，所以没测到 | 每条消失路径都有回归测试（`TestOverlayGoesAway`、`TestOverlayQuickSessions`） | ✅ |
 | 5.18d | 浮窗是 360×140 的固定透明窗口，卡片在里面按内容变化，录音和处理时鼠标穿透 | 窗口和浮窗（加阴影边距）一样大，**以屏幕边缘为锚点**：底部居中时底边和水平中心不动，长大只向上和两侧；顶部居中时顶边不动（`layout.Frame`）。尺寸和位置用一次 `SetContentBounds` 设置，补丁 0004 的材质随窗口在同一个 Core Animation 事务里变化，MyGo 在提交前按新尺寸画好一帧，视图状态先于窗口更新，所以这一帧就是新的样子；重新出现时窗口先透明，等视图按新状态构建过一次才变成不透明（`reveal`，最多 120 ms），不会闪出上一次的画面。录音和处理时窗口忽略鼠标（`SetIgnoreMouseEvents`），出错提示和答案卡片能点。**10-15 的 bug**（第二次录音时浮窗还是展开的空框，图标和波形挤在顶部，展开时又跳一下位置）：隐藏时 `ov.w/h` 被改成胶囊尺寸，而窗口本身还是展开的大小；下一次显示时比较的是这个 `ov.w/h`，认为“尺寸没变”，就不调整窗口；原来展开时还是先 `SetContentSize`（Cocoa 保持左下角不动，向右上长）再 `SetPosition` 回到居中，中间有一帧跳动。现在记的是窗口实际的 frame（`ov.frame`），隐藏后保持不变；展开宽度按会话 id 记（`ov.live`），换会话就清零 | 用户 10-15：迷你态和展开态之间位置跳、有一下闪。窗口和浮窗一样大，透明区域只有阴影边距，不会挡住下面的点击。回归测试：`TestOverlaySessionsStartSmall`（底部、顶部两种锚点：唤起 → 迷你 → 展开 → 结束 → 再次唤起回到 150×48 且没有文本、Esc、出错提示、快速连续两次，每一步断言 frame、锚点、可见性、是否穿透、文本）、`TestOverlayTwoSessionsEndToEnd`（真实会话管理器 + 假 helper 热键两次）、`TestOverlayAnchorAndRestyle`；真机视觉回归 `scripts/mac-overlay-check.sh`（manual-test §10.5） | ✅ |
 | 5.18e | 紧凑卡片（`WaveformView.compactCard`）：内边距水平 14、竖直 10；HStack spacing 10 = 图标槽 16×28（图标 14×14）+ 波形槽 94（16 根 bar 共 88.7 宽，居中），148×48。有文字时内边距 20 / 12，VStack spacing 8，下面一行 12pt medium、白 85%，放在 `maxWidth 260` 的横向 ScrollView 里；超过 38 个字时左侧 16 宽的渐隐遮罩；卡片尺寸变化用 spring（response 0.4、damping 0.55）。窗口是固定的 360×140，横向 ScrollView 会占满 260，所以实际上有文字时卡片总是 300 宽 | `overlay.go` 用同样的数值：`layout.PillPadX/Y` 14/10、`layout.IconSlot` 16（图标 `layout.IconSize` 14）、`layout.Gap` 10、`layout.WaveSlotW` 94（`layout.WaveW` 88.7 居中）、`layout.RowH` 28 → 胶囊 148×48；有文字时 `layout.LivePadX/Y` 20/12、`layout.LiveGap` 8、一行 `layout.LineH` 16 → 高 76。**宽度贴合文字**：浮窗的视图在构建时用 `MeasureText` 量出文字（和命中分组名、出错提示）的宽度（`overlayMeasure`），下一轮主循环记下来并按锚点调整窗口（`overlayRestyle`）；量到之前用估算（`textWidth`）。宽度 = max(那一行, min(文字, 260)) + 40，最多 300。同一会话里宽度只增不减，只记量过的宽度（估算偏大时不会卡住）。渐隐按实际是否溢出，不按字数。bar 用 Voxt 的竖直渐变（白 98% → 80%）和 1.5 圆角。计时和分组名按 Voxt 的做法放在同一行（波形之后，各隔 10），整行在浮窗里居中，左右留白仍然对称。尺寸变化不做 spring：窗口一次 `SetContentBounds` 到新尺寸（§5.18d 的锚点和 reveal 保留）。**10-15 对不齐的根因**：MyGo 的盒子是 border-box，浮窗 1 pt 的描边占掉了内容区每边 1 pt；原来按 150×48 算的那一行（16+16+10+92+16）放进 148×46 的内容区，向右、向下各溢出约 1 pt，加上图标 16（字形左边还有 2 pt 空白）和 92 宽的波形槽，真机截图里图标左侧 19 pt、波形右侧 16.5 pt，中线低 1 pt。现在所有内边距都减去 `layout.Border` | 用户 10-15：声波没对齐、bar 显得挤；宽度要贴合文字而不是一档一档长或直接撑满。Voxt 有文字时总是 300 宽，用户要的是贴合文字，所以这里按用户的要求做，最宽仍是 Voxt 的 300。像素级回归：`internal/overlay/ink` 从图片里量浮窗（不透明区域）和其中的亮色笔画：Linux 上 `TestOverlayInk` 量 Tester 的渲染（胶囊 148×48、三种功能图标、计时、短文本中英、长文本中英、处理中、出错），真机上 `scripts/mac-overlay-check.sh` 量每一步窗口截图；图标左侧和波形右侧的距离差、图标和波形的中线差都不超过 1 pt，短文本左右对称且浮窗贴合文字，长文本时浮窗 300 宽、文字末尾在右侧 20 处 | ✅ |
-| 5.19 | 菜单栏“开始转录” | 菜单栏的“开始转录”在录音时变成“停止转录”；目标是最近一次 `app.activated` 的 App（helper 就绪时先问一次 `app.frontmost`） | 点菜单栏图标不会激活 Auralink，前台 App 还是用户要输入的那个 | ✅ |
+| 5.19 | 菜单栏“开始转录” | 菜单栏的“开始转录”在录音时变成“停止转录”；目标是最近一次 `app.activated` 的 App（helper 就绪时先问一次 `app.frontmost`） | 点菜单栏图标不会激活 VoxtNew，前台 App 还是用户要输入的那个 | ✅ |
 | 5.20 | 历史是一个列表，详情窗口另开 | 历史页按功能分 tab（转录、翻译、转写），FTS 搜索；详情侧栏里有结果、原文、交付方式（插入 / 卡片 / 复制）、服务和模型、各阶段耗时、命中规则（分组名和命中方式：网站 / 浏览器 / 应用）；失败的会话也记一条（有录音时可以在访达中找到）；删除要确认 | 排查“为什么慢、用了哪个模型、为什么没插入”时一眼能看到 | ✅（重新处理 ○ 以后） |
-| 5.21 | 开发期手动检查 helper 用 `AURALINK_TRY`（M1 时的临时面板） | 删除，正式链路替代 | 不留调试入口 | ✅ |
+| 5.21 | 开发期手动检查 helper 用 `VOXTNEW_TRY`（M1 时的临时面板） | 删除，正式链路替代 | 不留调试入口 | ✅ |
 | 5.22 | 本地 VAD（`Core/Transcription/ASRVoiceActivity*.swift`、`RemoteASRAudioUploadPreprocessing.swift`）：可选 Silero / OmniVAD 模型，能量兜底是固定门限（电平 0.06，约 −37 dBFS）；文件型远程 ASR 上传前把 VAD 判为静音的帧全部删掉（段间 ≤0.25 s 才合并），3 s 以下不处理，省不到 15% 用原始音频，没有语音不发请求；流式服务不处理（服务端 VAD） | `internal/vad`：纯 DSP，不用模型。20 ms 帧能量（dBFS）+ 自适应噪声底（低于它时每帧下降一半，非语音时 0.75 s 时间常数上升，语音中不升；整段分析时初值取第 10 百分位、不高于 −50 dBFS；低于 −96 dBFS 的数字静音不动噪声底）；连续 60 ms 高于噪声底 +10 dB 且高于 −60 dBFS 才算开始，低于 +6 dB 持续 300 ms 才算结束（滞回）。**文件型服务**（阶跃、OpenAI 兼容）：去掉头尾静音（前后各留 300 ms），段间超过 1 s 的停顿压成 400 ms，拼接处 4 ms 淡入淡出，省不到 0.5 s 就用原始音频；**没有语音就不发请求**，结束为“没有听到说话”。**流式服务**（豆包、阿里）：开头的静音先扣住，检测到语音后连同前 300 ms 一起送，之后（包括停顿）全部照送；超过 5 s 还没说话就照常开始送（阿里约 23 s 没有音频会断开；豆包没有写明，按同样处理）；整段都没说话就不送音频、不发 Finish，直接结束为“没有听到说话”。参数在 `settings.Audio.VAD`（零值用默认；界面只有 设置 → 音频 → 跳过静音 一个开关，默认开）。`session/run_audio.go` 的 `prepare`、`gate` | 保守：宁可多送一点静音，也不切掉一个字（只裁头尾、压缩长停顿，不像 Voxt 删掉所有静音帧）。流式服务需要连续的时间线，中间的停顿不动；它们的服务端 VAD 本来就会切句（阿里 server_vad 800 ms）。用合成变体测过：10.5 s 语音前后各加 3 s、中间加 2 s、−50 dBFS 白噪声，18.5 s → 10.0 s，−42 dBFS 白噪声 + 50 Hz 嗡声 18.5 s → 9.9 s；原始语音里峰值 −35 dB 以内的 386 帧一帧不丢；阶跃真实识别两次，原始 18.5 s（4.8 s 返回）和裁剪后 10.0 s（3.8 s 返回）结果完全相同 | ✅ |
 | 5.23 | 历史音频存原始录音 | 历史里保存的录音始终是**原始音频**（不裁剪），另外记下送去识别了多少（`store.Entry.SentMS`，迁移 003；历史详情“录音”一行显示“7.5 秒，送去识别 2.5 秒”）；没有语音没发请求的会话也留一条记录（开着“保存录音”时可以回放，确认确实没说话） | 回放和排查时要听到用户实际录下的内容；裁剪掉了多少也要看得到 | ✅ |
 | 5.24 | 答案卡片（`Windows/WaveformAnswerCard*.swift`、`RecordingOverlayAnswerFlow.swift`、`RecordingOverlayWindow.swift`、`App/SessionTextIO.swift`、`App/TranslationSupport.swift`、`App/HotkeyLifecycle.swift`）：窗口固定 560×340，卡片撑满 560 宽，内边距 18 / 16；标题行最小高度 24、间距 12：答案图标 20、标题 15 号 semibold（转写用回答的标题，翻译是“翻译”），重新翻译时旁边一个 12 的 spinner；右侧依次是语言胶囊（24 高，白 8% 底、12% 描边，hover 时描边变强调色 28%，11 号 semibold 加 chevron，点开是 NSMenu）、“继续”（转写，24 高胶囊，11 号 semibold）、插入、复制、关闭（24 的圆形图标按钮，白 8%，hover 16% 加 18% 描边，不可用时 4% 加 42% 透明）。标题行下 8 处一条白 8% 的分隔线，再隔 10 是正文：14 号 medium、白 90%、可选中、右侧留 10，ScrollView 的 maxHeight 220（SwiftUI 的 ScrollView 会占满 220，所以卡片总是约 295 高）。没有“为什么进卡片”的提示。复制只复制正文，图标换成勾，2 s 后恢复，卡片不关。插入：先立刻隐藏卡片，0.12 s 后激活原 App 再粘贴，失败时卡片重新出现，不提示。换语言：原文保留，标题旁转 spinner，菜单立刻显示新语言，结果替换正文（不流式）；失败时退回原来的语言，不提示。Esc（事件 tap，全局）关闭卡片，或者只取消正在进行的追问（卡片恢复到最后的回答）；空格（卡片是 key window 时）开始追问，或在对话中开始 / 结束录音。追问后卡片变成对话：标题位置是麦克风图标加 96 宽的小波形（16 根 bar 缩放 0.84 × 0.82，录音时跟电平，否则是固定的低矮图案），正文是 340 宽的气泡（你：白 10% 底、12% 描边；回答：6% / 8%；圆角 14，标题 11 号 semibold，正文 13 号 medium），新内容出现时滚到底部；鼠标移到回答气泡上，右上角出现“复制”（1.2 s 的勾）。卡片常驻，不能拖动 | `overlay_card.go`（10-15 按 Voxt 重做）：**宽 440**（Voxt 真机实测是 560：卡片铺满它 560 宽的窗口；用户觉得太宽，先改 480，第三轮再改 440：放得下最宽的标题行，即“翻译”加最长的语言名加 3 个按钮），左右内边距 18、底部 16（减去 1 pt 描边），标题行上下各 12（§5.26），按钮、语言胶囊、分隔线、正文、气泡、小波形的数值都照 Voxt，图标用 Voxt 的（§5.25）。**高度随内容**：75 + 正文（`MeasureText` 在浮窗视图里按 394 宽量出来，量到之前先估算，下一轮主循环按锚点调整窗口，同 §5.18e），最多 220，超出滚动；只有需要说明的结果（插入失败、换语言失败、严格重试中）才在正文下面加一行 12 号次要色加 ⓘ 的小字（+24）。“为什么进卡片”（选区不能编辑、App 不在前台……）不占行，写在“插入”的 tooltip 里。复制：同 Voxt（`copyMark` 2 s）。插入：卡片先隐藏（`answer.inserting` 时浮窗是 hidden），`deliver.Insert` 激活原 App 后粘贴，失败时卡片回来，原因写在小字里。换语言：我们自己的下拉（§5.27）；新会话带 `StartRequest.Card`，一定留在卡片里，不会因为目标可写就插入；进行中保留原文、显示 spinner，菜单和插入不可用、复制可用；成功后替换正文；失败时保留原文和原来的语言，并在小字里写“没有翻译成 X：原因”。Esc：关闭卡片（换语言进行中也一起停掉）；追问进行中只取消追问，卡片留着。**没有空格**：卡片是非激活窗口（MyGo 补丁 0003），拿不到键盘；追问用全局的转写快捷键（卡片显示转写回答时按下就是追问，录音中按下就是结束），或者点“继续”；录音中“继续”变成“完成”，点了结束录音。对话模式同 Voxt，图标用转写的功能图标；追问失败时对话保留，标题行出现“重试”，原因写在小字里。失败的会话（Voxt 没有）也用同样的卡片：标题行“重试”，正文是原因、服务端原文和输入。卡片常驻，不能拖动（去掉了 `DragWindow`），正文可以选中 | 用户 10-15：卡片 520×320 偏大，下面一大片空白，一整行橙色提示太吵，要求 UI 和交互都照 Voxt。和 Voxt 不同的地方：① 高度随内容（用户明确要求不能有空白；Voxt 实际一直是 295 高）；② 失败时的小字说明（Voxt 静默退回，用户不知道刚才的操作没生效）；③ 没有空格快捷键（非激活窗口拿不到键盘，而让卡片变成 key window 会抢走用户 App 的焦点），用全局快捷键和“完成”按钮代替；④ 进卡片的原因放进 tooltip（Voxt 完全不说）；⑤ 保留失败卡片和“重试”（§6.12）；⑥ 小阴影和毛玻璃（§5.18a、5.18b）；⑦ 语言名最宽 128（Voxt 92，“Simplified Chinese”放不下）；⑧ 宽 440，比 Voxt 的 560 窄（用户觉得 560、480 都太宽）。回归：`overlay_card_test.go` 的 `TestAnswerCardStates`（底部、顶部两种锚点，13 个状态：翻译中、流式、流式超长、短译文、换语言中、换完变长、已复制、插入失败、失败、转写回答、追问录音中、追问生成中、对话，逐一断言尺寸、锚点和标题行上的按钮）、`TestAnswerCardInk`（量渲染出来的像素：浮窗尺寸，笔画从左侧 18 开始，最下面的笔画在底部内边距之上一行以内，既没有空白也没有被裁；超长时可以滚动）、`TestAnswerCardInteraction`（系统菜单、复制的勾、继续、完成、Esc 两段式、气泡上的复制）；`TestTranslateSpeechCard`（真实会话：换语言时不插入、原文保留、失败时退回、Esc 取消）；真机 `scripts/mac-overlay-check.sh` 的 card-* 步骤 | ✅ |
@@ -114,7 +114,7 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 
 ## 6. 翻译与转写（M4）
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
 | 6.1 | 选中文本翻译：先读选区，读到了就不录音（`TranslationFlow.beginSelectedTextTranslationIfPossible`）；转写在识别完口述指令之后才读选区 | 翻译：按下热键时先读选区（`reading` 状态，最多 1.5 s），读到就直接翻译，读不到或读取出错就开始录音。转写：选区和录音并行读取，识别完成后再用（`internal/session`） | 翻译读到选区时不打开麦克风（不会闪一下麦克风指示）；转写要的是“按下热键那一刻”的选区，用户说话时可能已经点到别处 | ✅ |
 | 6.2 | 模拟 ⌘C 的名单：VS Code、Sublime、Zed、JetBrains 等“空选区复制整行”的编辑器不模拟（`SelectedTextSystemSelectionSupport.copiesCurrentLineWhenSelectionEmpty`），另有“AX 全黑时”的过滤探测 | 同一份名单（含前缀：ToDesktop/Cursor、JetBrains、Exafunction、Trae、Qoder，和包含 vscode 的 bundle id），由 Go 决定 `allowCopy`（`session.AllowCopy`）；不做“AX 全黑”的二次探测 | 策略在 Go，表驱动测试；helper 已经在 AX 读到“只有光标”时直接返回空（§4.3），二次探测要靠“看起来像整行”的猜测，误判代价是翻译一行用户没选的代码 | ✅ |
@@ -134,7 +134,7 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 
 ## 7. 应用增强与词典（M5）
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
 | 7.1 | 分组、App 列表、URL 列表分开存在 UserDefaults，分组按 id 引用 URL（`AppBranchGroup.urlPatternIDs`） | 一个文档 `appctx:rules`（documents 表）：分组含 id、名称、启用、场景 prompt、App 成员（bundleId + 显示名）、URL 规则、插入后按键、作用于哪些功能（`internal/appctx`） | 一个文档整体读写、整体校验；没有悬空引用 | ✅ |
 | 7.2 | URL 规范化：小写、去掉 http(s)://，没有路径时补 `/*`，以 `/` 结尾补 `*`；匹配时把 `*` 换成 `.*` 的正则（`AppBranchURLPatternService`） | 同样的规范化，另外去掉 `www.`、端口、query 和 fragment（规则里的 `?` 之后变成 `*`）；`*.example.com` 也匹配 `example.com` 本身；`*` 用逐字符的通配匹配，不编译正则；规则要有站点（含 `.` 或 localhost），不能有空格，只认 http/https | 用户写 `github.com` 时期望 `www.github.com` 也算；`*.notion.so` 期望覆盖根域名；不用正则就不存在转义问题 | ✅ |
@@ -144,28 +144,28 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 | 7.6 | 命中分组时用分组 prompt 替换全局 prompt，`{{APP_NAME}}` 只在某些模板里有 | 组合时把分组 prompt 放进 Scene 层（“文字会插入到 {{APP_NAME}}，用户为这个场景写的规则：…”），叠加在基础清理和用户规则之后；`{{APP_NAME}}` 是按热键时前台 App 的名字 | 见 1.3 | ✅ |
 | 7.7 | 自动按回车：分组可选“插入后按 Return” | 插入后按键：无、Return、⌘Return、⇧Return、⌃Return、⌥Return 或自定义（一个键加修饰键）；由 `textio.paste` 的 `press` 在粘贴后 120 ms 按下；结果进了答案卡片时不按 | 有的聊天软件用 ⌘Return 发送；卡片里的结果是用户手动插入的，不应该替他发送 | ✅ |
 | 7.7a | — | 自动按键只在转录、以及转写“按指令生成”插入到光标处之后执行；翻译和“改写选区”替换之后都不按（`run.press`） | 替换选区后再按 Return 可能把用户没打算发出的整段内容发出去；译文通常要先看一眼 | ✅ M5（main 的建议） |
-| 7.8 | 设置页列出分组；没有实时预览 | 应用增强页：总开关、左侧分组列表（窄窗口时变成抽屉）、右侧分组详情；顶部“匹配预览”显示当前前台 App（Auralink 自己在前台时显示上一个）、读到的网址、会命中哪个分组和命中方式，可以一键把这个 App 或网站加入当前分组；“浏览器”对话框列出内置和自定义浏览器，以及上次按快捷键时有没有读到网址（读不到的标“只能按应用匹配”） | 规则对不对，一眼就能看出来；某个浏览器读不到网址时用户知道为什么没命中 | ✅ |
-| 7.8a | 应用增强的 App 列表用 `NSWorkspace.icon(forFile:)` 在进程里取图标（`AppEnhancementData.swift`），选择列表一次取完所有 App 的图标 | 各处列表（分组的“应用”、“添加应用”对话框、“浏览器”对话框、匹配预览）显示真实 App 图标：helper 的 `app.icons` 画成 64×64 的 PNG，Go 端放在内存和 `~/Library/Caches/Auralink/icons`（一周后重画，`internal/appicons`）；**列表只请求显示出来的行**（“添加应用”先请求前 12 行，其余滚动到视野里再请求），每批最多 24 个；拿不到（App 已删除、helper 没运行或太旧、Linux）时显示通用图标，helper 就绪后重试。“浏览器…”从分组列表下方移到页头右侧的地球图标按钮（tooltip“浏览器：哪些 App 当作浏览器读取网址”）；“场景提示词”的说明改成标题旁的 ⓘ | Go 端没有 AppKit（不用 cgo），图标只能由 helper 画；“添加应用”可能列出几百个 App，一次全画会卡住 helper 的请求队列和界面。浏览器按钮放在分组列表里容易被当成一个分组（用户 10-15） | ✅ |
+| 7.8 | 设置页列出分组；没有实时预览 | 应用增强页：总开关、左侧分组列表（窄窗口时变成抽屉）、右侧分组详情；顶部“匹配预览”显示当前前台 App（VoxtNew 自己在前台时显示上一个）、读到的网址、会命中哪个分组和命中方式，可以一键把这个 App 或网站加入当前分组；“浏览器”对话框列出内置和自定义浏览器，以及上次按快捷键时有没有读到网址（读不到的标“只能按应用匹配”） | 规则对不对，一眼就能看出来；某个浏览器读不到网址时用户知道为什么没命中 | ✅ |
+| 7.8a | 应用增强的 App 列表用 `NSWorkspace.icon(forFile:)` 在进程里取图标（`AppEnhancementData.swift`），选择列表一次取完所有 App 的图标 | 各处列表（分组的“应用”、“添加应用”对话框、“浏览器”对话框、匹配预览）显示真实 App 图标：helper 的 `app.icons` 画成 64×64 的 PNG，Go 端放在内存和 `~/Library/Caches/VoxtNew/icons`（一周后重画，`internal/appicons`）；**列表只请求显示出来的行**（“添加应用”先请求前 12 行，其余滚动到视野里再请求），每批最多 24 个；拿不到（App 已删除、helper 没运行或太旧、Linux）时显示通用图标，helper 就绪后重试。“浏览器…”从分组列表下方移到页头右侧的地球图标按钮（tooltip“浏览器：哪些 App 当作浏览器读取网址”）；“场景提示词”的说明改成标题旁的 ⓘ | Go 端没有 AppKit（不用 cgo），图标只能由 helper 画；“添加应用”可能列出几百个 App，一次全画会卡住 helper 的请求队列和界面。浏览器按钮放在分组列表里容易被当成一个分组（用户 10-15） | ✅ |
 | 7.9 | 词典：ASR 提示按服务商分别处理（`DoubaoDictionaryPayloadBuilder` 最多 5000 个热词外加 correct_words），LLM 术语只在命中时加入 | `internal/dict`：启用的词条去重（忽略大小写），**最近修改的排在前面**，不含别名（别名是识别错的写法）；OpenAI 兼容接在 ASR 提示词之后放进 `prompt`（800 字节）、豆包放进 `corpus.context` 的热词（按文档限额截断）、阿里百炼 fun-asr 放进 `input.context`、qwen-audio 放进 `parameters.vocabulary`（三家都有 golden 请求测试）；LLM 术语表见 5.16 | 服务只收有限数量时，最近加的词更可能是用户正在用的；把别名当热词会让识别更偏向错的写法 | ✅ |
 | 7.10 | 词典页：分类、建议、学习、一键导入 | 0.1 只手动维护：增删改、别名、备注（不发给任何地方）、启用开关、搜索（词条、别名、备注）、导入导出 CSV（`term,aliases,note,enabled`，别名用 `;` 分隔，带 BOM 方便 Excel）和文本（每行“词条 = 别名, 别名”，`#` 注释）；导入时同一个词条（忽略大小写）合并别名、补备注 | 自动学习放到以后（方案 D4）；CSV 能和表格软件互通 | ✅ |
 
 ## 8. 首页与设置引导（M6）
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
 | 8.1 | 主窗口首页是功能入口和最近记录 | 首页（`home_page.go`）：标题下是一句标语加转录快捷键的键帽（`homeSlogan`）；还缺什么（服务、麦克风、辅助功能、转录快捷键、helper）时显示“还差 N 步”清单，每项一整行可点，直接跳到对应设置或发起授权，已就绪的项在清单下弱化成一行勾选；全部就绪时整节不显示（helper 启动中不算缺）；“试一试”（转录）只在首次使用时显示；今日次数、字数（不含空白）和按功能的次数；最近 5 条结果（复制、在历史中打开） | 首次使用最常见的问题是没配服务、没授权，放在打开 app 就能看到的地方；就绪以后这些信息没有用，把第一屏让给统计和最近结果（用户 10-15）。清单每帧从内存状态算，权限被撤销、服务被删掉时实时出现；今日统计和最近结果在 goroutine 里从历史读（`readHome`），会话写入历史后刷新 | ✅ |
 | 8.8 | — | “首次使用”看持久化的 `settings.Setup.Tried`：任意功能的会话（含试一试和引导里的试用）以 Done 且结果非空结束时置位；读历史时发现已有结果（升级前就用过）也置位。清空历史不会让“试一试”回来。正在首页做的试一试结束后，结果在这次访问内继续显示，离开首页再回来才收起 | 只看历史表不可靠：试一试不写历史，关闭“保存历史”时也没有记录，清空历史后又会冒出来（用户 10-15） | ✅ |
 | 8.9 | — | 标语里的快捷键用转录的第一个快捷键，按触发方式说：单击“按 [fn] 开始”、双击“双击 [右 ⌘] 开始”、长按“按住 [⌥ 空格] 说话”；没有快捷键时是“先设置一个快捷键”链接，打开转录页（`sloganHint`） | 页头说明改成标语，同时告诉用户怎么开始（用户 10-15） | ✅ |
 | 8.2 | 六步引导（`Settings/Onboarding/*`，`docs/OnboardingGuide.zh-CN.md`）：权限 → 模型 → 语音输入 → 语音翻译 → 选中翻译 → 探索更多 | 七步（`onboarding.go`）：欢迎和隐私说明 → 权限 → 服务（复用模型服务页的卡片和对话框）→ 试转录 → 试翻译（翻译示例文本，或说一句话）→ 试转写（按指令生成）→ 应用增强和词典。弹窗比设置对话框小（`onboardingDialogSize`：最大 600×440，四周至少留窗口宽 5%（不少于 32）、高 7.5%（不少于 24）；800×520 下 600×440，680×440 下 600×374，用户 10-16 要求再小一点），内容滚动，步骤条和底部按钮始终可见；步骤条放不下一行时（英文、试用步骤都打了勾）间距和箭头收紧，不换行 | 方案 §2.3 的顺序；隐私承诺（方案 §6）放在第一步；模型服务页的对话框已经有 Key、测试连接，不另做一套 | ✅ |
-| 8.3 | 体验步骤在引导里的输入框中真实插入；只接受匹配当前步骤、来源窗口和 session ID 的事件，迟到回调不能完成步骤；进行中禁止翻页，关闭引导取消它的会话 | 同样只认本步骤自己发起的会话（按 session ID，`ob.tries`），以 Done 且结果非空判定通过；进行中禁止前后翻页，关闭引导取消它的试用。差异：试用是 Try 会话（真实录音、识别、LLM，但结果显示在引导里，不插入、不写历史），不往输入框里粘贴 | 往 Auralink 自己的窗口里粘贴依赖 MyGo 文本框的 AX 表现，没法在 Linux 上测；插入链路已经在各 App 里验证过（M3），引导要验证的是“服务和权限能用” | ✅ |
-| 8.4 | 选中翻译：在引导里选中示例再按翻译热键 | “翻译这段文字”按钮把示例作为选区发起翻译（`StartRequest.Text`），或按热键说一句话 | Auralink 不读自己窗口的选区（`session.canSelect` 排除自身），按钮更可靠 | ✅ |
-| 8.5 | 引导中按其他功能的热键会走正常流程 | Auralink 在前台时：引导打开且在试用步骤，只有本步骤功能的热键发起试用，其他功能的热键只提示“刚才按的是 X 的快捷键”；首页和功能页上按热键在页面里试用（`tryPlace`）；其他页面照常 | 在自己的窗口里按热键，用户想看的是演示结果，而不是往 Auralink 的输入框里粘贴 | ✅ |
+| 8.3 | 体验步骤在引导里的输入框中真实插入；只接受匹配当前步骤、来源窗口和 session ID 的事件，迟到回调不能完成步骤；进行中禁止翻页，关闭引导取消它的会话 | 同样只认本步骤自己发起的会话（按 session ID，`ob.tries`），以 Done 且结果非空判定通过；进行中禁止前后翻页，关闭引导取消它的试用。差异：试用是 Try 会话（真实录音、识别、LLM，但结果显示在引导里，不插入、不写历史），不往输入框里粘贴 | 往 VoxtNew 自己的窗口里粘贴依赖 MyGo 文本框的 AX 表现，没法在 Linux 上测；插入链路已经在各 App 里验证过（M3），引导要验证的是“服务和权限能用” | ✅ |
+| 8.4 | 选中翻译：在引导里选中示例再按翻译热键 | “翻译这段文字”按钮把示例作为选区发起翻译（`StartRequest.Text`），或按热键说一句话 | VoxtNew 不读自己窗口的选区（`session.canSelect` 排除自身），按钮更可靠 | ✅ |
+| 8.5 | 引导中按其他功能的热键会走正常流程 | VoxtNew 在前台时：引导打开且在试用步骤，只有本步骤功能的热键发起试用，其他功能的热键只提示“刚才按的是 X 的快捷键”；首页和功能页上按热键在页面里试用（`tryPlace`）；其他页面照常 | 在自己的窗口里按热键，用户想看的是演示结果，而不是往 VoxtNew 的输入框里粘贴 | ✅ |
 | 8.6 | 引导完成状态和旧版本步骤迁移 | 关闭或完成都记 `settings.Setup.Done`，之后不再自动弹出；设置 → 通用、首页右上角、⌘K 都能重新打开 | 没有旧版本 | ✅ |
 | 8.7 | — | 日志面板最多占窗口高度的一半（`shell.go`），680×440 下首页和各页的按钮不会被挡住 | M2 遗留问题 | ✅ |
 
 ## 9. 设置各节与菜单栏（M6）
 
-| # | Voxt 怎么做 | Auralink 怎么做 | 为什么 | 状态 |
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
 |---|---|---|---|---|
 | 9.1 | 麦克风：记录见过的所有设备，有“当前设备”和优先级列表，可拖动排序、“自动切换”，菜单栏里也能选（`Core/MicrophonePreferenceManager.swift`、`Settings/MicrophonePriorityListRow.swift`） | 设置 → 音频：一个有序的优先列表（`Audio.Devices`，设备 UID），第一个已连接的录音，都没连接或列表为空时用系统默认输入；列表外的在线设备可以“添加”，列表里的可以上移、下移、移除，未连接的显示记下的名字并标“未连接”，当前会用哪个标出来；设备列表在这一节打开、helper 就绪和点“刷新”时用 `capture.devices` 读（`settings_audio.go`） | 一个列表就能表达“优先用耳机、没有就用内置”，不需要“当前设备”和“自动切换”两个额外概念；选择逻辑在 helper 的 `capture.start` 里（§8 第一行），设置只给顺序 | ✅ 拖动排序没做（上移/下移代替）；菜单栏不选麦克风 |
 | 9.2 | 提示音：默认开，10 种预设（默认 Soft = Pop/Tink），音量 0.5；开始录音时播放开始音（播完再静音系统输出），**整个会话收尾时**（包括取消）播放结束音（`Core/InteractionSoundPlayer.swift`、`Recording/SessionEndFlow.swift`） | 设置 → 音频 → 播放提示音（默认开）：进入录音时播 Pop，**停止录音、开始识别时**播 Tink；取消和失败不播；页面上“试一试”的会话也播。用 `afplay`（音量 0.5）在 goroutine 里播放，不占主线程（`macx.Play`，`session_link.go` 的 `sessionChanged` → `playCue`） | 结束音的意义是“麦克风已经关了，可以不说了”，所以放在停止录音的那一刻；插入结果本身就看得见，不需要再响一声；取消时再响一声像是出了错。只保留一种音色，少一个设置 | ✅ 待真机听 |
@@ -174,8 +174,8 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 | 9.5 | 快捷键分散在各功能的设置里 | 设置 → 快捷键：一张表列出转录、翻译、转写的每条快捷键（按键、触发方式）和“粘贴最近结果”，标出 `hotkey.Check` 的问题和“需要辅助功能”；点一行跳到对应功能页修改（`settings_shortcuts.go`） | 冲突要放在一起看才看得出来；修改仍只在功能页一处 | ✅ |
 | 9.6 | 一个“主要语言”多选列表（`userMainLanguageCodes`）：第一个是主要语言，其余的填 `{{USER_OTHER_LANGUAGES}}` | 设置 → 通用 → 其他语言：语言 chip（×移除）+“添加语言”菜单，不能选主要语言；改主要语言时自动从其他语言里去掉它；组合器用它填 `{{USER_OTHER_LANGUAGES}}` | 主要语言和其他语言分开选，含义更清楚；主要语言可以“跟随 App 语言” | ✅ |
 | 9.7 | 开机启动：`SMAppService`，开关在通用设置 | 同样（`mygo.App.SetOpenAtLogin`）；窗口打开时读一次系统的实际状态，用户在系统设置里关掉的话设置也跟着关；开机启动、且“显示在菜单栏”和“关闭窗口后继续运行”都开着时，主窗口不显示，只留菜单栏图标 | 开关要和系统一致；开机自动打开一个窗口很打扰 | ✅ 待真机验证 |
-| 9.8 | 菜单栏：Dashboard、各设置页、历史子菜单、最近几条历史（点击复制全文）、麦克风子菜单、检查更新、退出 | 菜单栏：开始/停止转录、粘贴最近结果、最近 3 条结果（只取成功且有结果的；标题“最近结果”；每条一行短预览：空白合并成一个空格，按显示宽度截到 26 个单位，中日韩字记 2、其他记 1，约 13 个汉字或 26 个拉丁字母，末尾加“…”，英文尽量不从单词中间切；全文放在 tooltip 里，最多 400 字；点击复制全文，成功不提示、失败弹 toast）、打开 Auralink、设置、退出；图标用 Voxt 的麦克风（`voxt.imageset`，Voxt 以 18×18 pt template 显示）：离线用 Catmull-Rom 缩成 36 px template PNG（`internal/trayicon`，`go generate`），MyGo 把托盘图标按 18 pt 高显示，Retina 上一像素对一像素；录音时右上角加一个实心圆点，圆点周围挖一圈空隙和麦克风分开（仍是 template 图，Voxt 录音时图标不变）（`tray.go`） | 菜单只放常用操作；录音状态在菜单栏上一眼可见；图标和 Voxt 一致（用户 10-15）。右上角是麦克风唯一空着的角（下面两角被支架占了）。MyGo 的托盘只收一张 PNG，没法同时给 1× 和 2× 两个 rep，1× 屏由 AppKit 从 36 px 缩小。用户 10-15：原来每条最多 40 个字，中文时整个菜单被撑得很宽；Voxt 按菜单字体的渲染宽度截到 100 pt，原生菜单在 Go 这边量不了字宽，用显示宽度单位近似，宽度和“粘贴最近结果 ⌃⌘V”差不多（`uitext.TrayLabel`，`TestTrayRecent`） | ✅ |
-| 9.10 | 更新用 Sparkle（`Core/Utilities/AppUpdateManager.swift`）：appcast 在自己的服务器上（`SUFeedURL`，stable 和 beta 两个通道），EdDSA 公钥在 Info.plist（`SUPublicEDKey`）；开发和测试的 bundle ID 不启用；通用设置里有“自动检查更新”，菜单栏里有“检查更新”；Sparkle 在 app 退出后由独立的安装进程替换 bundle | MyGo 官方的更新：`mygo.Updater` + updater 插件的原生窗口（`native.Plugin`，界面和 Sparkle 相同：更新说明、安装 / 稍后提醒 / 跳过），每天检查一次 GitHub Releases，增量更新（bsdiff，失败时改下完整包），Ed25519 签名；窗口语言跟随 Auralink 的界面语言；“检查更新…”在应用菜单（关于之后）、菜单栏菜单、⌘K 和 设置 → 诊断与关于，那里还有“自动检查”“自动安装更新”（默认关）和上次检查时间；更新源和公钥只在发布构建里（`scripts/release-config.sh`），其他构建不能自更新。MyGo 在 app 运行时替换 bundle：之后 supervisor 不再启动磁盘上的新辅助进程（`helper.FailUpdated`），侧边栏出现“已安装更新 / 重启 Auralink”（`updates.go`，`internal/appbundle`）；beta 通道见 §9.11 | 用户 10-16 定：用 MyGo 的官方方案、GitHub Releases、GitHub Actions 签名公证（docs/release.md）。“自动安装”默认关，是因为装好后到重启前这段时间旧进程和新的辅助进程会不一致；这段时间由版本比对兜底 | ✅ 待真证书验证（docs/release.md §7） |
+| 9.8 | 菜单栏：Dashboard、各设置页、历史子菜单、最近几条历史（点击复制全文）、麦克风子菜单、检查更新、退出 | 菜单栏：开始/停止转录、粘贴最近结果、最近 3 条结果（只取成功且有结果的；标题“最近结果”；每条一行短预览：空白合并成一个空格，按显示宽度截到 26 个单位，中日韩字记 2、其他记 1，约 13 个汉字或 26 个拉丁字母，末尾加“…”，英文尽量不从单词中间切；全文放在 tooltip 里，最多 400 字；点击复制全文，成功不提示、失败弹 toast）、打开 VoxtNew、设置、退出；图标用 Voxt 的麦克风（`voxt.imageset`，Voxt 以 18×18 pt template 显示）：离线用 Catmull-Rom 缩成 36 px template PNG（`internal/trayicon`，`go generate`），MyGo 把托盘图标按 18 pt 高显示，Retina 上一像素对一像素；录音时右上角加一个实心圆点，圆点周围挖一圈空隙和麦克风分开（仍是 template 图，Voxt 录音时图标不变）（`tray.go`） | 菜单只放常用操作；录音状态在菜单栏上一眼可见；图标和 Voxt 一致（用户 10-15）。右上角是麦克风唯一空着的角（下面两角被支架占了）。MyGo 的托盘只收一张 PNG，没法同时给 1× 和 2× 两个 rep，1× 屏由 AppKit 从 36 px 缩小。用户 10-15：原来每条最多 40 个字，中文时整个菜单被撑得很宽；Voxt 按菜单字体的渲染宽度截到 100 pt，原生菜单在 Go 这边量不了字宽，用显示宽度单位近似，宽度和“粘贴最近结果 ⌃⌘V”差不多（`uitext.TrayLabel`，`TestTrayRecent`） | ✅ |
+| 9.10 | 更新用 Sparkle（`Core/Utilities/AppUpdateManager.swift`）：appcast 在自己的服务器上（`SUFeedURL`，stable 和 beta 两个通道），EdDSA 公钥在 Info.plist（`SUPublicEDKey`）；开发和测试的 bundle ID 不启用；通用设置里有“自动检查更新”，菜单栏里有“检查更新”；Sparkle 在 app 退出后由独立的安装进程替换 bundle | MyGo 官方的更新：`mygo.Updater` + updater 插件的原生窗口（`native.Plugin`，界面和 Sparkle 相同：更新说明、安装 / 稍后提醒 / 跳过），每天检查一次 GitHub Releases，增量更新（bsdiff，失败时改下完整包），Ed25519 签名；窗口语言跟随 VoxtNew 的界面语言；“检查更新…”在应用菜单（关于之后）、菜单栏菜单、⌘K 和 设置 → 诊断与关于，那里还有“自动检查”“自动安装更新”（默认关）和上次检查时间；更新源和公钥只在发布构建里（`scripts/release-config.sh`），其他构建不能自更新。MyGo 在 app 运行时替换 bundle：之后 supervisor 不再启动磁盘上的新辅助进程（`helper.FailUpdated`），侧边栏出现“已安装更新 / 重启 VoxtNew”（`updates.go`，`internal/appbundle`）；beta 通道见 §9.11 | 用户 10-16 定：用 MyGo 的官方方案、GitHub Releases、GitHub Actions 签名公证（docs/release.md）。“自动安装”默认关，是因为装好后到重启前这段时间旧进程和新的辅助进程会不一致；这段时间由版本比对兜底 | ✅ 待真证书验证（docs/release.md §7） |
 | 9.11 | Beta 更新：关于页的开关“Beta Updates”（`betaUpdatesEnabled`，**默认关**，不看当前版本），开着时 Sparkle 读另一个 appcast（`/updates/beta/appcast.xml`）；改开关时清掉已经查到的更新；beta 版本在关于页标一个 “Beta”（`AboutSettingsView.swift`，`AppUpdateManager.resolvedUpdateChannel`） | 设置 → 诊断与关于 → 更新 → **Beta 更新**（`Updates.Beta`，`*bool`）。beta 就是 GitHub 的 prerelease（tag `v0.2.0-beta.1`），正式版是普通 Release；开关打开时 `mygo.Updater.SetPrereleases(true)`（MyGo 补丁 0006）：检查时用 GitHub API 列出 Release，取版本号最高的非草稿（beta 和正式版都算），比当前新才更新；关闭时和以前一样只读 latest release。**默认值跟着当前版本**：用户没选过时，当前版本带 `-`（beta）就开，否则关；用户一旦拨过开关就以用户为准（`settings.Updates.BetaOn`），不需要迁移。说明文字随状态变：开着是“接收 beta 版和正式版，哪个新就更新到哪个”；在 beta 上关掉是“只接收正式版，当前的 beta 会一直保留，直到比它新的正式版发布：不会降级”；在正式版上关着是“只接收正式版，打开后也接收 beta 版”。开关在 app 启动（拿到版本号之后、第一次检查之前）和改动时生效，检查更新、更新窗口、后台检查都按它走。GitHub API 不可用（每个地址每小时 60 次）时回退到只查正式版，查不到更新才报错；还没有任何正式版时，关着开关检查显示“已是最新”而不是报错（`mygo.ErrNotPublished`）。增量：发布构建同时读最新正式版和最新 beta 的清单，两个通道的用户都拿到增量（`updates.prereleases`） | 用户 10-16 定：第一个版本就是 beta，之后有正式版。beta 用户默认收到下一个 beta，否则装了 beta 的人会停在第一个 beta 上，直到正式版发布；正式版用户默认不受 beta 影响。GitHub 的 prerelease 天然就是 beta 通道，不需要第二个更新源。不降级：MyGo 只装比当前新的版本，关掉开关的 beta 用户等下一个正式版，这比“回退到旧的正式版”安全（设置、数据库迁移只往前走） | ✅ e2e 见 docs/release.md §6 |
 | 9.9 | — | 侧边栏默认“自动”：窗口宽度小于 740（按界面缩放）时只显示图标；用户点过侧边栏按钮或在 设置 → 外观 里选过（`Appearance.RailChosen`），就按用户的选择，不再自动（`shell_nav.go` 的 `railMode`） | 默认的 800 宽仍显示完整侧边栏（页面 600）；最小窗口 680 宽时页面只剩 480，收起侧边栏能多出约 150 | ✅ |
 
@@ -183,7 +183,7 @@ Auralink 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 
 每节在对应里程碑落地时补上。下面先列出方案里已经确定的差异。
 
-| 模块 | Voxt 怎么做 | Auralink 计划怎么做 | 为什么 | 里程碑 |
+| 模块 | Voxt 怎么做 | VoxtNew 计划怎么做 | 为什么 | 里程碑 |
 |---|---|---|---|---|
 | 录音设备 | 1.2 s 看门狗，指定设备失败时回到默认设备 | 保留，放在 helper 的 `capture.start` 里，`capture.started` 写明是否回退（`fellBack`），见 §4 | 蓝牙耳机常常没有声音 | ✅ helper 和会话（设备顺序来自 `Audio.Devices`） |
 | 剪贴板恢复 | 用 changeCount 判断剪贴板是不是自己写的 | 保留（helper 的 `textio.paste`，§4.5） | 避免覆盖用户在这期间复制的内容 | ✅ |

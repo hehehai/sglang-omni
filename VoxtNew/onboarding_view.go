@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 )
 
 // ---- The view ----
@@ -32,7 +32,7 @@ func (a *app) onboarding(c *ui.Context) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
 		dw, dh := onboardingDialogSize(t, w, h)
 		panel.Width(dw).Height(dh).Radius(px(t, radiusCard)).Background(k.Bg).Border(1, k.Line).
-			Shadow(0, 16, 40, 0, ui.RGBA(0, 0, 0, 0.3)).Label(i18n.T("Set up Auralink"))
+			Shadow(0, 16, 40, 0, ui.RGBA(0, 0, 0, 0.3)).Label(i18n.T("Set up VoxtNew"))
 		ui.Column(c).Fill().Children(func() {
 			a.obHeader(c)
 			ui.Scroll(c.Key("ob-scroll-" + itoa(a.ob.step))).Grow(1).MinHeight(0).Children(func() {
@@ -156,7 +156,7 @@ func (a *app) obTitle(c *ui.Context) {
 	var title, sub string
 	switch a.ob.step {
 	case obWelcome:
-		title = i18n.T("Welcome to Auralink")
+		title = i18n.T("Welcome to VoxtNew")
 		sub = i18n.T("Speak in any app and get text where your cursor is: transcribe, translate and rewrite with the speech and language services you choose. A few short steps; you can skip any of them.")
 	case obPermissions:
 		title = i18n.T("Permissions")
@@ -174,7 +174,7 @@ func (a *app) obTitle(c *ui.Context) {
 		sub = i18n.T("With nothing selected, say what to write; with text selected, say how to change it. Press the shortcut (or Start) and ask for something short.")
 	default:
 		title = i18n.T("More to explore")
-		sub = i18n.T("Auralink is ready. Two more things make it yours.")
+		sub = i18n.T("VoxtNew is ready. Two more things make it yours.")
 	}
 	ui.Column(c).Gap(px(t, sp1)).Margin(px(t, sp3), 0, px(t, sp2)).Children(func() {
 		ui.Text(c, title).FontSize(px(t, fsTitle)).FontWeight(600)
@@ -184,7 +184,7 @@ func (a *app) obTitle(c *ui.Context) {
 	})
 }
 
-// obFooter is Back, Skip and Continue (Start using Auralink on the last
+// obFooter is Back, Skip and Continue (Start using VoxtNew on the last
 // step). A try step's Continue waits for its try to pass; Skip moves on
 // without it. Nothing moves while the step's try runs.
 func (a *app) obFooter(c *ui.Context) {
@@ -202,7 +202,7 @@ func (a *app) obFooter(c *ui.Context) {
 		}
 		switch {
 		case a.ob.step == obMore:
-			if primaryButton(c.Key("ob-finish"), i18n.T("Start using Auralink")).Clicked() {
+			if primaryButton(c.Key("ob-finish"), i18n.T("Start using VoxtNew")).Clicked() {
 				a.closeOnboarding()
 				a.navigate("/home")
 			}

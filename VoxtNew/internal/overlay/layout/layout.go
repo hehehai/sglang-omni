@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // The face's shadow: small, and whole. The window adds Pad around the

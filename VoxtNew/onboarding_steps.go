@@ -5,13 +5,13 @@ package main
 
 import (
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/store"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // obRow is a line of the guide: an icon, a title and a line under it.
@@ -32,9 +32,9 @@ func obRow(c *ui.Context, key string, ic icons.Icon, title, detail string) {
 // obWelcomeStep is the privacy promise (plan §6).
 func (a *app) obWelcomeStep(c *ui.Context) {
 	obRow(c, "ob-p-services", providersIcon, i18n.T("Your audio and text go only to the services you set up"),
-		i18n.T("Auralink has no server of its own, no account and no analytics. Each service's own privacy terms apply to what it receives."))
+		i18n.T("VoxtNew has no server of its own, no account and no analytics. Each service's own privacy terms apply to what it receives."))
 	obRow(c, "ob-p-keys", icons.KeyMinimalisticSquare, i18n.T("Keys stay in this Mac's Keychain"),
-		i18n.T("Never in Auralink's settings, history or logs."))
+		i18n.T("Never in VoxtNew's settings, history or logs."))
 	obRow(c, "ob-p-local", icons.Database, i18n.T("History stays on this Mac"),
 		i18n.T("Results (and, if you choose, their recordings) are kept here only. Turn them off in Settings → Privacy."))
 	obRow(c, "ob-p-urls", appEnhancementIcon, i18n.T("Browser addresses only pick a scene"),
@@ -119,7 +119,7 @@ func (a *app) obTryStep(c *ui.Context) {
 		ui.Text(c, uitext.HotkeyText(h.Keys)).FontSize(px(t, fsCaption)).Font("monospace").Padding(px(t, 2), px(t, 8)).Radius(px(t, 4)).Background(k.Hover)
 		caption(c, uitext.TriggerHowText(h.Trigger))
 		if hotkey.NeedsTap(h) && !a.hotkeys.Installed {
-			warnLine(c, i18n.T("This shortcut works once Auralink may use Accessibility; Start works now."))
+			warnLine(c, i18n.T("This shortcut works once VoxtNew may use Accessibility; Start works now."))
 		}
 	})
 	if a.ob.passed[step] {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 // The binary framing of the SAUC (bigmodel streaming ASR) WebSocket API,

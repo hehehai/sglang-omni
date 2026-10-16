@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/store/sqlitestore"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store/sqlitestore"
 )
 
 // write makes the files of tree under dir: path → contents.
@@ -64,7 +64,7 @@ func TestResolveMovedFolder(t *testing.T) {
 }
 
 func TestCopyTreeAndSizes(t *testing.T) {
-	src, dst := t.TempDir(), filepath.Join(t.TempDir(), "Auralink")
+	src, dst := t.TempDir(), filepath.Join(t.TempDir(), "VoxtNew")
 	write(t, src, map[string]string{
 		"audio/a.wav": "RIFF a", "audio/b.wav": "RIFF bb",
 		sqlitestore.FileName: "db", sqlitestore.FileName + "-wal": "wal",
@@ -124,7 +124,7 @@ func TestEraseEverything(t *testing.T) {
 	write(t, def, map[string]string{"old.txt": "o"})
 	write(t, moved, map[string]string{"audio/a.wav": "a"})
 	write(t, previous, map[string]string{"left.txt": "l"})
-	write(t, logs, map[string]string{"auralink.log": "log"})
+	write(t, logs, map[string]string{"voxtnew.log": "log"})
 	if err := WriteJSON(filepath.Join(def, LocationFile), Location{Dir: moved, Previous: previous}); err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func openDB(t *testing.T, dir string) {
 
 func TestFinishMove(t *testing.T) {
 	def := t.TempDir()
-	to := filepath.Join(t.TempDir(), "Auralink")
+	to := filepath.Join(t.TempDir(), "VoxtNew")
 	openDB(t, def)
 	write(t, def, map[string]string{"audio/a.wav": "a"})
 	// While the app runs: everything but the database is copied, then the
@@ -194,7 +194,7 @@ func TestFinishMove(t *testing.T) {
 
 func TestFinishMoveFails(t *testing.T) {
 	def := t.TempDir()
-	to := filepath.Join(t.TempDir(), "Auralink")
+	to := filepath.Join(t.TempDir(), "VoxtNew")
 	openDB(t, def)
 	// The source of the move is gone: the copy is removed, the default
 	// folder kept, and location.json says why.

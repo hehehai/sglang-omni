@@ -1,4 +1,4 @@
-module github.com/hehehai/Auralink
+module github.com/sgl-project/sglang-omni/VoxtNew
 
 go 1.27.1
 

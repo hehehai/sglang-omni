@@ -18,12 +18,12 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/macx"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // audioState is the audio section's view state, and the player of the
@@ -162,7 +162,7 @@ func (a *app) audioSettings(c *ui.Context) {
 
 	ui.Row(c).Gap(px(t, sp2)).AlignItems(ui.Center).Margin(px(t, sp2), 0, 0, 0).Children(func() {
 		sectionTitleText(c, i18n.T("Microphones"))
-		infoTip(c.Key("audio-mics-info"), i18n.T("Auralink records from the first microphone of the list that is connected. When none of them is, or the list is empty, it records from the system's default input."))
+		infoTip(c.Key("audio-mics-info"), i18n.T("VoxtNew records from the first microphone of the list that is connected. When none of them is, or the list is empty, it records from the system's default input."))
 		ui.Spacer(c)
 		if iconButton(c.Key("audio-refresh"), icons.Refresh, i18n.T("Refresh the microphones")).Disabled(!a.helperReady() || a.audio.loading).Clicked() {
 			a.loadDevices()
@@ -183,7 +183,7 @@ func (a *app) audioSettings(c *ui.Context) {
 	card(c.Key("audio-list")).Gap(px(t, sp1)).Padding(px(t, sp2)).Children(func() {
 		if len(list) == 0 {
 			ui.Row(c).Padding(px(t, sp1), px(t, sp2)).Children(func() {
-				caption(c, i18n.T("No microphone chosen: Auralink records from the system's default input."))
+				caption(c, i18n.T("No microphone chosen: VoxtNew records from the system's default input."))
 			})
 		}
 		for i, id := range list {

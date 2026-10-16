@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 // Max is how many notifications the centre keeps; older ones drop off.

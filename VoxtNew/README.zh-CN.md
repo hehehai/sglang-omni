@@ -1,20 +1,20 @@
-# Auralink
+# VoxtNew
 
 [English](README.md) · **简体中文**
 
 **在 Mac 上任何地方说话，文字落在光标处。**
 
-![Auralink：主窗口，以及文本编辑上方的翻译卡片](docs/images/zh/hero.png)
+![VoxtNew：主窗口，以及文本编辑上方的翻译卡片](docs/images/zh/hero.png)
 
-Auralink 是一个精简的 macOS 语音输入 app。在任意 App 里按下快捷键说话，文字就输入到光标处：语音识别服务转成文字，语言模型整理，并按你所在的 App 调整。它还能翻译和改写，对象可以是你说的话，也可以是选中的文字。
+VoxtNew 是一个精简的 macOS 语音输入 app。在任意 App 里按下快捷键说话，文字就输入到光标处：语音识别服务转成文字，语言模型整理，并按你所在的 App 调整。它还能翻译和改写，对象可以是你说的话，也可以是选中的文字。
 
 它不在 Mac 上跑任何模型。语音和语言服务由你来选（阶跃星辰、豆包、阿里云、DeepSeek、OpenAI 等），使用你自己的 API Key；音频和文字只发给这些服务。
 
-Auralink 是同一作者的 [Voxt](https://github.com/hehehai/voxt) 的精简重写：保留 Voxt 的听写、翻译和改写，只用远程模型，去掉了会议、文件转录、笔记和本地模型。界面和工程沿用 [AudioSmith](https://github.com/hehehai/AudioSmith)。
+VoxtNew 是同一作者的 [Voxt](https://github.com/hehehai/voxt) 的精简重写：保留 Voxt 的听写、翻译和改写，只用远程模型，去掉了会议、文件转录、笔记和本地模型。界面和工程沿用 [AudioSmith](https://github.com/hehehai/AudioSmith)。
 
-> **状态：0.1.0-beta.1，第一个 beta 版（GitHub 上的 prerelease）。** 下面的功能都已完成并通过测试；第一批签名版本会先以 beta 形式发布在 [Releases](https://github.com/hehehai/Auralink/releases)。app 图标目前还是占位的。
+> **状态：0.1.0-beta.1，第一个 beta 版（GitHub 上的 prerelease）。** 下面的功能都已完成并通过测试；第一批签名版本会先以 beta 形式发布在 [Releases](https://github.com/sgl-project/sglang-omni/VoxtNew/releases)。app 图标目前还是占位的。
 
-<sub>截图和录屏：Auralink 0.1.0-beta.1，macOS 26，演示数据；语音识别用阶跃星辰，语言模型用 DeepSeek。</sub>
+<sub>截图和录屏：VoxtNew 0.1.0-beta.1，macOS 26，演示数据；语音识别用阶跃星辰，语言模型用 DeepSeek。</sub>
 
 ## 功能
 
@@ -63,7 +63,7 @@ Auralink 是同一作者的 [Voxt](https://github.com/hehehai/voxt) 的精简重
 
 ### 声音和静音
 
-音频发给语音识别服务之前，Auralink 可以先做处理（纯信号处理，不用模型）：
+音频发给语音识别服务之前，VoxtNew 可以先做处理（纯信号处理，不用模型）：
 
 - **声音优化**（默认开启）：80 Hz 高通滤波去掉嗡声和低频隆隆声；只按人声部分测量音量并统一调整增益，把小声的说话抬上来（最多 +12 dB，背景噪声不会被抬到 −50 dBFS 以上），再加一个限制器，避免削波。
 - **跳过静音**（默认开启）：上传前裁掉开头和结尾的静音，缩短长停顿，减少上传时间；对按时长计费的服务也能省钱。完全没有说话的录音不会发送。
@@ -75,7 +75,7 @@ Auralink 是同一作者的 [Voxt](https://github.com/hehehai/voxt) 的精简重
 ### 历史、菜单栏及其他
 
 - **历史**：所有结果按功能分类，可搜索，记录原文、结果去了哪里、用了哪些服务、命中的应用增强分组和每个阶段的耗时。只有打开相应设置时才保存录音。
-- **菜单栏**：开始或停止转录、粘贴最近的结果、复制最近三条结果之一。关闭窗口后 Auralink 留在菜单栏里继续运行，也可以设置开机启动。
+- **菜单栏**：开始或停止转录、粘贴最近的结果、复制最近三条结果之一。关闭窗口后 VoxtNew 留在菜单栏里继续运行，也可以设置开机启动。
 - **设置引导**：首次启动时打开，依次完成授权、配置服务，再把每个功能实际试一遍。
 - 命令面板（`⌘K`）、设置（`⌘,`）、浅色和深色主题，界面有英文和简体中文。
 
@@ -112,23 +112,23 @@ Auralink 是同一作者的 [Voxt](https://github.com/hehehai/voxt) 的精简重
 
 ## 隐私
 
-- **不做本地推理，也没有自己的服务器。** 你的音频，以及要整理、翻译、改写的文字，只发给你配置的服务；服务收到的内容适用该服务自己的条款。Auralink 不需要账号，不收集使用数据、崩溃报告或任何标识符。
+- **不做本地推理，也没有自己的服务器。** 你的音频，以及要整理、翻译、改写的文字，只发给你配置的服务；服务收到的内容适用该服务自己的条款。VoxtNew 不需要账号，不收集使用数据、崩溃报告或任何标识符。
 - **Key** 只保存在这台 Mac 的钥匙串里。
-- **历史** 只保存在本机 `~/Library/Application Support/Auralink`（可在 **设置 → 存储** 中移动）。在 **设置 → 隐私** 中可以关闭历史、打开保存录音（默认关闭），也可以清除全部历史。日志里只记长度和耗时，除非你允许，否则不记录文字内容。
+- **历史** 只保存在本机 `~/Library/Application Support/VoxtNew`（可在 **设置 → 存储** 中移动）。在 **设置 → 隐私** 中可以关闭历史、打开保存录音（默认关闭），也可以清除全部历史。日志里只记长度和耗时，除非你允许，否则不记录文字内容。
 - **浏览器网址** 只通过辅助功能读取，用来匹配应用增强分组，不会发给模型；发给模型的只有 App 的名字。
-- 除了你配置的服务，Auralink 只会访问 GitHub 检查更新，以及你在设置里主动测试的地址（网络测试、自检）。
+- 除了你配置的服务，VoxtNew 只会访问 GitHub 检查更新，以及你在设置里主动测试的地址（网络测试、自检）。
 
 ## 安装
 
-Auralink 需要 **macOS 15 及以上、Apple 芯片的 Mac**。暂不支持 Intel Mac。
+VoxtNew 需要 **macOS 15 及以上、Apple 芯片的 Mac**。暂不支持 Intel Mac。
 
-1. 从 [Releases](https://github.com/hehehai/Auralink/releases) 下载 `Auralink <版本> arm64.dmg`，把 Auralink 拖进“应用程序”。发布版本用 Developer ID 签名并经过 Apple 公证，打开时不会有安全警告。
-2. 从“应用程序”里打开（直接在磁盘映像里运行无法自动更新）。自动更新要求 Auralink 能写入它所在的位置：放在 `/Applications` 需要管理员账户，否则请放到 `~/Applications`。
+1. 从 [Releases](https://github.com/sgl-project/sglang-omni/VoxtNew/releases) 下载 `VoxtNew <版本> arm64.dmg`，把 VoxtNew 拖进“应用程序”。发布版本用 Developer ID 签名并经过 Apple 公证，打开时不会有安全警告。
+2. 从“应用程序”里打开（直接在磁盘映像里运行无法自动更新）。自动更新要求 VoxtNew 能写入它所在的位置：放在 `/Applications` 需要管理员账户，否则请放到 `~/Applications`。
 3. 设置引导会请求两项权限：
    - **麦克风**：只在快捷键触发录音时使用。
    - **辅助功能**：把结果输入到其他 App、为翻译和转写读取选中的文字、把 `fn` 用作快捷键，以及为应用增强读取前台 App 和浏览器标签页。没有这项权限时，结果会复制到剪贴板，而不是直接输入。
 
-**以前用过自己编译的版本**（ad-hoc 签名）：macOS 不会把它的授权带到发布版。打开发布版之前执行一次 `tccutil reset Microphone dev.hehehai.auralink && tccutil reset Accessibility dev.hehehai.auralink`，再重新允许这两项。
+**以前用过自己编译的版本**（ad-hoc 签名）：macOS 不会把它的授权带到发布版。打开发布版之前执行一次 `tccutil reset Microphone dev.hehehai.voxtnew && tccutil reset Accessibility dev.hehehai.voxtnew`，再重新允许这两项。
 
 ## 快速上手
 
@@ -146,34 +146,34 @@ Auralink 需要 **macOS 15 及以上、Apple 芯片的 Mac**。暂不支持 Inte
 ```sh
 scripts/build-helper.sh              # 编译辅助进程，放到 resources/darwin-arm64/helper/
 go tool mygo dev                     # 热重载运行
-go tool mygo build                   # 生成 build/darwin-arm64/Auralink.app 和 “Auralink 0.1.0 arm64.dmg”
+go tool mygo build                   # 生成 build/darwin-arm64/VoxtNew.app 和 “VoxtNew 0.1.0 arm64.dmg”
 ```
 
-在 Linux 上开发时，`scripts/mac.sh <命令>` 会把项目同步到 Mac（`MAC_HOST` 默认 `mac-air`，`MAC_DIR` 默认 `code/Auralink`）并在那边执行，例如 `scripts/mac.sh 'scripts/build-helper.sh && go tool mygo build'`。
+在 Linux 上开发时，`scripts/mac.sh <命令>` 会把项目同步到 Mac（`MAC_HOST` 默认 `mac-air`，`MAC_DIR` 默认 `code/VoxtNew`）并在那边执行，例如 `scripts/mac.sh 'scripts/build-helper.sh && go tool mygo build'`。
 
 <details>
 <summary>开发时的签名（重新编译后保留权限）</summary>
 
-macOS 按签名记住麦克风和辅助功能授权。默认的 ad-hoc 签名每次重编 app 都会变，重编之后授权就失效了：麦克风变成**拒绝，而且不再弹窗**；辅助功能在系统设置里看着还开着，实际不生效。辅助进程的授权算在 app 名下（macOS 按负责进程 Auralink.app 判定），所以它也一样。几个办法：
+macOS 按签名记住麦克风和辅助功能授权。默认的 ad-hoc 签名每次重编 app 都会变，重编之后授权就失效了：麦克风变成**拒绝，而且不再弹窗**；辅助功能在系统设置里看着还开着，实际不生效。辅助进程的授权算在 app 名下（macOS 按负责进程 VoxtNew.app 判定），所以它也一样。几个办法：
 
 - **只改辅助进程时**：保留一个编好的 app，让它用 bundle 外的辅助进程。辅助进程放在哪里都继承 app 的授权，重编它不影响授权：
   ```sh
-  scripts/build-helper.sh --out ~/auralink-dev
-  open --env AURALINK_HELPER=$HOME/auralink-dev/auralink-helper build/darwin-arm64/Auralink.app
+  scripts/build-helper.sh --out ~/voxtnew-dev
+  open --env VOXTNEW_HELPER=$HOME/voxtnew-dev/voxtnew-helper build/darwin-arm64/VoxtNew.app
   ```
-- **清掉重来**：`tccutil reset Microphone dev.hehehai.auralink`（`Accessibility` 同理），再打开 app 重新授权。如果辅助功能条目开着却不生效，在系统设置里用 − 删掉它再重新授权。
-- **用固定的签名身份**：用 Apple Development 证书签名，重编后授权仍然有效：`go tool mygo build -sign "Apple Development: …"`（或者在本地的 mygo.json 里设 `macos.signingIdentity`；`scripts/build-helper.sh` 用 `AURALINK_SIGN_IDENTITY`）。通过 ssh 签名时 `codesign` 会报 `errSecInternalComponent`，需要先在 Mac 的终端里执行一次 `security set-key-partition-list -S apple-tool:,apple: -s ~/Library/Keychains/login.keychain-db`。
+- **清掉重来**：`tccutil reset Microphone dev.hehehai.voxtnew`（`Accessibility` 同理），再打开 app 重新授权。如果辅助功能条目开着却不生效，在系统设置里用 − 删掉它再重新授权。
+- **用固定的签名身份**：用 Apple Development 证书签名，重编后授权仍然有效：`go tool mygo build -sign "Apple Development: …"`（或者在本地的 mygo.json 里设 `macos.signingIdentity`；`scripts/build-helper.sh` 用 `VOXTNEW_SIGN_IDENTITY`）。通过 ssh 签名时 `codesign` 会报 `errSecInternalComponent`，需要先在 Mac 的终端里执行一次 `security set-key-partition-list -S apple-tool:,apple: -s ~/Library/Keychains/login.keychain-db`。
 
 </details>
 
 ## 开发
 
-Auralink 是基于 [MyGo](https://github.com/egoist/mygo) 的 Go app（用 Go 写原生 macOS 界面，不用 cgo），另有一个小的 Swift 辅助进程，负责需要 Apple 框架的部分：麦克风、全局快捷键、辅助功能、粘贴和 App 图标。决策都在 Go 这边，辅助进程通过 stdin/stdout 上的 JSON 行接收指令并执行。除辅助进程外都是纯 Go 代码，在 Linux 上测试。
+VoxtNew 是基于 [MyGo](https://github.com/egoist/mygo) 的 Go app（用 Go 写原生 macOS 界面，不用 cgo），另有一个小的 Swift 辅助进程，负责需要 Apple 框架的部分：麦克风、全局快捷键、辅助功能、粘贴和 App 图标。决策都在 Go 这边，辅助进程通过 stdin/stdout 上的 JSON 行接收指令并执行。除辅助进程外都是纯 Go 代码，在 Linux 上测试。
 
 ```sh
 CGO_ENABLED=0 go test ./...          # 全部测试，Linux 上可跑
 go tool mygo vet .                   # go vet 加 MyGo 的 UI 生命周期检查
-AURALINK_SNAPSHOTS=/tmp/shots go test -run TestSnapshots .   # 每个页面的截图：浅色/深色 × 中/英
+VOXTNEW_SNAPSHOTS=/tmp/shots go test -run TestSnapshots .   # 每个页面的截图：浅色/深色 × 中/英
 cd helper && swift test              # Swift 辅助进程的测试（在 Mac 上），和 Go 用同一份协议 fixtures
 ```
 
@@ -190,7 +190,7 @@ CI 在 Linux 上跑 gofmt、Go 测试（含 race 检测）和 MyGo vet，在 mac
 
 ## 致谢
 
-- [Voxt](https://github.com/hehehai/voxt)：Auralink 按功能逐项重写了它的行为，只用远程模型。浮窗的图标、菜单栏的麦克风图标和浮窗预览的背景图来自 Voxt。
+- [Voxt](https://github.com/hehehai/voxt)：VoxtNew 按功能逐项重写了它的行为，只用远程模型。浮窗的图标、菜单栏的麦克风图标和浮窗预览的背景图来自 Voxt。
 - [AudioSmith](https://github.com/hehehai/AudioSmith)：窗口外壳、UI 组件、设置、存储，以及辅助进程监管程序的原型都来自它。
 - [MyGo](https://github.com/egoist/mygo)：用 Go 写原生 macOS 界面，不用 cgo（MIT 许可）。
 - 480 Design 的 [Solar](https://www.figma.com/community/file/1166831539721848736) 图标，以 CC BY 4.0 授权。
@@ -201,8 +201,8 @@ CI 在 Linux 上跑 gofmt、Go 测试（含 race 检测）和 MyGo vet，在 mac
 
 ## 许可证
 
-Copyright (C) 2026 actnow and the Auralink contributors。Auralink 是自由软件，以 [GNU Affero 通用公共许可证第 3 版或更高版本](LICENSE)（AGPL-3.0-or-later）发布。
+Copyright (C) 2026 actnow and the VoxtNew contributors。VoxtNew 是自由软件，以 [GNU Affero 通用公共许可证第 3 版或更高版本](LICENSE)（AGPL-3.0-or-later）发布。
 
-简单说：你可以使用、研究、修改和分享 Auralink。发布它（无论改没改）时，要把同样的自由传下去：附上源码，并使用同一许可。AGPL 在 GPL 之外只多一条：如果你修改了 Auralink，并让别人通过网络使用你的修改版，也要向他们提供源码。Auralink 是桌面应用，在自己的 Mac 上照常使用，没有任何额外要求。
+简单说：你可以使用、研究、修改和分享 VoxtNew。发布它（无论改没改）时，要把同样的自由传下去：附上源码，并使用同一许可。AGPL 在 GPL 之外只多一条：如果你修改了 VoxtNew，并让别人通过网络使用你的修改版，也要向他们提供源码。VoxtNew 是桌面应用，在自己的 Mac 上照常使用，没有任何额外要求。
 
 贡献按 [CLA](CLA.md) 接收：贡献者保留版权，并授权 actnow 也可以用其他协议发布其贡献。v0.1.0-beta.1 及以前的版本以 Apache License 2.0 发布。第三方素材及其许可见 [NOTICE](NOTICE)。

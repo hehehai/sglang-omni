@@ -101,7 +101,7 @@ func selfSigned() (tls.Certificate, []byte, error) {
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber:          big.NewInt(time.Now().UnixNano()),
-		Subject:               pkix.Name{CommonName: "Auralink update test"},
+		Subject:               pkix.Name{CommonName: "VoxtNew update test"},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(24 * time.Hour),
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,

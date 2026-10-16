@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 // Kind classifies an error by what the user can do about it.

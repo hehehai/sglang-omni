@@ -2,22 +2,22 @@ package main
 
 // Updates: MyGo's updater plugin in native UI (native.Plugin, main.go)
 // checks GitHub Releases once a day, shows a new version's notes in its
-// own window, in the language Auralink shows, and installs it (a delta
+// own window, in the language VoxtNew shows, and installs it (a delta
 // when there is one) on the user's word, then offers to restart. Its
 // "Check for Updates…" is ours, in the app menu, the menu bar icon's menu,
 // the palette and Settings → About, which also shows its two preferences.
 // Release builds only: `updates` is put in mygo.json by the release
 // workflow (docs/release.md), so other builds cannot update themselves.
 //
-// The updater replaces Auralink.app while the old version runs. Until it
+// The updater replaces VoxtNew.app while the old version runs. Until it
 // restarts, the helper on disk is the new version's: the supervisor does
-// not start it (helper.FailUpdated), and a card asks to restart Auralink
+// not start it (helper.FailUpdated), and a card asks to restart VoxtNew
 // (appUpdated), which a timer, a check and the helper's failure look for
 // (checkBundle, appbundle.Updated).
 //
 // Beta updates (Settings → About): betas are GitHub prereleases, which
 // MyGo offers only while mygo.Updater.SetPrereleases is on (patch 0006);
-// the switch is Updates.Beta in Auralink's settings, on by default while
+// the switch is Updates.Beta in VoxtNew's settings, on by default while
 // the running version is itself a beta (settings.Updates.BetaOn), and
 // applied when the app starts and when it changes (applyBeta).
 
@@ -29,10 +29,10 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/updater"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // updateCheck is the update check of -tags updatecheck builds
@@ -49,7 +49,7 @@ func argAfter(flag string) string {
 	return ""
 }
 
-// updateService is what Auralink uses of the updater plugin, a fake in
+// updateService is what VoxtNew uses of the updater plugin, a fake in
 // tests (the plugin's functions panic without it).
 type updateService interface {
 	// Prefs reads the preferences (updater.json) and whether this build
@@ -103,7 +103,7 @@ type updateState struct {
 }
 
 // The update's card: its ID, and the link of its action, which restarts
-// Auralink (cardAction).
+// VoxtNew (cardAction).
 const (
 	problemUpdate = "problem/update"
 	linkRelaunch  = "action:relaunch"
@@ -192,7 +192,7 @@ func (a *app) setAutoInstall(on bool) {
 	a.async(func() { upd.SetAutomaticDownloads(on) })
 }
 
-// watchBundle looks for an update installed while Auralink runs, every
+// watchBundle looks for an update installed while VoxtNew runs, every
 // bundleWatch; it runs once the window is open.
 func (a *app) watchBundle() {
 	if a.bundleStale == nil {
@@ -224,15 +224,15 @@ func (a *app) checkBundle() {
 	})
 }
 
-// appUpdated shows that an update is installed and Auralink is to
-// restart: a card (with Restart Auralink), Settings → About and Home.
+// appUpdated shows that an update is installed and VoxtNew is to
+// restart: a card (with Restart VoxtNew), Settings → About and Home.
 func (a *app) appUpdated() {
 	a.bundleUpdated = true
 	a.setProblem(problemUpdate, "installed", &core.Notification{Severity: core.SeverityWarning,
-		Title: i18n.T("Update installed"), Body: i18n.T("Restart Auralink to finish updating."), Link: linkRelaunch})
+		Title: i18n.T("Update installed"), Body: i18n.T("Restart VoxtNew to finish updating."), Link: linkRelaunch})
 }
 
-// relaunch restarts Auralink into the version on disk: the quit stops the
+// relaunch restarts VoxtNew into the version on disk: the quit stops the
 // helper (OnQuit), the new version starts its own.
 func (a *app) relaunch() { appRelaunch() }
 
@@ -245,8 +245,8 @@ func (a *app) updateSettingsSection(c *ui.Context) {
 	p := a.updPrefs
 	sectionTitle(c, i18n.T("Updates"))
 	if a.bundleUpdated {
-		settingRowNote(c, "about-relaunch", i18n.T("Update installed"), i18n.T("The new version runs once Auralink restarts."), func() {
-			if primaryButton(c.Key("about-relaunch"), i18n.T("Restart Auralink")).Clicked() {
+		settingRowNote(c, "about-relaunch", i18n.T("Update installed"), i18n.T("The new version runs once VoxtNew restarts."), func() {
+			if primaryButton(c.Key("about-relaunch"), i18n.T("Restart VoxtNew")).Clicked() {
 				a.relaunch()
 			}
 		})
@@ -255,7 +255,7 @@ func (a *app) updateSettingsSection(c *ui.Context) {
 	switch {
 	case !a.updKnown:
 	case !p.Enabled:
-		desc = i18n.T("This copy cannot update itself: it is a development build, or it is in a folder Auralink cannot write to. Move Auralink to Applications.")
+		desc = i18n.T("This copy cannot update itself: it is a development build, or it is in a folder VoxtNew cannot write to. Move VoxtNew to Applications.")
 	case p.LastCheck.IsZero():
 		desc = i18n.T("New versions come from GitHub Releases, with their notes. Not checked yet.")
 	default:
@@ -280,14 +280,14 @@ func (a *app) updateSettingsSection(c *ui.Context) {
 	case beta:
 		note = i18n.T("Betas and releases, whichever is newer. Betas bring new features sooner, and more bugs.")
 	case strings.Contains(a.version, "-"):
-		note = i18n.T("Releases only. This beta stays until a release newer than it comes out: Auralink never goes back to an older version.")
+		note = i18n.T("Releases only. This beta stays until a release newer than it comes out: VoxtNew never goes back to an older version.")
 	}
 	settingRowNote(c, "about-update-beta", i18n.T("Beta updates"), note, func() {
 		if ui.Switch(c.Key("about-update-beta-switch"), &beta).Label(i18n.T("Get beta versions")).Changed() {
 			a.setBeta(beta)
 		}
 	})
-	settingRow(c, "about-update-install", i18n.T("Install updates automatically"), i18n.T("Updates found in the background download and install without asking; Auralink then asks to restart. Off by default."), func() {
+	settingRow(c, "about-update-install", i18n.T("Install updates automatically"), i18n.T("Updates found in the background download and install without asking; VoxtNew then asks to restart. Off by default."), func() {
 		if ui.Switch(c.Key("about-update-install-switch"), &a.updPrefs.AutoInstall).Label(i18n.T("Install updates without asking")).Disabled(!a.updPrefs.AutoCheck).Changed() {
 			a.setAutoInstall(a.updPrefs.AutoInstall)
 		}

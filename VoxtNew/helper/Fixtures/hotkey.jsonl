@@ -11,5 +11,5 @@
 {"to":"helper","msg":{"id":"c10","method":"hotkey.configure","params":{"bindings":[]}}}
 {"to":"app","msg":{"id":"c10","result":{"installed":false,"accessibility":true,"bindings":0,"events":31,"disabledByTimeout":0,"missedEvents":1,"maxCallbackMicros":412.7}}}
 {"to":"helper","msg":{"id":"c11","method":"hotkey.configure","params":{"bindings":[{"id":"transcribe/0","modifiers":{"fn":"any"},"behavior":"tap"}]}}}
-{"to":"app","msg":{"id":"c11","result":{"installed":false,"accessibility":false,"bindings":1,"events":0,"disabledByTimeout":0,"missedEvents":0,"maxCallbackMicros":0,"error":"CGEvent.tapCreate failed: Auralink may not use Accessibility; retrying every 2 s"}}}
+{"to":"app","msg":{"id":"c11","result":{"installed":false,"accessibility":false,"bindings":1,"events":0,"disabledByTimeout":0,"missedEvents":0,"maxCallbackMicros":0,"error":"CGEvent.tapCreate failed: VoxtNew may not use Accessibility; retrying every 2 s"}}}
 {"to":"app","msg":{"method":"hotkey.state","params":{"installed":true,"accessibility":true,"bindings":1,"events":0,"disabledByTimeout":0,"missedEvents":0,"maxCallbackMicros":0}}}

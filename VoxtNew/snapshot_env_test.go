@@ -26,7 +26,7 @@ package main
 //     few kilobytes more or less from run to run (SQLite's pages and
 //     write-ahead log), so pinStorage gives them fixed ones.
 //
-// The overlay's flows (AURALINK_FLOW_SHOTS, overlay_flows_test.go) are not
+// The overlay's flows (VOXTNEW_FLOW_SHOTS, overlay_flows_test.go) are not
 // pinned: they run the fake helper's process and loopback servers, and how
 // many of a streamed draft's pieces one frame shows depends on scheduling.
 // Their tests check the steps instead.
@@ -100,7 +100,7 @@ func lockSnapRoot(t *testing.T) string {
 	if user == "" {
 		user = fmt.Sprint(os.Getuid())
 	}
-	root := filepath.Join(os.TempDir(), "auralink-snapshots-"+user)
+	root := filepath.Join(os.TempDir(), "voxtnew-snapshots-"+user)
 	lock, err := os.OpenFile(root+".lock", os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		t.Fatal(err)

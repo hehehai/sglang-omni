@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 // ID is the provider's preset id.

@@ -1,4 +1,4 @@
--- Auralink database, migration 1 (M1): documents, history, the dictionary.
+-- VoxtNew database, migration 1 (M1): documents, history, the dictionary.
 --
 -- Times are Unix milliseconds. Text search uses FTS5 with the trigram
 -- tokenizer (substring search that works for CJK); queries under 3

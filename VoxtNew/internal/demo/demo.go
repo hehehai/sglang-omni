@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/permission"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
 )
 
 // Replay is the services' transport: outside a take it calls; in a take

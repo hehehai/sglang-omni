@@ -70,8 +70,8 @@ func misfits(t *testing.T, strs []string, lang string) map[string]string {
 // segmented control unconstrained in a row — keep to one line. On the
 // Mac with MyGo 0.4.8 the first three failed, unless MyGo carried the fix.
 func TestTextFitsItsOwnWidth(t *testing.T) {
-	if os.Getenv("AURALINK_TEXTFIT_PROBE") == "" {
-		t.Skip("probe of MyGo's text engine; set AURALINK_TEXTFIT_PROBE=1 (meaningful on macOS)")
+	if os.Getenv("VOXTNEW_TEXTFIT_PROBE") == "" {
+		t.Skip("probe of MyGo's text engine; set VOXTNEW_TEXTFIT_PROBE=1 (meaningful on macOS)")
 	}
 	probe := []string{
 		"M4B（含章节）", "标题(可选)", "M4B（含章节）尾",
@@ -116,13 +116,13 @@ func TestTextFitsItsOwnWidth(t *testing.T) {
 
 // TestTranslationsFit audits every string of the catalogues (the English
 // source strings, the Chinese translations) for breaking at their own width, which
-// single-line text shows as "…". It runs with AURALINK_TEXTFIT_AUDIT=1
-// and writes the list to AURALINK_TEXTFIT_AUDIT_OUT if set; with
-// AURALINK_TEXTFIT_AUDIT=strict it fails on any.
+// single-line text shows as "…". It runs with VOXTNEW_TEXTFIT_AUDIT=1
+// and writes the list to VOXTNEW_TEXTFIT_AUDIT_OUT if set; with
+// VOXTNEW_TEXTFIT_AUDIT=strict it fails on any.
 func TestTranslationsFit(t *testing.T) {
-	mode := os.Getenv("AURALINK_TEXTFIT_AUDIT")
+	mode := os.Getenv("VOXTNEW_TEXTFIT_AUDIT")
 	if mode == "" {
-		t.Skip("audit; set AURALINK_TEXTFIT_AUDIT=1 (meaningful on macOS)")
+		t.Skip("audit; set VOXTNEW_TEXTFIT_AUDIT=1 (meaningful on macOS)")
 	}
 	load := func(name string) map[string]string {
 		b, err := os.ReadFile("internal/i18n/locales/" + name)
@@ -164,7 +164,7 @@ func TestTranslationsFit(t *testing.T) {
 		total += len(keys)
 	}
 	t.Log(report.String())
-	if out := os.Getenv("AURALINK_TEXTFIT_AUDIT_OUT"); out != "" {
+	if out := os.Getenv("VOXTNEW_TEXTFIT_AUDIT_OUT"); out != "" {
 		if err := os.WriteFile(out, []byte(report.String()), 0o644); err != nil {
 			t.Fatal(err)
 		}

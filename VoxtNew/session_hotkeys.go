@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/hotkey"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // ---- shortcuts ----
@@ -73,7 +73,7 @@ func (a *app) hotkeyFired(e proto.HotkeyEventParams) {
 			kind = store.KindRewrite
 		}
 		req := session.StartRequest{Kind: kind, Target: target, HoldBinding: hold}
-		// Auralink in front, on a page with a Try area for it: a try there.
+		// VoxtNew in front, on a page with a Try area for it: a try there.
 		switch place := a.tryPlace(kind, target); place {
 		case placeNone:
 		case placeIgnore:

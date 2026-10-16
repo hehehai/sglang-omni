@@ -1,4 +1,4 @@
-import AuralinkHelperKit
+import VoxtNewHelperKit
 import Foundation
 
 /// Writes protocol lines to the original stdout, one whole line at a time.
@@ -134,7 +134,7 @@ final class Server: @unchecked Sendable {
             capture.cancelAll()
             exit(0)
         }
-        thread.name = "auralink.stdin"
+        thread.name = "voxtnew.stdin"
         thread.start()
     }
 
@@ -242,7 +242,7 @@ final class Server: @unchecked Sendable {
         }
         front.start()
         let version = helperVersion()
-        out.logLine("info", "auralink-helper \(version) ready (app \(p.app))")
+        out.logLine("info", "voxtnew-helper \(version) ready (app \(p.app))")
         out.result(id, HelloResult(protocol: protocolVersion, version: version, pid: Int(getpid()), methods: Method.requests,
                                    device: Device(name: machineModel(), os: osVersion())))
     }

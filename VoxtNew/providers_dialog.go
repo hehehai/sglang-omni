@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // ---- The dialog ----
@@ -102,7 +102,7 @@ func (a *app) providerDialogView(c *ui.Context) {
 			})
 		}
 		mask := a.keyMasks[acc]
-		fieldInfo(c, uitext.KeyLabel(d.kind, d.id), i18n.T("Saved in this Mac's Keychain, never in Auralink's settings or logs."), func() {
+		fieldInfo(c, uitext.KeyLabel(d.kind, d.id), i18n.T("Saved in this Mac's Keychain, never in VoxtNew's settings or logs."), func() {
 			ui.Row(c).Gap(px(t, sp2)).AlignItems(ui.Center).Children(func() {
 				ph := i18n.T("Paste the key")
 				if mask != "" && !d.removeKey {
@@ -250,7 +250,7 @@ func (a *app) saveProviderDialog() {
 	}
 	acc := providers.Account(kind, p.ID)
 	key, remove := strings.TrimSpace(d.key), d.removeKey
-	label := "Auralink " + uitext.ProviderName(kind, p)
+	label := "VoxtNew " + uitext.ProviderName(kind, p)
 	d.saving, d.err = true, ""
 	kr := a.keys
 	a.async(func() {

@@ -12,24 +12,24 @@ import (
 	"os"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // ---- sample data ----
 
 // demoSeed fills an empty library with the sample data of
-// $AURALINK_DEMO_LANG (en, zh).
+// $VOXTNEW_DEMO_LANG (en, zh).
 func demoSeed(lib *library) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if list, err := lib.store.History().List(ctx, store.HistoryQuery{Limit: 1}); err != nil || len(list) > 0 {
 		return
 	}
-	zh := os.Getenv("AURALINK_DEMO_LANG") == "zh"
+	zh := os.Getenv("VOXTNEW_DEMO_LANG") == "zh"
 	d := demoDataEN
 	if zh {
 		d = demoDataZH
@@ -170,7 +170,7 @@ var demoDataEN = demoData{
 			features: appctx.Features{Transcribe: true, Rewrite: true}},
 	},
 	terms: []demoTerm{
-		{"Auralink", []string{"aura link", "aural link"}, "The app's name"},
+		{"VoxtNew", []string{"aura link", "aural link"}, "The app's name"},
 		{"StepFun", []string{"step fun"}, ""},
 		{"DeepSeek", []string{"deep seek"}, ""},
 		{"Kubernetes", []string{"cooper netties", "kuber nets"}, ""},
@@ -228,7 +228,7 @@ var demoDataZH = demoData{
 			features: appctx.Features{Transcribe: true, Rewrite: true}},
 	},
 	terms: []demoTerm{
-		{"Auralink", []string{"奥拉林克", "aura link"}, "产品名"},
+		{"VoxtNew", []string{"奥拉林克", "aura link"}, "产品名"},
 		{"阶跃星辰", []string{"接跃星辰", "阶跃新城"}, ""},
 		{"DeepSeek", []string{"迪普西克", "deep seek"}, ""},
 		{"飞书", []string{"飞叔", "非书"}, ""},

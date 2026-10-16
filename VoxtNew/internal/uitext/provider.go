@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/llm"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // ProviderName is a service's name in the UI language: the user's label,
@@ -116,7 +116,7 @@ func ProviderErrorText(err error) (msg, more string) {
 		case asr.KindConfig:
 			return i18n.T("The setup is incomplete or wrong: check the key, the endpoint and the model."), more
 		}
-		return i18n.T("The service answered something Auralink does not understand. Check the endpoint and the model."), more
+		return i18n.T("The service answered something VoxtNew does not understand. Check the endpoint and the model."), more
 	}
 	var le *llm.Error
 	if errors.As(err, &le) {
@@ -142,7 +142,7 @@ func ProviderErrorText(err error) (msg, more string) {
 		case llm.CodeCancelled:
 			return i18n.T("Cancelled."), more
 		}
-		return i18n.T("The service answered something Auralink does not understand. Check the endpoint and the model."), more
+		return i18n.T("The service answered something VoxtNew does not understand. Check the endpoint and the model."), more
 	}
 	return i18n.T("Could not reach the service. Check the network, the proxy and the endpoint."), more
 }

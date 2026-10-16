@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // TestSnapshotsAppEnhance saves the App enhancement page at the default
@@ -16,7 +16,7 @@ import (
 // header), its scene prompt and apps, and the Add
 // apps and Browsers dialogs, with the fake helper's icons.
 func TestSnapshotsAppEnhance(t *testing.T) {
-	runSnapshots(t, "AURALINK_SNAPSHOTS", snapshotsAppEnhance)
+	runSnapshots(t, "VOXTNEW_SNAPSHOTS", snapshotsAppEnhance)
 }
 
 func snapshotsAppEnhance(t *testing.T, out string) {
@@ -62,8 +62,8 @@ func snapshotsAppEnhance(t *testing.T, out string) {
 					tt.Scroll(float32(size[0])*0.6, float32(size[1])*0.5, 0, r.Y-float32(size[1])*0.25)
 				}
 			}
-			browserURLs(fs, map[string]string{chromeApp.BundleID: "https://github.com/hehehai/Auralink/pulls"})
-			snapshotIcons(fs, os.Getenv("AURALINK_SNAPSHOT_ICONS"))
+			browserURLs(fs, map[string]string{chromeApp.BundleID: "https://github.com/hehehai/voxtnew/pulls"})
+			snapshotIcons(fs, os.Getenv("VOXTNEW_SNAPSHOT_ICONS"))
 			a.setRules(sampleRules())
 			a.urlReads["com.google.Chrome"] = urlRead{ok: true}
 			a.urlReads["com.apple.Safari"] = urlRead{err: "no web area"}

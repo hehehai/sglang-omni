@@ -2,7 +2,7 @@ package main
 
 // Commands: one registry behind the ⌘K palette, the native menu and the
 // window's shortcuts, plus the "?" sheet listing the shortcuts, and
-// auralink:// deep links. (From AudioSmith.)
+// voxtnew:// deep links. (From AudioSmith.)
 
 import (
 	"net/url"
@@ -11,10 +11,10 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // command is something the user can do from anywhere.
@@ -315,19 +315,19 @@ func (a *app) buildMenu() {
 		}
 	}
 	// Check for Updates… goes after About (updates.go).
-	appItems := append([]*mygo.MenuItem{{Role: mygo.RoleAbout, Label: i18n.T("About Auralink")}}, a.updateMenuItems(act)...)
+	appItems := append([]*mygo.MenuItem{{Role: mygo.RoleAbout, Label: i18n.T("About VoxtNew")}}, a.updateMenuItems(act)...)
 	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
-		{Label: "Auralink", Submenu: append(appItems,
+		{Label: "VoxtNew", Submenu: append(appItems,
 			mygo.Separator(),
 			&mygo.MenuItem{Label: i18n.T("Settings…"), Accelerator: "CmdOrCtrl+,", Click: act(func() { a.navigate("/settings") })},
 			mygo.Separator(),
 			&mygo.MenuItem{Role: mygo.RoleServices, Label: i18n.T("Services")},
 			mygo.Separator(),
-			&mygo.MenuItem{Role: mygo.RoleHide, Label: i18n.T("Hide Auralink")},
+			&mygo.MenuItem{Role: mygo.RoleHide, Label: i18n.T("Hide VoxtNew")},
 			&mygo.MenuItem{Role: mygo.RoleHideOthers, Label: i18n.T("Hide Others")},
 			&mygo.MenuItem{Role: mygo.RoleUnhide, Label: i18n.T("Show All")},
 			mygo.Separator(),
-			&mygo.MenuItem{Role: mygo.RoleQuit, Label: i18n.T("Quit Auralink")},
+			&mygo.MenuItem{Role: mygo.RoleQuit, Label: i18n.T("Quit VoxtNew")},
 		)},
 		{Label: i18n.T("Edit"), Submenu: []*mygo.MenuItem{
 			{Role: mygo.RoleUndo, Label: i18n.T("Undo")},
@@ -361,12 +361,12 @@ func (a *app) buildMenu() {
 	}))
 }
 
-// openURL follows an auralink:// deep link: auralink://history,
-// auralink://settings/network, auralink:///home. Router paths in
+// openURL follows an voxtnew:// deep link: voxtnew://history,
+// voxtnew://settings/network, voxtnew:///home. Router paths in
 // notifications go through it too.
 func (a *app) openURL(raw string) {
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "" && !strings.EqualFold(u.Scheme, "auralink")) {
+	if err != nil || (u.Scheme != "" && !strings.EqualFold(u.Scheme, "voxtnew")) {
 		a.toast(i18n.T("Unknown link: %s", raw))
 		return
 	}

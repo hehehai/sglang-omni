@@ -62,7 +62,7 @@ func TestNotice(t *testing.T) {
 			}
 		} else {
 			if !strings.Contains(notice, path+" "+version) {
-				t.Errorf("NOTICE does not name %s %s: add or update its line under \"Go modules compiled into Auralink\"", path, version)
+				t.Errorf("NOTICE does not name %s %s: add or update its line under \"Go modules compiled into VoxtNew\"", path, version)
 			}
 			licence = "LICENSES/go/" + strings.ReplaceAll(path, "/", "_") + ".LICENSE.txt"
 		}

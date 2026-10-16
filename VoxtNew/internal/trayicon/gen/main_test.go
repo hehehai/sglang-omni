@@ -7,7 +7,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/trayicon"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/trayicon"
 )
 
 // The embedded icons are what gen makes now: run go generate

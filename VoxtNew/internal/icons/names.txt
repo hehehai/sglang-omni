@@ -1,4 +1,4 @@
-# The Solar icons Auralink uses (base names; the generator writes the
+# The Solar icons VoxtNew uses (base names; the generator writes the
 # -linear and -bold variants of each). Keep it sorted by use; add an icon
 # here when a page uses it, then go generate ./internal/icons.
 

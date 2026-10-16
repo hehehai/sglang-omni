@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
 )
 
 const testKey = "sk-test-0000"
@@ -159,9 +159,9 @@ func TestInferenceGolden(t *testing.T) {
 		// start and an unknown event; language, hot words and prompt in
 		// run-task (fun-asr-realtime takes them as input.context).
 		name: "inference-multi", model: "fun-asr-realtime", path: inferencePath,
-		req:   asr.StreamRequest{Lang: "zh-Hans", Hints: []string{"Auralink", "百炼", "Auralink"}, Prompt: "A note about Go."},
+		req:   asr.StreamRequest{Lang: "zh-Hans", Hints: []string{"VoxtNew", "百炼", "VoxtNew"}, Prompt: "A note about Go."},
 		audio: audioLen, chunk: 2000,
-		final: "你好，世界。我在用 Auralink。Hello world.",
+		final: "你好，世界。我在用 VoxtNew。Hello world.",
 	}, {
 		// qwen-audio streaming: hot words inline (vocabulary), the prompt
 		// as context; the user typed the realtime URL (Voxt's docs say
@@ -201,7 +201,7 @@ func TestRealtimeGolden(t *testing.T) {
 		// Two VAD items with text + stash previews, events this package
 		// does not use, the user's inference URL switched to realtime.
 		name: "realtime-multi", model: "qwen3-asr-flash-realtime", path: inferencePath,
-		req:   asr.StreamRequest{Lang: "zh-CN", Hints: []string{"Auralink"}, Prompt: "not sent"},
+		req:   asr.StreamRequest{Lang: "zh-CN", Hints: []string{"VoxtNew"}, Prompt: "not sent"},
 		audio: audioLen, chunk: 2000,
 		final: "今天天气不错，阳光明媚。Let's go.",
 	}, {

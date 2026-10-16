@@ -3,7 +3,7 @@
 package main
 
 // The update check (scripts/mac-update-e2e.sh): with -tags updatecheck,
-// `Auralink --update-check <report.json>` runs instead of the app and
+// `VoxtNew --update-check <report.json>` runs instead of the app and
 // drives MyGo's updater with no window, no data, no lock: it checks the
 // build's feed, installs what it finds (the delta of the running version
 // when there is one, else the archive), reads the version of the bundle on
@@ -23,10 +23,10 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/hehehai/Auralink/internal/appbundle"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appbundle"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 func init() { updateCheck = runUpdateCheck }

@@ -10,10 +10,10 @@
 # It waits until the Mac's user has been idle for IDLE seconds (90) and no
 # other capture runs, puts TextEdit in front with a document of $RUN/docs,
 # and gives the app in front back at the end; the clipboard must come out
-# as it went in (Auralink restores it after pasting).
+# as it went in (VoxtNew restores it after pasting).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-RUN="${RUN:-$HOME/auralink-demo-run}"
+RUN="${RUN:-$HOME/voxtnew-demo-run}"
 A="$ROOT/build/alcap"
 D="$ROOT/scripts/readme-media/demo.sh"
 lang="$1" kind="$2" take="$3"
@@ -59,7 +59,7 @@ cleanup() {
   osascript -e "tell application \"TextEdit\" to close (every document whose name starts with \"$doc\") saving no" >/dev/null 2>&1 || true
   "$D" ctl "$lang" close-card >/dev/null 2>&1 || true
   kill "$bd" 2>/dev/null || true
-  [[ -n "$front" && "$front" != dev.hehehai.auralink.demo ]] && open -b "$front" 2>/dev/null || true
+  [[ -n "$front" && "$front" != dev.hehehai.voxtnew.demo ]] && open -b "$front" 2>/dev/null || true
   [[ "$(pbpaste | shasum)" == "$clip" ]] || echo "WARNING the clipboard changed" >&2
 }
 trap cleanup EXIT
@@ -100,11 +100,11 @@ if [[ "$kind" == hero ]]; then
   ctl "fire translate"
   state 'state=(done|failed).*card=true'
   sleep 1.5
-  "$A" shot --rect 110 130 1420 920 --include "com.apple.TextEdit,dev.hehehai.auralink.demo,$pid" --out "$RUN/takes/$lang-hero.png"
+  "$A" shot --rect 110 130 1420 920 --include "com.apple.TextEdit,dev.hehehai.voxtnew.demo,$pid" --out "$RUN/takes/$lang-hero.png"
   ctl "window hide"
   exit 0
 fi
-"$A" record --rect 435 440 840 600 --include "com.apple.TextEdit,dev.hehehai.auralink.demo,$pid" --out "$out" & rec=$!
+"$A" record --rect 435 440 840 600 --include "com.apple.TextEdit,dev.hehehai.voxtnew.demo,$pid" --out "$out" & rec=$!
 sleep 1.5
 ctl "take $take"
 case "$kind" in

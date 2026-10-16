@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
-	"github.com/hehehai/Auralink/internal/dict"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/dict"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // dictionaryTerms is a dictionary as the store returns it: A to Z, one
@@ -15,8 +15,8 @@ import (
 func dictionaryTerms() []store.Term {
 	t0 := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
 	return []store.Term{
-		{Term: "auralink", Enabled: true, UpdatedAt: t0},
-		{Term: "Auralink", Aliases: []string{"aura link"}, Enabled: true, UpdatedAt: t0.Add(3 * time.Hour)},
+		{Term: "voxtnew", Enabled: true, UpdatedAt: t0},
+		{Term: "VoxtNew", Aliases: []string{"aura link"}, Enabled: true, UpdatedAt: t0.Add(3 * time.Hour)},
 		{Term: "Disabled", Enabled: false, UpdatedAt: t0.Add(4 * time.Hour)},
 		{Term: "Kubernetes", Aliases: []string{"cooper netties"}, Enabled: true, UpdatedAt: t0.Add(time.Hour)},
 		{Term: "豆包", Enabled: true, UpdatedAt: t0.Add(2 * time.Hour)},

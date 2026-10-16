@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/appctx"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // ---- Dialogs ----
@@ -192,7 +192,7 @@ func (a *app) aeBrowsersDialog(c *ui.Context) {
 					others = append(others, b.Name)
 				}
 			}
-			caption(c, i18n.T("At each shortcut in a browser, Auralink reads its tab's address. A browser that shows none matches only as an app."))
+			caption(c, i18n.T("At each shortcut in a browser, VoxtNew reads its tab's address. A browser that shows none matches only as an app."))
 			ui.Column(c.Key("ae-browser-list")).Gap(px(t, 2)).Children(func() {
 				for _, b := range shown {
 					ui.Row(c.Key("ae-browser-" + b.BundleID)).Gap(px(t, sp2)).AlignItems(ui.Center).MinHeight(px(t, 30)).Children(func() {

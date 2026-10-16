@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
 )
 
 func TestModeOf(t *testing.T) {
@@ -51,8 +51,8 @@ func TestLanguage(t *testing.T) {
 }
 
 func TestHotwords(t *testing.T) {
-	got := hotwords([]string{" Auralink ", "auralink", "", "\n", "火山\n引擎", "MyGo"}, modeAsync)
-	if strings.Join(got, "|") != "Auralink|火山 引擎|MyGo" {
+	got := hotwords([]string{" VoxtNew ", "voxtnew", "", "\n", "火山\n引擎", "MyGo"}, modeAsync)
+	if strings.Join(got, "|") != "VoxtNew|火山 引擎|MyGo" {
 		t.Errorf("cleaned: %q", got)
 	}
 	// The duplex endpoints take about 100 tokens: 60 two-character words
@@ -67,7 +67,7 @@ func TestHotwords(t *testing.T) {
 	if n := len(hotwords(many, modeNostream)); n != 60 {
 		t.Errorf("nostream kept %d words, want 60", n)
 	}
-	for s, want := range map[string]int{"Auralink": 1, "Visual Studio Code": 3, "火山引擎": 4, "GPT-4o": 2, "": 1} {
+	for s, want := range map[string]int{"VoxtNew": 1, "Visual Studio Code": 3, "火山引擎": 4, "GPT-4o": 2, "": 1} {
 		if got := estimateTokens(s); got != want {
 			t.Errorf("estimateTokens(%q) = %d, want %d", s, got, want)
 		}
@@ -83,7 +83,7 @@ func TestRequests(t *testing.T) {
 		prompt string
 	}{
 		{"async, plain", modeAsync, asr.StreamRequest{}, ""},
-		{"async, lang en (not sent), hints, prompt", modeAsync, asr.StreamRequest{Lang: "en", Hints: []string{"Auralink", "火山引擎"}}, "A note about \"Auralink\"."},
+		{"async, lang en (not sent), hints, prompt", modeAsync, asr.StreamRequest{Lang: "en", Hints: []string{"VoxtNew", "火山引擎"}}, "A note about \"VoxtNew\"."},
 		{"async, traditional Chinese", modeAsync, asr.StreamRequest{Lang: "zh-Hant"}, ""},
 		{"duplex, hints", modeDuplex, asr.StreamRequest{Hints: []string{"MyGo"}}, ""},
 		{"nostream, lang ja", modeNostream, asr.StreamRequest{Lang: "ja"}, ""},

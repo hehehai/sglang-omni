@@ -22,14 +22,14 @@ func TestItems(t *testing.T) {
 		}
 		return nil, nil
 	}
-	k := LLM("deepseek", "Auralink DeepSeek API key")
-	if k.Service != "Auralink" || k.Account != "llm.deepseek" || ASR("doubao", "").Account != "asr.doubao" {
+	k := LLM("deepseek", "VoxtNew DeepSeek API key")
+	if k.Service != "VoxtNew" || k.Account != "llm.deepseek" || ASR("doubao", "").Account != "asr.doubao" {
 		t.Fatalf("items: %+v", k)
 	}
 	if err := k.Set(" sk-abc "); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(args, []string{"-i"}) || !strings.Contains(stdin, `-s "Auralink" -a "llm.deepseek" -l "Auralink DeepSeek API key" -w "sk-abc"`) ||
+	if !slices.Equal(args, []string{"-i"}) || !strings.Contains(stdin, `-s "VoxtNew" -a "llm.deepseek" -l "VoxtNew DeepSeek API key" -w "sk-abc"`) ||
 		strings.Contains(strings.Join(args, " "), "sk-abc") {
 		t.Errorf("set: args %q stdin %q", args, stdin)
 	}
@@ -56,17 +56,17 @@ func TestItems(t *testing.T) {
 }
 
 // TestMacKeychain saves, reads, replaces and removes a secret through
-// /usr/bin/security. It runs with AURALINK_MAC=1 on macOS:
+// /usr/bin/security. It runs with VOXTNEW_MAC=1 on macOS:
 //
-//	AURALINK_MAC=1 go test -run TestMacKeychain -v ./internal/secrets
+//	VOXTNEW_MAC=1 go test -run TestMacKeychain -v ./internal/secrets
 func TestMacKeychain(t *testing.T) {
-	if os.Getenv("AURALINK_MAC") == "" || runtime.GOOS != "darwin" {
-		t.Skip("set AURALINK_MAC=1 on a Mac")
+	if os.Getenv("VOXTNEW_MAC") == "" || runtime.GOOS != "darwin" {
+		t.Skip("set VOXTNEW_MAC=1 on a Mac")
 	}
 	// The login keychain is locked in an SSH session ("User interaction is
 	// not allowed"), so the commands run against a keychain of their own;
 	// the app uses the login keychain, unlocked in the user's session.
-	k := Item{Service: "Auralink (test)", Account: "llm.test"}
+	k := Item{Service: "VoxtNew (test)", Account: "llm.test"}
 	if _, err := security("", "show-keychain-info"); err != nil && strings.Contains(err.Error(), "User interaction is not allowed") {
 		file := filepath.Join(t.TempDir(), "test.keychain-db")
 		if out, err := exec.Command("/usr/bin/security", "create-keychain", "-p", "test", file).CombinedOutput(); err != nil {

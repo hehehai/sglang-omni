@@ -1,4 +1,4 @@
-@testable import AuralinkHelperKit
+@testable import VoxtNewHelperKit
 import XCTest
 
 // Table-style tests of the recognizer with synthetic flag sequences.

@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr"
-	"github.com/hehehai/Auralink/internal/asr/aliyun"
-	"github.com/hehehai/Auralink/internal/asr/doubao"
-	"github.com/hehehai/Auralink/internal/asr/openai"
-	"github.com/hehehai/Auralink/internal/llm"
-	"github.com/hehehai/Auralink/internal/netx"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/aliyun"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/doubao"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/openai"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/netx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // Env is what building a client needs besides the setup: its key and

@@ -218,12 +218,12 @@ func (s StaticSecrets) Secret(_ context.Context, name string) (string, error) {
 	return "", ErrNoSecret
 }
 
-// EnvSecrets reads $AURALINK_<NAME> ("llm.openai" → AURALINK_LLM_OPENAI),
+// EnvSecrets reads $VOXTNEW_<NAME> ("llm.openai" → VOXTNEW_LLM_OPENAI),
 // falling back to Fallback. For development and CI only.
 type EnvSecrets struct{ Fallback Secrets }
 
 func (e EnvSecrets) Secret(ctx context.Context, name string) (string, error) {
-	env := "AURALINK_" + strings.Map(func(r rune) rune {
+	env := "VOXTNEW_" + strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z':
 			return r - 'a' + 'A'

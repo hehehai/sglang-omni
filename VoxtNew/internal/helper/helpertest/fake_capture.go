@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // ---- capture ----
@@ -38,7 +38,7 @@ func (f *fake) startCapture(m proto.Message) {
 	mic := f.mic
 	f.mu.Unlock()
 	if mic != proto.PermGranted {
-		f.failData(m.ID, proto.CodePermissionDenied, map[string]string{"permission": proto.PermissionMicrophone}, "Auralink may not use the microphone")
+		f.failData(m.ID, proto.CodePermissionDenied, map[string]string{"permission": proto.PermissionMicrophone}, "VoxtNew may not use the microphone")
 		return
 	}
 	if len(p.Devices) > 0 && p.Devices[0] == "gone" {

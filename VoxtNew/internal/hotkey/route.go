@@ -1,6 +1,6 @@
 package hotkey
 
-import "github.com/hehehai/Auralink/internal/helper/proto"
+import "github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 
 // Phase is where the session is, as routing sees it.
 type Phase int

@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/asr/asrtest"
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/session"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // TestRewriteAnswerFollowUp: nothing selected and nothing takes text: the
@@ -64,8 +64,8 @@ func TestRewriteAnswerFollowUp(t *testing.T) {
 // TestE2EWriteReal runs Translate and Rewrite on DeepSeek with the app's
 // resolver, from text (no recording): a selection into Chinese, a
 // selection rewritten, a note written from scratch as a JSON answer
-// (AURALINK_E2E=1; DEEPSEEK_API_KEY from the environment or
-// ~/.config/auralink-dev/keys.env).
+// (VOXTNEW_E2E=1; DEEPSEEK_API_KEY from the environment or
+// ~/.config/voxtnew-dev/keys.env).
 func TestE2EWriteReal(t *testing.T) {
 	asrtest.E2E(t)
 	llmKey := asrtest.Key(t, "DEEPSEEK_API_KEY")

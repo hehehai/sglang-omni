@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 var ctx = context.Background()
@@ -263,7 +263,7 @@ func TestDictionary(t *testing.T) {
 	d := s.Dictionary()
 	t0 := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
 	for _, term := range []store.Term{
-		{ID: "1", Term: " Auralink ", Aliases: []string{"aura link", "aura link", " "}, Enabled: true, CreatedAt: t0},
+		{ID: "1", Term: " VoxtNew ", Aliases: []string{"aura link", "aura link", " "}, Enabled: true, CreatedAt: t0},
 		{ID: "2", Term: "Kubernetes", Aliases: []string{"k8s"}, Note: "work", Enabled: true},
 		{ID: "3", Term: "豆包", Enabled: false},
 	} {
@@ -272,7 +272,7 @@ func TestDictionary(t *testing.T) {
 		}
 	}
 	got, err := d.Get(ctx, "1")
-	if err != nil || got.Term != "Auralink" || !slices.Equal(got.Aliases, []string{"aura link"}) || !got.Enabled ||
+	if err != nil || got.Term != "VoxtNew" || !slices.Equal(got.Aliases, []string{"aura link"}) || !got.Enabled ||
 		!got.CreatedAt.Equal(t0) || !got.UpdatedAt.Equal(t0) {
 		t.Fatalf("%+v %v", got, err)
 	}
@@ -280,7 +280,7 @@ func TestDictionary(t *testing.T) {
 		t.Errorf("disabled term %+v", got)
 	}
 	// Unique ignoring case.
-	if err := d.Put(ctx, store.Term{ID: "4", Term: "auralink"}); !errors.Is(err, core.ErrExists) {
+	if err := d.Put(ctx, store.Term{ID: "4", Term: "voxtnew"}); !errors.Is(err, core.ErrExists) {
 		t.Errorf("duplicate: %v", err)
 	}
 	if err := d.Put(ctx, store.Term{ID: "5", Term: "  "}); !errors.Is(err, core.ErrInvalid) {
@@ -297,13 +297,13 @@ func TestDictionary(t *testing.T) {
 		}
 		return strings.Join(out, ",")
 	}
-	if got := names(""); got != "Auralink,Kubernetes,豆包" {
+	if got := names(""); got != "Kubernetes,VoxtNew,豆包" {
 		t.Errorf("all: %q", got)
 	}
 	if got := names("k8s"); got != "Kubernetes" {
 		t.Errorf("by alias: %q", got)
 	}
-	if got := names("AURA"); got != "Auralink" {
+	if got := names("AURA"); got != "VoxtNew" {
 		t.Errorf("ignoring case: %q", got)
 	}
 	if err := d.Delete(ctx, "2"); err != nil {
@@ -326,7 +326,7 @@ func TestCheckAndRewritePaths(t *testing.T) {
 	s.Documents().Put(ctx, "k", []byte(`{"path":"`+dir+`/audio/a.wav"}`))
 	s.Close()
 	db := filepath.Join(dir, FileName)
-	n, err := RewritePaths(ctx, db, dir, "/Volumes/Data/Auralink")
+	n, err := RewritePaths(ctx, db, dir, "/Volumes/Data/VoxtNew")
 	if err != nil || n == 0 {
 		t.Fatalf("rewrite: %d %v", n, err)
 	}
@@ -335,10 +335,10 @@ func TestCheckAndRewritePaths(t *testing.T) {
 	}
 	s = openTest(t, dir)
 	got, _ := s.History().Get(ctx, "a")
-	if got.Error != "could not read /Volumes/Data/Auralink/audio/a.wav" {
+	if got.Error != "could not read /Volumes/Data/VoxtNew/audio/a.wav" {
 		t.Errorf("history: %q", got.Error)
 	}
-	if doc, _, _ := s.Documents().Get(ctx, "k"); string(doc) != `{"path":"/Volumes/Data/Auralink/audio/a.wav"}` {
+	if doc, _, _ := s.Documents().Get(ctx, "k"); string(doc) != `{"path":"/Volumes/Data/VoxtNew/audio/a.wav"}` {
 		t.Errorf("document: %s", doc)
 	}
 }

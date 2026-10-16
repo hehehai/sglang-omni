@@ -8,8 +8,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 )
 
 // fakeUpdates is the updater plugin for tests: a build that can update
@@ -239,9 +239,9 @@ func TestUpdateMenus(t *testing.T) {
 	a.checkForUpdates() // nothing to do, no panic
 }
 
-// TestAppUpdated: an update installed while Auralink runs (the helper on
+// TestAppUpdated: an update installed while VoxtNew runs (the helper on
 // disk is the new version's) shows one card, not the helper's, that
-// restarts Auralink, on Home and in Settings → About too.
+// restarts VoxtNew, on Home and in Settings → About too.
 func TestAppUpdated(t *testing.T) {
 	a, fs, tt := newTestApp(t)
 	relaunched := 0
@@ -249,12 +249,12 @@ func TestAppUpdated(t *testing.T) {
 	appRelaunch = func() { relaunched++ }
 	t.Cleanup(func() { appRelaunch = old })
 
-	fs.set(helper.Status{State: helper.Failed, Reason: helper.FailUpdated, Err: "Auralink was updated"})
+	fs.set(helper.Status{State: helper.Failed, Reason: helper.FailUpdated, Err: "VoxtNew was updated"})
 	a.navigate("/home")
-	if !has(tt, "Update installed") || !has(tt, "Restart Auralink to finish updating.") || has(tt, "Helper stopped unexpectedly") {
+	if !has(tt, "Update installed") || !has(tt, "Restart VoxtNew to finish updating.") || has(tt, "Helper stopped unexpectedly") {
 		t.Fatalf("card: %q", firstTexts(tt))
 	}
-	if !has(tt, "Auralink was updated: restart it to finish.") {
+	if !has(tt, "VoxtNew was updated: restart it to finish.") {
 		t.Errorf("home: %q", firstTexts(tt))
 	}
 	n := slices.IndexFunc(a.notices, func(n core.Notification) bool { return n.ID == problemUpdate })
@@ -269,12 +269,12 @@ func TestAppUpdated(t *testing.T) {
 	a.clearNotices()
 	a.navigate("/logs")
 	a.navigate("/settings/about")
-	see(t, tt, "Restart Auralink")
-	click(t, tt, "Restart Auralink")
+	see(t, tt, "Restart VoxtNew")
+	click(t, tt, "Restart VoxtNew")
 	if relaunched != 2 {
 		t.Errorf("about: relaunched %d", relaunched)
 	}
-	if cardActionLabel(linkRelaunch) != "Restart Auralink" {
+	if cardActionLabel(linkRelaunch) != "Restart VoxtNew" {
 		t.Error("card action label")
 	}
 }

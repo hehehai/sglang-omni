@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper/helpertest"
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // The test binary is also the fake helper (helpertest).
@@ -606,8 +606,8 @@ func TestReplayFixtures(t *testing.T) {
 
 func TestFind(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("AURALINK_HELPER", "")
-	os.Unsetenv("AURALINK_HELPER")
+	t.Setenv("VOXTNEW_HELPER", "")
+	os.Unsetenv("VOXTNEW_HELPER")
 	if Find(dir) != "" {
 		t.Error("found nothing as something")
 	}
@@ -617,7 +617,7 @@ func TestFind(t *testing.T) {
 	if Find(dir) != bin {
 		t.Errorf("Find = %q", Find(dir))
 	}
-	t.Setenv("AURALINK_HELPER", "/opt/x")
+	t.Setenv("VOXTNEW_HELPER", "/opt/x")
 	if Find(dir) != "/opt/x" {
 		t.Error("the environment does not win")
 	}

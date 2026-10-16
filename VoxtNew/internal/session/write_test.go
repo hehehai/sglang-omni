@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/compose"
-	"github.com/hehehai/Auralink/internal/deliver"
-	"github.com/hehehai/Auralink/internal/helper/proto"
-	"github.com/hehehai/Auralink/internal/llm"
-	"github.com/hehehai/Auralink/internal/settings"
-	"github.com/hehehai/Auralink/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 var vscode = proto.App{PID: 900, BundleID: "com.microsoft.VSCode", Name: "Code"}
@@ -41,8 +41,8 @@ func TestWrite(t *testing.T) {
 		check   check
 	}{
 		{
-			name: "translate speech", kind: store.KindTranslate, sel: &fakeSelector{}, llm: &fakeLLM{text: "你好，Auralink。", chunk: 2, pause: 15 * time.Millisecond},
-			speak: true, states: "reading recording recognizing composing delivering done", state: Done, result: "你好，Auralink。", pasted: true,
+			name: "translate speech", kind: store.KindTranslate, sel: &fakeSelector{}, llm: &fakeLLM{text: "你好，VoxtNew。", chunk: 2, pause: 15 * time.Millisecond},
+			speak: true, states: "reading recording recognizing composing delivering done", state: Done, result: "你好，VoxtNew。", pasted: true,
 			check: func(t *testing.T, h *harness, end Snapshot, model *fakeLLM, sel *fakeSelector) {
 				req := model.requests()[0]
 				sys, user := req.Messages[0].Content, req.Messages[1].Content

@@ -13,12 +13,12 @@ import (
 	"slices"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/providers"
-	"github.com/hehehai/Auralink/internal/uitext"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // The problems' notifications: one ID each, so a problem shows once.
@@ -292,7 +292,7 @@ func cardActionLabel(link string) string {
 	case linkRestartHelper:
 		return i18n.T("Restart the helper")
 	case linkRelaunch:
-		return i18n.T("Restart Auralink")
+		return i18n.T("Restart VoxtNew")
 	case "/providers":
 		return i18n.T("Open Model services")
 	}

@@ -4,7 +4,7 @@ package main
 // a.prefs, kept by settings.Changed), the language and the theme they
 // drive, and the settings dialog (⌘,) with its sections under
 // /settings/{section}. The dialog is AudioSmith's, with the sections
-// every app of the family has and Auralink's own: Audio
+// every app of the family has and VoxtNew's own: Audio
 // (settings_audio.go), Overlay style (settings_overlay.go) and the table
 // of Shortcuts (settings_shortcuts.go). The features' own settings live
 // on their pages (Transcribe, Translate, Rewrite…).
@@ -17,9 +17,9 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/hehehai/Auralink/internal/i18n"
-	"github.com/hehehai/Auralink/internal/icons"
-	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // settingsState is the settings dialog's sections' view state, embedded
@@ -56,7 +56,7 @@ type settingsForm struct {
 	ovStyle      overlayForm // settings_overlay.go
 
 	clearHistoryAsk bool // Privacy's Clear the history… dialog
-	// loginIs is whether macOS opens Auralink at login, as last read or
+	// loginIs is whether macOS opens VoxtNew at login, as last read or
 	// set: the setting changes it only when they differ.
 	loginIs bool
 }
@@ -231,7 +231,7 @@ func (a *app) loadSettingsForm() {
 	a.loadOverlayForm() // settings_overlay.go
 }
 
-// syncOpenAtLogin reads whether macOS opens Auralink at login (the user
+// syncOpenAtLogin reads whether macOS opens VoxtNew at login (the user
 // may have turned it off in System Settings) and makes the setting say
 // so; it runs when the window opens.
 func (a *app) syncOpenAtLogin() {

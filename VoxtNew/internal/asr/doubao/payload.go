@@ -9,7 +9,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/hehehai/Auralink/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 )
 
 // mode is which of the three SAUC endpoints a URL is; they take
@@ -109,7 +109,7 @@ type contextItem struct {
 // m, with prompt the request's prompt or the provider's.
 func buildRequest(m mode, req asr.StreamRequest, prompt string) ([]byte, error) {
 	r := request{
-		User: reqUser{UID: "auralink"},
+		User: reqUser{UID: "voxtnew"},
 		Audio: reqAudio{
 			Format: "pcm", Codec: "raw", Rate: asr.SampleRate, Bits: 16, Channel: 1,
 		},

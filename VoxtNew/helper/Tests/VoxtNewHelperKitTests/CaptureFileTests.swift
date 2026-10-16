@@ -1,8 +1,8 @@
 @preconcurrency import AVFoundation
-@testable import AuralinkHelperKit
+@testable import VoxtNewHelperKit
 import XCTest
 
-/// The test-only file input (AURALINK_HELPER_CAPTURE_FILE) and the capture
+/// The test-only file input (VOXTNEW_HELPER_CAPTURE_FILE) and the capture
 /// path it shares with the microphone: a 22.05 kHz stereo fixture played
 /// at a microphone's pace, downmixed, resampled to 16 kHz and framed.
 final class CaptureFileTests: XCTestCase {
@@ -14,13 +14,13 @@ final class CaptureFileTests: XCTestCase {
 
     func testConfigFromEnvironment() {
         XCTAssertNil(CaptureFileConfig.from(environment: [:]))
-        XCTAssertNil(CaptureFileConfig.from(environment: ["AURALINK_HELPER_CAPTURE_FILE": ""]))
-        XCTAssertEqual(CaptureFileConfig.from(environment: ["AURALINK_HELPER_CAPTURE_FILE": "/tmp/a.wav"]),
+        XCTAssertNil(CaptureFileConfig.from(environment: ["VOXTNEW_HELPER_CAPTURE_FILE": ""]))
+        XCTAssertEqual(CaptureFileConfig.from(environment: ["VOXTNEW_HELPER_CAPTURE_FILE": "/tmp/a.wav"]),
                        CaptureFileConfig(path: "/tmp/a.wav", speed: 1))
-        let fast = CaptureFileConfig.from(environment: ["AURALINK_HELPER_CAPTURE_FILE": "/tmp/a.wav", "AURALINK_HELPER_CAPTURE_SPEED": "4"])
+        let fast = CaptureFileConfig.from(environment: ["VOXTNEW_HELPER_CAPTURE_FILE": "/tmp/a.wav", "VOXTNEW_HELPER_CAPTURE_SPEED": "4"])
         XCTAssertEqual(fast?.speed, 4)
         XCTAssertEqual(fast?.name, "a.wav")
-        XCTAssertEqual(CaptureFileConfig.from(environment: ["AURALINK_HELPER_CAPTURE_FILE": "/a", "AURALINK_HELPER_CAPTURE_SPEED": "-1"])?.speed, 1)
+        XCTAssertEqual(CaptureFileConfig.from(environment: ["VOXTNEW_HELPER_CAPTURE_FILE": "/a", "VOXTNEW_HELPER_CAPTURE_SPEED": "-1"])?.speed, 1)
     }
 
     func testPlayerPacesLikeAMicrophone() throws {
@@ -104,6 +104,6 @@ final class CaptureFileTests: XCTestCase {
     }
 
     func testMissingFile() {
-        XCTAssertThrowsError(try CaptureFilePlayer(path: "/nonexistent/auralink.wav"))
+        XCTAssertThrowsError(try CaptureFilePlayer(path: "/nonexistent/voxtnew.wav"))
     }
 }

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
 // Error codes. The UI maps them to messages; Params carry the details

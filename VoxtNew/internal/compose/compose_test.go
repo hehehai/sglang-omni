@@ -10,11 +10,11 @@ import (
 )
 
 // golden compares got with testdata/golden/name, or writes it with
-// AURALINK_UPDATE_GOLDEN=1. Review the diff before committing.
+// VOXTNEW_UPDATE_GOLDEN=1. Review the diff before committing.
 func golden(t *testing.T, name, got string) {
 	t.Helper()
 	path := filepath.Join("testdata", "golden", name)
-	if os.Getenv("AURALINK_UPDATE_GOLDEN") == "1" {
+	if os.Getenv("VOXTNEW_UPDATE_GOLDEN") == "1" {
 		os.MkdirAll(filepath.Dir(path), 0o755)
 		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
 			t.Fatal(err)
@@ -23,16 +23,16 @@ func golden(t *testing.T, name, got string) {
 	}
 	want, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("%v (AURALINK_UPDATE_GOLDEN=1 creates it)", err)
+		t.Fatalf("%v (VOXTNEW_UPDATE_GOLDEN=1 creates it)", err)
 	}
 	if string(want) != got {
-		t.Errorf("%s differs (AURALINK_UPDATE_GOLDEN=1 rewrites it)\n--- got\n%s\n--- want\n%s", path, got, want)
+		t.Errorf("%s differs (VOXTNEW_UPDATE_GOLDEN=1 rewrites it)\n--- got\n%s\n--- want\n%s", path, got, want)
 	}
 }
 
 var sampleTerms = []Term{
 	{Term: "Kubernetes"},
-	{Term: "Auralink", Aliases: []string{"aura link", "奥拉链接"}},
+	{Term: "VoxtNew", Aliases: []string{"aura link", "奥拉链接"}},
 	{Term: "DeepSeek", Aliases: []string{"deep seek"}},
 }
 
@@ -224,7 +224,7 @@ func TestGoldenRewrite(t *testing.T) {
 				}
 			case mask == 8:
 				in.Instruction, in.Answer, in.Cleanup = instruction[set], true, true
-				in.Previous = []Turn{{Instruction: generate[set], Answer: Answer{Title: "Update", Content: "Auralink ships on Friday."}}}
+				in.Previous = []Turn{{Instruction: generate[set], Answer: Answer{Title: "Update", Content: "VoxtNew ships on Friday."}}}
 				name += "-answer-cleanup-followup"
 			default:
 				in.Text, in.Instruction, in.Cleanup = selection[set], instruction[set], true
@@ -376,7 +376,7 @@ func TestParseAnswer(t *testing.T) {
 }
 
 func TestPartialAnswer(t *testing.T) {
-	full := `{"title": "周五发布", "content": "大家好：\n- Auralink \"0.1\" 周五发布 \ud83d\ude80 \u4f60"}`
+	full := `{"title": "周五发布", "content": "大家好：\n- VoxtNew \"0.1\" 周五发布 \ud83d\ude80 \u4f60"}`
 	var last Answer
 	for i := 1; i <= len(full); i++ {
 		a := PartialAnswer(full[:i])
@@ -388,7 +388,7 @@ func TestPartialAnswer(t *testing.T) {
 		}
 		last = a
 	}
-	if last.Title != "周五发布" || last.Content != "大家好：\n- Auralink \"0.1\" 周五发布 🚀 你" {
+	if last.Title != "周五发布" || last.Content != "大家好：\n- VoxtNew \"0.1\" 周五发布 🚀 你" {
 		t.Errorf("final %+v", last)
 	}
 	for text, want := range map[string]Answer{
@@ -446,9 +446,9 @@ func TestRender(t *testing.T) {
 }
 
 func TestGlossary(t *testing.T) {
-	terms := []Term{{Term: "Zeta"}, {Term: "Auralink", Aliases: []string{"aura link", "auralink"}}, {Term: " "}, {Term: "zeta"}}
+	terms := []Term{{Term: "Zeta"}, {Term: "VoxtNew", Aliases: []string{"aura link", "voxtnew"}}, {Term: " "}, {Term: "zeta"}}
 	got := Glossary(terms, "the Aura-Link app", English)
-	if got != "- Auralink (heard as: aura link)\n- Zeta" {
+	if got != "- VoxtNew (heard as: aura link)\n- Zeta" {
 		t.Errorf("glossary %q", got)
 	}
 	if Glossary(nil, "x", English) != "" {

@@ -1,4 +1,4 @@
-// Package helper runs auralink-helper, the Swift process that does what
+// Package helper runs voxtnew-helper, the Swift process that does what
 // MyGo cannot: record the microphone, watch the keyboard with an event
 // tap, read and write text in the app in front, and read browser URLs
 // through Accessibility. A Supervisor starts it with the app, handshakes
@@ -23,19 +23,19 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/hehehai/Auralink/internal/core"
-	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 )
 
 // BinName is the helper's executable, in the app's resources under
 // helper/ (mygo.json macos.helperEntitlements).
-const BinName = "auralink-helper"
+const BinName = "voxtnew-helper"
 
-// Find looks for auralink-helper: $AURALINK_HELPER, then the app's
+// Find looks for voxtnew-helper: $VOXTNEW_HELPER, then the app's
 // resources (packaged, mygo dev, or go run from the project). It returns
 // an absolute path, or "" when there is none.
 func Find(resources string) string {
-	if p := os.Getenv("AURALINK_HELPER"); p != "" {
+	if p := os.Getenv("VOXTNEW_HELPER"); p != "" {
 		if abs, err := filepath.Abs(p); err == nil {
 			return abs
 		}
@@ -70,7 +70,7 @@ const (
 type FailReason string
 
 const (
-	FailMissing   FailReason = "missing"   // no executable: build it, or set AURALINK_HELPER
+	FailMissing   FailReason = "missing"   // no executable: build it, or set VOXTNEW_HELPER
 	FailStart     FailReason = "start"     // the executable could not be started
 	FailProtocol  FailReason = "protocol"  // it speaks another protocol version: rebuild it; not restarted
 	FailHandshake FailReason = "handshake" // helper.hello was not answered in time

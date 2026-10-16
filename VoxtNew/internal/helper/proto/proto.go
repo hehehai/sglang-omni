@@ -1,4 +1,4 @@
-// Package proto is the wire format between Auralink and auralink-helper,
+// Package proto is the wire format between VoxtNew and voxtnew-helper,
 // the Swift helper that records the microphone, watches the keyboard,
 // reads and writes text in the app in front and reads browser URLs:
 // JSON-RPC-shaped messages, one per line, over the helper's stdin (app →
@@ -6,7 +6,7 @@
 // helper/Fixtures/*.jsonl are golden transcripts that this package's tests
 // and the Swift helper's (helper/Tests) both decode, so the two sides
 // cannot drift apart silently. The Swift mirror of these types is
-// helper/Sources/AuralinkHelperKit/Wire*.swift.
+// helper/Sources/VoxtNewHelperKit/Wire*.swift.
 //
 // It is a subset of AudioSmith's engine protocol 2, with the same
 // envelope: no "jsonrpc" member, ids are strings, error codes are strings

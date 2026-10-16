@@ -1,5 +1,5 @@
-Auralink
-Copyright (C) 2026 actnow (https://actnow.dev) and the Auralink contributors
+VoxtNew
+Copyright (C) 2026 actnow (https://actnow.dev) and the VoxtNew contributors
 
 SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -17,11 +17,11 @@ You should have received a copy of the GNU Affero General Public License
 along with this program (LICENSE). If not, see
 <https://www.gnu.org/licenses/>.
 
-Contributions are accepted under the Auralink Contributor License
+Contributions are accepted under the VoxtNew Contributor License
 Agreement (CLA.md); CONTRIBUTING.md says how to sign it.
 
 Earlier versions
-  Auralink up to and including commit 7d1c9a7 (among them the tag
+  VoxtNew up to and including commit 7d1c9a7 (among them the tag
   v0.1.0-beta.1) was released under the Apache License 2.0. Copies
   received under those terms keep them; later changes are under the
   GNU AGPL as above.
@@ -29,7 +29,7 @@ Earlier versions
 Third-party material
 ====================
 
-Auralink includes the material below. Each part keeps its own licence,
+VoxtNew includes the material below. Each part keeps its own licence,
 and every one of them may be combined with and distributed under the
 GNU AGPL version 3: the Apache License 2.0 and the Unicode License v3 are
 compatible with GPLv3 and AGPLv3; MIT, ISC, BSD-3-Clause and CC BY 4.0
@@ -76,7 +76,7 @@ Solar icon set
   Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0),
   https://creativecommons.org/licenses/by/4.0/
   Taken from the npm package @iconify-json/solar 1.2.13 (Iconify,
-  https://icon-sets.iconify.design/solar/). Only the icons Auralink uses are
+  https://icon-sets.iconify.design/solar/). Only the icons VoxtNew uses are
   included, converted to Go source in internal/icons/solar_gen.go
   (internal/icons/gen); their shapes are unchanged.
 
@@ -111,20 +111,20 @@ Language data
 Speech sample
   testdata/speech/sample-zh-en.wav is synthetic speech made with
   Qwen3-TTS-12Hz-0.6B-CustomVoice (Alibaba Qwen, Apache-2.0), which puts no
-  condition on its outputs; it is distributed with Auralink under
-  Auralink's licence. testdata/speech/README.md says how it was made.
+  condition on its outputs; it is distributed with VoxtNew under
+  VoxtNew's licence. testdata/speech/README.md says how it was made.
 
 MyGo
   Copyright (c) 2026 MyGo contributors — https://github.com/egoist/mygo
-  Licensed under the MIT License (third_party/mygo/LICENSE). Auralink
+  Licensed under the MIT License (third_party/mygo/LICENSE). VoxtNew
   builds against a copy with its own patches (third_party/mygo-patches),
   made by scripts/vendor-mygo.sh, until upstream releases the fixes. The
   patches are licensed under MyGo's MIT License, not under the GNU AGPL,
   so that they can go upstream (third_party/mygo-patches/README.md).
-  Auralink.app also carries MyGo's prebuilt SQLite library (SQLite 3.53.4,
+  VoxtNew.app also carries MyGo's prebuilt SQLite library (SQLite 3.53.4,
   https://sqlite.org, in the public domain).
 
-Go modules compiled into Auralink
+Go modules compiled into VoxtNew
   Their licence files are copied unchanged into LICENSES/go/.
   - github.com/coder/websocket v1.8.15, Copyright (c) 2025 Coder, ISC
   - github.com/ebitengine/purego v0.11.1, Copyright the Ebitengine
