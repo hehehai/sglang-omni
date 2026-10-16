@@ -24,7 +24,7 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   ├── lang/             the language table, 652 languages                                     (leaf)
 │   ├── permission/       Microphone and Accessibility (purego on darwin; Fake for tests)       (leaf)
 │   ├── macx/             activating an app again before a paste (purego on darwin); the       (leaf)
-│   │                     recording's sounds (afplay)
+│   │                     recording's sounds (afplay); the system's web proxies (CFNetwork)
 │   ├── asr/              the shape of speech recognition: FileTranscriber, Streamer/Stream, error
 │   │                     kinds, WAV/PCM helpers (the models are internal/local's)
 │   ├── llm/              chat models (from AudioSmith): request and response types, skills, Backend,
@@ -36,7 +36,8 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   │                     provider that brings its VAD model)
 │   ├── models/           the model catalogue (six curated models, pinned revisions and SHA-256),
 │   │   │                 the models on disk (<data>/models/<id>/), downloads (resumable, verified,
-│   │   │                 bounded, cancellable, a mirror when the Hub is unreachable), adopting
+│   │   │                 bounded, cancellable, a mirror when the Hub is unreachable; through
+│   │   │                 the environment's proxy, else the system's: SystemProxy), adopting
 │   │   │                 a Hugging Face cache; Manager                                       (leaf)
 │   │   └── modelstest/   Seed: installed models of sparse files, for tests
 │   ├── omni/             the Omni native MLX servers (M1): Runtime (one qwen3_asr_server per model,
@@ -291,7 +292,8 @@ Not taken: jobs, hub (downloads), catalog, licence, engine's MLX side, services,
 | Snapshots, compared | `scripts/snapshots.sh check [BASE]` (`twice`: is it reproducible?; `render DIR`) | every set below (main, min, home, overlay, ink) of BASE (default: the merge base with origin/main) and of the working tree, compared pixel for pixel by `internal/tools/snapcmp`; about a minute; the pictures of what differs in `$SNAP_TMP/diff`. New snapshot tests call `runSnapshots` and make their directories with `testDir` (snapshot_env_test.go). The overlay's flows (`VOXTNEW_FLOW_SHOTS`) are left out: they run real goroutines, and their tests check the steps |
 | Snapshots | `VOXTNEW_SNAPSHOTS=/tmp/shots go test -run TestSnapshots .` | every page, the settings sections and the overlays, light/dark, en/zh-Hans, 2×; the window's default size (800×520); `VOXTNEW_SNAPSHOTS_SIZE=680x440` (or `min`) for the smallest; the foot of the sidebar with none, one and three notifications and the rail's dot and popover (`sidebar-notices-*`, `rail-notices*`) |
 | Swift helper | `scripts/mac.sh 'cd helper && swift test'` | the wire types against helper/Fixtures (the same lines the Go tests decode), the hotkey recognizer, the PCM framer; CI runs it on macOS (the `helper` job, with the release build and `go test ./internal/helper/...`) |
-| Mac checks | `scripts/mac.sh 'VOXTNEW_MAC=1 go test -run "TestNative|TestActivate|TestPlay" -v ./internal/permission ./internal/macx'` | the permission calls, activation, the recording's sounds |
+| Mac checks | `scripts/mac.sh 'VOXTNEW_MAC=1 go test -run "TestNative|TestActivate|TestPlay|TestSystemProxies" -v ./internal/permission ./internal/macx'` | the permission calls, activation, the recording's sounds, the system's proxies (as `scutil --proxy` shows them) |
+| System proxy (M4) | `scripts/mac.sh 'env -u https_proxy -u http_proxy -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY -u all_proxy VOXTNEW_MODELS_REAL=1 go test -count=1 -v -run TestRealSystemProxy .'` | the VAD from huggingface.co alone, every request through the system's proxy (mac-air: 127.0.0.1:7897) |
 | Packaged app | `scripts/mac.sh 'scripts/build-helper.sh && go tool mygo build'` | the helper, then the app; signing during development: README |
 | Settings (M6) | `go test -run 'TestAudioSettings|TestDeviceInUse|TestRecordingCues|TestSessionSounds|TestOverlayStyle|TestShortcutsSettings|TestOtherLanguages|TestAutoRail|TestStartHidden|TestTray' .`; `go test -run 'TestPlay' ./internal/macx` | the microphones' list over the fake helper's `capture.devices`, the cues of each change of a session, the overlay's settings, the shortcut table's problems and links, the automatic rail at 680 and 800 wide, the menu bar's items and icons |
 | App enhancement, dictionary | `go test ./internal/appctx ./internal/dict`; `go test -run 'TestScene' ./internal/session`; `go test -run 'TestAppEnhancement|TestDictionary|TestSessionAppEnhancement|TestSceneConfig' .` | URL rules and the matching order (table tests); sessions in a URL group, a browser's group, an app's group, none, an address that times out, the auto key; the dictionary's hints in each service's request (golden files) |

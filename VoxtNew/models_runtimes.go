@@ -15,9 +15,11 @@ package main
 //	                            instead of downloading them
 
 import (
+	"log"
 	"os"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
@@ -47,9 +49,14 @@ func (a *app) unloadModel(id string) {
 	a.unloadOmni(id) // models_omni.go
 }
 
-// managerOptions are the models' options: the environment's, and onChange.
+// systemProxies are the Mac's web proxies, for the downloads.
+func systemProxies() models.SystemProxies { return models.SystemProxies(macx.SystemProxies()) }
+
+// managerOptions are the models' options: the environment's, the
+// system's proxy, and onChange.
 func managerOptions(onChange func()) models.Options {
 	opt := models.Options{Endpoint: os.Getenv("VOXTNEW_HF_ENDPOINT"), OnChange: onChange,
+		Proxy:    models.SystemProxy(systemProxies, log.Printf),
 		DiskFree: func(path string) int64 { return diskFree(path) }} // settings_storage.go: snapshots and tests pin it
 	switch cache := os.Getenv("VOXTNEW_HF_CACHE"); cache {
 	case "", "0":

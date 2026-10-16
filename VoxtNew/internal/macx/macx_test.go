@@ -54,3 +54,19 @@ func TestPlay(t *testing.T) {
 		time.Sleep(300 * time.Millisecond)
 	}
 }
+
+// TestSystemProxies: off macOS nothing; on a Mac (VOXTNEW_MAC=1) the
+// settings scutil --proxy shows (mac-air: 127.0.0.1:7897 for both).
+func TestSystemProxies(t *testing.T) {
+	p := SystemProxies()
+	if runtime.GOOS != "darwin" {
+		if p.HTTP != "" || p.HTTPS != "" || p.Exceptions != nil || p.ExcludeSimple {
+			t.Errorf("proxies off macOS: %+v", p)
+		}
+		return
+	}
+	if os.Getenv("VOXTNEW_MAC") == "" {
+		t.Skip("set VOXTNEW_MAC=1 on a Mac")
+	}
+	t.Logf("system proxies: %+v", p)
+}

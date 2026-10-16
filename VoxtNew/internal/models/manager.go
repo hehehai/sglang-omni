@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -44,6 +45,9 @@ type Options struct {
 	// (default 3).
 	Parallel int
 	Client   *http.Client
+	// Proxy is the default Client's proxy (default: the environment's;
+	// the app's: SystemProxy).
+	Proxy func(*http.Request) (*url.URL, error)
 	// DiskFree is the space free on path's disk (default: statfs).
 	DiskFree func(path string) int64
 	// OnChange is called after a status changed, on any goroutine; at
@@ -97,9 +101,12 @@ func Open(root string, opt Options) *Manager {
 	if opt.Parallel <= 0 {
 		opt.Parallel = 3
 	}
+	if opt.Proxy == nil {
+		opt.Proxy = http.ProxyFromEnvironment
+	}
 	if opt.Client == nil {
 		opt.Client = &http.Client{Transport: &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
+			Proxy:                 opt.Proxy,
 			DialContext:           (&net.Dialer{Timeout: 10 * time.Second}).DialContext,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ResponseHeaderTimeout: 30 * time.Second,
