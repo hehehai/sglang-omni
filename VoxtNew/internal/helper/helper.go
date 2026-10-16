@@ -190,7 +190,7 @@ type Supervisor interface {
 // Trace times one Call through its phases, to tell where a slow answer
 // waited: for a ready helper, to write the request, for the helper's
 // response line (the helper's own work, and its stdout), or for the
-// caller to wake. The M0 spikes saw 1–2 s round trips where the helper
+// caller to wake. Auralink's spikes saw 1–2 s round trips where the helper
 // worked for tens of milliseconds; the helper logs its own side of a slow
 // request (queued, ran) on stderr. Durations are since Start; a phase not
 // reached is 0.

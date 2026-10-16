@@ -13,7 +13,7 @@ type Span struct{ Start, End int }
 
 // Compacted is a recording with its silence trimmed.
 type Compacted struct {
-	PCM            []byte // what to upload (the original slice itself when nothing is cut)
+	PCM            []byte // what to send (the original slice itself when nothing is cut)
 	Spans          []Span // the parts of the original in PCM, in order
 	Original, Kept time.Duration
 	// Changed is false when PCM is the original: there was no speech (see

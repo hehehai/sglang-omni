@@ -8,13 +8,8 @@
 // zero value in an older document until Migrate fills it in, so zero
 // values must be valid.
 //
-// Fields that only hold a place for a later milestone say which one owns
-// them (M2 providers, M3 sessions and hotkeys, M4 translate and rewrite, M5
-// app enhancement and the dictionary, M6 the overlay and onboarding);
-// nothing reads them before that milestone does.
-//
-// Not settings: the installed models (internal/local, from M1); app
-// enhancement rules are a document of their own ("appctx:rules", M5);
+// Not settings: the installed models (internal/local); app enhancement
+// rules are a document of their own ("appctx:rules");
 // window geometry stays with MyGo (WindowOptions.StateKey).
 //
 // Imports: nothing internal (Changed satisfies core.Event structurally).
@@ -54,11 +49,11 @@ type General struct {
 	// MainLanguage is the language the user mostly speaks and writes (a
 	// lang code, "zh"); OtherLanguages the ones they mix in. The prompt
 	// composer fills {{USER_MAIN_LANGUAGE}} and {{USER_OTHER_LANGUAGES}}
-	// with them (M3), and translation defaults its target from them (M4).
+	// with them, and translation defaults its target from them.
 	// "" = from the UI language.
 	MainLanguage   string   `json:"mainLanguage,omitempty"`
 	OtherLanguages []string `json:"otherLanguages,omitempty"`
-	// LaunchAtLogin opens VoxtNew when the user logs in (M6).
+	// LaunchAtLogin opens VoxtNew when the user logs in.
 	LaunchAtLogin bool `json:"launchAtLogin,omitempty"`
 	// MenuBar shows the menu bar icon; CloseToTray keeps VoxtNew running
 	// there when its window closes, so the shortcuts keep working.
@@ -85,36 +80,36 @@ type Appearance struct {
 // Privacy: what VoxtNew keeps on this Mac and what it logs.
 type Privacy struct {
 	// KeepHistory saves each result in the history; KeepAudio also saves
-	// its recording (M3).
+	// its recording.
 	KeepHistory bool `json:"keepHistory"`
 	KeepAudio   bool `json:"keepAudio"`
 	// LogText writes recognised and generated text to the log; off, the
-	// log has only lengths and timings (M3).
+	// log has only lengths and timings.
 	LogText bool `json:"logText,omitempty"`
 }
 
-// Audio: the microphone and the sounds around a recording (M3).
+// Audio: the microphone and the sounds around a recording.
 type Audio struct {
 	// Devices are capture device ids in the user's order of preference;
 	// the first one present records, else the system's default input.
 	// DeviceNames are their names when they were last seen, to show the
-	// ones that are not connected (M6).
+	// ones that are not connected.
 	Devices     []string          `json:"devices,omitempty"`
 	DeviceNames map[string]string `json:"deviceNames,omitempty"`
 	// MuteOutput lowers the system's output while recording, restoring
 	// only what VoxtNew changed (P1). Sounds plays a cue when recording
-	// starts and another when it stops (M6).
+	// starts and another when it stops.
 	MuteOutput bool `json:"muteOutput,omitempty"`
 	Sounds     bool `json:"sounds"`
 	// VAD is the local voice activity detection a recording goes
-	// through before a speech service hears it (10-15).
+	// through before a speech model hears it (10-15).
 	VAD VAD `json:"vad,omitzero"`
-	// Clean is the light sound processing of the speech service's copy
+	// Clean is the light sound processing of the speech model's copy
 	// of a recording (10-16).
 	Clean Clean `json:"clean,omitzero"`
 }
 
-// Clean tunes the sound processing of what a speech service gets of a
+// Clean tunes the sound processing of what a speech model gets of a
 // recording (internal/dsp, pure DSP, no model): a high-pass filter (80
 // Hz) takes out hum and rumble, and the level stage raises a quiet voice
 // (measured on the speech only), lowers a very loud one a little, and
@@ -143,9 +138,9 @@ type Clean struct {
 }
 
 // VAD tunes the local voice activity detection (internal/vad, energy
-// over an adaptive noise floor, no model): a file service gets the
-// recording without its leading and trailing silence and with long
-// pauses shortened, a streaming service gets nothing before the speech
+// over an adaptive noise floor, no model): a whole recording gets to the
+// speech model without its leading and trailing silence and with long
+// pauses shortened, a live stream gets nothing before the speech
 // starts, and a recording without speech is not sent at all. Zero fields
 // take vad.Defaults (conservative: rather send a little silence than cut
 // a word); there is no UI for them but Off (Settings → Audio).
@@ -165,12 +160,12 @@ type VAD struct {
 	LongGapMS  int `json:"longGapMS,omitempty"`
 	GapKeepMS  int `json:"gapKeepMS,omitempty"`
 	// A stream gets PreRollMS from before the speech, and starts anyway
-	// after MaxHoldMS without it (services close silent connections).
+	// after MaxHoldMS without it (a stream is never held back for long).
 	PreRollMS int `json:"preRollMS,omitempty"`
 	MaxHoldMS int `json:"maxHoldMS,omitempty"`
 }
 
-// Overlay: the recording overlay's place and look (M6).
+// Overlay: the recording overlay's place and look.
 type Overlay struct {
 	Position string  `json:"position"` // "bottom" | "top"
 	Opacity  float64 `json:"opacity"`  // 0.5–1
@@ -191,7 +186,8 @@ const (
 )
 
 // Hotkey is one binding of a feature: the keys ("Fn", "Fn+Shift",
-// "Control+Command+V") and how they trigger (M3 owns the grammar).
+// "Control+Command+V") and how they trigger (internal/hotkey owns the
+// grammar).
 type Hotkey struct {
 	Keys    string `json:"keys"`
 	Trigger string `json:"trigger,omitempty"` // TriggerTap (default) | TriggerDouble | TriggerLong
@@ -224,7 +220,7 @@ type Feature struct {
 	Prompt  string   `json:"prompt,omitempty"`
 }
 
-// Transcribe: speech → text, inserted where the cursor is (M3).
+// Transcribe: speech → text, inserted where the cursor is.
 type Transcribe struct {
 	Feature
 	// Enhance runs the LLM over the transcript; Cleanup and Structure
@@ -234,7 +230,7 @@ type Transcribe struct {
 	Structure bool `json:"structure,omitempty"`
 }
 
-// Translate: speech or selected text → a translation (M4).
+// Translate: speech or selected text → a translation.
 type Translate struct {
 	Feature
 	Cleanup bool `json:"cleanup"`
@@ -248,7 +244,7 @@ type Translate struct {
 }
 
 // Rewrite: a spoken instruction rewrites the selection, or writes new
-// text when nothing is selected (M4).
+// text when nothing is selected.
 type Rewrite struct {
 	Feature
 	// Cleanup reads past fillers and self-corrections in the spoken
@@ -257,7 +253,7 @@ type Rewrite struct {
 	Cleanup bool `json:"cleanup"`
 }
 
-// AppEnhancement: scene rules by app and URL (M5). The groups are the
+// AppEnhancement: scene rules by app and URL. The groups are the
 // document "appctx:rules"; these are the switches around them.
 type AppEnhancement struct {
 	Enabled bool `json:"enabled"`
@@ -272,17 +268,17 @@ type Browser struct {
 	Name     string `json:"name,omitempty"`
 }
 
-// Dictionary: the user's terms (M5). The terms are a table of the store
+// Dictionary: the user's terms. The terms are a table of the store
 // (dictionary_terms); these say where they go.
 type Dictionary struct {
 	Enabled bool `json:"enabled"`
-	// ASRHints sends the terms to the speech service as hints; Glossary
+	// ASRHints sends the terms to the speech model as hints; Glossary
 	// adds them to the LLM prompt.
 	ASRHints bool `json:"asrHints"`
 	Glossary bool `json:"glossary"`
 }
 
-// Setup: the first-run guide (M6).
+// Setup: the first-run guide.
 type Setup struct {
 	Done bool `json:"done,omitempty"`
 	// Tried: a session (a try or a real one, any feature) has given a

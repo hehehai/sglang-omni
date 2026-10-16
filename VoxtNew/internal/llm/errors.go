@@ -16,7 +16,7 @@ import (
 // Error codes. The UI maps them to messages; Params carry the details
 // named in each comment.
 const (
-	CodeAuth          = "llm.auth"             // provider, status: key rejected (401/403)
+	CodeAuth          = "llm.auth"             // provider, status: refused (401/403)
 	CodeRateLimited   = "llm.rate_limited"     // provider, retry_after (seconds, may be empty)
 	CodeServer        = "llm.server"           // provider, status: 5xx
 	CodeOverloaded    = "llm.overloaded"       // provider: 529 / "overloaded"
@@ -26,15 +26,15 @@ const (
 	CodeFiltered      = "llm.content_filter"   // provider: refused by a safety filter
 	CodeTimeout       = "llm.timeout"          // provider, seconds
 	CodeCancelled     = "llm.cancelled"        //
-	CodeNetwork       = "llm.network"          // provider, detail (connection refused, reset, DNS)
+	CodeNetwork       = "llm.network"          // provider, detail (connection refused, reset)
 	CodeBadResponse   = "llm.bad_response"     // provider, detail: unparseable body / stream
 	CodeEmpty         = "llm.empty"            // provider: no text
 	CodeInvalidJSON   = "llm.invalid_json"     // detail: no JSON value in the reply after repairs
 	CodeSchema        = "llm.schema"           // path, detail: JSON does not match the schema after repairs
-	CodeNoRoute       = "llm.no_route"         // skill: no provider configured
+	CodeNoRoute       = "llm.no_route"         // skill: the Client has no Backend
 	CodeUnknown       = "llm.unknown_provider" // provider
 	CodeUnsupported   = "llm.unsupported"      // provider, feature
-	CodeConfig        = "llm.config"           // provider, field: bad preset / settings
+	CodeConfig        = "llm.config"           // provider, field: bad settings
 )
 
 // Error is every error this package returns.
@@ -169,7 +169,7 @@ func HTTPError(provider, model string, status int, detail string, retryAfter tim
 	case status == 429:
 		e = newErr(CodeRateLimited, "provider", provider, "retry_after", retryAfterParam(retryAfter))
 		e.Retryable = true
-		// A spent quota/credit balance is a 429 at some providers; retrying won't help.
+		// A 429 that names a spent quota will not pass on a retry.
 		if strings.Contains(low, "insufficient_quota") || strings.Contains(low, "quota exceeded") && !strings.Contains(low, "per minute") {
 			e.Retryable = false
 		}

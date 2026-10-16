@@ -12,9 +12,9 @@
 // build; ASR and LLM may block (they may start a runtime and load a
 // model): call them off the main thread.
 //
-// A speech model's provider may also implement VoiceActivity: the voice
-// activity model (Silero VAD, installed with the speech models) sessions
-// use to find speech, where the energy detector would.
+// A speech model's asr.Provider may also implement VoiceActivity: the
+// voice activity model (Silero VAD, installed with the speech models)
+// sessions use to find speech, where the energy detector would.
 //
 // Imports: asr, llm, models, vad.
 package local
@@ -89,7 +89,7 @@ type Services interface {
 }
 
 // VoiceActivity is what a speech model's asr.Provider implements when it
-// comes with a voice activity model (M1: Silero VAD on the Omni runtime,
+// comes with a voice activity model (Silero VAD on the Omni runtime,
 // beside Qwen3-ASR). VAD is nil when that model is not installed; a
 // session then finds speech by energy (internal/vad).
 type VoiceActivity interface {
@@ -124,9 +124,8 @@ func Choose(list []Model, want string) (Model, bool) {
 	return Model{}, false
 }
 
-// NotInstalled is the Services of VoxtNew before its local runtimes
-// exist (M0): nothing is installed, and every open fails with
-// ErrNotInstalled.
+// NotInstalled is the Services of a VoxtNew without models (tests):
+// nothing is installed, and every open fails with ErrNotInstalled.
 type NotInstalled struct{}
 
 func (NotInstalled) Installed(Kind) []Model { return nil }

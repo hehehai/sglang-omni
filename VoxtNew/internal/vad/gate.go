@@ -2,7 +2,7 @@ package vad
 
 // Gate holds a stream's leading silence (streaming ASR): nothing goes out
 // until speech starts, then PreRollMS of what came before the onset and
-// everything after it, pauses included (streaming servers need a
+// everything after it, pauses included (a live stream needs a
 // continuous timeline). It opens anyway after MaxHoldMS of audio without
 // speech, sending from PreRollMS before that point. While it holds, it
 // keeps only the little audio it may still have to send.

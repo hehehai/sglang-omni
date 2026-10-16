@@ -57,7 +57,8 @@
 // VAD.Speech posts a recording to /v1/vad/speech_timestamps; VAD.Open
 // streams it over /v1/vad/stream in 512-sample chunks, one probability
 // each. The session uses them where the energy detector was (gating a
-// stream, trimming an upload); the energy detector stays the fallback.
+// stream, trimming a whole recording); the energy detector stays the
+// fallback.
 //
 // Everything here is goroutine-safe and blocks: call it off the main
 // thread. Errors are *asr.Error values (provider "omni").

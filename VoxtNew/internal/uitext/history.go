@@ -81,7 +81,7 @@ func DeliveryLabel(e store.Entry) string {
 	return ""
 }
 
-// SoundText is what the sound processing did to the speech service's
+// SoundText is what the sound processing did to the speech model's
 // copy of the recording (store.Entry.DSP): "Hum filtered, volume
 // +7.5 dB"; "" for none.
 func SoundText(e store.Entry) string {

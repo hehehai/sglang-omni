@@ -1,9 +1,9 @@
-// Package appctx is app enhancement (plan §2.2): groups of apps and
-// website addresses, each with a scene prompt the composer layers on top
-// of the feature's own rules, an optional key to press after inserting,
-// and the features it applies to; and the decision of which group a
-// session falls in, from the app that was in front when its shortcut was
-// pressed and, for a browser, the address of its front tab.
+// Package appctx is app enhancement: groups of apps and website
+// addresses, each with a scene prompt the composer layers on top of the
+// feature's own rules, an optional key to press after inserting, and the
+// features it applies to; and the decision of which group a session falls
+// in, from the app that was in front when its shortcut was pressed and,
+// for a browser, the address of its front tab.
 //
 // Everything here is pure: the address comes from the helper's
 // browser.url (Accessibility only) through the caller, the groups from the

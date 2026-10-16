@@ -1,10 +1,10 @@
-// Package hotkey is the shortcuts' model on the Go side (plan §4.1): the
-// grammar of settings.Hotkey.Keys, the bindings sent to the helper's
-// event tap (hotkey.configure) and the Carbon fallback without
-// Accessibility, the checks the feature pages show (duplicates,
-// conflicts, system shortcuts), and the routing of a hotkey.event to a
-// session action. The helper judges taps, double taps and long presses;
-// what they do is decided here. Pure Go, tested on Linux.
+// Package hotkey is the shortcuts' model on the Go side: the grammar of
+// settings.Hotkey.Keys, the bindings sent to the helper's event tap
+// (hotkey.configure) and the Carbon fallback without Accessibility, the
+// checks the feature pages show (duplicates, conflicts, system
+// shortcuts), and the routing of a hotkey.event to a session action. The
+// helper judges taps, double taps and long presses; what they do is
+// decided here. Pure Go, tested on Linux.
 //
 // Grammar: parts joined by "+", modifiers first, at most one key last.
 // Modifiers are Fn, Control, Option, Shift and Command, each optionally
@@ -255,7 +255,7 @@ func Behavior(trigger string) string {
 	return proto.BehaviorTap
 }
 
-// Features, as binding ids name them (providers.Transcribe…).
+// Features, as binding ids name them.
 const (
 	Transcribe = "transcribe"
 	Translate  = "translate"

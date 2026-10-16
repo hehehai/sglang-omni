@@ -96,8 +96,9 @@ func KindTitle(k store.Kind) string {
 	return i18n.T("Transcribe")
 }
 
-// TimingsText is a try's stage times and services: "Recording 3.2 s ·
-// Recognition 0.8 s · Clean-up 1.1 s · Doubao, DeepSeek".
+// TimingsText is a try's stage times and models: "Recording 3.2 s ·
+// Recognition 0.8 s · Clean-up 1.1 s · Accurate speech recognition,
+// Balanced language model".
 func TimingsText(s session.Snapshot) string {
 	secs := func(d time.Duration) string { return i18n.T("%.1f s", d.Seconds()) }
 	var parts []string

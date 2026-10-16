@@ -22,7 +22,7 @@ type Notification struct {
 	Severity Severity  `json:"severity"`
 	Title    string    `json:"title"`
 	Body     string    `json:"body,omitempty"`
-	Link     string    `json:"link,omitempty"` // router path or voxtnew:// deep link, e.g. "/settings/network"
+	Link     string    `json:"link,omitempty"` // router path or voxtnew:// deep link, e.g. "/settings/models"
 	Time     time.Time `json:"time"`
 	Read     bool      `json:"read,omitempty"`
 }

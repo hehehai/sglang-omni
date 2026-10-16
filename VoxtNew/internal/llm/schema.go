@@ -9,11 +9,11 @@ import (
 	"strings"
 )
 
-// Schema is the subset of JSON Schema the skills need, and that every
-// provider's structured-output mode accepts: type, properties, required,
+// Schema is the subset of JSON Schema the skills need, and that
+// structured-output modes commonly accept: type, properties, required,
 // additionalProperties (false only), items, enum, min/maxItems,
 // min/maxLength, minimum/maximum and description. It marshals to plain
-// JSON Schema for the providers.
+// JSON Schema; Client.JSON validates replies against it.
 type Schema struct {
 	Type        string             `json:"type,omitempty"` // object, array, string, number, integer, boolean, null
 	Description string             `json:"description,omitempty"`

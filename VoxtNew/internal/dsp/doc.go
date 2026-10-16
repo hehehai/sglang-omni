@@ -1,4 +1,4 @@
-// Package dsp is the light processing of what a speech service gets of a
+// Package dsp is the light processing of what a speech model gets of a
 // recording (PCM16 mono, little-endian; 16 kHz in practice): pure Go, no
 // model and no cgo. The recording itself is never changed: every function
 // returns a new slice, and the history keeps the original.
@@ -6,7 +6,7 @@
 // # The chain
 //
 // capture → high-pass → voice activity detection → level → (a file) trim,
-// or (a stream) gate → the service. The detection runs after the filter
+// or (a stream) gate → the speech model. The detection runs after the filter
 // so that hum does not raise its noise floor, and on the original as
 // well: what either finds is speech (vad.Merge, vad.Gate.Hear), so the
 // filter can only make it keep more. The level comes after the detection

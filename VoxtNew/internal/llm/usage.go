@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 )
 
-// EstimateTokens is a rough token count for s when a provider reports
+// EstimateTokens is a rough token count for s when a backend reports
 // none: about one token per CJK character and per four bytes of other text.
 func EstimateTokens(s string) int {
 	n, rest := 0, 0
@@ -99,7 +99,7 @@ func (m *Meter) record(provider string, req Request, resp Response, err error, e
 	}
 }
 
-// Snapshot returns a copy of every record, sorted by provider, model, skill.
+// Snapshot returns a copy of every record, sorted by backend, model, skill.
 func (m *Meter) Snapshot() []UsageRecord {
 	if m == nil {
 		return nil

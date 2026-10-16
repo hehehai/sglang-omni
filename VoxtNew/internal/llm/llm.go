@@ -1,12 +1,12 @@
 // Package llm is VoxtNew's chat-model layer, the part of AudioSmith's
 // internal/llm (@f171c86, by way of Auralink) that does not depend on a
-// provider:
+// model runtime:
 //
 //   - the request and response types a session sends (Request, Response,
-//     Message, Format, Schema) and the skills it routes them by;
+//     Message, Format, Schema) and the skills that tag them;
 //   - Backend: one model, one attempt per call. VoxtNew's language models
-//     are local (internal/local; M2: mlx-swift-lm and a few GGUF models in
-//     the voxtnew-llm process, over loopback HTTP); there is no backend here;
+//     are local (internal/local: mlx-swift-lm and a few GGUF models in
+//     the voxtnew-llm process, internal/llmrt); there is no backend here;
 //   - Client: a Backend plus timeouts, retries with backoff, usage
 //     accounting, thinking stripped from the text and JSON / structured
 //     output (schema validation and a repair retry).
@@ -47,11 +47,11 @@ const (
 
 // Request is one chat completion.
 type Request struct {
-	// Model is the provider's model id. Empty: the backend's default.
+	// Model is the backend's model id. Empty: the backend's default.
 	Model    string
 	Messages []Message
 
-	Temperature *float64 // nil: provider default
+	Temperature *float64 // nil: the backend's default
 	TopP        *float64
 	MaxTokens   int // 0: the backend's default
 	Stop        []string
@@ -93,7 +93,7 @@ type TranslateHint struct {
 func F64(v float64) *float64 { return &v }
 
 // Usage is the token count of a call. Estimated is true when the
-// provider reported none and the counts come from EstimateTokens.
+// backend reported none and the counts come from EstimateTokens.
 type Usage struct {
 	PromptTokens     int  `json:"promptTokens"`
 	CompletionTokens int  `json:"completionTokens"`
@@ -111,7 +111,7 @@ func (u Usage) Add(v Usage) Usage {
 	}
 }
 
-// Finish reasons, normalised across providers.
+// Finish reasons, normalised across backends.
 const (
 	FinishStop   = "stop"
 	FinishLength = "length" // hit MaxTokens
@@ -123,7 +123,7 @@ const (
 type Response struct {
 	Text         string
 	FinishReason string
-	Model        string // as reported by the provider (may differ from the request)
+	Model        string // as reported by the backend (may differ from the request)
 	Provider     string // backend id
 	Usage        Usage
 	Latency      time.Duration // of the successful attempt

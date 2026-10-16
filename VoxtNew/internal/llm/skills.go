@@ -20,9 +20,9 @@ func Skills() []Skill {
 }
 
 // DefaultTemperature is the sampling temperature a skill uses when neither
-// the request nor the route sets one: low for clean-up and translation,
+// the request nor the model sets one: low for clean-up and translation,
 // which must keep to the input, higher for rewriting and writing, which
-// may choose words. (Voxt leaves it to the provider.)
+// may choose words. (Voxt leaves it to the model's default.)
 func DefaultTemperature(s Skill) float64 {
 	switch s {
 	case SkillRewrite:

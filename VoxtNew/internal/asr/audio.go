@@ -103,7 +103,7 @@ func Frames(pcm []byte, d time.Duration, rate int) [][]byte {
 }
 
 // Rechunk collects what Send gets into frames of exactly size bytes, for
-// providers that want fixed frames: Add returns the full frames so far,
+// streams that want fixed frames: Add returns the full frames so far,
 // Rest what is left at Finish.
 type Rechunk struct {
 	Size int

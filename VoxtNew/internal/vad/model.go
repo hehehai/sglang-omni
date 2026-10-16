@@ -6,9 +6,9 @@ import (
 )
 
 // Model is a voice activity model (Silero VAD, on the Omni runtime:
-// internal/omni), which tells speech by a network's probability rather
-// than by energy: noise, music or a fan do not count as speech. The
-// session uses it where it has one, and the energy detector of this
+// internal/omni), which tells speech by a neural network's probability
+// rather than by energy: noise, music or a fan do not count as speech.
+// The session uses it where it has one, and the energy detector of this
 // package where it has none or the model fails. Implementations are
 // goroutine-safe and may block (a loopback server).
 type Model interface {

@@ -1,12 +1,12 @@
-// Package deliver puts a result where the user was typing (plan §4.1):
-// one insert transaction through the helper's text I/O. When the app the
-// session started in is still in front and its focused element takes
-// text, the result is pasted there (textio.paste: the clipboard is
-// snapshotted, written, ⌘V posted, keys pressed after it, the clipboard
-// restored unless someone wrote to it meanwhile). Otherwise nothing is
-// typed and the caller shows the answer card, which offers Insert and
-// Copy. When VoxtNew itself came to the front (a click on its window),
-// the target is activated again first (macx.Activate).
+// Package deliver puts a result where the user was typing: one insert
+// transaction through the helper's text I/O. When the app the session
+// started in is still in front and its focused element takes text, the
+// result is pasted there (textio.paste: the clipboard is snapshotted,
+// written, ⌘V posted, keys pressed after it, the clipboard restored
+// unless someone wrote to it meanwhile). Otherwise nothing is typed and
+// the caller shows the answer card, which offers Insert and Copy. When
+// VoxtNew itself came to the front (a click on its window), the target is
+// activated again first (macx.Activate).
 //
 // Policy is here, the mechanics in the helper: the restore delay, the
 // keys after the paste and whether the clipboard keeps the text are
@@ -60,8 +60,8 @@ type Request struct {
 	Text string
 	// Target is the app the session started in (hotkey.event's front).
 	Target proto.App
-	// Press are keys posted after the paste (app enhancement's auto key,
-	// M5), PressDelayMS after it (0: the helper's 120).
+	// Press are keys posted after the paste (app enhancement's auto
+	// key), PressDelayMS after it (0: the helper's 120).
 	Press        []proto.KeyPress
 	PressDelayMS int
 	// KeepClipboard leaves the text on the clipboard; RestoreDelayMS

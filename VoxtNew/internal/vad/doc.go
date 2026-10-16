@@ -1,8 +1,8 @@
 // Package vad is a small energy voice activity detector for VoxtNew's
 // recordings (PCM16 mono, little-endian, any rate; 16 kHz in practice).
 // It is pure DSP with no model, and it is deliberately conservative: when it
-// is unsure it keeps audio. Sending a second of silence costs a little time
-// and money; cutting the first syllable of a word costs a wrong transcript.
+// is unsure it keeps audio. Sending a second of silence costs a little
+// time; cutting the first syllable of a word costs a wrong transcript.
 //
 // # Detector
 //
@@ -47,13 +47,13 @@
 //
 // A Gate holds a stream's leading silence: nothing goes out until speech
 // starts; then PreRollMS of what came before the onset and everything
-// after, pauses included (streaming servers need a continuous timeline). It
+// after, pauses included (a live stream needs a continuous timeline). It
 // opens anyway after MaxHoldMS of audio without speech, from PreRollMS
-// before that point, because servers time out on a silent connection.
+// before that point, so a stream is never held back for long.
 //
 // # Two versions of a recording
 //
-// When the speech service gets a filtered recording (internal/dsp), the
+// When the speech model gets a filtered recording (internal/dsp), the
 // detection runs on both the filtered and the original audio and keeps the
 // speech either finds: Merge joins two analyses' segments, and Gate.Hear
 // lets a gate listen to the original while it holds and sends the filtered

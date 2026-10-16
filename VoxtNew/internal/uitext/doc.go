@@ -1,5 +1,5 @@
 // Package uitext makes the words the UI shows from the domain's values:
-// shortcuts' names and problems, providers' errors, a session's state, a
+// shortcuts' names and problems, the models' errors, a session's state, a
 // history entry's details, sizes and times, the menu bar's short labels.
 // Pure functions of i18n and internal types, without MyGo: package main's
 // pages call them, and their tests run without a window.

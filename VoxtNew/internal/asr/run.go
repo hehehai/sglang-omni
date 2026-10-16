@@ -10,17 +10,17 @@ type Feed struct {
 	// Frame is the size of each Send (0: 100 ms, as the helper sends).
 	Frame time.Duration
 	// Pace sends at this many times real time (1: as fast as it was
-	// spoken; 0: as fast as the stream takes it). Some services drop a
-	// session fed much faster than real time.
+	// spoken; 0: as fast as the stream takes it). Pace 1 makes a live
+	// stream see the timing of a real recording.
 	Pace float64
 	// OnPartial, if set, gets each Partial's text.
 	OnPartial func(text string)
 }
 
 // StreamAll recognises a whole recording (PCM16 mono at req.SampleRate)
-// through a stream: Open, Send it frame by frame, Finish, and wait for the
-// Final (at most FinalTimeout after Finish). Connection tests and the
-// end-to-end tests use it; sessions feed a stream as they record.
+// through a stream: Open, Send it frame by frame, Finish, and wait for
+// the Final (at most FinalTimeout after Finish). Tests use it; sessions
+// feed a stream as they record.
 func StreamAll(ctx context.Context, s Streamer, req StreamRequest, pcm []byte, f Feed) (Result, error) {
 	st, err := s.Open(ctx, req)
 	if err != nil {
@@ -96,8 +96,8 @@ func StreamAll(ctx context.Context, s Streamer, req StreamRequest, pcm []byte, f
 	}
 }
 
-// Recognize transcribes a whole recording with p, uploading it when p is
-// a FileTranscriber and streaming it otherwise.
+// Recognize transcribes a whole recording with p, in one request when p
+// is a FileTranscriber and streaming it otherwise.
 func Recognize(ctx context.Context, p Provider, pcm []byte, lang string, hints []string, prompt string, f Feed) (Result, error) {
 	if ft, ok := p.(FileTranscriber); ok && p.Caps().File {
 		return ft.Transcribe(ctx, FileRequest{Audio: pcm, Format: "pcm", SampleRate: SampleRate, Lang: lang, Hints: hints, Prompt: prompt})

@@ -107,7 +107,7 @@ func Measure(pcm []byte, rate int, an vad.Analysis, vp vad.Params) (speechDB, pe
 	return powerDB(sum / float64(len(peaks))), peaks[int(float64(len(peaks)-1)*speechPercentile)]
 }
 
-// File is a whole recording processed for an upload.
+// File is a whole recording processed for a file transcription.
 type File struct {
 	PCM []byte // the processed audio, as long as the original
 	// Analysis is the speech vad.Analyze found in the original or in the
@@ -122,13 +122,13 @@ type File struct {
 	Report   Report
 }
 
-// ProcessFile processes a whole recording (PCM16 mono at rate Hz; rate
-// <= 0: 16 kHz): the high-pass filter, the voice activity detection on
-// the filtered audio (and on the original: File.Analysis), one gain for the whole recording from its speech
-// (Params.GainFor; none without speech) and the limiter. pcm is not
-// changed. A file service gets one gain rather than a following one: it
-// hears the recording at once, so the gain can be measured on all of it
-// and cannot pump.
+// ProcessFile processes a whole recording (PCM16 mono at rate Hz;
+// rate <= 0: 16 kHz): the high-pass filter, the voice activity detection
+// on the filtered audio (and on the original: File.Analysis), one gain
+// for the whole recording from its speech (Params.GainFor; none without
+// speech) and the limiter. pcm is not changed. A whole recording gets one
+// gain rather than a following one: the speech model hears it at once,
+// so the gain can be measured on all of it and cannot pump.
 func ProcessFile(pcm []byte, rate int, p Params, vp vad.Params) File {
 	if rate <= 0 {
 		rate = DefaultRate
@@ -169,7 +169,7 @@ func ProcessFile(pcm []byte, rate int, p Params, vp vad.Params) File {
 	return File{PCM: out, Analysis: both, Filtered: an, Report: rep}
 }
 
-// Leveler is the level stage of a stream (a streaming service hears the
+// Leveler is the level stage of a stream (the speech model hears the
 // recording as it is spoken): it follows the speech's level with its own
 // voice activity detector and moves the gain slowly toward
 // Params.GainFor, then limits. It measures speech only: in silence and

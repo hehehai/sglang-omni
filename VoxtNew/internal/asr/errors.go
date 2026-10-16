@@ -16,20 +16,23 @@ type Kind string
 
 const (
 	// KindConfig: the setup is incomplete or wrong before anything was
-	// sent: no key, a bad endpoint, an unknown model.
+	// sent: a model that is not installed or not a speech model, a
+	// missing folder.
 	KindConfig Kind = "config"
-	// KindAuth: the service rejected the key (or App ID / token).
+	// KindAuth: the server refused the request (HTTP 401/403); the
+	// local runtimes do not ask for credentials.
 	KindAuth Kind = "auth"
-	// KindQuota: rate limited, out of credit, or the model is not
-	// enabled for the account.
+	// KindQuota: the server is busy or refused for its own limits
+	// (HTTP 429, 402).
 	KindQuota Kind = "quota"
-	// KindNetwork: the service could not be reached, or the connection
+	// KindNetwork: the server could not be reached, or the connection
 	// broke or timed out.
 	KindNetwork Kind = "network"
-	// KindProtocol: the service answered something this package does not
+	// KindProtocol: the server answered something this package does not
 	// understand, or reported a bad request.
 	KindProtocol Kind = "protocol"
-	// KindServer: the service failed on its side (5xx, internal errors).
+	// KindServer: the server failed on its side (5xx, internal errors, a
+	// runtime that did not start or exited).
 	KindServer Kind = "server"
 	// KindAudio: the audio was refused: too long, too large, a format it
 	// does not take.
@@ -38,16 +41,16 @@ const (
 	KindCancelled Kind = "cancelled"
 )
 
-// Error is every error this package and its providers return.
+// Error is every error this package and the speech models return.
 type Error struct {
 	Kind     Kind
-	Provider string // the provider's preset id ("openai", "doubao", "aliyun")
+	Provider string // the speech runtime's id ("omni"), "" when none
 	// Status is the HTTP status (or the WebSocket handshake's), 0 for
-	// none; Code is the provider's own error code, "" for none.
+	// none; Code is the server's own error code, "" for none.
 	Status int
 	Code   string
-	// Detail is the provider's message or what went wrong, for the log
-	// and the ⓘ of an error: never a key.
+	// Detail is the server's message or what went wrong, for the log
+	// and the ⓘ of an error.
 	Detail string
 	// Retryable: the same request may succeed later (network, server,
 	// rate limits).
@@ -105,12 +108,13 @@ func KindOf(err error) Kind {
 	return ""
 }
 
-// Errorf is an *Error of kind for provider with a detail.
+// Errorf is an *Error of kind for provider (a runtime's id) with a
+// detail.
 func Errorf(provider string, kind Kind, format string, args ...any) *Error {
 	return &Error{Kind: kind, Provider: provider, Detail: fmt.Sprintf(format, args...)}
 }
 
-// HTTPError classifies an HTTP error status and the provider's message
+// HTTPError classifies an HTTP error status and the server's message
 // (an error body, or a handshake's refusal).
 func HTTPError(provider string, status int, code, detail string) *Error {
 	e := &Error{Provider: provider, Status: status, Code: code, Detail: Clip(detail, 300)}
@@ -119,7 +123,7 @@ func HTTPError(provider string, status int, code, detail string) *Error {
 	case status == 401 || status == 403:
 		e.Kind = KindAuth
 		if quotaWords(low) {
-			e.Kind = KindQuota // some services answer 403 for an unpaid or unopened model
+			e.Kind = KindQuota // a 403 that names a limit, not credentials
 		}
 	case status == 429:
 		e.Kind, e.Retryable = KindQuota, true
@@ -143,17 +147,17 @@ func HTTPError(provider string, status int, code, detail string) *Error {
 			e.Kind = KindConfig
 		}
 	case status == 404:
-		e.Kind = KindConfig // a wrong endpoint or model
+		e.Kind = KindConfig // a wrong path or model
 	default:
 		e.Kind = KindProtocol
 	}
 	return e
 }
 
-// NoSpeech reports an error answer that only means nothing was said:
-// StepFun's 400 "no speech found" for silence, Alibaba's NO_VALID_AUDIO.
-// Providers turn it into an empty result, not an error, so silence reads
-// as "nothing heard" and a connection test of silence passes.
+// NoSpeech reports an error answer that only means nothing was said
+// ("no speech found", "NO_VALID_AUDIO" and the like). A speech model
+// turns it into an empty result, not an error, so silence reads as
+// "nothing heard".
 func NoSpeech(code, detail string) bool {
 	low := strings.ToLower(code + " " + detail)
 	low = strings.NewReplacer("_", " ", "-", " ").Replace(low)
@@ -215,7 +219,7 @@ func Clip(s string, n int) string {
 	return s[:cut] + "…"
 }
 
-// Timeouts shared by the providers.
+// Timeouts shared by the speech models.
 const (
 	// ConnectTimeout bounds connecting and the handshake of a stream.
 	ConnectTimeout = 15 * time.Second

@@ -12,7 +12,7 @@
 //   - Blobs (a history entry's audio) are files under the store's
 //     directory, referenced by name; the store deletes them with the record.
 //
-// There is no job queue: a session lives in memory (internal/session, M3)
+// There is no job queue: a session lives in memory (internal/session)
 // and writes one history entry when it ends.
 //
 // Imports: core.
@@ -26,7 +26,7 @@ import (
 // Store is the whole database.
 type Store interface {
 	// Documents holds small JSON documents by key: "settings:app" (the
-	// settings), "appctx:rules" (app enhancement, M5), "notifications".
+	// settings), "appctx:rules" (app enhancement), "notifications".
 	Documents() Documents
 	History() History
 	Dictionary() Dictionary
@@ -99,12 +99,12 @@ type Entry struct {
 
 	// Stage times, in milliseconds: the recording, recognition after the
 	// stop, the language model, and the whole session. SentMS is how much
-	// of the recording the speech service got, without the silence left
+	// of the recording the speech model got, without the silence left
 	// out (0: unknown, or none was sent).
 	AudioMS, ASRMS, LLMMS, TotalMS int64
 	SentMS                         int64
 
-	// DSP is the sound processing the speech service's copy of the
+	// DSP is the sound processing the speech model's copy of the
 	// recording went through (internal/dsp): "highpass", "level" or
 	// "highpass+level"; "" for none (off, older entries, nothing sent).
 	// GainDB is the gain the level stage gave the speech (a stream: at
@@ -143,7 +143,7 @@ type History interface {
 }
 
 // Term is an entry of the user's dictionary: a name or a word of jargon
-// the speech service should expect and the language model should keep as
+// the speech model should expect and the language model should keep as
 // written.
 type Term struct {
 	ID   string

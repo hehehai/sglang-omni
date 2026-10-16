@@ -1,6 +1,6 @@
 package proto
 
-// Methods. The shapes follow the M0 spikes on a Mac (the project's
+// Methods. The shapes follow Auralink's spikes on a Mac (its
 // research/spikes.md): the helper records, watches the keyboard, reads and
 // writes text in the app in front, and reads browser URLs; Go keeps every
 // policy and passes it in the params.

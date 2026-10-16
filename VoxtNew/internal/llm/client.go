@@ -247,7 +247,7 @@ func repairPrompt(problems []string) string {
 }
 
 // StripThinking removes a leading <think>…</think> block (reasoning
-// models served through OpenAI-compatible servers).
+// models, such as the Qwen models voxtnew-llm runs).
 func StripThinking(s string) string {
 	t := strings.TrimLeft(s, " \t\r\n")
 	if !strings.HasPrefix(t, "<think>") {

@@ -97,6 +97,6 @@ type HotkeyEventParams struct {
 	HeldMS   float64 `json:"heldMs,omitempty"` // how long the chord was held, when known
 	T        float64 `json:"t"`                // when it was decided, ms of the helper's monotonic clock
 	// Front is the app in front as the key went down: the start of the
-	// session's context snapshot (plan §4.2).
+	// session's context snapshot.
 	Front *App `json:"front,omitempty"`
 }
