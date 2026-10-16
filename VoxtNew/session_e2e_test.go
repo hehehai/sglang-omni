@@ -22,6 +22,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models/modelstest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -55,9 +56,17 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc 
 	if svc == nil {
 		svc = local.NotInstalled{}
 	}
-	old := newLocalServices
-	newLocalServices = func(*app) local.Services { return svc }
-	t.Cleanup(func() { newLocalServices = old })
+	if real, ok := svc.(realLocal); ok {
+		// The app's own local models (the Library and its runtimes),
+		// these installed.
+		if err := modelstest.Seed(filepath.Join(lib.store.Dir(), "models"), real.installed...); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		old := newLocalServices
+		newLocalServices = func(*app) local.Services { return svc }
+		t.Cleanup(func() { newLocalServices = old })
+	}
 	pasteLog := filepath.Join(t.TempDir(), "paste.jsonl")
 	a := newApp(lib, &helperHost{bin: self, env: helpertest.Env("frame-ms=20," + helpertest.Opt("paste-log", pasteLog) + "," + opts)})
 	a.measureHook = guessText
@@ -79,6 +88,13 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc 
 	})
 	s.pump("the helper", func() bool { return a.helperStatus().State == helper.Ready })
 	return s
+}
+
+// realLocal makes newSessionApp keep the app's own local models, with
+// the models installed (modelstest.Seed).
+type realLocal struct {
+	local.NotInstalled
+	installed []string
 }
 
 // pump runs posted functions until cond holds.

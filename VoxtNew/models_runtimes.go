@@ -30,7 +30,7 @@ var newLocalServices = func(a *app) local.Services {
 
 // localOpeners are the runtimes this build has.
 func (a *app) localOpeners() local.Openers {
-	return local.Openers{}
+	return local.Openers{ASR: a.openOmniASR, Unload: a.unloadOmni} // models_omni.go
 }
 
 // managerOptions are the models' options: the environment's, and onChange.

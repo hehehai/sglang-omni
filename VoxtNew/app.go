@@ -18,6 +18,7 @@ import (
 //	trayState         tray.go         the menu bar icon
 //	permissionsState  permissions.go  Settings → Permissions
 //	modelsState       models_page.go  the Local models page, the local models (internal/local)
+//	omniState         models_omni.go  the speech models' runtime (internal/omni)
 //	sessionState      session_link.go  sessions, shortcuts, the answer card
 //	overlayState      overlay.go      the recording overlay
 //	transcribeState   feature_page.go  the feature pages (Transcribe, Translate, Rewrite)
@@ -46,6 +47,7 @@ type app struct {
 	trayState
 	permissionsState
 	modelsState
+	omniState
 	sessionState
 	overlayState
 	transcribeState
@@ -109,5 +111,6 @@ func (a *app) quit() {
 	if a.models != nil {
 		a.models.Close() // a download stops; what came is kept
 	}
+	a.closeOmni() // models_omni.go: the speech models' servers
 	a.closeShell()
 }
