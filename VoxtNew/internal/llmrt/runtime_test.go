@@ -315,6 +315,39 @@ func TestWarmAndMemory(t *testing.T) {
 	}
 }
 
+// Prefill sends the prompt with maxTokens 0, and the chat after it with
+// the same system prompt reports a prompt cache hit in its log line.
+func TestPrefill(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "chats.jsonl")
+	rt, logs := newRuntime(t, llmrttest.Opt("chat-log", log), nil)
+	b, err := NewModel(rt, Fast, mlxDir(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	system := llm.Message{Role: llm.System, Content: "Clean it up."}
+	req := llm.Request{Skill: llm.SkillTranscribeEnhance, Messages: []llm.Message{system, {Role: llm.User, Content: ""}}}
+	if err := b.Prefill(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	req.Messages[1].Content = "<input>\num hello\n</input>"
+	if _, err := b.Chat(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if cs := chatLog(t, log); len(cs) != 2 || cs[0].MaxTokens != 0 || cs[1].MaxTokens == 0 {
+		t.Errorf("chats %+v", cs)
+	}
+	if !logs.has("llm.fast transcribe_enhance prefill: 40+0 tokens") || !logs.has("prompt cache miss (30 tokens kept)") || !logs.has("prompt cache hit (30 tokens)") {
+		t.Errorf("log lines %+v", logs.lines)
+	}
+	// A GGUF model has nothing to warm: no chat.
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "Hy-MT2-1.8B-Q4_K_M.gguf"), []byte("GGUF"), 0o644)
+	tr, _ := NewModel(rt, Translate, dir)
+	if err := tr.Prefill(context.Background(), llm.Request{Skill: llm.SkillRewrite}); err != nil || len(chatLog(t, log)) != 2 {
+		t.Errorf("GGUF prefill: %v", err)
+	}
+}
+
 func TestOpenNotInstalled(t *testing.T) {
 	rt := New(Config{})
 	for _, c := range []struct{ id, dir string }{{"llm.nope", t.TempDir()}, {Balanced, t.TempDir()}, {Translate, t.TempDir()}} {

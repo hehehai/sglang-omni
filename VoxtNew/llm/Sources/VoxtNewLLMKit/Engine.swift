@@ -14,7 +14,8 @@ public protocol Engine: Sendable {
     func loaded() -> ModelSpec?
     /// Runs one completion with p.model loaded, calling onDelta with each
     /// piece of text in order. It stops at a cancellation of the calling
-    /// task (throwing CancellationError) within a token.
+    /// task (throwing CancellationError) within a token. With maxTokens 0
+    /// it only evaluates the prompt's shared prefix into the prompt cache.
     func chat(_ p: ChatParams, onDelta: @escaping @Sendable (String) -> Void) async throws -> ChatOutcome
     /// The process's memory now.
     func memory() -> Memory
@@ -38,14 +39,16 @@ public struct ChatOutcome: Sendable, Equatable {
     public var promptMs: Double
     public var firstTokenMs: Double
     public var tokensPerSecond: Double
+    public var cache: CacheUse?
 
-    public init(text: String, finish: String, usage: Usage, promptMs: Double, firstTokenMs: Double, tokensPerSecond: Double) {
+    public init(text: String, finish: String, usage: Usage, promptMs: Double, firstTokenMs: Double, tokensPerSecond: Double, cache: CacheUse? = nil) {
         self.text = text
         self.finish = finish
         self.usage = usage
         self.promptMs = promptMs
         self.firstTokenMs = firstTokenMs
         self.tokensPerSecond = tokensPerSecond
+        self.cache = cache
     }
 }
 

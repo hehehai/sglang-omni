@@ -193,13 +193,28 @@ public struct Timings: Codable, Sendable, Equatable {
     public var firstTokenMs: Double
     public var totalMs: Double
     public var tokensPerSecond: Double
+    public var cache: CacheUse?
 
-    public init(loadMs: Double? = nil, promptMs: Double, firstTokenMs: Double, totalMs: Double, tokensPerSecond: Double) {
+    public init(loadMs: Double? = nil, promptMs: Double, firstTokenMs: Double, totalMs: Double, tokensPerSecond: Double, cache: CacheUse? = nil) {
         self.loadMs = loadMs
         self.promptMs = promptMs
         self.firstTokenMs = firstTokenMs
         self.totalMs = totalMs
         self.tokensPerSecond = tokensPerSecond
+        self.cache = cache
+    }
+}
+
+/// What a chat did with the prompt cache (an MLX model's): hit when it
+/// started from a snapshot; prefixTokens the shared prefix it reused (a
+/// hit) or evaluated and kept (a miss), 0 when it did neither.
+public struct CacheUse: Codable, Sendable, Equatable {
+    public var hit: Bool
+    public var prefixTokens: Int
+
+    public init(hit: Bool, prefixTokens: Int) {
+        self.hit = hit
+        self.prefixTokens = prefixTokens
     }
 }
 

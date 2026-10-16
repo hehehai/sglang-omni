@@ -119,6 +119,8 @@ type fake struct {
 	jobs    map[string]chan struct{} // a chat's cancel
 	queue   sync.Mutex               // loads and chats one at a time
 	started time.Time
+	// prefixes are the MLX prompt prefixes "kept" (guarded by queue).
+	prefixes map[string]bool
 }
 
 func run(o options) {
@@ -224,6 +226,7 @@ func (f *fake) handle(m wire.Message) {
 		f.mu.Lock()
 		was := f.loaded != nil
 		f.loaded = nil
+		f.prefixes = nil
 		f.mu.Unlock()
 		f.result(m.ID, wire.UnloadResult{Unloaded: was, Memory: f.memory()})
 	case wire.MethodChat:
@@ -254,6 +257,7 @@ func (f *fake) load(model wire.Model) (float64, error) {
 	f.mu.Lock()
 	f.loaded = &model
 	f.mu.Unlock()
+	f.prefixes = nil
 	return float64(f.o.loadMs), nil
 }
 
@@ -277,6 +281,7 @@ func (f *fake) chat(id string, p wire.ChatParams, cancel chan struct{}) {
 		f.fail(id, wire.CodeLoadFailed, err.Error())
 		return
 	}
+	cache := f.promptCache(p)
 	rs := []rune(f.o.reply)
 	var text strings.Builder
 	tokens := 0
@@ -304,7 +309,26 @@ func (f *fake) chat(id string, p wire.ChatParams, cancel chan struct{}) {
 	f.result(id, wire.ChatResult{
 		Text: text.String(), Finish: finish,
 		Usage:   wire.Usage{PromptTokens: 40, CompletionTokens: tokens},
-		Timings: wire.Timings{LoadMs: loadMs, PromptMs: 1, FirstTokenMs: loadMs + 2, TotalMs: total, TokensPerSecond: 500},
+		Timings: wire.Timings{LoadMs: loadMs, PromptMs: 1, FirstTokenMs: loadMs + 2, TotalMs: total, TokensPerSecond: 500, Cache: cache},
 		Memory:  f.memory(),
 	})
+}
+
+// promptCache is the prompt cache's use as an MLX model reports it: the
+// messages before the last are the shared prefix, 30 "tokens" each, a hit
+// when a chat had them before.
+func (f *fake) promptCache(p wire.ChatParams) *wire.CacheUse {
+	if p.Model.Format != wire.FormatMLX {
+		return nil
+	}
+	if len(p.Messages) < 2 {
+		return &wire.CacheUse{}
+	}
+	key, _ := json.Marshal(p.Messages[:len(p.Messages)-1])
+	hit := f.prefixes[string(key)]
+	if f.prefixes == nil {
+		f.prefixes = map[string]bool{}
+	}
+	f.prefixes[string(key)] = true
+	return &wire.CacheUse{Hit: hit, PrefixTokens: 30 * (len(p.Messages) - 1)}
 }

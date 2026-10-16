@@ -46,6 +46,12 @@ final class GGUFEngine: @unchecked Sendable {
 
     func chat(_ p: ChatParams, onDelta: @escaping @Sendable (String) -> Void) throws -> ChatOutcome {
         guard let model else { throw RPCError(Code.internal, "No GGUF model is loaded") }
+        // Each chat has a context of its own and Hy-MT2's prompts have no
+        // shared prefix to speak of: there is nothing to warm.
+        guard p.maxTokens > 0 else {
+            return ChatOutcome(text: "", finish: Finish.length, usage: Usage(promptTokens: 0, completionTokens: 0),
+                               promptMs: 0, firstTokenMs: 0, tokensPerSecond: 0)
+        }
         let started = monotonicMs()
         let vocab = llama_model_get_vocab(model)
         let prompt = Self.formattedPrompt(p.messages, model: model)
