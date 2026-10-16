@@ -1,8 +1,10 @@
 package eval
 
 import (
+	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Verdict is a clean-up (or a translation) of a clip, checked.
@@ -18,6 +20,9 @@ type Verdict struct {
 	// Copied: it has a phrase of the prompt's example answer that the
 	// input has not.
 	Copied bool
+	// Language: a clean-up changed the language: the share of Chinese in
+	// it is more than 30 points off the input's (it translated).
+	Language bool
 	// Score is the answer against the expected one (a clean-up only).
 	Score Score
 }
@@ -25,7 +30,7 @@ type Verdict struct {
 // OK is a verdict without a fault (at most one invented token: a
 // rephrasing may add a word).
 func (v Verdict) OK() bool {
-	return len(v.Fillers) == 0 && len(v.Missing) == 0 && len(v.Kept) == 0 && len(v.Invented) <= 1 && !v.Copied
+	return len(v.Fillers) == 0 && len(v.Missing) == 0 && len(v.Kept) == 0 && len(v.Invented) <= 1 && !v.Copied && !v.Language
 }
 
 // Corrections are the Must and MustNot phrases (other than fillers) it
@@ -57,6 +62,9 @@ func (v Verdict) Faults() string {
 	if v.Copied {
 		f = append(f, "copied the example")
 	}
+	if v.Language {
+		f = append(f, "changed the language")
+	}
 	return strings.Join(f, "; ")
 }
 
@@ -65,6 +73,9 @@ func (v Verdict) Faults() string {
 func CheckClean(c Clip, input, out, example string) Verdict {
 	v := check(out, input, example, c.Must, c.MustNot)
 	v.Score = Compare(c.Clean, out)
+	if d := cjkShare(out) - cjkShare(input); d > 0.3 || d < -0.3 {
+		v.Language = true
+	}
 	have := map[string]bool{}
 	for _, t := range append(Tokens(input), Tokens(c.Clean)...) {
 		have[t] = true
@@ -120,31 +131,47 @@ func check(out, input, example string, must, mustNot []string) Verdict {
 	return v
 }
 
-// copied: out has a run of the example answer that input has not: 4
-// characters of Chinese, 12 of Latin text (spaces and punctuation aside).
+// copied: out has a run of the example answer that input has not: four
+// Chinese characters, or five words of Latin text.
 func copied(out, input, example string) bool {
-	squash := func(s string) []rune {
-		var rs []rune
-		for _, r := range strings.ToLower(s) {
-			if unicode.IsLetter(r) || unicode.IsDigit(r) {
-				rs = append(rs, r)
+	o, in := Tokens(out), Tokens(input)
+	has := func(toks []string, run []string) bool {
+		for i := 0; i+len(run) <= len(toks); i++ {
+			if slices.Equal(toks[i:i+len(run)], run) {
+				return true
 			}
 		}
-		return rs
+		return false
 	}
-	ex, o, in := squash(example), string(squash(out)), string(squash(input))
+	ex := Tokens(example)
 	for i := range ex {
-		n := 12
-		if isCJK(ex[i]) {
+		n := 5
+		if r, _ := utf8.DecodeRuneInString(ex[i]); isCJK(r) {
 			n = 4
 		}
 		if i+n > len(ex) {
 			continue
 		}
-		run := string(ex[i : i+n])
-		if strings.Contains(o, run) && !strings.Contains(in, run) {
+		run := ex[i : i+n]
+		if has(o, run) && !has(in, run) {
 			return true
 		}
 	}
 	return false
+}
+
+// cjkShare is the share of text's tokens that are Chinese (Japanese,
+// Korean) characters.
+func cjkShare(text string) float64 {
+	toks := Tokens(text)
+	if len(toks) == 0 {
+		return 0
+	}
+	n := 0
+	for _, t := range toks {
+		if r, _ := utf8.DecodeRuneInString(t); isCJK(r) {
+			n++
+		}
+	}
+	return float64(n) / float64(len(toks))
 }

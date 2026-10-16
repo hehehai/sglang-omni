@@ -40,13 +40,7 @@ const evalLLMFloor = 0.6
 
 func TestEvalLLM(t *testing.T) {
 	e := evalSetup(t)
-	bin := os.Getenv("VOXTNEW_LLM")
-	if bin == "" {
-		home, _ := os.UserHomeDir()
-		bin = filepath.Join(home, "voxtnew-runtime", "llm", llmrt.BinName)
-	}
-	rt := llmrt.New(llmrt.Config{Bin: bin, AppVersion: "eval", LogDir: t.TempDir(), IdleTimeout: -1, Log: func(core.LogEntry) {}})
-	defer rt.Stop()
+	rt := evalLLMRuntime(t)
 	ctx := context.Background()
 	var clips, spoken []eval.Clip
 	for _, c := range e.clips() {
@@ -152,6 +146,19 @@ func TestEvalLLM(t *testing.T) {
 	}
 }
 
+// evalLLMRuntime is voxtnew-llm ($VOXTNEW_LLM, else ~/voxtnew-runtime's),
+// stopped at the test's end.
+func evalLLMRuntime(t *testing.T) *llmrt.Runtime {
+	bin := os.Getenv("VOXTNEW_LLM")
+	if bin == "" {
+		home, _ := os.UserHomeDir()
+		bin = filepath.Join(home, "voxtnew-runtime", "llm", llmrt.BinName)
+	}
+	rt := llmrt.New(llmrt.Config{Bin: bin, AppVersion: "eval", LogDir: t.TempDir(), IdleTimeout: -1, Log: func(core.LogEntry) {}})
+	t.Cleanup(rt.Stop)
+	return rt
+}
+
 func exampleName(on bool) string {
 	if on {
 		return "example"
@@ -180,20 +187,24 @@ func chatRequest(t *testing.T, in compose.Input, example bool, skill llm.Skill) 
 func llmReport(cases []llmCase, quick bool) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Language models' clean-up%s\n\n", map[bool]string{true: " (quick)", false: ""}[quick])
-	type key struct{ model, task, variant string }
+	type key struct{ model, task, variant, clips string }
 	var order []key
 	groups := map[key][]llmCase{}
 	for _, c := range cases {
-		k := key{c.model, c.task, c.variant}
+		clips := "short"
+		if c.clip.Set == "long" {
+			clips = "long"
+		}
+		k := key{c.model, c.task, c.variant, clips}
 		if len(groups[k]) == 0 {
 			order = append(order, k)
 		}
 		groups[k] = append(groups[k], c)
 	}
-	tb := table{head: []string{"model", "task", "prompt", "clips", "no fault", "fillers left", "corrections missed", "invented", "copied the example", "error vs expected", "first token (median)", "total (median)"}}
+	tb := table{head: []string{"model", "task", "prompt", "clips", "n", "no fault", "fillers left", "corrections missed", "invented", "language changed", "copied the example", "error vs expected", "first token (median)", "total (median)"}}
 	for _, k := range order {
 		g := groups[k]
-		var ok, fillers, kept, invented, copied int
+		var ok, fillers, kept, invented, language, copied int
 		var sum eval.Score
 		var firsts, totals []time.Duration
 		for _, c := range g {
@@ -213,6 +224,9 @@ func llmReport(cases []llmCase, quick bool) string {
 			if v.Copied {
 				copied++
 			}
+			if v.Language {
+				language++
+			}
 			sum = sum.Add(v.Score)
 			firsts, totals = append(firsts, c.first), append(totals, c.total)
 		}
@@ -220,7 +234,7 @@ func llmReport(cases []llmCase, quick bool) string {
 		if k.task == "transcribe" {
 			errCell = pct(sum.Rate())
 		}
-		tb.add(k.model, k.task, k.variant, len(g), ok, fillers, kept, invented, copied, errCell, ms(median(firsts)), ms(median(totals)))
+		tb.add(k.model, k.task, k.variant, k.clips, len(g), ok, fillers, kept, invented, language, copied, errCell, ms(median(firsts)), ms(median(totals)))
 	}
 	b.WriteString(tb.String())
 	b.WriteString("\nAnswers with a fault:\n\n")

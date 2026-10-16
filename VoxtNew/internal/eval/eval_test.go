@@ -67,6 +67,19 @@ func TestCheckClean(t *testing.T) {
 	if v := CheckClean(en, en.Text, "Bring the brolly.", ""); len(v.Fillers) != 0 || len(v.Kept) != 0 || len(v.Missing) != 0 {
 		t.Errorf("umbrella: %+v", v)
 	}
+	// A translation that shares a few words with the example has not
+	// copied it; five words in a row have.
+	ex := "Please send the weekly report to Xiao Li before the end of today."
+	if v := CheckTranslation(nil, nil, "那个报告周四之前发给我", "Please send the report to me by Thursday.", ex); v.Copied {
+		t.Error("three words in common: copied")
+	}
+	if v := CheckTranslation(nil, nil, "那个报告周四之前发给我", "Send the weekly report to Xiao Li by Thursday.", ex); !v.Copied {
+		t.Error("five words of the example: not copied")
+	}
+	// A clean-up into another language.
+	if v := CheckClean(c, c.Text, "We'll meet next Wednesday at 3 p.m. to discuss the budget.", ""); !v.Language || v.OK() {
+		t.Errorf("translated: %+v", v)
+	}
 	if v := CheckTranslation([]string{"Wednesday"}, []string{"Tuesday"}, c.Text, "Um, let's meet on Tuesday, no, Wednesday.", ""); v.OK() ||
 		!slices.Contains(v.Fillers, "um") || !slices.Contains(v.Kept, "Tuesday") {
 		t.Errorf("translation: %+v", v)

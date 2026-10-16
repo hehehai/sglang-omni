@@ -211,6 +211,10 @@ func TestLLMTranslateModel(t *testing.T) {
 // through local.Openers' LLM (models_runtimes.go), and deleting the loaded
 // one stops the process first (Openers.Unload).
 func TestLLMOpenerThroughLibrary(t *testing.T) {
+	// The fake process and seeded models, also beside VOXTNEW_LLM_REAL's
+	// variables (scripts/mac-regress.sh runs TestLLM* with them).
+	t.Setenv(llmrt.DevEnv, "")
+	t.Setenv("VOXTNEW_LLM", "")
 	a, _, _ := newTestApp(t)
 	self, _ := os.Executable()
 	rt := llmrt.New(llmrt.Config{Bin: self, Env: llmrttest.Env(llmrttest.Opt("reply", "Done.")), IdleTimeout: -1})

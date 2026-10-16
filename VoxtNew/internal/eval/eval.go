@@ -47,8 +47,11 @@ type Clip struct {
 	// Chinese clip spoken for Translate).
 	MustEn    []string `json:"mustEn,omitempty"`
 	MustNotEn []string `json:"mustNotEn,omitempty"`
-	// Terms are the dictionary's terms said in the clip.
+	// Terms are the dictionary's terms said in the clip; Heard is how a
+	// speech model wrote the clip without the dictionary (the glossary's
+	// test: the clean-up should write the terms right).
 	Terms []string `json:"terms,omitempty"`
+	Heard string   `json:"heard,omitempty"`
 	// PCM is the audio: 16-bit mono at 16 kHz (Load with audio).
 	PCM []byte `json:"-"`
 }
@@ -71,8 +74,10 @@ type Set struct {
 	// Dictionary is the user's dictionary in the runs: every term of the
 	// set (the recognition's context bias, the clean-up's glossary).
 	Dictionary []string `json:"dictionary"`
-	Clips      []Clip   `json:"clips"`
-	Long       []Long   `json:"long"`
+	// Aliases are what the user noted the speech model writes for a term.
+	Aliases map[string][]string `json:"aliases"`
+	Clips   []Clip              `json:"clips"`
+	Long    []Long              `json:"long"`
 }
 
 // Load reads the set in dir (clips.json), with the clips' audio when

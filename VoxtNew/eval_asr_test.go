@@ -239,13 +239,17 @@ func asrReport(id string, cold time.Duration, results []asrResult, live []liveRe
 		fmt.Fprintf(&b, ". Live (%d clips in real time): first partial after the speech starts median %s, max %s; the Final after Finish median %s, max %s",
 			len(live), ms(median(firsts)), ms(maxOf(firsts)), ms(median(afters)), ms(maxOf(afters)))
 	}
-	b.WriteString(".\n\nTranscripts (main zh / none / main en):\n\n")
+	b.WriteString(".\n\nBy clip, the error rate and the transcript (long ones: their first 60 characters) under each hint:\n\n")
 	ct := table{head: []string{"clip", "main zh", "none", "main en"}}
 	for _, r := range results {
-		if r.clip.Set == "long" {
-			continue
+		cell := func(h string) string {
+			text := []rune(r.text[h])
+			if r.clip.Set == "long" && len(text) > 60 {
+				text = append(text[:60], '…')
+			}
+			return pct(r.score[h].Rate()) + " " + mdText(string(text))
 		}
-		ct.add(r.clip.ID, mdText(r.text["main zh"]), mdText(r.text["none"]), mdText(r.text["main en"]))
+		ct.add(r.clip.ID, cell("main zh"), cell("none"), cell("main en"))
 	}
 	b.WriteString(ct.String() + "\n")
 	return b.String()

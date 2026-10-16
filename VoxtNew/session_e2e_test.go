@@ -58,9 +58,16 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc 
 	}
 	if real, ok := svc.(realLocal); ok {
 		// The app's own local models (the Library and its runtimes),
-		// these installed.
-		if err := modelstest.Seed(filepath.Join(lib.store.Dir(), "models"), real.installed...); err != nil {
+		// these installed: seeded, or real ones linked in.
+		dir := filepath.Join(lib.store.Dir(), "models")
+		if err := modelstest.Seed(dir, real.installed...); err != nil {
 			t.Fatal(err)
+		}
+		for id, from := range real.link {
+			os.MkdirAll(dir, 0o755)
+			if err := os.Symlink(from, filepath.Join(dir, id)); err != nil {
+				t.Fatal(err)
+			}
 		}
 	} else {
 		old := newLocalServices
@@ -95,6 +102,7 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc 
 type realLocal struct {
 	local.NotInstalled
 	installed []string
+	link      map[string]string // installed models' folders, by id (eval_e2e_test.go)
 }
 
 // pump runs posted functions until cond holds.

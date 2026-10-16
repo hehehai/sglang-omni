@@ -14,10 +14,10 @@ var Fillers = []string{"嗯", "呃", "额", "啊", "唔", "um", "uh", "er", "erm
 // reference: tokens are Chinese (and Japanese, Korean) characters one by
 // one and Latin words, after Normalize.
 type Score struct {
-	N                     int // the reference's tokens
-	Sub, Del, Ins         int
-	RefTokens, HypTokens  []string `json:"-"`
-	ins                   []string
+	N                    int // the reference's tokens
+	Sub, Del, Ins        int
+	RefTokens, HypTokens []string `json:"-"`
+	ins                  []string
 }
 
 // Edits is substitutions, deletions and insertions.
