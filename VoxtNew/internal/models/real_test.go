@@ -143,3 +143,34 @@ func waitReal(t *testing.T, m *Manager, id string, limit time.Duration) Status {
 	t.Fatalf("%s: not done in %v: %+v", id, limit, m.Status(id))
 	return Status{}
 }
+
+// TestRealInstall installs every catalogue model under
+// $VOXTNEW_MODELS_INSTALL (its <id>/ folders), adopting the Hugging Face
+// cache's verified files first: the persistent models of the Mac's
+// regression runs (scripts/mac-regress.sh, ~/voxtnew-models). Models
+// already installed there are kept; a stopped download resumes.
+//
+//	VOXTNEW_MODELS_INSTALL=$HOME/voxtnew-models go test -count=1 -timeout 2h -v -run TestRealInstall ./internal/models
+func TestRealInstall(t *testing.T) {
+	root := os.Getenv("VOXTNEW_MODELS_INSTALL")
+	if root == "" {
+		t.Skip("set VOXTNEW_MODELS_INSTALL to the folder to install into")
+	}
+	m := Open(root, Options{HFCache: DefaultHFCache()})
+	defer m.Close()
+	for _, mod := range Catalog() {
+		if m.Installed(mod.ID) {
+			t.Logf("%s: installed", mod.ID)
+			continue
+		}
+		start := time.Now()
+		if err := m.Download(mod.ID); err != nil {
+			t.Fatalf("%s: %v", mod.ID, err)
+		}
+		s := waitReal(t, m, mod.ID, 90*time.Minute)
+		if !s.Installed || s.Err != nil {
+			t.Fatalf("%s: %+v", mod.ID, s)
+		}
+		t.Logf("%s: %d MB in %v at %s", mod.ID, mod.Size()>>20, time.Since(start).Round(time.Second), m.Dir(mod.ID))
+	}
+}
