@@ -160,9 +160,9 @@ func (f *fake) memory() wire.Memory {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.loaded == nil {
-		return wire.Memory{FootprintBytes: 30 << 20, PeakFootprintBytes: 2 << 30}
+		return wire.Memory{FootprintBytes: 30 << 20, PeakFootprintBytes: 2 << 30, ResidentBytes: 40 << 20}
 	}
-	return wire.Memory{FootprintBytes: 2 << 30, PeakFootprintBytes: 2 << 30, MLXActiveBytes: 1 << 30}
+	return wire.Memory{FootprintBytes: 2 << 30, PeakFootprintBytes: 2 << 30, ResidentBytes: 2 << 30, MLXActiveBytes: 1 << 30}
 }
 
 func (f *fake) handle(m wire.Message) {

@@ -30,7 +30,7 @@ final class Runtime: Engine, @unchecked Sendable {
         }
         lock.withLock { current = model }
         let ms = monotonicMs() - started
-        logLine("loaded \(model.id) in \(Int(ms)) ms; footprint \(memory().footprintBytes >> 20) MB")
+        logLine("loaded \(model.id) in \(Int(ms)) ms; footprint \(memory().footprintBytes >> 20) MB, resident \(memory().residentBytes >> 20) MB")
         return LoadOutcome(cached: false, loadMs: ms)
     }
 
@@ -55,19 +55,20 @@ final class Runtime: Engine, @unchecked Sendable {
     }
 
     func memory() -> Memory {
-        let (footprint, peak) = physicalFootprint()
+        let (footprint, peak, resident) = taskMemory()
         guard loaded()?.format == Format.mlx else {
-            return Memory(footprintBytes: footprint, peakFootprintBytes: peak)
+            return Memory(footprintBytes: footprint, peakFootprintBytes: peak, residentBytes: resident)
         }
         let c = MLXEngine.counters()
-        return Memory(footprintBytes: footprint, peakFootprintBytes: peak,
+        return Memory(footprintBytes: footprint, peakFootprintBytes: peak, residentBytes: resident,
                       mlxActiveBytes: c.active, mlxCacheBytes: c.cache, mlxPeakBytes: c.peak)
     }
 }
 
 /// The process's physical footprint, now and at its peak (task_vm_info:
-/// what Activity Monitor's Memory column shows; Metal buffers count).
-func physicalFootprint() -> (Int64, Int64) {
+/// what Activity Monitor's Memory column shows; Metal buffers count), and
+/// its resident size (mapped files too: a GGUF model's weights).
+func taskMemory() -> (Int64, Int64, Int64) {
     var info = task_vm_info_data_t()
     var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
     let kr = withUnsafeMutablePointer(to: &info) {
@@ -75,8 +76,8 @@ func physicalFootprint() -> (Int64, Int64) {
             task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
         }
     }
-    guard kr == KERN_SUCCESS else { return (0, 0) }
-    return (Int64(info.phys_footprint), Int64(info.ledger_phys_footprint_peak))
+    guard kr == KERN_SUCCESS else { return (0, 0, 0) }
+    return (Int64(info.phys_footprint), Int64(info.ledger_phys_footprint_peak), Int64(info.resident_size))
 }
 
 /// Diagnostics on stderr (the app keeps them in llm.log).

@@ -42,7 +42,7 @@ final class FakeEngine: Engine, @unchecked Sendable {
                            promptMs: 1, firstTokenMs: 2, tokensPerSecond: 50)
     }
 
-    func memory() -> Memory { Memory(footprintBytes: 100, peakFootprintBytes: 200) }
+    func memory() -> Memory { Memory(footprintBytes: 100, peakFootprintBytes: 200, residentBytes: 150) }
 }
 
 /// The lines a server writes, decoded.

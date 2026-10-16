@@ -88,9 +88,13 @@ type Model struct {
 type Memory struct {
 	FootprintBytes     int64 `json:"footprintBytes"`     // physical footprint now (Metal buffers included)
 	PeakFootprintBytes int64 `json:"peakFootprintBytes"` // its peak over the process's life
-	MLXActiveBytes     int64 `json:"mlxActiveBytes,omitempty"`
-	MLXCacheBytes      int64 `json:"mlxCacheBytes,omitempty"`
-	MLXPeakBytes       int64 `json:"mlxPeakBytes,omitempty"`
+	// ResidentBytes is the resident memory now, file-backed pages
+	// included: a GGUF model's weights, mapped from its file, count here
+	// and not in the footprint.
+	ResidentBytes  int64 `json:"residentBytes"`
+	MLXActiveBytes int64 `json:"mlxActiveBytes,omitempty"`
+	MLXCacheBytes  int64 `json:"mlxCacheBytes,omitempty"`
+	MLXPeakBytes   int64 `json:"mlxPeakBytes,omitempty"`
 }
 
 // LoadParams loads a model.

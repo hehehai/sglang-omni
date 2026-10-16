@@ -171,9 +171,9 @@ func chatLine(id string, skill llm.Skill, r wire.ChatResult) string {
 	if r.Timings.LoadMs > 0 {
 		load = fmt.Sprintf(", load %.0f ms", r.Timings.LoadMs)
 	}
-	return fmt.Sprintf("%s %s: %d+%d tokens, first token %.0f ms%s, %.1f tokens/s, %.0f ms in all, %s; footprint %d MB (peak %d MB)",
+	return fmt.Sprintf("%s %s: %d+%d tokens, first token %.0f ms%s, %.1f tokens/s, %.0f ms in all, %s; footprint %d MB (peak %d MB), resident %d MB",
 		id, skill, r.Usage.PromptTokens, r.Usage.CompletionTokens, r.Timings.FirstTokenMs, load, r.Timings.TokensPerSecond,
-		r.Timings.TotalMs, r.Finish, r.Memory.FootprintBytes>>20, r.Memory.PeakFootprintBytes>>20)
+		r.Timings.TotalMs, r.Finish, r.Memory.FootprintBytes>>20, r.Memory.PeakFootprintBytes>>20, r.Memory.ResidentBytes>>20)
 }
 
 // deltaPump hands chat.delta texts from the reader goroutine to the

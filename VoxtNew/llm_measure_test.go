@@ -112,3 +112,48 @@ func TestLLMMeasure(t *testing.T) {
 }
 
 func oneLine(s string) string { return fmt.Sprintf("%q", s) }
+
+// TestLLMRealCancel: a long answer stops within a moment of its cancel,
+// and the process takes the next chat (VOXTNEW_LLM_REAL=1).
+func TestLLMRealCancel(t *testing.T) {
+	if os.Getenv("VOXTNEW_LLM_REAL") != "1" {
+		t.Skip("VOXTNEW_LLM_REAL=1 on a Mac, with VOXTNEW_DEV_LLM")
+	}
+	ms, _ := llmrt.ParseDev(os.Getenv(llmrt.DevEnv))
+	for _, m := range ms {
+		t.Run(m.ID, func(t *testing.T) {
+			_, l := llmServices(t, &fakeTranscriptions{}, "", m.ID)
+			b, err := llmrt.NewModel(l.rt, m.ID, m.Dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := llm.Request{Skill: llm.SkillRewrite, Messages: []llm.Message{{Role: llm.User, Content: "Write a long story about a lighthouse keeper, at least 800 words."}}}
+			if p, _ := llmrt.Lookup(m.ID); p.TranslateOnly() {
+				req = llm.Request{Skill: llm.SkillTranslateText, Translate: &llm.TranslateHint{Text: strings.Repeat("今天天气很好，我们去公园散步，然后去图书馆看书。", 30), Target: "en"}}
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			var cancelledAt time.Time
+			deltas := 0
+			req.OnDelta = func(string) {
+				deltas++
+				if deltas == 20 {
+					cancelledAt = time.Now()
+					cancel()
+				}
+			}
+			_, err = b.Chat(ctx, req)
+			stopped := time.Since(cancelledAt)
+			if !strings.Contains(fmt.Sprint(err), "context canceled") || cancelledAt.IsZero() || stopped > 2*time.Second {
+				t.Fatalf("err %v after %d deltas, %v after the cancel", err, deltas, stopped)
+			}
+			t.Logf("cancelled after %d deltas; the chat ended %v later", deltas, stopped.Round(time.Millisecond))
+			req.OnDelta, req.MaxTokens = nil, 16
+			if _, err := b.Chat(context.Background(), req); err != nil {
+				t.Fatalf("the next chat: %v", err)
+			}
+			if st := l.rt.Status(); st.Starts != 1 {
+				t.Errorf("the process was restarted: %+v", st)
+			}
+		})
+	}
+}

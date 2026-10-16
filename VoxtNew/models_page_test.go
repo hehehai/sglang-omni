@@ -41,7 +41,7 @@ func TestModelsPage(t *testing.T) {
 	tt.SetSize(windowWidth, 1600) // every card on screen
 	a.navigate(modelsPath)
 	for _, s := range []string{"Accurate speech recognition", "Fast speech recognition", "Balanced language model",
-		"Fast language model", "Translation model", "Default", "2.5 GB download", "4.0 GB download",
+		"Fast language model", "Translation model", "Default", "2.5 GB download", "3.3 GB download",
 		"30 languages and 22 Chinese dialects, including Chinese, English, Cantonese, Japanese and Korean",
 		"Translates between 33 languages, including Chinese, English, Japanese, Korean and Cantonese"} {
 		if !has(tt, s) {

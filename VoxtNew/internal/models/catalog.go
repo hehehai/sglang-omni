@@ -143,8 +143,6 @@ var catalog = []Model{
 			{"kv_config.json", 528, "5de3659fa5db489d9ae8ef95eee8963ae6c778099a4de06de7994cce61d82129"},
 			{"model.safetensors", 3269669552, "5d59fea455202270c0f7f71a1902516b06457df5600c3182e1ff9163c33287c1"},
 			{"model.safetensors.index.json", 100945, "67306a1f0b0181d92adfe92fce654b6c91ee0c5c2b51b0de114ced2a2ecdbcbc"},
-			{"optiq/mtp.safetensors", 86701044, "a5b658f4145445564c3f7990fd7c3b551b8a2de990c0a743ddde05736e8ded30"},
-			{"optiq/optiq_vision.safetensors", 667061501, "2f3a952d401ef2e5735c0b56a0b718e338224a0d7af717f80a9315c26bdd8577"},
 			{"optiq_metadata.json", 26224, "38eb38a541e2b169c258630fd4a64b2bf256a024abfc55ff0935f0ec495d4be2"},
 			{"tokenizer.json", 19989343, "87a7830d63fcf43bf241c3c5242e96e62dd3fdc29224ca26fed8ea333db72de4"},
 			{"tokenizer_config.json", 1135, "b2bed5e033438f09f22b0ce9522115b4807d9bbcc3b82bf23372cb74d93ed081"},

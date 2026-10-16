@@ -68,7 +68,7 @@ Errors are `{"code": "…", "message": "…", "data"?: {…}}`:
 - `sampling.temperature` 0 is greedy. Absent fields are the engine's neutral values (top-p 1, no top-k, no min-p, no repetition penalty). `prefillStepSize` is MLX's prompt chunk.
 - `template` is passed to the model's chat template as variables (`{"enable_thinking": false}` for Qwen3.5); MLX only, a GGUF model's template takes none.
 - `finish` is `stop` (the model ended, or the repetition guard cut a loop) or `length` (`maxTokens` reached). `text` is the deltas joined, but when the repetition guard (Voxt's: a phrase repeated six times or more) cut a loop: then it keeps one copy and is shorter than the deltas.
-- `memory` is `{footprintBytes, peakFootprintBytes, mlxActiveBytes?, mlxCacheBytes?, mlxPeakBytes?}`: the process's physical footprint now and at its peak (which counts Metal buffers), and MLX's own counters for an MLX model.
+- `memory` is `{footprintBytes, peakFootprintBytes, residentBytes, mlxActiveBytes?, mlxCacheBytes?, mlxPeakBytes?}`: the process's physical footprint now and at its peak (which counts Metal buffers, so an MLX model's weights), its resident size (which counts mapped files, so a GGUF model's weights, which llama.cpp maps from the file and the footprint leaves out), and MLX's own counters for an MLX model.
 - `cacheLimitMB` bounds MLX's buffer cache (0: MLX's default).
 - `timings`: `loadMs` when the chat loaded its model, `promptMs` the prompt's evaluation, `firstTokenMs` from the request to the first piece of text, `totalMs` the whole chat, `tokensPerSecond` the generation's rate after the first token.
 

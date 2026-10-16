@@ -78,13 +78,15 @@ public struct ModelSpec: Codable, Sendable, Equatable {
 public struct Memory: Codable, Sendable, Equatable {
     public var footprintBytes: Int64
     public var peakFootprintBytes: Int64
+    public var residentBytes: Int64
     public var mlxActiveBytes: Int64?
     public var mlxCacheBytes: Int64?
     public var mlxPeakBytes: Int64?
 
-    public init(footprintBytes: Int64, peakFootprintBytes: Int64, mlxActiveBytes: Int64? = nil, mlxCacheBytes: Int64? = nil, mlxPeakBytes: Int64? = nil) {
+    public init(footprintBytes: Int64, peakFootprintBytes: Int64, residentBytes: Int64, mlxActiveBytes: Int64? = nil, mlxCacheBytes: Int64? = nil, mlxPeakBytes: Int64? = nil) {
         self.footprintBytes = footprintBytes
         self.peakFootprintBytes = peakFootprintBytes
+        self.residentBytes = residentBytes
         self.mlxActiveBytes = mlxActiveBytes
         self.mlxCacheBytes = mlxCacheBytes
         self.mlxPeakBytes = mlxPeakBytes
