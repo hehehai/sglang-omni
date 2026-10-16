@@ -23,14 +23,19 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/omni/omnitest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
 )
 
-// The test binary is also the fake helper (helpertest).
+// The test binary is also the fake helper (helpertest) and the fake
+// Omni server (omnitest).
 func TestMain(m *testing.M) {
 	if helpertest.Enabled() {
 		helpertest.Main()
+	}
+	if omnitest.Enabled() {
+		omnitest.Main()
 	}
 	os.Exit(m.Run())
 }

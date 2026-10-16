@@ -35,7 +35,9 @@ func Main() {
 		emit(map[string]any{"event": "failed", "reason": "model load failed: fake"})
 		os.Exit(1)
 	case ModeHang:
-		select {}
+		for {
+			time.Sleep(time.Hour) // (a bare select{} is a deadlock to the runtime)
+		}
 	}
 	if arg(args, "--model-directory") == "" {
 		fmt.Fprintln(os.Stderr, "--model-path is required")
