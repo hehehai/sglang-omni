@@ -5,20 +5,17 @@
 # helper records a file). Niced, two jobs, one step at a time; it stops
 # when less than VOXTNEW_MIN_FREE percent of memory (40) is free.
 #
-#   MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh             # all
-#   MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh --offline   # no real services
+#   MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh
 #
-# The real-service tests (one StepFun call, three DeepSeek calls) take
-# STEPFUN_API_KEY and DEEPSEEK_API_KEY from the environment or
-# ~/.config/voxtnew-dev/keys.env; without them they skip.
+# Nothing reaches the network: a session runs over the fake local models
+# (TestMacE2ESessionLocal). --offline is accepted and changes nothing (it
+# skipped Auralink's real-service tests).
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "run it on a Mac: MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh" >&2
   exit 1
 fi
-offline=0
-[[ "${1:-}" == "--offline" ]] && offline=1
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export GOMAXPROCS=2 GOFLAGS=-p=2 SWIFT_BUILD_JOBS=2
@@ -47,10 +44,8 @@ step "text fit (Core Text)"
 VOXTNEW_TEXTFIT_PROBE=1 VOXTNEW_TEXTFIT_AUDIT=strict nice -n 10 go test -count=1 -run 'TestTextFitsItsOwnWidth|TestTranslationsFit' -v . |
   grep -E '^(---|ok|FAIL|PASS)|break at'
 
-if (( offline == 0 )); then
-  step "real services: StepFun and DeepSeek"
-  nice -n 10 go test -count=1 -run 'TestMacE2ESessionReal|TestMacE2EWriteReal' -v . | grep -vE '^\s*$'
-fi
+step "a session over the fake local models"
+nice -n 10 go test -count=1 -run 'TestMacE2ESessionLocal' -v . | grep -vE '^\s*$'
 
 if pgrep -f "$VOXTNEW_HELPER" >/dev/null; then
   echo "a helper is still running: $(pgrep -f "$VOXTNEW_HELPER" | tr '\n' ' ')" >&2

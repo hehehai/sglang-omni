@@ -1,5 +1,7 @@
 # 发布与更新
 
+> **VoxtNew M0 说明**：这份流程继承自 Auralink。VoxtNew 在 sglang-omni 仓库里，GitHub 只运行仓库根目录的工作流，`VoxtNew/.github/workflows/` 目前不会运行；发布用的仓库（`release/mygo.release.json` 里暂填 `hehehai/VoxtNew`）、签名和本地运行时的打包都留给 M4。
+
 VoxtNew 的发布版本在 GitHub Actions 上构建：打一个 `v0.x.y` tag（正式版）或 `v0.x.y-beta.n` tag（beta 版），[release 工作流](../.github/workflows/release.yml) 就在 macOS runner 上编译辅助进程和 app，用 Developer ID 签名，用 Apple ID 和 App 专用密码公证，用更新密钥签名更新包，然后把这些文件传到一个**草稿** Release：
 
 | 文件 | 用途 |

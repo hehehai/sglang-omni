@@ -1,3 +1,6 @@
+# Inert here: GitHub runs only the repository root's workflows; VoxtNew's
+# release pipeline (signing, notarization, the update feed's repository)
+# is M4's (docs/plan.md).
 # Release (docs/release.md): on a tag v0.x.y (a release) or v0.x.y-beta.n
 # (a beta, a GitHub prerelease), build VoxtNew for Apple
 # silicon on a macOS runner, sign it with the Developer ID, notarize it

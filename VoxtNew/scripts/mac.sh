@@ -4,7 +4,7 @@
 # fetches the Go the module asks for).
 #
 #   scripts/mac.sh go tool mygo build
-#   scripts/mac.sh go test ./internal/secrets
+#   scripts/mac.sh go test ./internal/permission
 #   scripts/mac.sh --pull build/darwin-arm64   # copy a path back
 #
 # MAC_HOST (default mac-air) and MAC_DIR (default code/VoxtNew) pick the

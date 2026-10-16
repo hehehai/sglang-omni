@@ -1,4 +1,7 @@
-# CI (AudioSmith's), two jobs:
+# CI (AudioSmith's, by way of Auralink), two jobs. Inert here: GitHub runs
+# only the repository root's .github/workflows, so this waits for a root
+# workflow (with working-directory: VoxtNew) to take it over (M4).
+#
 # - go (Linux): the Go side (views in ui.Tester, the store, settings, the
 #   helper supervisor against the fake helper, the protocol fixtures, i18n
 #   key parity) and MyGo's vet.
@@ -118,10 +121,8 @@ jobs:
       - name: MyGo vet
         run: go tool mygo vet .
 
-      - name: Vet the demo and update-check builds
-        run: |
-          go vet -tags demo ./...
-          go vet -tags updatecheck .
+      - name: Vet the update-check build
+        run: go vet -tags updatecheck .
 
       - name: Snapshots
         run: |

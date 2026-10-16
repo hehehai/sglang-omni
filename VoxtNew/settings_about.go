@@ -41,10 +41,6 @@ const (
 	noticeURL  = repoURL + "/blob/main/VoxtNew/NOTICE"
 )
 
-// copyrightHolder is who holds VoxtNew's copyright (NOTICE, README,
-// mygo.json's copyright and the CLA name it too; the CLA's §1 is where its
-// legal name goes).
-const copyrightHolder = "actnow"
 
 // aboutState is the Diagnostics page's state.
 type aboutState struct {
@@ -302,11 +298,12 @@ func (a *app) aboutSettings(c *ui.Context) {
 		}
 	})
 	// The "appropriate legal notices" an interactive program shows under the
-	// GNU AGPL (§0, §5 d): the copyright, no warranty, the licence.
-	caption(c, i18n.T("Copyright © 2026 %s and the VoxtNew contributors.", copyrightHolder))
-	caption(c, i18n.T("VoxtNew is free software under the GNU Affero General Public License, version 3 or later, and comes with no warranty. Parts of it come from AudioSmith."))
+	// The copyright, the licence (Apache-2.0) and where the code came from
+	// (NOTICE).
+	caption(c, i18n.T("Copyright © 2026 the VoxtNew authors."))
+	caption(c, i18n.T("VoxtNew is licensed under the Apache License 2.0 and comes with no warranty. It derives from Auralink and AudioSmith, by the same author."))
 	ui.Row(c.Key("about-licence")).Gap(px(t, sp3)).AlignItems(ui.Center).Wrap().Children(func() {
-		ui.Link(c.Key("about-licence-agpl"), i18n.T("Licence"), licenceURL).FontSize(px(t, fsCaption))
+		ui.Link(c.Key("about-licence-apache"), i18n.T("Licence"), licenceURL).FontSize(px(t, fsCaption))
 		ui.Link(c.Key("about-licence-source"), i18n.T("Source code"), sourceURL).FontSize(px(t, fsCaption))
 		ui.Link(c.Key("about-licence-notices"), i18n.T("Third-party notices"), noticeURL).FontSize(px(t, fsCaption))
 	})

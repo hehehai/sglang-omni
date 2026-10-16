@@ -1,8 +1,8 @@
 # 行为对照：Voxt 怎么做 / VoxtNew 怎么做 / 为什么
 
-VoxtNew 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0），代码按自己的结构重写，不逐行移植（方案 §1）。每个模块落地时，在这里补一节对照表，作为评审依据：
+本文继承自 Auralink（VoxtNew 由它复制而来，见 NOTICE），各节标题里的 M1–M6 是 Auralink 的里程碑；VoxtNew 的里程碑见 [plan.md](plan.md)。功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0），本仓的 `../Voxt` 也是它；VoxtNew 可以直接移植 Voxt 的代码（同一作者，Apache-2.0），但仍按自己的结构组织。每个模块落地时，在这里补一节对照表，作为评审依据：
 
-- **Voxt 怎么做**：写清楚出处（源码文件或文档），只描述行为，不抄代码。
+- **Voxt 怎么做**：写清楚出处（源码文件或文档）。
 - **VoxtNew 怎么做**：写实际实现的行为，并指向实现它的包或文件。
 - **为什么**：保留的写保留理由；改掉的写改的理由。
 
@@ -31,31 +31,9 @@ VoxtNew 的功能和行为参考 Voxt（`hehehai/voxt` @ `baa6f31`，1.15.0）�
 | 2.6 | 主窗口 820×560 | 主窗口默认 800×520，最小 680×440（`shell.go`；用户 10-15 两次缩小，原来是 880×580 / 720×480）；窗口记住的尺寸优先，旧版本留下的大窗口不会被缩小。按这两个尺寸排版：800 宽时显示完整侧边栏（窄于 740 才自动收成图标，见 9.9），页面宽 600；侧边栏行距收紧，520 高时一屏放得下全部页面；图标 rail 在 440 高时放得下全部图标，更矮时列表滚动，底部渐隐；模型服务卡片最小 260 宽，两种尺寸下都是两列；历史详情（290 宽，列表至少 300）和应用增强的分组列表（200 宽，右侧至少 380）在两种尺寸下都并排显示，不变成抽屉；设置对话框、引导、模型服务对话框、快捷键表的宽高都跟着窗口走，内容滚动，底部按钮始终可见 | 比 Voxt 还小一点，常驻桌面不占地方；比 AudioSmith 的 1100×720 更适合输入工具 | ✅ |
 | 2.7 | 状态写在设置和菜单栏里 | 没有底部状态栏（用户 10-15）。版本号在侧边栏底部“设置”一行的右侧；通知是“设置”上方的一叠卡片（`shell_notices.go`）：最新的一张完整显示（图标、标题、一两行说明、可选的操作、右上角 ×），后面最多两张露出底边；× 关掉一张，下一张浮上来；多于一张时有“N 条通知 · 全部清除”；没有通知时什么都不显示。侧边栏收成图标时，“设置”图标上有红点，点它弹出同样的卡片（下面是“设置”入口）。卡片来自通知中心（`internal/notify`，新增 `Dismiss`），原来的铃铛、通知弹窗和未读数都去掉了。状态栏上的“ASR … · LLM …”和“辅助进程就绪”正常时不显示，出问题时变成卡片：服务没就绪（`problem/services`，带“打开模型服务”），辅助进程停了（`problem/helper`，带“重启辅助进程”）；问题解决后卡片自动消失；用户关掉的卡片，同一个问题本次运行不再出现。日志面板只留 ⇧⌘L、⌘K 命令和“日志”页 | 正常时没有要看的状态，底部 26 px 留给页面；出问题时卡片带着修复的操作，比一行状态更容易看到 | ✅ |
 
-## 3. 远程模型（M2）
+## 3. 模型（VoxtNew：只用本地模型）
 
-| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
-|---|---|---|---|---|
-| 3.1 | ASR 的配置、连接测试、错误展示分散在 `Core/RemoteProviders/*` 和 `Transcription/RemoteASR/*` 的十几个文件里，错误多是带文案的 `NSError` | `internal/asr` 只有两种接口（`FileTranscriber` 上传、`Streamer`/`Stream` 流式，事件 Partial/Final/Error），每家一个子包；错误是带 `Kind` 的 `*asr.Error`（config/auth/quota/network/protocol/server/audio/cancelled），文案由 UI 按 Kind 给出 | 会话（M3）只面对一个接口；UI 能按错误类别告诉用户去改哪里 | ✅ |
-| 3.2 | Endpoint 允许 http/ws，只有带凭据时才要求 https（`RemoteEndpointSecurityPolicy`） | Endpoint 一律只允许 https/wss，http/ws 只限 loopback，URL 里不能带用户名密码（`asr.CheckEndpoint`、`llm.ProviderConfig.Resolve`）；日志里的 endpoint 去掉 query | Key 总会随请求发出，没有“不带凭据”的情况 | ✅ |
-| 3.3 | OpenAI 兼容转写：endpoint 必须填完整的 `/audio/transcriptions` 路径 | 也接受以 `/v1` 结尾的 API 根地址，自动补上路径；ASR 提示词和词典术语合在 `prompt` 字段（最多 800 字节）；25 MB 上限在发送前检查；5xx、429、网络错误重试一次（`internal/asr/openai`） | 用户常把 LLM 的 base URL 直接粘过来 | ✅ |
-| 3.4 | 豆包：2.0 用 `bigmodel_async` + `enable_nonstream`，1.0 用 `bigmodel`；开始录音时就发请求，失败稍后才暴露 | 默认值相同，请求字段按 endpoint 路径决定（只有 nostream 发语言，只有 async 发 enable_nonstream）；`Open` 等服务端第一帧确认后才返回 | 自定义中转地址也能拿到合法参数；Key、未开通资源在用户开口前就能报出来 | ✅ |
-| 3.5 | 豆包：200 ms 一包，最后发一个负序号的空包 | 同样 200 ms；有剩余音频时随最后一包发出 | 少一帧，和官方 demo 一致 | ✅ |
-| 3.6 | 豆包：取 `result.text`，没有时在整个 JSON 里找最长的文本 | 取 `result.text`，没有时拼 utterances；文本变化时才发 partial | 按文档的结构解析，不做启发式遍历；不重复发事件 | ✅ |
-| 3.7 | 豆包热词：所有端点最多 5000 个，外加 correct_words | 清洗、去重，按文档限额截断（双向流式约 100 token，nostream 5000 词）；不发未写进文档的 correct_words；ASR 提示词作为对话上下文发送 | 守住文档限额 | ✅ |
-| 3.8 | 豆包鉴权只有 App ID + Access Token | 有 App ID 时用 `X-Api-App-Key` + `X-Api-Access-Key`；只填 Key 时用新版控制台的 `X-Api-Key` | 新版控制台只发一个 API Key | ✅ |
-| 3.9 | 豆包 error 帧变成一个通用错误 | 错误码和握手状态映射到 Kind（403 “resource not granted” 是未开通 → quota），错误详情带 `X-Tt-Logid` | 用户能知道该去改什么，也方便提工单 | ✅ |
-| 3.10 | 阿里百炼：句子之间一律用空格连接 | 只在使用空格的文字之间加空格，中日韩文字和全角标点旁不加 | Voxt 会在中文句子之间多出空格 | ✅ |
-| 3.11 | 阿里 qwen3 realtime 预览只显示 `text` | 预览显示 `text + stash`；VAD 模式下只发 `session.finish`，不发 `commit` | 只显示 text 会慢半拍；官方禁止在 VAD 模式下 commit | ✅ |
-| 3.12 | 8 kHz 电话模型也发 16 kHz 音频 | 不在列表里，`New` 直接拒绝（KindConfig） | 它们只接受 8 kHz | ✅ |
-| 3.13 | 阿里 endpoint 路径会按模型改写成对应协议 | 同样改写，另外支持只填主机、https→wss、粘贴 DashScope HTTP 地址；中转地址保留原路径 | 用户常粘控制台或 LLM 的地址；国际站只需要换主机 | ✅ |
-| 3.14 | 阿里 `task-failed` / `error` 变成通用 NSError | 按 DashScope 错误码分类；`NO_VALID_AUDIO`（什么都没说）当作空的 final | 测试连接发的是静音，不能算失败 | ✅ |
-| 3.15 | LLM 默认关闭思考（`LLMGenerationSettings.defaultSettings`），DeepSeek 等按 provider 写在代码分支里 | 关闭思考写在预设数据里（`presets.json` 的 `extraBody`：DeepSeek、方舟、Kimi、GLM、MiMo 用 `thinking: disabled`，千问、硅基流动用 `enable_thinking: false`，Gemini 用 `reasoning_effort: none`）；服务端拒绝这些字段时去掉后重发一次 | 语音输入的回复都很短，思考会先占满预算和时间（Voxt 踩过的坑）；改成数据后，加 provider 不用改代码 | ✅ |
-| 3.16 | LLM 连接测试：关闭思考、最多 1 token，400/422 算失败 | `llm.Probe`：非流式、不重试、`max_tokens` 8；被截断（哪怕是空文本）算成功，400/422 带服务端说明算失败 | 同样的判断 | ✅ |
-| 3.17 | OpenAI 兼容转写的 4xx 一律报错；连接测试的结果只在对话框里显示，不写日志 | `asr.NoSpeech`：错误信息或错误码表示“没有语音”（阶跃对静音回 `400 no speech found`、阿里的 `NO_VALID_AUDIO`）时当作空文本；连接测试和会话里 ASR、LLM 的失败写进 app 日志（服务、模型、Kind 或 Code、HTTP 状态、服务端原文截断、耗时，不写 Key 和正文）；测试状态显示在“测试连接”按钮右侧，ⓘ 里有服务端原文 | 测试发的是静音，“没有语音”不能算失败；出错时用户要能在日志页看到原因 | ✅ |
-| 3.17 | LLM 预设含 Ollama、LM Studio、oMLX 等本地服务 | 不提供本地预设；`custom`（OpenAI 兼容）可以指向本机地址 | 产品范围不做本地模型（RULES） | ✅ |
-| 3.18 | MiniMax 用原生 `chatcompletion_v2` 接口 | 用它的 OpenAI 兼容接口 `api.minimaxi.com/v1`，输出里的 `<think>` 由 Client 去掉 | 和其他 provider 共用一个 transport | ◐ 等真实 Key 验证 |
-| 3.19 | 每个 provider 的配置页各不相同 | 模型服务页：ASR / LLM 两个 tab，“各功能使用”选择器，服务卡片（状态点、默认模型、Key 掩码、测试），点卡片打开同一种配置对话框（Key、Endpoint、模型下拉 + 自定义、ASR 提示词） | 一种界面覆盖所有 provider | ✅ |
-| 3.20 | 阶跃星辰 ASR 走 SSE（stepaudio-2.5-asr）或 WebSocket（step-asr-1.1-stream），各写一套协议 | 内置“StepFun”语音服务：它的 `/v1/audio/transcriptions` 与 OpenAI 兼容，复用 `internal/asr/openai`，默认 `step-asr`（10-15 用真实 Key 验证：10.5 s 样本 5–12 s 返回，接受 `prompt` 字段） | 少一套协议；上传式对短句足够 | ✅ |
+Auralink 的这一节对照的是远程 ASR / LLM 服务（豆包、阿里百炼、OpenAI 兼容、阶跃、DeepSeek 等），VoxtNew 在 M0 删掉了整个远程层（docs/architecture.md §5），这一节随之删去。本地模型的对照（Omni 运行时的生命周期、各模型的 Final 请求策略、实时预览节奏、Silero VAD、模型目录与固定版本）在 M1–M3 落地时补在这里，出处是 Voxt 的 `OmniASRRuntime.swift` 等。
 
 ## 4. 辅助进程（helper，Swift）
 

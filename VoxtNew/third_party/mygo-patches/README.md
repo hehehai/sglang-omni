@@ -1,10 +1,10 @@
-# Auralink's patches to MyGo
+# VoxtNew's patches to MyGo (Auralink's)
 
-0001 and 0002 are AudioSmith's patches (AudioSmith @f171c86), carried over unchanged: Auralink shares its UI kit and hits the same MyGo issues; their examples are AudioSmith's, where they were found. 0003 to 0007 are Auralink's own.
+0001 and 0002 are AudioSmith's patches (AudioSmith @f171c86), carried over unchanged: Auralink shares its UI kit and hits the same MyGo issues; their examples are AudioSmith's, where they were found. 0003 to 0007 are Auralink's own (VoxtNew started as Auralink, NOTICE).
 
-Auralink builds against `third_party/mygo` (the `replace` in `go.mod`): MyGo at the version `go.mod` requires, with these patches, made by `scripts/vendor-mygo.sh` from the module cache. The copy leaves out MyGo's website, docs, examples, CI, tests and test data; `scripts/vendor-mygo.sh --check` tells whether it is exactly what the script makes. Never edit `third_party/mygo` by hand: change a patch and run the script. A patch's hunks in the parts the copy leaves out (its `docs/`) are skipped there and kept in the patch for upstream.
+VoxtNew builds against `third_party/mygo` (the `replace` in `go.mod`): MyGo at the version `go.mod` requires, with these patches, made by `scripts/vendor-mygo.sh` from the module cache. The copy leaves out MyGo's website, docs, examples, CI, tests and test data; `scripts/vendor-mygo.sh --check` tells whether it is exactly what the script makes. Never edit `third_party/mygo` by hand: change a patch and run the script. A patch's hunks in the parts the copy leaves out (its `docs/`) are skipped there and kept in the patch for upstream.
 
-**Licence.** The patches in this directory are licensed under MyGo's MIT License (`third_party/mygo/LICENSE`), as the code they change is, and not under Auralink's GNU AGPL, so that they can go upstream unchanged. 0001 and 0002 come from AudioSmith (Apache-2.0), whose author offers them under the MIT License too. A contributor's patch comes in under the CLA (`CLA.md`), which lets actnow offer it under the MIT License as well.
+**Licence.** The patches in this directory are licensed under MyGo's MIT License (`third_party/mygo/LICENSE`), as the code they change is, so that they can go upstream unchanged. 0001 and 0002 come from AudioSmith (Apache-2.0), whose author offers them under the MIT License too; 0003 to 0007 come from Auralink, by the same author.
 
 Keep each patch small and send it upstream (egoist/mygo); drop it when a release has the fix. With no patch left, delete `third_party/mygo` and the replace (`go mod edit -dropreplace github.com/egoist/mygo`).
 

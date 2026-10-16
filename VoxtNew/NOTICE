@@ -1,42 +1,23 @@
 VoxtNew
-Copyright (C) 2026 actnow (https://actnow.dev) and the VoxtNew contributors
+Copyright 2026 the VoxtNew authors. Licensed under the Apache License 2.0
+(LICENSE).
 
-SPDX-License-Identifier: AGPL-3.0-or-later
-
-This program is free software: you can redistribute it and/or modify it
-under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or (at your
-option) any later version.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public
-License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program (LICENSE). If not, see
-<https://www.gnu.org/licenses/>.
-
-Contributions are accepted under the VoxtNew Contributor License
-Agreement (CLA.md); CONTRIBUTING.md says how to sign it.
-
-Earlier versions
-  VoxtNew up to and including commit 7d1c9a7 (among them the tag
-  v0.1.0-beta.1) was released under the Apache License 2.0. Copies
-  received under those terms keep them; later changes are under the
-  GNU AGPL as above.
+VoxtNew derives from Auralink (https://github.com/hehehai/Auralink) at
+commit 748cf55, by the same author, who licenses that code for VoxtNew
+under the Apache License 2.0: almost all of VoxtNew's Go code, the Swift
+helper, its tests and its documentation started there, and were renamed
+and stripped of Auralink's remote services (docs/architecture.md, §5).
 
 Third-party material
 ====================
 
-VoxtNew includes the material below. Each part keeps its own licence,
-and every one of them may be combined with and distributed under the
-GNU AGPL version 3: the Apache License 2.0 and the Unicode License v3 are
-compatible with GPLv3 and AGPLv3; MIT, ISC, BSD-3-Clause and CC BY 4.0
-(for the icons, which are artwork rather than code) ask for their notices
-to be kept, which this file and LICENSES/ do. Full licence texts:
-LICENSES/Apache-2.0.txt, LICENSES/Unicode-3.0.txt, third_party/mygo/LICENSE
-and LICENSES/go/ (the Go modules' own files, copied unchanged).
+VoxtNew includes the material below. Each part keeps its own licence:
+the Apache License 2.0, the Unicode License v3, MIT, ISC, BSD-3-Clause and
+CC BY 4.0 (for the icons, which are artwork rather than code) ask for
+their notices to be kept, which this file and LICENSES/ do. Full licence
+texts: LICENSES/Apache-2.0.txt, LICENSES/Unicode-3.0.txt,
+third_party/mygo/LICENSE and LICENSES/go/ (the Go modules' own files,
+copied unchanged).
 
 AudioSmith
   Portions of this product come from AudioSmith
@@ -119,14 +100,13 @@ MyGo
   Licensed under the MIT License (third_party/mygo/LICENSE). VoxtNew
   builds against a copy with its own patches (third_party/mygo-patches),
   made by scripts/vendor-mygo.sh, until upstream releases the fixes. The
-  patches are licensed under MyGo's MIT License, not under the GNU AGPL,
-  so that they can go upstream (third_party/mygo-patches/README.md).
+  patches are licensed under MyGo's MIT License, so that they can go
+  upstream (third_party/mygo-patches/README.md).
   VoxtNew.app also carries MyGo's prebuilt SQLite library (SQLite 3.53.4,
   https://sqlite.org, in the public domain).
 
 Go modules compiled into VoxtNew
   Their licence files are copied unchanged into LICENSES/go/.
-  - github.com/coder/websocket v1.8.15, Copyright (c) 2025 Coder, ISC
   - github.com/ebitengine/purego v0.11.1, Copyright the Ebitengine
     authors, Apache License 2.0 (LICENSES/Apache-2.0.txt)
   - github.com/go-text/typesetting v0.3.5, Copyright 2021 The go-text

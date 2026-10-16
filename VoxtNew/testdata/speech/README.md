@@ -35,7 +35,7 @@ Synthetic speech, no human voice:
   resample to 16 kHz (`rate -v`), 16-bit with dither.
 
 Apache-2.0 puts no condition on the model's outputs; the file is shipped
-under this repository's licence (AGPL-3.0-or-later; NOTICE).
+under VoxtNew's licence (Apache-2.0; NOTICE).
 
 Checked with two local recognisers (AudioSmith's engine):
 
