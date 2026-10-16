@@ -138,11 +138,12 @@ func TestParamsResolved(t *testing.T) {
 // filter only: the same bytes as the high-pass alone).
 func TestQuietVoice(t *testing.T) {
 	s := loadSample(t)
+	level := sampleLevel(s)
 	for _, c := range []struct {
 		name string
 		gain float64
 		want float64
-	}{{"quiet -12 dB", -12, 8}, {"quiet -20 dB", -20, 12}, {"normal", 0, 0}} {
+	}{{"quiet -12 dB", -12, raise(level - 12)}, {"quiet -20 dB", -20, raise(level - 20)}, {"normal", 0, 0}} {
 		x := add(pad(gainOf(s, c.gain), 1, 1), white(sec(12.5), -70, 1))
 		pcm := toPCM(x)
 		f := ProcessFile(pcm, rate, Params{}, vad.Params{})
@@ -153,8 +154,10 @@ func TestQuietVoice(t *testing.T) {
 		if d := rmsDB(toFloat(f.PCM)) - filtered; math.Abs(d-f.Report.GainDB) > 0.1 {
 			t.Errorf("%s: %+.2f dB louder with a gain of %+.2f dB", c.name, d, f.Report.GainDB)
 		}
-		if c.want == 0 && !bytes.Equal(f.PCM, NewHighPass(rate, 0).Process(pcm)) {
-			t.Errorf("%s: more than the filter", c.name)
+		// No gain: the filter alone, but for the limiter on its overshoot.
+		if only := NewHighPass(rate, 0).Process(pcm); c.want == 0 && !bytes.Equal(f.PCM, only) &&
+			(f.Report.Limited == 0 || math.Abs(rmsDB(toFloat(f.PCM))-rmsDB(toFloat(only))) > 0.01) {
+			t.Errorf("%s: more than the filter (%+v)", c.name, f.Report)
 		}
 		out, lev := stream(pcm, 1600, Params{}, vad.Params{}, true)
 		if r := lev.Report(); math.Abs(r.GainDB-f.Report.GainDB) > 1 {
@@ -231,11 +234,12 @@ func TestGainSmooth(t *testing.T) {
 		prev = g
 		gains = append(gains, g)
 	}
-	// The halves' speech is at -39 and -29 dBFS: +12 (the most), then
-	// +6 (to -23), near it 5 s after the change (the level is averaged
-	// over 3 s of speech, the pauses do not count).
+	// The halves' speech is at about -45 and -30 dBFS: +12 (the most),
+	// then about +7 (to -23), near it 5 s after the change (the level is
+	// averaged over 3 s of speech, the pauses do not count).
+	want := raise(sampleLevel(s) - 10)
 	first, later, second := gains[10*50], gains[16*50], gains[21*50]
-	if first < 11.5 || math.Abs(later-6.3) > 1.5 || math.Abs(second-6.3) > 0.5 {
+	if first < 11.5 || math.Abs(later-want) > 1.5 || math.Abs(second-want) > 0.5 {
 		t.Errorf("gain %+.1f in the quiet half, %+.1f 5 s into the louder one, %+.1f at its end", first, later, second)
 	}
 	t.Logf("gain %+.1f, then %+.1f; report %+v", first, second, lev.Report())

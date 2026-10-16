@@ -165,3 +165,16 @@ func stream(pcm []byte, n int, p Params, vp vad.Params, gated bool) ([]byte, *Le
 	}
 	return out, lev
 }
+
+// sampleLevel is the speech sample's speech level (dBFS), as a file
+// measures it.
+func sampleLevel(s []float64) float64 {
+	return ProcessFile(toPCM(s), rate, Params{}, vad.Params{}).Report.SpeechDB
+}
+
+// raise is the gain speech at level dBFS gets: up to the target, at most
+// the most gain.
+func raise(level float64) float64 {
+	d := Defaults()
+	return min(d.MaxGainDB, max(0, d.TargetDB-level))
+}

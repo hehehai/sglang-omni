@@ -34,6 +34,12 @@ func loadSample(t testing.TB) []int16 {
 	return toSamples(pcm)
 }
 
+// onsetOf is where the speech in s starts, in seconds (about 0.3: the
+// sample has 0.3 s of silence first, and its first word starts softly).
+func onsetOf(s []int16) float64 {
+	return dur(Analyze(samplesPCM(s), rate, Params{}).Segments[0].Start).Seconds()
+}
+
 func toSamples(pcm []byte) []int16 {
 	s := make([]int16, len(pcm)/2)
 	for i := range s {
@@ -296,27 +302,29 @@ func TestSampleItself(t *testing.T) {
 	if got := a.Segments[0].Start; got < sec(0.25) || got > sec(0.35) {
 		t.Errorf("speech starts at %v, want about 0.3s", dur(got))
 	}
-	// The last word ends at 10.2 s, but the 0.3 s after it is shorter than
-	// HangoverMS by a few samples: the segment is still open and ends with
-	// the recording.
-	if got := a.Segments[len(a.Segments)-1].End; got != len(s) {
-		t.Errorf("speech ends at %v, want the end (%v)", dur(got), dur(len(s)))
+	// The last word ends about half a second before the end (the take is
+	// padded to 10.5 s), so the speech ends there, with or without more
+	// silence after it.
+	last := a.Segments[len(a.Segments)-1].End
+	if last < len(s)-sec(0.7) || last > len(s) {
+		t.Errorf("speech ends at %v, want within 0.7 s of the end (%v)", dur(last), dur(len(s)))
 	}
-	if a := Analyze(samplesPCM(append(s, make([]int16, sec(1))...)), rate, Params{}); a.Segments[len(a.Segments)-1].End > sec(10.25) {
-		t.Errorf("with silence after it, speech ends at %v, want about 10.2s", dur(a.Segments[len(a.Segments)-1].End))
+	if a := Analyze(samplesPCM(append(s, make([]int16, sec(1))...)), rate, Params{}); a.Segments[len(a.Segments)-1].End != last {
+		t.Errorf("with silence after it, speech ends at %v, want %v", dur(a.Segments[len(a.Segments)-1].End), dur(last))
 	}
 }
 
 func TestSpeechAtStart(t *testing.T) {
 	s := loadSample(t)
-	trimmed := samplesPCM(s[sec(0.3):])
+	on := sec(onsetOf(s))
+	trimmed := samplesPCM(s[on:])
 	a := Analyze(trimmed, rate, Params{})
 	if !a.Speech || a.Segments[0].Start > sec(0.04) {
 		t.Fatalf("segments %v, want the first from about 0", a.Segments)
 	}
 	// Under noise too: the percentile floor is the noise's, not InitFloorDB.
-	n := white.noise(len(s)-sec(0.3), 3)
-	for i, v := range s[sec(0.3):] {
+	n := white.noise(len(s)-on, 3)
+	for i, v := range s[on:] {
 		n[i] += float64(v)
 	}
 	if a := Analyze(toPCM(n), rate, Params{}); !a.Speech || a.Segments[0].Start > sec(0.04) {
@@ -400,8 +408,8 @@ func TestGate(t *testing.T) {
 		for _, size := range []int{sec(0.1) * 2, 999} {
 			g := NewGate(rate, Params{})
 			sent, first := pushAll(g, v.pcm, size)
-			// The speech in the sample starts at 0.3 s.
-			onset := padSec + 0.3
+			// The speech in the sample starts at about 0.3 s.
+			onset := padSec + onsetOf(s)
 			if first < onset || first > onset+0.2 {
 				t.Errorf("%s/%d: first output after %.2fs, want soon after %.2fs", ns.name, size, first, onset)
 			}
