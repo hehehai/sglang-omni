@@ -198,8 +198,9 @@ func (s *server) armIdle(p *process) {
 	})
 }
 
-// retire stops the server once its uses end; no new use gets it.
-func (s *server) retire() {
+// retire stops the server once its uses end, for why; no new use gets
+// it.
+func (s *server) retire(why string) {
 	s.mu.Lock()
 	s.retired = true
 	if s.idle != nil {
@@ -215,7 +216,7 @@ func (s *server) retire() {
 	s.mu.Unlock()
 	switch {
 	case idle:
-		s.rt.logf("info", "%s stopped: another speech model is in use", s.spec.ID)
+		s.rt.logf("info", "%s stopped: %s", s.spec.ID, why)
 		go s.stopAndMark(p)
 	case nothing:
 		s.markStopped()

@@ -338,3 +338,43 @@ func TestConcurrentStart(t *testing.T) {
 		t.Errorf("%d launches", n)
 	}
 }
+
+// TestUnload: Unload stops a model's server, after the use in progress;
+// the next use starts it again.
+func TestUnload(t *testing.T) {
+	f := newFake(t, omnitest.Opts{Delay: 400 * time.Millisecond}, nil)
+	a := f.asr(t, ASRFast)
+	done := make(chan error, 1)
+	go func() {
+		_, err := a.Transcribe(context.Background(), asr.FileRequest{Audio: tone(time.Second, 0.3)})
+		done <- err
+	}()
+	eventually(t, "the Final", func() bool { return len(f.records("final")) == 1 })
+	f.rt.Unload(ASRFast)
+	f.rt.Unload("nothing")
+	if err := <-done; err != nil {
+		t.Fatalf("the use in progress failed: %v", err)
+	}
+	eventually(t, "the shutdown", func() bool { return len(f.records("shutdown")) == 1 })
+	if _, err := a.Transcribe(context.Background(), asr.FileRequest{Audio: tone(time.Second, 0.3)}); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(f.records("launch")); n != 2 {
+		t.Errorf("%d launches", n)
+	}
+}
+
+func TestWithVAD(t *testing.T) {
+	f := newFake(t, omnitest.Opts{}, nil)
+	a := f.asr(t, ASRFast)
+	if a.VAD() != nil {
+		t.Error("a VAD without one")
+	}
+	v, err := NewVAD(f.rt, f.model(VADSilero))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := a.WithVAD(v); b.VAD() == nil || a.VAD() != nil {
+		t.Error("WithVAD")
+	}
+}

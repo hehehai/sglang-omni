@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // ASR is a curated speech model on the runtime: an asr.FileTranscriber
@@ -17,6 +18,7 @@ type ASR struct {
 	rt   *Runtime
 	spec Spec
 	dir  string
+	vad  *VAD // the voice activity model beside it, nil for none
 }
 
 var (
@@ -43,6 +45,22 @@ func checkDir(dir string) error {
 		return &asr.Error{Kind: asr.KindConfig, Provider: Provider, Detail: "the model's folder is missing: " + dir, Err: err}
 	}
 	return nil
+}
+
+// WithVAD is a copy of a that comes with v, Silero (nil: none), for the
+// session's speech detection (VAD, local.VoiceActivity).
+func (a *ASR) WithVAD(v *VAD) *ASR {
+	c := *a
+	c.vad = v
+	return &c
+}
+
+// VAD is the voice activity model that comes with it, nil for none.
+func (a *ASR) VAD() vad.Model {
+	if a.vad == nil {
+		return nil
+	}
+	return a.vad
 }
 
 // Spec is the model's.

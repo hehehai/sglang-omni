@@ -8,12 +8,13 @@
 //
 // Only a few models, each with parameters tuned for it (models.go): the
 // speech models Qwen3-ASR 1.7B 8-bit (the default, accurate) and 0.6B
-// 4-bit (fast), and Silero VAD v6. They are keyed by a stable id
-// (ASRAccurate, ASRFast, VADSilero) that settings and the catalogue keep;
-// the Hugging Face repository and its pinned revision are recorded beside
-// it (sglang_omni_mlx/native/ci/models.json has the files' SHA-256).
-// Downloads and install state are internal/models'; this package gets a
-// model's directory.
+// 4-bit (fast), and Silero VAD v6. They are keyed by the catalogue's
+// stable ids (ASRAccurate "asr.accurate", ASRFast "asr.fast", VADSilero
+// "vad.silero"); the Hugging Face repository and its pinned revision are
+// recorded beside them. Downloads, checksums and install state are
+// internal/models'; this package gets a model's folder. An ASR may carry
+// the VAD (WithVAD): its VAD method is local.VoiceActivity, how a session
+// finds the Silero model beside the speech model.
 //
 // # Processes (Runtime)
 //
@@ -23,7 +24,8 @@
 // port 0, which prints {"event":"ready","port":…} on stdout once its model
 // is loaded; a server that says nothing within StartTimeout is killed.
 // Uses hold a lease; a server with no lease for IdleTimeout stops (idle
-// unload). One speech model runs at a time (a switch stops the other once
+// unload; Unload stops a model's server, before its files are deleted).
+// One speech model runs at a time (a switch stops the other once
 // its uses end, so two copies of weights are never resident, as Voxt);
 // Silero has a server of its own, shared by every detector. A server that
 // dies (or hangs: a Final whose stream stops for StallTimeout) is replaced

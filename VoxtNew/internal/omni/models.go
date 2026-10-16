@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-// The curated models' stable ids: settings.Feature.ASR and the catalogue
-// keep them; the UI never shows them.
+// The curated models' stable ids, the catalogue's (internal/models:
+// settings.Feature.ASR keeps them); the UI never shows them.
 const (
-	ASRAccurate = "qwen3-asr-1.7b-8bit" // the default
-	ASRFast     = "qwen3-asr-0.6b-4bit"
-	VADSilero   = "silero-vad-v6"
+	ASRAccurate = "asr.accurate" // Qwen3-ASR 1.7B 8-bit, the default
+	ASRFast     = "asr.fast"     // Qwen3-ASR 0.6B 4-bit
+	VADSilero   = "vad.silero"   // Silero VAD v6
 )
 
 // Server kinds (qwen3_asr_server --model-kind).

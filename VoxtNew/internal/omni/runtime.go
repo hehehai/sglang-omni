@@ -155,7 +155,7 @@ func (rt *Runtime) acquire(ctx context.Context, spec Spec, dir string) (*lease, 
 	}
 	rt.mu.Unlock()
 	for _, o := range retire {
-		o.retire()
+		o.retire("another speech model is in use")
 	}
 	l, err := s.acquire(ctx)
 	if errors.Is(err, errRetired) && ctx.Err() == nil {
@@ -170,6 +170,7 @@ func (rt *Runtime) acquire(ctx context.Context, spec Spec, dir string) (*lease, 
 func (rt *Runtime) Close() {
 	rt.mu.Lock()
 	rt.closed = true
+	rt.draining = nil
 	all := make([]*server, 0, len(rt.servers))
 	for k, s := range rt.servers {
 		all = append(all, s)
@@ -181,6 +182,24 @@ func (rt *Runtime) Close() {
 		wg.Go(s.shutdown)
 	}
 	wg.Wait()
+}
+
+// Unload stops model id's servers (before its files are deleted): at
+// once when unused, else when their uses end. The next use starts it
+// again.
+func (rt *Runtime) Unload(id string) {
+	rt.mu.Lock()
+	var out []*server
+	for k, s := range rt.servers {
+		if s.spec.ID == id {
+			delete(rt.servers, k)
+			out = append(out, s)
+		}
+	}
+	rt.mu.Unlock()
+	for _, s := range out {
+		s.retire("unloaded")
+	}
 }
 
 // Running lists the ids of the models whose servers run now (for the
