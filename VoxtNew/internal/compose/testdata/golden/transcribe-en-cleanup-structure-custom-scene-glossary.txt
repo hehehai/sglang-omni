@@ -39,5 +39,13 @@ Output: only the final text, without quotes, labels, explanations or <input> tag
 
 ---- user ----
 <input>
+Um, can you send the, uh, the weekly report to Tom, sorry, I mean to Anna, before five?
+</input>
+
+---- assistant ----
+Can you send the weekly report to Anna before 5?
+
+---- user ----
+<input>
 um so the aura link release is like seventy percent done comma no wait eighty percent
 </input>

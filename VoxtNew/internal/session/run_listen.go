@@ -346,10 +346,11 @@ func (r *run) compose(raw string) (string, string, error) {
 	}
 	ctx, cancel := context.WithTimeout(r.ctx, r.m.cfg.LLMTimeout)
 	defer cancel()
-	resp, err := r.svc.LLM.Chat(ctx, llm.Request{
-		Messages: []llm.Message{{Role: llm.System, Content: out.System}, {Role: llm.User, Content: out.User}},
-		Skill:    llm.SkillTranscribeEnhance, Timeout: r.m.cfg.LLMTimeout,
-	})
+	var msgs []llm.Message
+	for _, m := range out.Messages() {
+		msgs = append(msgs, llm.Message{Role: llm.Role(m.Role), Content: m.Content})
+	}
+	resp, err := r.svc.LLM.Chat(ctx, llm.Request{Messages: msgs, Skill: llm.SkillTranscribeEnhance, Timeout: r.m.cfg.LLMTimeout})
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			err = fmt.Errorf("no answer within %v: %w", r.m.cfg.LLMTimeout, err)

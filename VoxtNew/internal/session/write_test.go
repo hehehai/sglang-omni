@@ -45,8 +45,8 @@ func TestWrite(t *testing.T) {
 			speak: true, states: "reading recording recognizing composing delivering done", state: Done, result: "你好，VoxtNew。", pasted: true,
 			check: func(t *testing.T, h *harness, end Snapshot, model *fakeLLM, sel *fakeSelector) {
 				req := model.requests()[0]
-				sys, user := req.Messages[0].Content, req.Messages[1].Content
-				if req.Skill != llm.SkillTranslateText || req.OnDelta == nil || !strings.Contains(sys, "Basic cleanup") ||
+				sys, user := req.Messages[0].Content, req.Messages[len(req.Messages)-1].Content
+				if req.Skill != llm.SkillTranslateText || req.OnDelta == nil || !strings.Contains(sys, "Basic cleanup") || len(req.Messages) != 4 ||
 					!strings.Contains(sys, "into Simplified Chinese") || user != "<input>\nhello aura link\n</input>" {
 					t.Errorf("request %+v", req)
 				}

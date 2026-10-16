@@ -11,6 +11,7 @@
 //	       + [Scene]         app enhancement: the app and the group's rules (M5)
 //	       + [Glossary]      the dictionary's terms
 //	       + Output contract only the final text
+//	[user, assistant]        the clean-up's example (speech: Example)
 //	user   = <input>…</input>
 //
 // The input text is only ever in the user message, never in the system
@@ -142,7 +143,7 @@ type Output struct {
 	System string
 	User   string
 	// History are the messages between System and User: a follow-up's
-	// earlier turns.
+	// earlier turns, or the clean-up's example turn (Example).
 	History []Message
 	// Language is the template set used (English, Chinese).
 	Language string
@@ -324,6 +325,9 @@ func Build(in Input) (Output, error) {
 		out.User = RewriteMessage(in.Instruction, in.Text)
 	} else {
 		out.User = UserMessage(in.Text)
+		if input, answer, ok := Example(in); ok {
+			out.History = []Message{{Role: "user", Content: UserMessage(input)}, {Role: "assistant", Content: answer}}
+		}
 	}
 	return out, nil
 }

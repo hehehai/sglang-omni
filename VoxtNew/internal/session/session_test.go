@@ -204,8 +204,10 @@ func TestPipeline(t *testing.T) {
 				if len(reqs) != 1 {
 					t.Fatalf("%d llm requests", len(reqs))
 				}
-				sys, user := reqs[0].Messages[0].Content, reqs[0].Messages[1].Content
-				if !strings.Contains(sys, "Be brief.") || !strings.Contains(sys, "- VoxtNew") || strings.Contains(sys, "Off") ||
+				// The system prompt, the clean-up's example turn, the input.
+				msgs := reqs[0].Messages
+				sys, user := msgs[0].Content, msgs[len(msgs)-1].Content
+				if len(msgs) != 4 || msgs[1].Role != llm.User || msgs[2].Role != llm.Assistant || !strings.Contains(sys, "Be brief.") || !strings.Contains(sys, "- VoxtNew") || strings.Contains(sys, "Off") ||
 					strings.Contains(sys, "hello aura link") || user != "<input>\nhello aura link\n</input>" || reqs[0].Skill != llm.SkillTranscribeEnhance {
 					t.Errorf("request %+v", reqs[0])
 				}

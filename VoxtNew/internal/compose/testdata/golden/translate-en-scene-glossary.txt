@@ -36,5 +36,13 @@ Output: only the translation, without quotes, labels, notes, the source text or 
 
 ---- user ----
 <input>
+Um, can you send the, uh, the weekly report to Tom, sorry, I mean to Anna, before five?
+</input>
+
+---- assistant ----
+你能在 5 点前把周报发给 Anna 吗？
+
+---- user ----
+<input>
 um so the aura link release is like seventy percent done comma no wait eighty percent
 </input>

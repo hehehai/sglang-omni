@@ -85,7 +85,7 @@ func TestGoldenTranscribe(t *testing.T) {
 			if strings.Contains(out.System, in.Text) || strings.Contains(out.System, "{{") && !strings.Contains(out.System, "{{UNKNOWN}}") {
 				t.Errorf("%s: system prompt has the input or a variable left:\n%s", name, out.System)
 			}
-			golden(t, name+".txt", fmt.Sprintf("# profile: %s\n# layers: %s\n\n%s\n\n---- user ----\n%s\n", out.Profile(), strings.Join(out.Layers, " "), out.System, out.User))
+			golden(t, name+".txt", goldenText(out))
 			n++
 		}
 	}
