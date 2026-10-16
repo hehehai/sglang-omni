@@ -29,8 +29,15 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   │                     kinds, WAV/PCM helpers (the models are internal/local's)
 │   ├── llm/              chat models (from AudioSmith): request and response types, skills, Backend,
 │   │                     Client (retries, JSON repair, thinking stripped), schemas, usage
-│   ├── local/            the local models, the seam M1 and M2 fill: Services (Installed, ASR, LLM),
-│   │                     Choose, ErrNotInstalled; NotInstalled (M0's: nothing installed)
+│   ├── local/            the local models as sessions open them: Services (Installed, ASR, LLM),
+│   │                     Library (the installed models of internal/models, opened by Openers: the
+│   │                     runtimes' ASROpener and LLMOpener; ErrNoRuntime without one), Choose,
+│   │                     ForFeature, ErrNotInstalled; NotInstalled
+│   ├── models/           the model catalogue (six curated models, pinned revisions and SHA-256),
+│   │   │                 the models on disk (<data>/models/<id>/), downloads (resumable, verified,
+│   │   │                 bounded, cancellable, a mirror when the Hub is unreachable), adopting
+│   │   │                 a Hugging Face cache; Manager                                       (leaf)
+│   │   └── modelstest/   Seed: installed models of sparse files, for tests
 │   ├── session/          the one owner of a voice session: the state machine (reading →
 │   │                     recording → recognizing → composing → delivering → done/cancelled/
 │   │                     failed), the selection, Translate's and Rewrite's streaming answer, its
@@ -81,16 +88,16 @@ Arrows point to what a package may import. No cycles. Leaves import nothing inte
 ```
 main ──▶ every internal package
 store ──▶ core                 store/sqlitestore ──▶ core, store      datadir ──▶ store/sqlitestore    overlay/layout ──▶ session (Bars), settings (Overlay)    overlay/ink ──▶ overlay/layout
-uitext ──▶ i18n and the domain's types (appctx, asr, compose, core, deliver, dict, helper, helper/proto, hotkey, lang, llm, local, permission, session, settings, store)
+uitext ──▶ i18n and the domain's types (appctx, asr, compose, core, deliver, dict, helper, helper/proto, hotkey, lang, llm, local, models, permission, session, settings, store)
 helper ──▶ core, helper/proto  helper/helpertest ──▶ helper/proto
 notify, logs ──▶ core
-asr ──▶ core                  llm ──▶ core                  local ──▶ asr, llm
+asr ──▶ core                  llm ──▶ core                  local ──▶ asr, llm, models      models/modelstest ──▶ models
 session ──▶ appctx, asr, compose, core, deliver, dict, dsp, helper/proto, lang, llm, settings, store, vad
 dsp ──▶ vad
 compose ──▶ lang              deliver ──▶ helper/proto      hotkey ──▶ helper/proto, settings
 appctx ──▶ helper/proto, hotkey, settings                    dict ──▶ store
 appicons ──▶ helper/proto
-core, settings, helper/proto, i18n, lang, permission, macx, vad, appbundle ──▶ (nothing internal)
+core, settings, helper/proto, i18n, lang, permission, macx, vad, appbundle, models ──▶ (nothing internal)
 icons ──▶ mygo/ui
 ```
 
@@ -205,7 +212,7 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | `a.upd` (`updateService`: MyGo's updater plugin; `fakeUpdates` in tests), `a.checkForUpdates()`, `a.updateMenuItems(act)`, `a.bundleStale` (`appbundle.Updated`), `a.appUpdated()` (the restart card), `a.relaunch()` (`appRelaunch`) | updates.go | the app menu, the menu bar, ⌘K, Settings → About, the helper's card (FailUpdated), Home |
 | `a.toast(msg)`, `a.notify(…)`, `a.post(fn)`, `a.async(fn)` | app.go, shell_notices.go | everyone |
 | `a.onSession`, `a.afterSession`, `a.onSessionEnd`, `a.onHistory` (observers, in order; `connectEvents` lists them all), published by `sessionChanged` / `sessionEnded` (session_link.go) and `historyChanged` (history_page.go) | events.go | the setup guide, the sounds, the menu bar, the overlay, Home, History: an area that cares about sessions or the history adds itself there, instead of the publisher calling it |
-| `a.local` (`local.Services`; `newLocalServices`, tests swap in fakes), `a.installed(kind)` (memory only), `a.featureModel(kind, feature)`, `featureOf(s, feature)`, `setFeatureModel`, `modelsPath` | models_page.go | the Local models page, the feature pages' Models section (feature_models.go), Home's readiness, the setup guide, `sessionBlocker`, `checkModels`, History's details; sessions open models through `resolver(a.local)` off the main thread (session_link.go) |
+| `a.local` (`local.Services`; `newLocalServices`, tests swap in fakes), `a.localOpeners()` (the runtimes: M1 and M2 fill it), `a.models` (`*models.Manager`), `a.modelStatus` (the statuses' copy, `modelsChanged`), `a.downloadModel(id)` / `cancelModel` / `deleteModel`, `a.installed(kind)` (memory only), `a.featureModel(kind, feature)` (only models that serve the feature: the translation model only translates), `featureOf(s, feature)`, `setFeatureModel`, `modelsPath`; `uitext.ModelName` / `ModelAbout` / `ModelLanguages` / `DownloadErrorText` | models_page.go, models_runtimes.go | the Local models page, the feature pages' Models section (feature_models.go), Home's readiness, the setup guide, `sessionBlocker`, `checkModels`, History's details; sessions open models through `resolver(a.local)` off the main thread (session_link.go) |
 | `a.notices` (the centre's, newest first), `a.noticeStack(c)` (the cards at the foot of the sidebar; the rail's popover), `a.setProblem(id, code, n)` (a problem's card: shown once, withdrawn when solved, kept away this run once dismissed), `a.checkModels()`, `a.checkHelper()` | shell_notices.go | the sidebar, the rail; `openModels`, `settingsChanged`, `helperChanged` |
 | `uitext.HotkeyGlyphs(keys)` | internal/uitext (keys.go) | ? sheet, menu bar, feature pages |
 | Design tokens: `tok(t)`, `px`, `fs*`, `sp*`, `radius*`; `accentName` (teal) | ui_tokens.go | every view |
@@ -216,6 +223,7 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | What | Where |
 |---|---|
 | Database: history (+ `history_fts`; `rule_source` since migration 2), dictionary terms, documents (`settings:app`, `appctx:rules`, `notifications`) | `~/Library/Application Support/VoxtNew/voxtnew.db` (WAL; `voxtnew.db.bak-<v>` before each migration) |
+| Local models | `…/VoxtNew/models/<id>/` (+ `.voxtnew-model.json` once verified); `models/.partial/<id>/<rev>/` a download (resumed at the next); `models/.trash/` while removing |
 | Recordings kept with history entries | `…/VoxtNew/audio/<id>.wav` (only with Settings → Privacy → Keep the recordings) |
 | Data folder location | `…/VoxtNew/location.json` when the user moved it (Settings → Storage); `move.json`, `reset.json` while a move or an erase waits for the next start |
 | Apps' icons (App enhancement's lists) | `~/Library/Caches/VoxtNew/icons/<bundle id>-64.png`, drawn by the helper (`app.icons`), redrawn after a week (`internal/appicons`) |

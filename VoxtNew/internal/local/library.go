@@ -1,0 +1,93 @@
+package local
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
+)
+
+// ASROpener opens speech model id (a models catalogue id) from dir, its
+// installed and verified folder. It is called off the main thread for
+// each session that needs the model: it may start the runtime and load
+// the model, and should be quick once they are.
+type ASROpener func(ctx context.Context, id, dir string) (asr.Provider, error)
+
+// LLMOpener opens language model id from dir, as ASROpener.
+type LLMOpener func(ctx context.Context, id, dir string) (Chat, error)
+
+// Openers are the runtimes behind the models; nil: that runtime is not
+// in this build (ErrNoRuntime).
+type Openers struct {
+	ASR ASROpener
+	LLM LLMOpener
+}
+
+// ErrNoRuntime: the model is installed, but this build has no runtime
+// to run it.
+var ErrNoRuntime = errors.New("local: runtime not available")
+
+// Library is the local models of the app: those models.Manager installed,
+// opened by the Openers. Goroutine-safe.
+type Library struct {
+	models *models.Manager
+	open   Openers
+	name   func(id string) string
+}
+
+// NewLibrary is the models of m, opened by open; name says a model's
+// Name (the UI's words, uitext.ModelName), nil: its id.
+func NewLibrary(m *models.Manager, open Openers, name func(id string) string) *Library {
+	if name == nil {
+		name = func(id string) string { return id }
+	}
+	return &Library{models: m, open: open, name: name}
+}
+
+// Installed lists kind's installed models in the catalogue's order, the
+// recommended first. Memory only.
+func (l *Library) Installed(kind Kind) []Model {
+	var out []Model
+	for _, m := range models.Catalog() {
+		if string(m.Kind) == string(kind) && l.models.Installed(m.ID) {
+			out = append(out, Model{Kind: kind, ID: m.ID, Name: l.name(m.ID), Features: m.Features})
+		}
+	}
+	return out
+}
+
+// Dir is the folder of an installed model ("" when it is not), for the
+// openers' wiring (the speech runtime's VAD: models.VADSilero).
+func (l *Library) Dir(id string) string { return l.models.Dir(id) }
+
+func (l *Library) ASR(ctx context.Context, id string) (asr.Provider, Model, error) {
+	m, ok := Choose(l.Installed(ASR), id)
+	if !ok {
+		return nil, Model{}, NotInstalledError(ASR, id)
+	}
+	if l.open.ASR == nil {
+		return nil, Model{}, fmt.Errorf("%w: speech recognition (%s)", ErrNoRuntime, m.ID)
+	}
+	p, err := l.open.ASR(ctx, m.ID, l.models.Dir(m.ID))
+	if err != nil {
+		return nil, Model{}, err
+	}
+	return p, m, nil
+}
+
+func (l *Library) LLM(ctx context.Context, id string) (Chat, Model, error) {
+	m, ok := Choose(l.Installed(LLM), id)
+	if !ok {
+		return nil, Model{}, NotInstalledError(LLM, id)
+	}
+	if l.open.LLM == nil {
+		return nil, Model{}, fmt.Errorf("%w: language model (%s)", ErrNoRuntime, m.ID)
+	}
+	c, err := l.open.LLM(ctx, m.ID, l.models.Dir(m.ID))
+	if err != nil {
+		return nil, Model{}, err
+	}
+	return c, m, nil
+}

@@ -2,25 +2,24 @@
 // Mac: which speech and language models are installed, and the clients a
 // session uses (internal/asr's FileTranscriber and Streamer, and Chat).
 //
-// M0 has no local runtime: NotInstalled lists nothing and fails every
-// open with ErrNotInstalled, so that a session shows "no model is
-// installed" instead of recording for nothing. M1 implements the speech
-// side (the Omni native MLX servers of sglang_omni_mlx/native, their
-// catalogue and downloads), M2 the language side (the voxtnew-llm
-// process: mlx-swift-lm and a few GGUF models); package main swaps its
-// Services in (newLocalServices, models_page.go).
+// Library is the Services of the app: the models internal/models
+// installed, opened by the runtimes' openers (Openers: the Omni native
+// MLX servers for speech, the voxtnew-llm process for language). Without
+// a runtime an open fails with ErrNoRuntime. NotInstalled lists nothing
+// and fails every open with ErrNotInstalled.
 //
 // Installed reads memory only, so that views may call it while they
 // build; ASR and LLM may block (they may start a runtime and load a
 // model): call them off the main thread.
 //
-// Imports: asr, llm.
+// Imports: asr, llm, models.
 package local
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
@@ -44,6 +43,26 @@ type Model struct {
 	// Name is what the UI shows: a plain description of what it is good
 	// at, not its family, size or quantisation (the plan's model policy).
 	Name string
+	// Features are the only features it serves ("translate"), nil for
+	// every one (ForFeature).
+	Features []string
+}
+
+// For says whether m serves feature ("transcribe", "translate",
+// "rewrite").
+func (m Model) For(feature string) bool {
+	return len(m.Features) == 0 || slices.Contains(m.Features, feature)
+}
+
+// ForFeature is the models of list that serve feature, in order.
+func ForFeature(list []Model, feature string) []Model {
+	var out []Model
+	for _, m := range list {
+		if m.For(feature) {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // Chat is a language model as a session uses it (session.LLM).

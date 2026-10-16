@@ -15,6 +15,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -184,14 +185,14 @@ func TestTranscribePasteLast(t *testing.T) {
 func TestTranscribeServicesAndSwitches(t *testing.T) {
 	a, tt := trTester(t)
 	readyModels(a)
-	a.local.(*fakeLocal).MoreLLM = []local.Model{{Kind: local.LLM, ID: "fast-llm", Name: "Fast language model"}}
+	a.local.(*fakeLocal).MoreLLM = []local.Model{{Kind: local.LLM, ID: models.LLMFast, Name: "Fast language model"}}
 	frames(tt)
 	if has(tt, "No speech model is installed: install one to transcribe.") {
 		t.Error("notice with a model installed")
 	}
 	click(t, tt, "Language model for Transcribe")
 	click(t, tt, "Fast language model")
-	if id := a.lib.settings.Get().Features.Transcribe.LLM; id != "fast-llm" {
+	if id := a.lib.settings.Get().Features.Transcribe.LLM; id != models.LLMFast {
 		t.Errorf("LLM %q", id)
 	}
 	click(t, tt, "Language model for Transcribe")

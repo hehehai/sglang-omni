@@ -15,12 +15,13 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 )
 
 // The models the fakes say they are.
 var (
-	fakeASRModel = local.Model{Kind: local.ASR, ID: "omni-asr", Name: "Accurate speech recognition"}
-	fakeLLMModel = local.Model{Kind: local.LLM, ID: "local-llm", Name: "Balanced language model"}
+	fakeASRModel = local.Model{Kind: local.ASR, ID: models.ASRAccurate, Name: "Accurate speech recognition"}
+	fakeLLMModel = local.Model{Kind: local.LLM, ID: models.LLMBalanced, Name: "Balanced language model"}
 )
 
 // fakeLocal is local.Services over fakes: a nil ASR or Chat is a model

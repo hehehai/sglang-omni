@@ -168,7 +168,13 @@ func resolver(lm local.Services) session.Resolver {
 		if kind == store.KindTranscribe && !s.Features.Transcribe.Enhance {
 			return svc, nil
 		}
-		c, ml, err := lm.LLM(ctx, f.LLM)
+		// A model that serves the feature (the translation model only
+		// translates).
+		m, ok := local.Choose(local.ForFeature(lm.Installed(local.LLM), string(kind)), f.LLM)
+		if !ok {
+			return svc, nil
+		}
+		c, ml, err := lm.LLM(ctx, m.ID)
 		if err != nil {
 			return svc, nil // no language model: the text goes on as recognised
 		}

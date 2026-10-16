@@ -102,6 +102,7 @@ func (a *app) loadStorage() {
 	}
 	a.stLoading = true
 	data, logs, audio := a.dataDir(), a.logDir, a.lib.store.History().AudioDir()
+	modelsDir := a.models.Root()
 	a.stLoc = datadir.ReadLocation(a.home())
 	a.async(func() {
 		ctx := context.Background()
@@ -119,8 +120,10 @@ func (a *app) loadStorage() {
 			}
 		}
 		r.cats = append(r.cats, storageCat{id: "database", title: i18n.T("Library database"), bytes: db})
+		mb, _ := datadir.TreeSize(ctx, modelsDir, nil)
+		r.cats = append(r.cats, storageCat{id: "models", title: i18n.T("Local models"), bytes: mb, dir: modelsDir})
 		r.data, _ = datadir.TreeSize(ctx, data, nil)
-		r.cats = append(r.cats, storageCat{id: "other", title: i18n.T("Other"), bytes: max(r.data-rec-db, 0), dir: data})
+		r.cats = append(r.cats, storageCat{id: "other", title: i18n.T("Other"), bytes: max(r.data-rec-db-mb, 0), dir: data})
 		if logs != "" {
 			lb, _ := datadir.TreeSize(ctx, logs, nil)
 			r.cats = append(r.cats, storageCat{id: "logs", title: i18n.T("Logs"), bytes: lb, dir: logs})

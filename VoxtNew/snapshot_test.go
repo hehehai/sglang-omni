@@ -184,6 +184,7 @@ func snapshotsMain(t *testing.T, out string) {
 
 		// Last, as they set services up: the setup guide, step by step
 		// (onboarding_test.go), then Home ready (home_page_test.go).
+		modelShots(t, a, tt, save) // models_page_test.go
 		onboardingShots(a, tt, save)
 		homeShots(a, tt, save)
 	}

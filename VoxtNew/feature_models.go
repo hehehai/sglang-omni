@@ -24,7 +24,7 @@ func (a *app) featureModels(c *ui.Context, feature string) {
 	f := featureOf(a.prefs, feature)
 	enhance := feature != hotkey.Transcribe || a.prefs.Features.Transcribe.Enhance
 	readyA := a.installed(local.ASR)
-	readyL := a.installed(local.LLM)
+	readyL := local.ForFeature(a.installed(local.LLM), feature)
 	optsA, autoA := modelOptions(readyA)
 	optsL, autoL := modelOptions(readyL)
 	seen := strings.Join([]string{f.ASR, f.LLM, strings.Join(optsA, "\x00"), strings.Join(optsL, "\x00")}, "\x01")

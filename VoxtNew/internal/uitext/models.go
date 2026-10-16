@@ -22,6 +22,9 @@ func ModelErrorText(err error) (msg, more string) {
 	if errors.Is(err, local.ErrNotInstalled) {
 		return i18n.T("The model is not installed."), more
 	}
+	if errors.Is(err, local.ErrNoRuntime) {
+		return i18n.T("This version of VoxtNew cannot run the model yet."), more
+	}
 	var ae *asr.Error
 	if errors.As(err, &ae) {
 		switch ae.Kind {

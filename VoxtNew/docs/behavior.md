@@ -35,6 +35,13 @@
 
 Auralink 的这一节对照的是远程 ASR / LLM 服务（豆包、阿里百炼、OpenAI 兼容、阶跃、DeepSeek 等），VoxtNew 在 M0 删掉了整个远程层（docs/architecture.md §5），这一节随之删去。本地模型的对照（Omni 运行时的生命周期、各模型的 Final 请求策略、实时预览节奏、Silero VAD、模型目录与固定版本）在 M1–M3 落地时补在这里，出处是 Voxt 的 `OmniASRRuntime.swift` 等。
 
+| # | Voxt 怎么做 | VoxtNew 怎么做 | 为什么 | 状态 |
+|---|---|---|---|---|
+| 3.1 | 模型目录很长：多个 ASR 系列、十几个 MLX LLM 和两个 GGUF，界面上写系列名、量化、评分和标签；下载时先查 Hub 的文件树，按扩展名过滤，按大小校验 | 只有六个模型（`internal/models`）：精准 / 快速语音识别、人声检测（内置，不让选，随第一个语音模型安装）、均衡 / 快速语言模型、翻译专用模型。每个固定 revision 和每个文件的 SHA-256（omni 的与 `sglang_omni_mlx/native/ci/models.json` 一致，有测试核对），不再查文件树；界面只用朴素的话说擅长什么、支持哪些语言、多大 | 用户只需要最好的几个，参数由我们调好；固定 revision + 哈希，下载到的就是测过的那份 | ✅ M1b |
+| 3.2 | 断点续传（sidecar 记录），失败时换 hf-mirror.com | 每个文件写 `<path>.part`，下次用 Range 续传（先把已有部分算进哈希）；校验通过才改名；一个模型的文件全部通过后写清单、整个目录一次 rename 到位；同时最多 3 个文件；开始前检查磁盘（留 512 MB）；取消保留已下载的部分；连不上 huggingface.co 时换 hf-mirror.com（文件有哈希，来源无所谓） | 断在哪里都不会留下半个模型；mac-air 直连 huggingface.co 超时、hf-mirror.com 可用（10-16 实测） | ✅ M1b |
+| 3.3 | 无 | 开发选项 `VOXTNEW_HF_CACHE=1`：先从 Hugging Face 缓存里找同大小、同哈希的文件，硬链接（跨盘则符号链接）进来，不再下载；删除模型只删链接 | 开发机上已经有这些模型，不必再下几 GB | ✅ M1b（mac-air 实测 Qwen3-ASR-0.6B 硬链接） |
+| 3.4 | 翻译专用的 GGUF 模型只在翻译里出现 | 同样：翻译专用模型只服务“翻译”（`local.Model.Features`），转录清理和转写选不到它，“自动”也不会落到它 | 它只会翻译 | ✅ M1b |
+
 ## 4. 辅助进程（helper，Swift）
 
 做法来自 M0 spike 的实测（项目 `research/spikes.md`），协议见 `docs/helper-protocol.md`。
