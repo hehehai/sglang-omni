@@ -30,9 +30,11 @@ CGO_ENABLED=1 go test -race ./...                            # needs cgo
 VOXTNEW_SNAPSHOTS=/tmp/shots go test -run TestSnapshots .    # pages as PNG
 go test -run TestKeyParity ./internal/i18n                   # strings and zh-Hans
 scripts/mac.sh '<command>'                                   # run on the Mac (MAC_HOST, MAC_DIR=code/VoxtNew)
-scripts/mac.sh 'scripts/build-helper.sh && go tool mygo build'   # the Swift helper, then the app
+scripts/mac.sh 'scripts/build-helper.sh && scripts/build-llm.sh && go tool mygo build'   # the Swift helper and voxtnew-llm, then the app (mygo.json gives llm/voxtnew-llm its entitlements: no app without it)
 scripts/mac.sh 'scripts/build-omni.sh && go tool mygo build'     # the Omni runtime (speech models) into the app; --out DIR for VOXTNEW_OMNI_RUNTIME
-scripts/mac.sh 'scripts/build-llm.sh && go tool mygo build'      # voxtnew-llm (language models) into the app; --out DIR for VOXTNEW_LLM
+scripts/mac.sh 'scripts/build-llm.sh && go tool mygo build'      # voxtnew-llm (language models) into the app; --out DIR for VOXTNEW_LLM; on mac-air cp -Rc ~/voxtnew-runtime/llm resources/darwin-arm64/llm is quicker
+scripts/mac.sh 'scripts/release.sh --runtimes $HOME/voxtnew-runtime'   # the release build: helper, omni, LLM, mygo build, release-verify.sh (docs/release.md); VOXTNEW_SIGN_IDENTITY signs it
+MAC_DIR=code/VoxtNew-sign scripts/mac.sh scripts/mac-sign-e2e.sh  # the release's signing with a throwaway identity: every nested binary hardened and timestamped
 scripts/mac.sh 'scripts/build-llm.sh --test'                     # its Swift tests (the same fixtures as Go)
 scripts/mac.sh 'cd helper && swift test'                     # the helper's tests (same fixtures as Go)
 MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh    # headless Mac tests: real helper, fake models, no window or key
