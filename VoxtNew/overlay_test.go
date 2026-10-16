@@ -366,7 +366,7 @@ func overlayShots(t *testing.T, a *app, out, suffix string, dark bool) {
 			Raw: "再正式一点", Title: "晚到说明", Result: "各位好：因交通拥堵，我预计将晚到约十分钟。会议请按时开始，无需等候，抱歉给大家带来不便。"}, nil, nil},
 		{"overlay-rewrite-failed", session.Snapshot{Kind: store.KindRewrite, State: session.Failed, Card: true,
 			Raw: "make it more formal", Selection: "hey, the release slips to thursday, sorry!",
-			Problem: &session.Problem{Code: session.ProblemLLM, Err: errors.New("deepseek: server error (503): overloaded")}}, nil, nil},
+			Problem: &session.Problem{Code: session.ProblemLLM, Err: errors.New("llm.balanced: the language model process stopped (signal 9)")}}, nil, nil},
 	}
 	desk, line := ui.RGB(246, 246, 248), ui.RGB(150, 156, 166)
 	if dark {

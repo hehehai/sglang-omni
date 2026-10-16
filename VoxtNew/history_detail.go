@@ -21,12 +21,13 @@ import (
 )
 
 // entryModel is the model an entry used, as the details show it: its
-// name when it is still installed, else its id; "" for none.
+// name (the catalogue's words, also once it is deleted), else its id; ""
+// for none.
 func (a *app) entryModel(kind local.Kind, id, model string) string {
 	if id == "" {
 		return ""
 	}
-	name := id
+	name := uitext.ModelName(id)
 	for _, m := range a.installed(kind) {
 		if m.ID == id {
 			name = m.Name

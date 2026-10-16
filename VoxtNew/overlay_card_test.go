@@ -67,7 +67,7 @@ func cardSteps() []cardStep {
 		{name: "failed", apply: func(a *app) {
 			snap(a, session.Snapshot{ID: "t3", Kind: store.KindTranslate, State: session.Recording})
 			snap(a, session.Snapshot{ID: "t3", Kind: store.KindTranslate, State: session.Failed, Card: true, Target: arc, Selection: sel,
-				Problem: &session.Problem{Code: session.ProblemLLM, Err: errors.New("deepseek: server error (503): overloaded")}})
+				Problem: &session.Problem{Code: session.ProblemLLM, Err: errors.New("llm.balanced: the language model process stopped (signal 9)")}})
 		}, body: -1, retry: true},
 		{name: "rewrite", apply: func(a *app) {
 			a.closeAnswer()

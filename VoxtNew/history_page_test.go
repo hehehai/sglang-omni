@@ -17,7 +17,7 @@ import (
 const (
 	histInserted = "01HIST0000000000000000INS1" // done, inserted, with LLM and a recording
 	histCard     = "01HIST0000000000000000CRD1" // done, left in the answer card (Chinese)
-	histFailed   = "01HIST0000000000000000FAI1" // failed: the speech service timed out
+	histFailed   = "01HIST0000000000000000FAI1" // failed: the speech model did not answer
 	histCopied   = "01HIST0000000000000000CPY1" // done, copied from the card
 )
 
@@ -33,7 +33,7 @@ func seedHistory(t *testing.T, a *app) {
 			RawText:     "um so let's move the design review to thursday afternoon and I'll send the new agenda tonight",
 			Result:      "Let's move the design review to Thursday afternoon.\nI'll send the new agenda tonight.",
 			Delivery:    "insert",
-			ASRProvider: "doubao", ASRModel: "bigmodel", LLMProvider: "deepseek", LLMModel: "deepseek-chat",
+			ASRProvider: "asr.accurate", ASRModel: "asr.accurate", LLMProvider: "llm.balanced", LLMModel: "llm.balanced",
 			AudioMS: 7400, ASRMS: 620, LLMMS: 1180, TotalMS: 9350, Audio: histInserted + ".wav",
 			DSP: "highpass+level", GainDB: 7.5,
 		},
@@ -43,14 +43,14 @@ func seedHistory(t *testing.T, a *app) {
 			RawText:     "明天上午十点的站会改到线上 链接我稍后发群里",
 			Result:      "明天上午十点的站会改到线上，链接我稍后发到群里。",
 			Delivery:    "card",
-			ASRProvider: "aliyun", ASRModel: "qwen3-asr-flash-realtime",
+			ASRProvider: "asr.fast", ASRModel: "asr.fast",
 			AudioMS: 4100, ASRMS: 380, TotalMS: 4620,
 		},
 		{
 			ID: histFailed, Kind: store.KindTranscribe, CreatedAt: now.Add(-3 * time.Hour), Status: store.StatusFailed,
 			AppBundle: "com.apple.Safari", AppName: "Safari", URLHost: "github.com",
-			Error:       "doubao: network: no result within 30s",
-			ASRProvider: "doubao", ASRModel: "bigmodel",
+			Error:       "asr.accurate: the speech server stopped answering (15s)",
+			ASRProvider: "asr.accurate", ASRModel: "asr.accurate",
 			AudioMS: 12800, ASRMS: 30000, TotalMS: 42900,
 		},
 		{
@@ -59,7 +59,7 @@ func seedHistory(t *testing.T, a *app) {
 			RawText:     "hi Anna thanks for the quick turnaround on the contract the changes look good to me",
 			Result:      "Hi Anna, thanks for the quick turnaround on the contract. The changes look good to me.",
 			Delivery:    "copy",
-			ASRProvider: "openai", ASRModel: "gpt-4o-mini-transcribe", LLMProvider: "deepseek", LLMModel: "deepseek-chat",
+			ASRProvider: "asr.fast", ASRModel: "asr.fast", LLMProvider: "llm.balanced", LLMModel: "llm.balanced",
 			AudioMS: 5200, ASRMS: 1450, LLMMS: 940, TotalMS: 7720,
 		},
 	} {
@@ -87,7 +87,7 @@ func seedWriteHistory(t *testing.T, a *app) {
 			AppBundle: "com.tinyspeck.slackmacgap", AppName: "Slack",
 			RawText: "嗯 帮我跟他们说 周四下午的评审改到周五上午", Result: "Let them know the Thursday afternoon review moves to Friday morning.",
 			TargetLang: "en", Delivery: "insert",
-			ASRProvider: "doubao", ASRModel: "bigmodel", LLMProvider: "deepseek", LLMModel: "deepseek-chat",
+			ASRProvider: "asr.accurate", ASRModel: "asr.accurate", LLMProvider: "llm.balanced", LLMModel: "llm.balanced",
 			AudioMS: 4300, ASRMS: 520, LLMMS: 1340, TotalMS: 6400,
 		},
 		{
@@ -95,7 +95,7 @@ func seedWriteHistory(t *testing.T, a *app) {
 			AppBundle: "com.google.Chrome", AppName: "Google Chrome", URLHost: "go.dev",
 			SourceText: "A goroutine is a lightweight thread managed by the Go runtime.",
 			Result:     "goroutine 是由 Go 运行时管理的轻量级线程。", TargetLang: "zh-Hans", Delivery: "card",
-			LLMProvider: "deepseek", LLMModel: "deepseek-chat", LLMMS: 980, TotalMS: 1100,
+			LLMProvider: "llm.balanced", LLMModel: "llm.balanced", LLMMS: 980, TotalMS: 1100,
 		},
 		{
 			ID: histRewritten, Kind: store.KindRewrite, CreatedAt: now.Add(-20 * time.Minute), Status: store.StatusDone,
@@ -103,7 +103,7 @@ func seedWriteHistory(t *testing.T, a *app) {
 			PromptText: "make it more formal and shorter",
 			SourceText: "hey, the release slips to thursday because the tests are still running, sorry!",
 			Result:     "Apologies: the release moves to Thursday while the tests finish.", Delivery: "insert",
-			ASRProvider: "doubao", ASRModel: "bigmodel", LLMProvider: "deepseek", LLMModel: "deepseek-chat",
+			ASRProvider: "asr.accurate", ASRModel: "asr.accurate", LLMProvider: "llm.balanced", LLMModel: "llm.balanced",
 			AudioMS: 2600, ASRMS: 410, LLMMS: 1650, TotalMS: 4900,
 		},
 		{
@@ -112,7 +112,7 @@ func seedWriteHistory(t *testing.T, a *app) {
 			PromptText:  "写一段两百字的自我介绍，用于技术分享会的开场",
 			Result:      "大家好，我是关伟，一名专注于桌面应用和语音交互的工程师。过去几年，我主要在做跨平台的原生界面框架……",
 			Delivery:    "card",
-			ASRProvider: "aliyun", ASRModel: "qwen3-asr-flash-realtime", LLMProvider: "deepseek", LLMModel: "deepseek-chat",
+			ASRProvider: "asr.fast", ASRModel: "asr.fast", LLMProvider: "llm.balanced", LLMModel: "llm.balanced",
 			AudioMS: 5100, ASRMS: 300, LLMMS: 6200, TotalMS: 11900,
 		},
 	} {
@@ -198,7 +198,7 @@ func TestHistoryList(t *testing.T) {
 	for _, s := range []string{
 		"Let's move the design review to Thursday afternoon.", // the result's first line
 		"明天上午十点的站会改到线上，链接我稍后发到群里。",
-		"doubao: network: no result within 30s", // a failure's error
+		"asr.accurate: the speech server stopped answering (15s)", // a failure's error
 		"5 minutes ago · Notes · 0:07",
 		"Failed", "Not inserted", "Copied", "4 entries",
 	} {
@@ -296,7 +296,7 @@ func TestHistoryDetail(t *testing.T) {
 	}
 	for _, s := range []string{
 		"Entry details", "Result", "Recognised text", "Inserted", "Notes",
-		"doubao · bigmodel", "deepseek · deepseek-chat", "7.4 s", "620 ms", "1.2 s", "9.3 s",
+		"Accurate speech recognition", "Balanced language model", "7.4 s", "620 ms", "1.2 s", "9.3 s",
 		"Sound optimization", "Hum filtered, volume +7.5 dB",
 	} {
 		if !has(tt, s) {
@@ -317,11 +317,11 @@ func TestHistoryDetail(t *testing.T) {
 	}
 
 	// A failed entry: why, no language model, no recording.
-	click(t, tt, "doubao: network: no result within 30s")
+	click(t, tt, "asr.accurate: the speech server stopped answering (15s)")
 	if a.hist.sel != histFailed {
 		t.Fatalf("selected %q", a.hist.sel)
 	}
-	if !has(tt, "Failed: doubao: network: no result within 30s") {
+	if !has(tt, "Failed: asr.accurate: the speech server stopped answering (15s)") {
 		t.Errorf("no failure notice: %q", tt.Texts())
 	}
 	if tt.HasText("Show the recording in Finder") {
