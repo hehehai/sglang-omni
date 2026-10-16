@@ -24,6 +24,9 @@ local asr
 local llm
 logs core
 notify core
+omni asr
+omni lang
+omni vad
 overlay/ink overlay/layout
 overlay/layout session
 overlay/layout settings

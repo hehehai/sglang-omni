@@ -1,0 +1,225 @@
+package omni
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+)
+
+// Provider is the name errors carry (asr.Error.Provider).
+const Provider = "omni"
+
+// EnvRuntime names a runtime directory (with bin/qwen3_asr_server) for
+// development: it wins over the app's own.
+const EnvRuntime = "VOXTNEW_OMNI_RUNTIME"
+
+// ServerBinary is the server's path in a runtime directory.
+const ServerBinary = "bin/qwen3_asr_server"
+
+// Timeouts and limits of a Runtime (Config's zero values).
+const (
+	DefaultStartTimeout = 180 * time.Second // Voxt's: a cold first load compiles Metal kernels
+	DefaultIdleTimeout  = 10 * time.Minute
+	DefaultStallTimeout = 15 * time.Second
+	shutdownGrace       = 5 * time.Second
+	terminateGrace      = 3 * time.Second
+)
+
+// Config is how a Runtime starts its servers.
+type Config struct {
+	// Binary is qwen3_asr_server (Locate finds it).
+	Binary string
+	// Env is added to the servers' environment (VoxtNew's, without the
+	// dynamic loader's DYLD_ settings).
+	Env []string
+	// StartTimeout bounds a server's start (its model's load); a server
+	// that has not said it is ready by then is killed.
+	StartTimeout time.Duration
+	// IdleTimeout stops a server no one used for that long (< 0: never).
+	IdleTimeout time.Duration
+	// StallTimeout: a Final whose response stream (the server's heartbeat
+	// is every 250 ms) is silent this long has hung its server, which is
+	// killed and replaced at the next use.
+	StallTimeout time.Duration
+	// Log gets a line about the servers ("info", "warning", "error"); their
+	// stderr goes there too (they never write audio or text). nil: none.
+	Log func(level, msg string)
+}
+
+// Locate finds the runtime: $VOXTNEW_OMNI_RUNTIME (a directory with
+// bin/qwen3_asr_server, or the binary itself), else the app bundle's
+// Contents/Resources/omni beside exe (the running executable,
+// Contents/MacOS/VoxtNew). It returns the server binary's path.
+func Locate(exe string) (string, error) {
+	var tried []string
+	try := func(p string) (string, bool) {
+		tried = append(tried, p)
+		fi, err := os.Stat(p)
+		if err == nil && fi.IsDir() {
+			p = filepath.Join(p, ServerBinary)
+			fi, err = os.Stat(p)
+		}
+		return p, err == nil && fi.Mode().IsRegular()
+	}
+	if env := strings.TrimSpace(os.Getenv(EnvRuntime)); env != "" {
+		if p, ok := try(env); ok {
+			return p, nil
+		}
+		return "", fmt.Errorf("omni: %s=%s has no %s", EnvRuntime, env, ServerBinary)
+	}
+	if exe != "" {
+		if p, ok := try(filepath.Join(filepath.Dir(exe), "..", "Resources", "omni")); ok {
+			return filepath.Clean(p), nil
+		}
+	}
+	return "", fmt.Errorf("omni: no runtime (looked in %s; set %s)", strings.Join(tried, ", "), EnvRuntime)
+}
+
+// Runtime supervises the servers: one per model, one speech model at a
+// time, and Silero's beside it. Goroutine-safe.
+type Runtime struct {
+	cfg Config
+
+	mu      sync.Mutex
+	servers map[string]*server // by model id and directory
+	// draining are speech models' servers retired by a switch, until they
+	// stopped: the next speech model starts after them.
+	draining []*server
+	closed   bool
+}
+
+// NewRuntime is a runtime that starts no server until one is used.
+func NewRuntime(cfg Config) *Runtime {
+	if cfg.StartTimeout <= 0 {
+		cfg.StartTimeout = DefaultStartTimeout
+	}
+	if cfg.IdleTimeout == 0 {
+		cfg.IdleTimeout = DefaultIdleTimeout
+	}
+	if cfg.StallTimeout <= 0 {
+		cfg.StallTimeout = DefaultStallTimeout
+	}
+	if cfg.Log == nil {
+		cfg.Log = func(string, string) {}
+	}
+	return &Runtime{cfg: cfg, servers: map[string]*server{}}
+}
+
+func (rt *Runtime) logf(level, format string, args ...any) {
+	rt.cfg.Log(level, "omni: "+fmt.Sprintf(format, args...))
+}
+
+// errClosed: the runtime was closed (VoxtNew is quitting).
+var errClosed = errors.New("omni: the runtime is closed")
+
+// acquire leases spec's server for dir, starting it if it is not running
+// (and waiting for it, at most until ctx ends). Release the lease when
+// the use ends. Taking a speech model retires the other speech models'
+// servers (they stop once their uses end).
+func (rt *Runtime) acquire(ctx context.Context, spec Spec, dir string) (*lease, error) {
+	key := spec.ID + "\x00" + dir
+	rt.mu.Lock()
+	if rt.closed {
+		rt.mu.Unlock()
+		return nil, &asr.Error{Kind: asr.KindServer, Provider: Provider, Detail: "the speech runtime has stopped", Err: errClosed}
+	}
+	s := rt.servers[key]
+	if s == nil {
+		s = newServer(rt, spec, dir)
+		rt.servers[key] = s
+	}
+	var retire []*server
+	if spec.ASR != nil {
+		for k, o := range rt.servers {
+			if o != s && o.spec.ASR != nil {
+				delete(rt.servers, k)
+				retire = append(retire, o)
+			}
+		}
+		kept := rt.draining[:0]
+		for _, o := range rt.draining {
+			select {
+			case <-o.stopped:
+			default:
+				kept = append(kept, o)
+			}
+		}
+		rt.draining = append(kept, retire...)
+	}
+	rt.mu.Unlock()
+	for _, o := range retire {
+		o.retire()
+	}
+	l, err := s.acquire(ctx)
+	if errors.Is(err, errRetired) && ctx.Err() == nil {
+		// Another switch retired s meanwhile: once more, with the map's.
+		return rt.acquire(ctx, spec, dir)
+	}
+	return l, err
+}
+
+// Close stops every server and waits for them (VoxtNew's quit). Later
+// uses fail.
+func (rt *Runtime) Close() {
+	rt.mu.Lock()
+	rt.closed = true
+	all := make([]*server, 0, len(rt.servers))
+	for k, s := range rt.servers {
+		all = append(all, s)
+		delete(rt.servers, k)
+	}
+	rt.mu.Unlock()
+	var wg sync.WaitGroup
+	for _, s := range all {
+		wg.Go(s.shutdown)
+	}
+	wg.Wait()
+}
+
+// Running lists the ids of the models whose servers run now (for the
+// Local models page and Diagnostics: memory only).
+func (rt *Runtime) Running() []string {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	var out []string
+	for _, s := range rt.servers {
+		if s.running() {
+			out = append(out, s.spec.ID)
+		}
+	}
+	return out
+}
+
+// forget drops s from the map when it is still there (it stopped).
+func (rt *Runtime) forget(s *server) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	for k, o := range rt.servers {
+		if o == s {
+			delete(rt.servers, k)
+		}
+	}
+}
+
+// Warm starts spec's server for dir in the background, so that a first
+// use does not wait for the model's load (a session starting). It is
+// stopped again when idle.
+func (rt *Runtime) Warm(spec Spec, dir string) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), rt.cfg.StartTimeout+time.Second)
+		defer cancel()
+		l, err := rt.acquire(ctx, spec, dir)
+		if err != nil {
+			rt.logf("warning", "warming %s: %v", spec.ID, err)
+			return
+		}
+		l.release()
+	}()
+}

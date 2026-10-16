@@ -107,6 +107,7 @@ MyGo
 
 Go modules compiled into VoxtNew
   Their licence files are copied unchanged into LICENSES/go/.
+  - github.com/coder/websocket v1.8.15, Copyright (c) 2025 Coder, ISC
   - github.com/ebitengine/purego v0.11.1, Copyright the Ebitengine
     authors, Apache License 2.0 (LICENSES/Apache-2.0.txt)
   - github.com/go-text/typesetting v0.3.5, Copyright 2021 The go-text
