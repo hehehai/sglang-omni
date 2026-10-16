@@ -1,7 +1,7 @@
 package main
 
 // Updates: MyGo's updater plugin in native UI (native.Plugin, main.go)
-// checks GitHub Releases once a day, shows a new version's notes in its
+// checks actnow.dev once a day, shows a new version's notes in its
 // own window, in the language VoxtNew shows, and installs it (a delta
 // when there is one) on the user's word, then offers to restart. Its
 // "Check for Updates…" is ours, in the app menu, the menu bar icon's menu,
@@ -15,8 +15,10 @@ package main
 // (appUpdated), which a timer, a check and the helper's failure look for
 // (checkBundle, appbundle.Updated).
 //
-// Beta updates (Settings → About): betas are GitHub prereleases, which
-// MyGo offers only while mygo.Updater.SetPrereleases is on (patch 0006);
+// Beta updates (Settings → About): betas are in the feed's beta channel
+// (https://actnow.dev/updates/voxtnew/beta, whose manifest is the newer
+// of the newest beta and release), which MyGo reads only while
+// mygo.Updater.SetPrereleases is on (patch 0006);
 // the switch is Updates.Beta in VoxtNew's settings, on by default while
 // the running version is itself a beta (settings.Updates.BetaOn), and
 // applied when the app starts and when it changes (applyBeta).
@@ -257,9 +259,9 @@ func (a *app) updateSettingsSection(c *ui.Context) {
 	case !p.Enabled:
 		desc = i18n.T("This copy cannot update itself: it is a development build, or it is in a folder VoxtNew cannot write to. Move VoxtNew to Applications.")
 	case p.LastCheck.IsZero():
-		desc = i18n.T("New versions come from GitHub Releases, with their notes. Not checked yet.")
+		desc = i18n.T("New versions come from actnow.dev, with their notes. Not checked yet.")
 	default:
-		desc = i18n.T("New versions come from GitHub Releases, with their notes. Last checked %s.", uitext.TimeAgo(p.LastCheck))
+		desc = i18n.T("New versions come from actnow.dev, with their notes. Last checked %s.", uitext.TimeAgo(p.LastCheck))
 	}
 	settingRowNote(c, "about-update", i18n.T("Check for updates"), desc, func() {
 		if ui.Button(c.Key("about-update"), i18n.T("Check for Updates…")).Clicked() {

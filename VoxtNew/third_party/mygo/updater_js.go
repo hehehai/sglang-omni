@@ -24,7 +24,7 @@ var Updater = &UpdaterModule{}
 var ErrUpdatesDisabled = errors.New("mygo: updates are not enabled for this build")
 
 // ErrNotPublished is wrapped by the error of Check when the feed has no
-// release yet.
+// version yet.
 var ErrNotPublished = errors.New("no release is published")
 
 // Update is a newer version of the app, found by Updater.Check.

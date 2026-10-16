@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
-# The update test (docs/release.md, "Testing updates"): two versions of
-# VoxtNew, 0.1.0-test and 0.1.1-test, signed ad hoc, with a test key
-# that signs their updates, published on a feed served over HTTPS on the
-# loopback interface (scripts/update-server); the installed 0.1.0-test is
-# then updated by the real updater, driven without a window
-# (--update-check, -tags updatecheck: update_check.go):
+# The update test (docs/release.md §6): two releases of VoxtNew, 0.1.0
+# and 0.1.1, signed ad hoc, with a test key that signs their updates,
+# built with the release configuration (release/mygo.release.json, its
+# url pointing at the test's feed), checked as the release workflow
+# publishes them (scripts/actnow-publish.sh --dry-run, the site's own
+# script) and published as actnow.dev's back end does (update-server
+# -publish, into a directory that stands for the R2 bucket), on a local
+# actnow.dev: its update feed /updates/voxtnew/ served over HTTPS on the
+# loopback interface (scripts/update-server -site). The installed 0.1.0 is then updated by
+# the real updater, driven without a window (--update-check, -tags
+# updatecheck: update_check.go):
 #
 #   A. the delta: found, downloaded alone, installed; the bundle on disk is
-#      0.1.1-test file for file (code signature included), its helper the
-#      new one, and the supervisor of the old app starts no helper;
+#      0.1.1 file for file (code signature included), its helper the new
+#      one, and the supervisor of the old app starts no helper;
 #   B. the archive, when the feed has no delta;
 #   C. the archive after a delta that fails (an installed file changed);
-#   D. 0.1.1-test is up to date.
+#   D. 0.1.1 is up to date.
 #
 # Its own bundle ID (dev.hehehai.voxtnew.updtest) and directory, on a Mac
 # that may be busy with other work: no window, no app activated, no key,
@@ -36,7 +41,7 @@ fi
 export GOMAXPROCS=2 GOFLAGS=-p=2 SWIFT_BUILD_JOBS=2
 unset VOXTNEW_HELPER
 ID=dev.hehehai.voxtnew.updtest
-V0=0.1.0-test V1=0.1.1-test
+V0=0.1.0 V1=0.1.1
 WORK="$ROOT/build/update-e2e"
 FAILS=0
 
@@ -79,7 +84,7 @@ cleanup() {
 trap cleanup EXIT
 
 rm -rf "$WORK"
-mkdir -p "$WORK"/{feed,keys,orig/helper/Support}
+mkdir -p "$WORK"/{bucket,keys,orig/helper/Support}
 cp mygo.json CHANGELOG.md "$WORK/orig/"
 cp helper/Support/Info.plist "$WORK/orig/helper/Support/"
 
@@ -91,12 +96,14 @@ nice -n 10 go build -tags updatecheck -o /dev/null .
 step "a test key and the feed"
 go tool mygo keygen -o "$WORK/keys" >/dev/null
 chmod 600 "$WORK/keys/mygo-update.key"
-"$WORK/update-server" -dir "$WORK/feed" -cert "$WORK/cert.pem" -url "$WORK/url.txt" >"$WORK/server.log" 2>&1 &
+"$WORK/update-server" -site -dir "$WORK/bucket" -cert "$WORK/cert.pem" -url "$WORK/url.txt" >"$WORK/server.log" 2>&1 &
 server_pid=$!
 for _ in $(seq 50); do [[ -s "$WORK/url.txt" ]] && break; sleep 0.1; done
-URL="$(cat "$WORK/url.txt")"
-jq -n --arg id "$ID" --arg key "$(cat "$WORK/keys/mygo-update.pub")" --arg url "$URL" \
-  '{identifier: $id, updates: {publicKey: $key, url: $url}}' >"$WORK/overlay.json"
+SITE="$(cat "$WORK/url.txt")"
+URL="$SITE/updates/voxtnew"
+# The release's updates (url, s3, prereleases) with the test key and feed.
+jq --arg id "$ID" --arg key "$(cat "$WORK/keys/mygo-update.pub")" --arg url "$URL" \
+  '.identifier = $id | .updates.publicKey = $key | .updates.url = $url' release/mygo.release.json >"$WORK/overlay.json"
 echo "  feed $URL"
 
 # The release notes of both versions, as docs/release.md has them: English,
@@ -113,7 +120,10 @@ build() {
   local v="$1"
   cp "$WORK/orig/mygo.json" mygo.json
   scripts/release-config.sh --overlay "$WORK/overlay.json" >/dev/null
-  jq --arg v "$v" '.version = $v' mygo.json >"$WORK/mygo.json" && cat "$WORK/mygo.json" >mygo.json
+  # Without the model runtimes (the updater does not care what the
+  # bundle holds): no voxtnew-llm to give its entitlements to.
+  jq --arg v "$v" '.version = $v | del(.macos.helperEntitlements["llm/voxtnew-llm"])' mygo.json >"$WORK/mygo.json" &&
+    cat "$WORK/mygo.json" >mygo.json
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $v" helper/Support/Info.plist
   nice -n 10 scripts/build-helper.sh >/dev/null
   # The CLI fetches the published version for its delta: the test
@@ -125,12 +135,17 @@ build() {
   grep -iE "delta|update" "$WORK/build-$v.log" | sed 's/^/  build: /' || true
 }
 
-# publish VERSION: its files on the feed, the manifest last.
+# publish VERSION: checked by the site's script, then into the bucket as
+# the site publishes it (no disk image: -skip-dmg).
 publish() {
   local out="$WORK/out-$1/darwin-arm64"
-  cp "$out"/*.tar.gz "$WORK/feed/"
-  cp "$out"/*.delta "$WORK/feed/" 2>/dev/null || true
-  cp "$out/update-darwin-arm64.json" "$WORK/feed/"
+  bash scripts/actnow-publish.sh --app voxtnew --dir "$out" --changelog CHANGELOG.md --min-macos 15.0 \
+    --url "$SITE" --dry-run >"$WORK/publish-$1.json" 2>"$WORK/publish-$1.log" ||
+    { cat "$WORK/publish-$1.log" >&2; exit 1; }
+  # shellcheck disable=SC2016 # jq's variables
+  check "actnow-publish.sh --dry-run takes $1 ($(jq -r '.channel' "$WORK/publish-$1.json"), $(jq -r '[.artifacts[].filename] | join(" ")' "$WORK/publish-$1.json"))" \
+    jq -e --arg v "$1" '.version == $v and (.notes | length > 0) and (.notesZh | length > 0)' "$WORK/publish-$1.json"
+  "$WORK/update-server" -publish "$out" -dir "$WORK/bucket" -app voxtnew | sed 's/^/  publish: /'
 }
 
 # install: 0.1.0-test from its archive, as a user has it.
@@ -155,9 +170,13 @@ OLD="$WORK/out-$V0/darwin-arm64/VoxtNew.app"
 check "$V1 has a delta from $V0" bash -c "compgen -G '$WORK/out-$V1/darwin-arm64/*-to-$V1-*.delta' >/dev/null"
 check "the helpers of the two versions differ" \
   bash -c "! cmp -s '$OLD/Contents/Resources/helper/voxtnew-helper' '$NEW/Contents/Resources/helper/voxtnew-helper'"
-check "the build passes release-verify.sh (ad hoc)" scripts/release-verify.sh "$WORK/out-$V1/darwin-arm64" ad-hoc --no-dmg
+check "the app ships LICENSE, NOTICE and LICENSES/ (mygo.json resources)" \
+  bash -c "cmp -s LICENSE '$NEW/Contents/Resources/LICENSE' && cmp -s NOTICE '$NEW/Contents/Resources/NOTICE' && diff -r LICENSES '$NEW/Contents/Resources/LICENSES'"
+check "the build passes release-verify.sh (ad hoc)" scripts/release-verify.sh "$WORK/out-$V1/darwin-arm64" ad-hoc --no-dmg --no-runtimes
 publish "$V1"
-MANIFEST="$WORK/feed/update-darwin-arm64.json"
+check "the release is the beta channel's too" \
+  test "$(jq -r .version "$WORK/bucket/voxtnew/beta/update-darwin-arm64.json")" = "$V1"
+MANIFEST="$WORK/bucket/voxtnew/update-darwin-arm64.json"
 cp "$MANIFEST" "$WORK/manifest-with-delta.json"
 delta_size="$(jq -r --arg v "$V0" '.deltas[] | select(.from == $v) | .size' "$MANIFEST")"
 archive_size="$(jq -r .size "$MANIFEST")"

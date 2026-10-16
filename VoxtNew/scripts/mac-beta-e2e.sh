@@ -1,54 +1,57 @@
 #!/usr/bin/env bash
 # The beta channel's test (docs/release.md §6): five versions of VoxtNew,
-# signed ad hoc with a test key, published one after another as GitHub
-# would hold them, betas as prereleases, on a fake GitHub
-# (scripts/update-server -github: an HTTPS proxy that answers for
-# github.com and api.github.com itself and refuses every other host, so
-# nothing reaches the real one):
+# signed ad hoc with a test key, checked one after another as the release
+# workflow publishes them (scripts/actnow-publish.sh --dry-run, the site's
+# own script) and published as actnow.dev's back end does (update-server
+# -publish, into a directory that stands for the R2 bucket: a release
+# under voxtnew/, a beta under voxtnew/beta/, and the beta channel's
+# manifest always the newer of both), on a local actnow.dev: its update feed
+# /updates/voxtnew[/beta]/ served over HTTPS on the loopback interface
+# (scripts/update-server -site, which serves the update files only):
 #
 #   0.1.0-beta.1, 0.1.0-beta.2   betas before any release
 #   0.1.0                        the first release
 #   0.2.0-beta.1                 a beta of the next version
 #   0.1.1                        a fix released after that beta
 #
-# Each version is built as the release workflow builds it (updates of
-# release/mygo.release.json: github and prereleases), so its deltas come
-# from what is published at that point. After each publication installed
-# versions check for updates with Beta updates on, off or as by default
-# (--update-check, -tags updatecheck: update_check.go), and install what
-# they find with the real updater: a beta takes the next beta and the
-# release, a release ignores betas unless asked, nothing goes back, a
-# delta when there is one and the archive when it fails, and with the
-# GitHub API refused (its limit) betas fall back to the latest release.
+# Each version is built as the release workflow builds it (the updates of
+# release/mygo.release.json: url, s3 and prereleases, the url the test's),
+# so its deltas come from what is published at that point. After each
+# publication installed versions check for updates with Beta updates on,
+# off or as by default (--update-check, -tags updatecheck:
+# update_check.go), and install what they find with the real updater: a
+# beta takes the next beta and the release, a release ignores betas unless
+# asked, the beta channel offers the newer of both, nothing goes back, a
+# delta when there is one and the archive when it fails, and with the beta
+# channel's manifest broken betas fall back to the releases'.
 #
-# Its own bundle ID (dev.hehehai.voxtnew.betatest), repository name
-# (voxtnew-test/VoxtNew) and directory, on a Mac that may be busy with
-# other work: no window, no app activated, no key, no clipboard, no helper
-# started, no keychain; niced, two jobs, and it stops when less than
-# VOXTNEW_MIN_FREE percent of memory (40) is free. The test key, the
-# builds and the fake GitHub are removed at the end (KEEP=1 keeps them in
+# Its own bundle ID (dev.hehehai.voxtnew.betatest) and directory, on a Mac
+# that may be busy with other work: no window, no app activated, no key, no
+# clipboard, no helper started, no keychain; niced, two jobs, and it stops
+# when less than VOXTNEW_MIN_FREE percent of memory (40) is free. The test
+# key, the builds and the feed are removed at the end (KEEP=1 keeps them in
 # build/beta-e2e).
 #
-#   MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-beta-e2e.sh
+#   MAC_DIR=code/VoxtNew-site scripts/mac.sh scripts/mac-beta-e2e.sh
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "run it on a Mac: MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-beta-e2e.sh" >&2
+  echo "run it on a Mac: MAC_DIR=code/VoxtNew-site scripts/mac.sh scripts/mac-beta-e2e.sh" >&2
   exit 1
 fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 if [[ "$ROOT" == "$HOME/code/VoxtNew" ]]; then
-  echo "not in the app's own checkout: use MAC_DIR=code/VoxtNew-upd" >&2
+  echo "not in the app's own checkout: use MAC_DIR=code/VoxtNew-site" >&2
   exit 1
 fi
 export GOMAXPROCS=2 GOFLAGS=-p=2 SWIFT_BUILD_JOBS=2
-unset VOXTNEW_HELPER GH_TOKEN GITHUB_TOKEN
+unset VOXTNEW_HELPER
 ID=dev.hehehai.voxtnew.betatest
-REPO=voxtnew-test/VoxtNew
 B1=0.1.0-beta.1 B2=0.1.0-beta.2 R1=0.1.0 B3=0.2.0-beta.1 R2=0.1.1
 WORK="$ROOT/build/beta-e2e"
-GH="$WORK/github"
+BUCKET="$WORK/bucket"
+FEED="$BUCKET/voxtnew"
 FAILS=0 RUNS=0
 
 step() {
@@ -90,29 +93,28 @@ cleanup() {
 trap cleanup EXIT
 
 rm -rf "$WORK"
-mkdir -p "$WORK"/{keys,orig/helper/Support} "$GH"
+mkdir -p "$WORK"/{keys,orig/helper/Support} "$BUCKET"
 cp mygo.json CHANGELOG.md "$WORK/orig/"
 cp helper/Support/Info.plist "$WORK/orig/helper/Support/"
 
-step "Go modules and the tools (before the proxy and SSL_CERT_FILE)"
+step "Go modules and the tools (before SSL_CERT_FILE, which trusts the test certificate only)"
 nice -n 10 go mod download
 nice -n 10 go build -o "$WORK/update-server" ./scripts/update-server
 nice -n 10 go build -tags updatecheck -o /dev/null .
 
-step "a test key and the fake GitHub"
+step "a test key and the feed"
 go tool mygo keygen -o "$WORK/keys" >/dev/null
 chmod 600 "$WORK/keys/mygo-update.key"
-# A draft, which nothing may take.
-echo '[{"tag_name": "v0.3.0-beta.1", "draft": true, "prerelease": true}]' >"$GH/releases.json"
-"$WORK/update-server" -github "$REPO" -dir "$GH" -cert "$WORK/cert.pem" -url "$WORK/proxy.txt" >"$WORK/server.log" 2>&1 &
+"$WORK/update-server" -site -dir "$BUCKET" -cert "$WORK/cert.pem" -url "$WORK/url.txt" >"$WORK/server.log" 2>&1 &
 server_pid=$!
-for _ in $(seq 50); do [[ -s "$WORK/proxy.txt" ]] && break; sleep 0.1; done
-PROXY="$(cat "$WORK/proxy.txt")"
-# The release's updates (github, prereleases) with the test key and repository.
-jq --arg id "$ID" --arg key "$(cat "$WORK/keys/mygo-update.pub")" --arg repo "$REPO" \
-  '.identifier = $id | .updates.publicKey = $key | .updates.github = $repo' release/mygo.release.json >"$WORK/overlay.json"
+for _ in $(seq 50); do [[ -s "$WORK/url.txt" ]] && break; sleep 0.1; done
+SITE="$(cat "$WORK/url.txt")"
+URL="$SITE/updates/voxtnew"
+# The release's updates (url, s3, prereleases) with the test key and feed.
+jq --arg id "$ID" --arg key "$(cat "$WORK/keys/mygo-update.pub")" --arg url "$URL" \
+  '.identifier = $id | .updates.publicKey = $key | .updates.url = $url' release/mygo.release.json >"$WORK/overlay.json"
 jq -e '.updates.prereleases == true' "$WORK/overlay.json" >/dev/null
-echo "  proxy $PROXY for github.com/$REPO"
+echo "  feed $URL"
 
 # The notes of every version, English then Chinese.
 {
@@ -122,8 +124,8 @@ echo "  proxy $PROXY for github.com/$REPO"
   done
 } >CHANGELOG.md
 
-# github ENV... COMMAND: COMMAND with GitHub being the fake one.
-github() { HTTPS_PROXY="$PROXY" SSL_CERT_FILE="$WORK/cert.pem" "$@"; }
+# local COMMAND: COMMAND trusting the test feed's certificate.
+local_feed() { SSL_CERT_FILE="$WORK/cert.pem" "$@"; }
 
 # build VERSION: the helper and the app of VERSION into $WORK/out-VERSION,
 # its deltas from what is published.
@@ -131,11 +133,14 @@ build() {
   local v="$1"
   cp "$WORK/orig/mygo.json" mygo.json
   scripts/release-config.sh --overlay "$WORK/overlay.json" >/dev/null
-  jq --arg v "$v" '.version = $v' mygo.json >"$WORK/mygo.json" && cat "$WORK/mygo.json" >mygo.json
+  # Without the model runtimes (the updater does not care what the
+  # bundle holds): no voxtnew-llm to give its entitlements to.
+  jq --arg v "$v" '.version = $v | del(.macos.helperEntitlements["llm/voxtnew-llm"])' mygo.json >"$WORK/mygo.json" &&
+    cat "$WORK/mygo.json" >mygo.json
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $v" helper/Support/Info.plist
   nice -n 10 scripts/build-helper.sh >/dev/null
   GOPROXY=off GOFLAGS="$GOFLAGS -tags=updatecheck" MYGO_UPDATER_PRIVATE_KEY="$(cat "$WORK/keys/mygo-update.key")" \
-    github nice -n 10 go tool mygo build -platform darwin/arm64 -skip-dmg -o "$WORK/out-$v" >"$WORK/build-$v.log" 2>&1 ||
+    local_feed nice -n 10 go tool mygo build -platform darwin/arm64 -skip-dmg -o "$WORK/out-$v" >"$WORK/build-$v.log" 2>&1 ||
     { tail -30 "$WORK/build-$v.log" >&2; exit 1; }
   grep -iE "delta" "$WORK/build-$v.log" | sed 's/^/  build: /' || true
 }
@@ -143,17 +148,25 @@ build() {
 # deltas VERSION: the versions VERSION's manifest has deltas from.
 deltas() { jq -r '[.deltas[]?.from] | join(" ")' "$WORK/out-$1/darwin-arm64/update-darwin-arm64.json"; }
 
-# publish VERSION: its files under its tag, then the release listed (a
-# prerelease for a beta), newest first.
+# publish VERSION: checked by the site's script, then into the bucket as
+# the site publishes it (no disk image: -skip-dmg).
 publish() {
-  local v="$1" out="$WORK/out-$1/darwin-arm64" pre=false
-  [[ "$v" == *-* ]] && pre=true
-  mkdir -p "$GH/v$v"
-  cp "$out"/*.tar.gz "$out/update-darwin-arm64.json" "$GH/v$v/"
-  cp "$out"/*.delta "$GH/v$v/" 2>/dev/null || true
-  jq --arg t "v$v" --argjson pre "$pre" '[{tag_name: $t, draft: false, prerelease: $pre}] + .' "$GH/releases.json" >"$WORK/releases.json"
-  cat "$WORK/releases.json" >"$GH/releases.json"
-  echo "  published v$v (prerelease: $pre)"
+  local out="$WORK/out-$1/darwin-arm64"
+  bash scripts/actnow-publish.sh --app voxtnew --dir "$out" --changelog CHANGELOG.md --min-macos 15.0 \
+    --url "$SITE" --dry-run >"$WORK/publish-$1.json" 2>"$WORK/publish-$1.log" ||
+    { cat "$WORK/publish-$1.log" >&2; exit 1; }
+  # shellcheck disable=SC2016 # jq's variables
+  check "actnow-publish.sh --dry-run takes $1 ($(jq -r '.channel' "$WORK/publish-$1.json"), $(jq -r '[.artifacts[].filename] | join(" ")' "$WORK/publish-$1.json"))" \
+    jq -e --arg v "$1" '.version == $v and (.notes | length > 0) and (.notesZh | length > 0)' "$WORK/publish-$1.json"
+  "$WORK/update-server" -publish "$out" -dir "$BUCKET" -app voxtnew | sed 's/^/  publish: /'
+}
+
+# channels: the versions of the releases' and the beta channel's manifests.
+channels() {
+  local r b
+  r="$(jq -r .version "$FEED/update-darwin-arm64.json" 2>/dev/null || echo none)"
+  b="$(jq -r .version "$FEED/beta/update-darwin-arm64.json" 2>/dev/null || echo none)"
+  echo "$r $b"
 }
 
 # expect NAME FROM BETA WANT HOW: installs FROM from its archive, checks
@@ -173,7 +186,7 @@ expect() {
   [[ "$beta" != default ]] && args=(--update-beta "$beta")
   local before
   before="$(wc -l <"$WORK/server.log")"
-  github nice -n 10 "$app/Contents/MacOS/VoxtNew" --update-check "$r" ${args[@]+"${args[@]}"}
+  local_feed nice -n 10 "$app/Contents/MacOS/VoxtNew" --update-check "$r" ${args[@]+"${args[@]}"}
   local served
   served="$(tail -n +"$((before + 1))" "$WORK/server.log")"
   local on=false
@@ -206,7 +219,7 @@ expect() {
   check "CFBundleVersion is $want's numbers" test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" = "${want%%-*}"
   check "the old app starts no helper (updated)" test "$(jq -r '"\(.diskVersion) \(.helperState) \(.helperReason) \(.helperPID)"' "$r")" = "$want failed updated 0"
   if [[ "$how" == delta ]]; then
-    check "GitHub served the delta, not the archive" bash -c "grep -q '\.delta' <<<\"\$1\" && ! grep -q '\.tar\.gz' <<<\"\$1\"" _ "$served"
+    check "the feed served the delta, not the archive" bash -c "grep -q '\.delta' <<<\"\$1\" && ! grep -q '\.tar\.gz' <<<\"\$1\"" _ "$served"
   fi
   check "nothing left next to the app" test -z "$(find "$WORK/inst" -maxdepth 1 -name '.VoxtNew.app.*' -print)"
 }
@@ -215,11 +228,12 @@ step "build $B1, the first beta: nothing published yet"
 build "$B1"
 check "$B1 has no delta" test -z "$(deltas "$B1")"
 publish "$B1"
+check "only the beta channel has $B1" test "$(channels)" = "none $B1"
 step "build $B2 (only betas published: its delta from $B1)"
 build "$B2"
 check "$B2 has a delta from $B1" test "$(deltas "$B2")" = "$B1"
 publish "$B2"
-check "the build passes release-verify.sh (ad hoc)" scripts/release-verify.sh "$WORK/out-$B2/darwin-arm64" ad-hoc --no-dmg
+check "the build passes release-verify.sh (ad hoc)" scripts/release-verify.sh "$WORK/out-$B2/darwin-arm64" ad-hoc --no-dmg --no-runtimes
 
 step "betas only"
 expect a "$B1" default "$B2" delta
@@ -229,6 +243,7 @@ step "build $R1, the first release (deltas from the betas)"
 build "$R1"
 check "$R1 has deltas from $B2 and $B1" test "$(deltas "$R1")" = "$B2 $B1"
 publish "$R1"
+check "both channels have $R1" test "$(channels)" = "$R1 $R1"
 expect c "$B2" default "$R1" delta
 expect d "$B2" off "$R1" delta
 expect e "$B1" on "$R1" delta
@@ -238,6 +253,7 @@ step "build $B3, a beta of the next version (deltas from both channels)"
 build "$B3"
 check "$B3 has deltas from $R1, $B2 and $B1" test "$(deltas "$B3")" = "$R1 $B2 $B1"
 publish "$B3"
+check "the beta channel has $B3" test "$(channels)" = "$R1 $B3"
 expect f "$R1" default ""
 expect g "$R1" on "$B3" delta
 expect h "$B2" default "$B3" delta
@@ -247,23 +263,23 @@ step "build $R2, a fix released after $B3"
 build "$R2"
 check "$R2 has deltas from $R1, $B2 and $B1" test "$(deltas "$R2")" = "$R1 $B2 $B1"
 publish "$R2"
+check "the beta channel keeps $B3, newer than $R2" test "$(channels)" = "$R2 $B3"
 expect j "$B3" off ""
 expect k "$B3" default ""
 expect l "$R1" default "$R2" delta
 expect m "$R1" on "$B3" delta
 
-step "the GitHub API refuses (its limit): betas fall back to the latest release"
-touch "$GH/rate-limited"
+step "the beta channel's manifest broken: betas fall back to the releases'"
+cp "$FEED/beta/update-darwin-arm64.json" "$WORK/beta-manifest.json"
+echo '{"version":' >"$FEED/beta/update-darwin-arm64.json"
 expect o "$R1" on "$R2" delta
-expect p "$B3" on "" "" "GitHub takes no more requests"
-rm -f "$GH/rate-limited"
+expect p "$B3" on "" "" "checking for updates"
+cp "$WORK/beta-manifest.json" "$FEED/beta/update-darwin-arm64.json"
 
-step "the fake GitHub"
-api="$(grep -c ' api.github.com/' "$WORK/server.log" || true)"
-files="$(grep -c ' github.com/' "$WORK/server.log" || true)"
-echo "  $api API requests, $files file requests, $RUNS update checks"
-check "no other host was asked" test "$(grep -c REFUSED "$WORK/server.log" || true)" = 0
-check "no draft was taken" bash -c "! grep -q 'v0.3.0-beta.1/' '$WORK/server.log'"
+step "the feed"
+echo "  $(wc -l <"$WORK/server.log" | tr -d ' ') requests, $RUNS update checks"
+check "nothing but /updates/voxtnew/ was asked" bash -c "! grep -E ' (GET|HEAD) /' '$WORK/server.log' | grep -v ' /updates/voxtnew/'"
+check "no disk image was uploaded (-no-dmg) nor asked" bash -c "! find '$BUCKET' -name '*.dmg' | grep -q . && ! grep -q '\.dmg' '$WORK/server.log'"
 if pgrep -f "$WORK/inst/VoxtNew.app/Contents/Resources/helper/voxtnew-helper" >/dev/null; then
   echo "  FAIL a helper is running" && FAILS=$((FAILS + 1))
 fi
@@ -271,4 +287,4 @@ if ((FAILS > 0)); then
   echo "== $FAILS checks failed" >&2
   exit 1
 fi
-echo "== all checks passed; the test key, the builds and the fake GitHub are removed"
+echo "== all checks passed; the test key, the builds and the feed are removed"

@@ -295,7 +295,7 @@ type Setup struct {
 // other preferences (automatic checks and installs) are the updater
 // plugin's, in its own updater.json.
 type Updates struct {
-	// Beta offers beta versions (GitHub prereleases) too. Nil until the
+	// Beta offers beta versions (the feed's beta channel) too. Nil until the
 	// user chooses: then on while the running version is a beta (BetaOn),
 	// so that a beta's users get the next one. No migration: older
 	// documents have none.

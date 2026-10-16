@@ -54,14 +54,19 @@ type Updates struct {
 	// Deltas is how many earlier versions get a delta update: a smaller
 	// download holding only what changed (default 3, 0 for none).
 	Deltas *int `json:"deltas"`
-	// Prereleases are published on GitHub beside the releases, for apps
-	// that offer them to the users who opt in (Updater.SetPrereleases):
-	// -upload makes the draft of a version with a pre-release part, such
-	// as 1.3.0-beta.1, a prerelease, which never becomes the latest
-	// release; and builds make delta updates from the newest prerelease
-	// too, so that both channels get one.
+	// Prereleases puts versions with a pre-release part, such as
+	// 1.3.0-beta.1, in a beta channel beside the releases: the beta/
+	// directory of URL, whose manifest the server keeps the newest version
+	// of both channels, for the users who opt in (Updater.SetPrereleases).
+	// Builds make delta updates from the newest version of both channels,
+	// so that both get one. -upload does not publish channels: S3 is not
+	// for it.
 	Prereleases bool `json:"prereleases"`
 }
+
+// betaDir is the directory of the beta channel in URL and S3's prefix
+// (Prereleases).
+const betaDir = "beta"
 
 // deltas returns how many earlier versions get a delta update.
 func (u *Updates) deltas() int {
@@ -103,8 +108,8 @@ func (u *Updates) validate() error {
 			return err
 		}
 	}
-	if u.Prereleases && u.GitHub == "" {
-		return errors.New("updates.prereleases needs github: prereleases are GitHub's")
+	if u.Prereleases && (u.URL == "" || u.S3 != nil) {
+		return errors.New("updates.prereleases needs url, without s3: the beta channel is the beta/ directory of url, which the server publishes")
 	}
 	if u.Deltas != nil && *u.Deltas < 0 {
 		return fmt.Errorf("updates.deltas is %d, not a number of versions", *u.Deltas)
@@ -115,19 +120,39 @@ func (u *Updates) validate() error {
 	return nil
 }
 
-// updateFeed returns the URL of the manifest of target.
+// updateFeed returns the URL of the manifest of target, the releases'.
 func (c *Config) updateFeed(target string) string {
 	return c.updateFile(update.ManifestName(target), true)
+}
+
+// betaFeed returns the URL of the manifest of target in the beta channel,
+// or "" without one (updates.prereleases).
+func (c *Config) betaFeed(target string) string {
+	if !c.Updates.Prereleases {
+		return ""
+	}
+	return strings.TrimSuffix(c.Updates.URL, "/") + "/" + betaDir + "/" + url.PathEscape(update.ManifestName(target))
+}
+
+// prerelease reports whether this version goes to the beta channel: it has
+// a pre-release part, and updates.prereleases is set.
+func (c *Config) prerelease() bool {
+	return c.Updates.Prereleases && strings.Contains(c.Version, "-")
 }
 
 // updateFile returns the URL of a published update file; manifests come
 // from the latest release on GitHub, or with a tag prefix from the newest
 // release tagged with it (a feed that update.ResolveFeed resolves),
-// archives from the release of this version.
+// archives from the release of this version. With url, the files of a
+// prerelease are in the beta channel's directory.
 func (c *Config) updateFile(name string, latest bool) string {
 	u := c.Updates
 	if u.GitHub == "" {
-		return strings.TrimSuffix(u.URL, "/") + "/" + url.PathEscape(name)
+		dir := strings.TrimSuffix(u.URL, "/")
+		if !latest && c.prerelease() {
+			dir += "/" + betaDir
+		}
+		return dir + "/" + url.PathEscape(name)
 	}
 	if latest && u.tagged() {
 		return update.TaggedFeed(u.GitHub, u.TagPrefix, name)
@@ -144,8 +169,12 @@ func updateFlags(c *Config, target string) string {
 	if c.Updates == nil {
 		return ""
 	}
-	return " -X " + ldflagsQuote("github.com/egoist/mygo.packageUpdateFeed="+c.updateFeed(target)) +
+	flags := " -X " + ldflagsQuote("github.com/egoist/mygo.packageUpdateFeed="+c.updateFeed(target)) +
 		" -X github.com/egoist/mygo.packageUpdateKey=" + c.Updates.PublicKey
+	if beta := c.betaFeed(target); beta != "" {
+		flags += " -X " + ldflagsQuote("github.com/egoist/mygo.packageUpdateBetaFeed="+beta)
+	}
+	return flags
 }
 
 // signingKey returns the private key that signs updates, or nil when none
@@ -286,40 +315,31 @@ func writeSigned(path string, key ed25519.PrivateKey, write func(io.Writer) erro
 // writeDeltas makes delta updates to the app of target in stage from the
 // n versions before it, as Sparkle does: the version of the published
 // manifest of target and those it lists as previous, whose archives it
-// downloads; with updates.prereleases also the newest prerelease's and
-// those it lists, the published version of each channel first. It adds
-// them to m, with the archives the next version makes deltas from, and
-// returns the files written. Deltas only save downloads, so a version
-// without one is skipped with a message.
+// downloads; with updates.prereleases also the beta channel's, the
+// published version of each channel first. It adds them to m, with the
+// archives the next version makes deltas from, and returns the files
+// written. Deltas only save downloads, so a version without one is
+// skipped with a message.
 func writeDeltas(c *Config, key ed25519.PrivateKey, stage, target string, entries []string, m *update.Manifest, n int) ([]string, error) {
 	var heads, rest []update.Archive
-	feed := c.updateFeed(target)
-	published, err := fetchManifest(feed, update.ResolveFeed)
-	switch {
-	case err == nil:
+	for _, feed := range []string{c.updateFeed(target), c.betaFeed(target)} {
+		if feed == "" {
+			continue
+		}
+		published, err := fetchManifest(feed)
+		switch {
+		case errors.Is(err, errNotPublished):
+			continue
+		case err != nil:
+			warnf("No delta updates for %s from %s: %v", target, feed, err)
+			continue
+		}
 		heads = append(heads, update.Archive{Version: published.Version, URL: published.URL, Size: published.Size, Signature: published.Signature})
 		rest = append(rest, published.Previous...)
-	case errors.Is(err, errNotPublished):
-		if !c.Updates.Prereleases {
-			logf("No delta updates for %s: no version is published yet", target)
-			return nil, nil
-		}
-	default:
-		warnf("No delta updates for %s: %v", target, err)
-		return nil, nil
 	}
-	if c.Updates.Prereleases {
-		pre, err := fetchManifest(feed, update.ResolvePrereleaseFeed)
-		switch {
-		case err == nil:
-			heads = append(heads, update.Archive{Version: pre.Version, URL: pre.URL, Size: pre.Size, Signature: pre.Signature})
-			rest = append(rest, pre.Previous...)
-		case errors.Is(err, errNotPublished) && len(heads) == 0:
-			logf("No delta updates for %s: no version is published yet", target)
-			return nil, nil
-		case !errors.Is(err, errNotPublished):
-			warnf("No delta updates from the prereleases for %s: %v", target, err)
-		}
+	if len(heads) == 0 {
+		logf("No delta updates for %s: no version is published yet", target)
+		return nil, nil
 	}
 	slices.SortStableFunc(heads, func(a, b update.Archive) int { return update.Compare(b.Version, a.Version) })
 	slices.SortStableFunc(rest, func(a, b update.Archive) int { return update.Compare(b.Version, a.Version) })
@@ -408,10 +428,9 @@ func writeDelta(key ed25519.PrivateKey, base update.Archive, work, path, version
 
 var errNotPublished = errors.New("not published")
 
-// fetchManifest downloads a published manifest, from its feed as resolve
-// finds it.
-func fetchManifest(feed string, resolve func(context.Context, string, update.Getter) (string, error)) (*update.Manifest, error) {
-	u, err := resolve(context.Background(), feed, func(_ context.Context, u string) (io.ReadCloser, error) {
+// fetchManifest downloads a published manifest, from its feed.
+func fetchManifest(feed string) (*update.Manifest, error) {
+	u, err := update.ResolveFeed(context.Background(), feed, func(_ context.Context, u string) (io.ReadCloser, error) {
 		resp, err := updateGet(u, 30*time.Second)
 		if err != nil {
 			return nil, err

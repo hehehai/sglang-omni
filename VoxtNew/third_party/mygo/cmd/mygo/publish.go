@@ -84,18 +84,12 @@ func publishGitHub(c *Config, artifacts []string) error {
 	if c.Updates.tagged() {
 		latest = " --latest=false"
 	}
-	// A prerelease is never the latest release: apps that take
-	// prereleases find it through the API.
-	prerelease := c.Updates.Prereleases && strings.Contains(c.Version, "-")
 	if exec.Command(gh, "release", "view", tag, "--repo", repo).Run() != nil {
 		notes, _ := c.releaseNotes()
 		t := con.start("Creating the draft release " + tag + " of " + repo)
 		args := []string{"release", "create", tag, "--repo", repo, "--draft", "--title", tag, "--notes", notes}
 		if latest != "" {
 			args = append(args, "--latest=false")
-		}
-		if prerelease {
-			args = append(args, "--prerelease")
 		}
 		if out, err := exec.Command(gh, args...).CombinedOutput(); err != nil {
 			t.fail()

@@ -18,15 +18,13 @@ import (
 //	https://github.com/<owner>/<repo>/releases/download/<prefix>{version}/update-<target>.json
 //
 // and ResolveFeed finds the newest release tagged <prefix> through the
-// GitHub API. Other feeds are the URL of the manifest. Apps that take
-// prereleases resolve either feed of GitHub releases through the API
-// (ResolvePrereleaseFeed).
+// GitHub API. Other feeds are the URL of the manifest.
 
 // VersionPlaceholder stands for the version in the feed of tagged releases.
 const VersionPlaceholder = "{version}"
 
-// ErrNotPublished is returned by ResolveFeed and ResolvePrereleaseFeed
-// when no release is tagged with the prefix of the feed.
+// ErrNotPublished is returned by ResolveFeed when no release is tagged
+// with the prefix of the feed.
 var ErrNotPublished = errors.New("no release is published")
 
 // Getter gets a URL and returns the body of a successful response.
@@ -84,83 +82,22 @@ func parseTaggedFeed(feed string) (repo, prefix string, err error) {
 // latestTagged returns the tag of the newest release of repo tagged
 // prefix that is neither a draft nor a prerelease.
 func latestTagged(ctx context.Context, get Getter, repo, prefix string) (string, error) {
-	return newestTagged(ctx, get, repo, prefix, false)
-}
-
-// newestTagged returns the tag of the newest release of repo tagged prefix
-// that is not a draft, and with prereleases unset, not a prerelease: the
-// first in the API's order (newest first), or with prereleases the
-// highest version (Compare) of the first page that has one, so that a
-// stable fix published after a prerelease of a later version does not
-// hide the prerelease.
-func newestTagged(ctx context.Context, get Getter, repo, prefix string, prereleases bool) (string, error) {
 	for page := 1; page <= maxReleasePages; page++ {
 		u := GitHubAPI + "/repos/" + repo + "/releases?per_page=" + strconv.Itoa(releasesPerPage) + "&page=" + strconv.Itoa(page)
 		releases, err := getReleases(ctx, get, u)
 		if err != nil {
 			return "", err
 		}
-		best := ""
 		for _, r := range releases {
-			if r.Draft || r.Prerelease && !prereleases || !strings.HasPrefix(r.TagName, prefix) {
-				continue
-			}
-			if !prereleases {
+			if !r.Draft && !r.Prerelease && strings.HasPrefix(r.TagName, prefix) {
 				return r.TagName, nil
 			}
-			if best == "" || Compare(strings.TrimPrefix(r.TagName, prefix), strings.TrimPrefix(best, prefix)) > 0 {
-				best = r.TagName
-			}
-		}
-		if best != "" {
-			return best, nil
 		}
 		if len(releases) < releasesPerPage {
 			break
 		}
 	}
 	return "", fmt.Errorf("%w in %s tagged %s", ErrNotPublished, repo, prefix)
-}
-
-// LatestFeed reports whether feed is the manifest name of the latest
-// release of a GitHub repository,
-//
-//	https://github.com/<owner>/<repo>/releases/latest/download/<name>
-//
-// and returns the repository.
-func LatestFeed(feed string) (repo, name string, ok bool) {
-	rest, ok := strings.CutPrefix(feed, "https://github.com/")
-	parts := strings.SplitN(rest, "/", 6)
-	if !ok || len(parts) != 6 || parts[2] != "releases" || parts[3] != "latest" || parts[4] != "download" || parts[5] == "" {
-		return "", "", false
-	}
-	return parts[0] + "/" + parts[1], parts[5], true
-}
-
-// ResolvePrereleaseFeed is ResolveFeed for apps that take prereleases
-// (Updater.SetPrereleases): for a feed of GitHub releases, the latest
-// release's (LatestFeed, whose tags are "v" and a version) or tagged ones'
-// (TaggedFeed), it returns the manifest in the release of the highest
-// version that is not a draft, prereleases included, through the GitHub
-// API. Other feeds have no prereleases: it returns them as they are.
-func ResolvePrereleaseFeed(ctx context.Context, feed string, get Getter) (string, error) {
-	var repo, prefix, name string
-	if r, n, ok := LatestFeed(feed); ok {
-		repo, prefix, name = r, "v", n
-	} else if strings.Contains(feed, VersionPlaceholder) {
-		var err error
-		if repo, prefix, err = parseTaggedFeed(feed); err != nil {
-			return "", err
-		}
-		name = feed[strings.LastIndex(feed, "/")+1:]
-	} else {
-		return feed, nil
-	}
-	tag, err := newestTagged(ctx, get, repo, prefix, true)
-	if err != nil {
-		return "", err
-	}
-	return "https://github.com/" + repo + "/releases/download/" + url.PathEscape(tag) + "/" + name, nil
 }
 
 type release struct {

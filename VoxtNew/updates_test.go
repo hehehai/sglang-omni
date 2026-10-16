@@ -118,7 +118,7 @@ func TestUpdatesSettings(t *testing.T) {
 	}
 	// A change from the update window (its checkbox) shows.
 	f.change(func(p *updatePrefs) { p.AutoCheck = true; p.LastCheck = time.Time{} })
-	if !has(tt, "New versions come from GitHub Releases, with their notes. Not checked yet.") || !a.updPrefs.AutoCheck {
+	if !has(tt, "New versions come from actnow.dev, with their notes. Not checked yet.") || !a.updPrefs.AutoCheck {
 		t.Errorf("after a change: %+v %q", a.updPrefs, firstTexts(tt))
 	}
 	// A development build, or one in a folder it cannot write to.

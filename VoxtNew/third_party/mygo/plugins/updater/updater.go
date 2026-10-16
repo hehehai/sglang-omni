@@ -212,8 +212,7 @@ type release struct {
 func checkRelease(ctx context.Context) (*release, error) {
 	up, err := updaterCheck(ctx)
 	if errors.Is(err, mygo.ErrNotPublished) {
-		// Nothing is published yet, or only prereleases while the app
-		// takes none: there is nothing newer.
+		// Nothing is published on the feed yet: there is nothing newer.
 		return nil, nil
 	}
 	if err != nil || up == nil {
