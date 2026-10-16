@@ -120,6 +120,16 @@ func snapshotsMain(t *testing.T, out string) {
 				save("settings-about-beta-off")
 				a.prefs.Updates.Beta = nil
 				a.version = ver
+				// The self-check: both runtimes in the app, no model yet
+				// (settings_about_models.go).
+				oldOmni, oldLLM := omniLocate, llmLocate
+				omniLocate = func() (string, error) { return "VoxtNew.app/Contents/Resources/omni/bin/qwen3_asr_server", nil }
+				llmLocate = func() string { return "VoxtNew.app/Contents/Resources/llm/voxtnew-llm" }
+				a.runSelfCheck()
+				omniLocate, llmLocate = oldOmni, oldLLM
+				scrollToText(tt, i18n.T("Self-check"))
+				save("settings-about-check")
+				a.checks = nil
 			}
 			if s.id == "overlay" { // its preview, under the controls
 				w, h := snapshotSize()

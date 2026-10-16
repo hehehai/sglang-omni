@@ -43,11 +43,10 @@ func (a *app) llmRuntime() *llmrt.Runtime {
 		a.llmrt = llmrt.New(llmrt.Config{})
 		a.llmrt.Stop()
 	default:
-		resources, _ := mygo.App.Path(mygo.PathResources)
 		logDir, _ := mygo.App.Path(mygo.PathLogs)
 		logs := a.logs
 		a.llmrt = llmrt.New(llmrt.Config{
-			Bin: llmrt.Find(resources), AppVersion: mygo.App.Version(), LogDir: logDir,
+			Bin: llmLocate(), AppVersion: mygo.App.Version(), LogDir: logDir,
 			Log: func(e core.LogEntry) {
 				if logs != nil {
 					logs.Append(e)

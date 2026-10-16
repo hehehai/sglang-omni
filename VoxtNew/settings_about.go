@@ -1,7 +1,7 @@
 package main
 
 // Settings → About (诊断与关于; AudioSmith's, for VoxtNew): versions
-// and the machine, a self-check (library, helper, data folder,
+// and the machine, a self-check (library, helper, models, data folder,
 // permissions), "Copy diagnostics", a diagnostic bundle (a ZIP
 // of the logs, the settings and the diagnostics) and Report a bug, which
 // opens a prefilled GitHub issue in the browser.
@@ -40,7 +40,6 @@ const (
 	licenceURL = repoURL + "/blob/main/VoxtNew/LICENSE"
 	noticeURL  = repoURL + "/blob/main/VoxtNew/NOTICE"
 )
-
 
 // aboutState is the Diagnostics page's state.
 type aboutState struct {
@@ -88,6 +87,7 @@ func (a *app) diagnosticsText() string {
 	line("MyGo", moduleVersion("github.com/egoist/mygo"))
 	line("Data folder", fmt.Sprintf("%s (free %s)", a.dataDir(), uitext.HumanBytes(diskFree(a.dataDir()))))
 	line("Language", i18n.Locale())
+	a.modelDiagnostics(line) // settings_about_models.go
 	for _, c := range a.checks {
 		line("Check "+c.id, c.status+" "+c.detail)
 	}
@@ -115,6 +115,7 @@ func (a *app) runSelfCheck() {
 	st, hs, data := a.lib.store, a.helperStatus(), a.dataDir()
 	a.recheckPermissions()
 	perms := a.perms
+	mods := a.modelCheckInput() // settings_about_models.go
 	a.async(func() {
 		var out []selfCheck
 		add := func(id, title, status, detail string) {
@@ -148,6 +149,8 @@ func (a *app) runSelfCheck() {
 				add("data", i18n.T("Data folder"), "pass", i18n.T("Writable · %s free", uitext.HumanBytes(free)))
 			}
 		}
+		// The models and their runtimes.
+		modelChecks(mods, add)
 		// Permissions.
 		if t, ok := uitext.PermissionText(perms.mic); ok {
 			add("microphone", i18n.T("Microphone"), "pass", t)
@@ -164,8 +167,7 @@ func (a *app) runSelfCheck() {
 }
 
 // writeBundle writes the diagnostic bundle (a ZIP) to path: the
-// diagnostics, the settings (they hold no secret: keys are in the
-// Keychain) and the log files.
+// diagnostics, the settings (they hold no secret) and the log files.
 func writeBundle(path, diag string, prefs settings.Settings, logDir string) error {
 	tmp := path + ".tmp"
 	f, err := os.Create(tmp)
@@ -297,11 +299,10 @@ func (a *app) aboutSettings(c *ui.Context) {
 			ui.Text(c, r[1]).Selectable()
 		}
 	})
-	// The "appropriate legal notices" an interactive program shows under the
-	// The copyright, the licence (Apache-2.0) and where the code came from
-	// (NOTICE).
+	// The legal notices: the copyright, the licence (Apache-2.0), the
+	// source, and NOTICE (where the code came from, third parties).
 	caption(c, i18n.T("Copyright © 2026 ActNow and the SGLang-Omni Team."))
-	caption(c, i18n.T("VoxtNew is licensed under the Apache License 2.0 and comes with no warranty. It derives from Auralink and AudioSmith, by the same author."))
+	caption(c, i18n.T("VoxtNew is licensed under the Apache License 2.0 and comes with no warranty."))
 	ui.Row(c.Key("about-licence")).Gap(px(t, sp3)).AlignItems(ui.Center).Wrap().Children(func() {
 		ui.Link(c.Key("about-licence-apache"), i18n.T("Licence"), licenceURL).FontSize(px(t, fsCaption))
 		ui.Link(c.Key("about-licence-source"), i18n.T("Source code"), sourceURL).FontSize(px(t, fsCaption))
@@ -315,7 +316,7 @@ func (a *app) aboutSettings(c *ui.Context) {
 	a.updateSettingsSection(c) // updates.go
 
 	sectionTitle(c, i18n.T("Self-check"))
-	settingRow(c, "about-check", i18n.T("Check VoxtNew"), i18n.T("The library, the helper, the data folder and the permissions."), func() {
+	settingRow(c, "about-check", i18n.T("Check VoxtNew"), i18n.T("The library, the helper, the models, the data folder and the permissions."), func() {
 		if a.selfChecking {
 			ui.Spinner(c)
 		}
@@ -339,13 +340,13 @@ func (a *app) aboutSettings(c *ui.Context) {
 	}
 
 	sectionTitle(c, i18n.T("Report a problem"))
-	settingRow(c, "about-copy", i18n.T("Copy diagnostics"), i18n.T("Versions, the machine, folders and the self-check: no text, audio or keys."), func() {
+	settingRow(c, "about-copy", i18n.T("Copy diagnostics"), i18n.T("Versions, the machine, the models, folders and the self-check: no text or audio."), func() {
 		if ui.Button(c.Key("about-copy"), i18n.T("Copy")).Clicked() {
 			c.WriteClipboard(a.diagnosticsText())
 			a.toast(i18n.T("Diagnostics copied"))
 		}
 	})
-	settingRow(c, "about-bundle", i18n.T("Save a diagnostic bundle"), i18n.T("A ZIP of the diagnostics, the logs and the settings (keys are never in them), to attach to a report."), func() {
+	settingRow(c, "about-bundle", i18n.T("Save a diagnostic bundle"), i18n.T("A ZIP of the diagnostics, the logs and the settings, to attach to a report."), func() {
 		if ui.Button(c.Key("about-bundle"), i18n.T("Save…")).Clicked() {
 			a.saveBundle()
 		}

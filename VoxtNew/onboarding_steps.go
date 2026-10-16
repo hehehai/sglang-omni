@@ -36,8 +36,8 @@ func (a *app) obWelcomeStep(c *ui.Context) {
 		i18n.T("Speech recognition and the language models run here. VoxtNew has no server of its own, no account and no analytics."))
 	obRow(c, "ob-p-local", icons.Database, i18n.T("History stays on this Mac"),
 		i18n.T("Results (and, if you choose, their recordings) are kept here only. Turn them off in Settings → Privacy."))
-	obRow(c, "ob-p-urls", appEnhancementIcon, i18n.T("Browser addresses only pick a scene"),
-		i18n.T("With App enhancement, the address of the tab in front chooses a group of rules; it is never sent to a model."))
+	obRow(c, "ob-p-urls", appEnhancementIcon, i18n.T("Browser addresses only pick your rules"),
+		i18n.T("With App enhancement, the address of the tab in front chooses a group of rules; the language model never sees it."))
 }
 
 // obModelsStep recommends the models to start with, a kind each: the

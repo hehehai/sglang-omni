@@ -271,7 +271,7 @@ func (a *app) storageSettings(c *ui.Context) {
 	}
 
 	sectionTitle(c, i18n.T("Data folder"))
-	settingRow(c, "st-data", uitext.ShortPath(a.dataDir()), i18n.T("Your history, its recordings, your dictionary and the database."), func() {
+	settingRow(c, "st-data", uitext.ShortPath(a.dataDir()), i18n.T("Your history and its recordings, your dictionary, the local models and the database."), func() {
 		open("st-open-data", a.dataDir())
 		if ui.Button(c.Key("st-move"), i18n.T("Move…")).Disabled(a.moving).Clicked() {
 			chooseMoveDir(a, a.startMove)
@@ -323,7 +323,7 @@ func (a *app) storageSettings(c *ui.Context) {
 			a.resetAsk = "settings"
 		}
 	})
-	settingRow(c, "st-erase", i18n.T("Erase everything"), i18n.T("Deletes your history, recordings, dictionary, app enhancement rules, settings and logs, then restarts VoxtNew as new."), func() {
+	settingRow(c, "st-erase", i18n.T("Erase everything"), i18n.T("Deletes your history, recordings, dictionary, app enhancement rules, local models, settings and logs, then restarts VoxtNew as new."), func() {
 		if ui.Button(c.Key("st-erase"), i18n.T("Erase…")).Clicked() {
 			a.resetAsk, a.resetText = "everything", ""
 		}
@@ -354,7 +354,7 @@ func (a *app) storageDialogs(c *ui.Context) {
 	erase := a.resetAsk == "everything"
 	ui.Modal(c.Key("st-ask-erase"), &erase, func() {
 		ui.Text(c, i18n.T("Erase everything?")).Bold()
-		ui.Text(c, i18n.T("This deletes your history and its recordings, your dictionary, your app enhancement rules, every setting and the logs. It cannot be undone. VoxtNew restarts as on its first day.")).Width(px(t, 420))
+		ui.Text(c, i18n.T("This deletes your history and its recordings, your dictionary, your app enhancement rules, the local models, every setting and the logs. It cannot be undone. VoxtNew restarts as on its first day, and the models download again.")).Width(px(t, 420))
 		ui.Text(c, i18n.T("Type DELETE to confirm.")).FontSize(px(t, fsCaption)).TextColor(t.TextMuted)
 		ui.TextInput(c.Key("st-erase-text"), &a.resetText).Placeholder("DELETE").Width(px(t, 200)).Label(i18n.T("Type DELETE to confirm."))
 		ui.Row(c).Gap(px(t, sp2)).Justify(ui.End).Children(func() {
