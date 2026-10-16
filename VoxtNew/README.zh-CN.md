@@ -14,6 +14,7 @@ VoxtNew 由 [Auralink](https://github.com/hehehai/Auralink) 复制而来，Aural
 
 ```sh
 scripts/build-helper.sh              # Swift 辅助进程，输出到 resources/darwin-arm64/helper/
+scripts/build-omni.sh                # Omni 运行时（语音模型），输出到 resources/darwin-arm64/omni/
 go tool mygo dev                     # 热重载运行
 go tool mygo build                   # 生成 build/darwin-arm64/VoxtNew.app 和 dmg
 ```

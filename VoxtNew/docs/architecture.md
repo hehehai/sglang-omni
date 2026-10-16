@@ -1,6 +1,6 @@
 # VoxtNew architecture
 
-*State: M0, the skeleton (2026-10-16): Auralink copied, renamed and stripped of its remote services; no local model runs yet. Plan and milestones: [plan.md](plan.md). Behaviour compared with Voxt: [behavior.md](behavior.md). Helper wire format: [helper-protocol.md](helper-protocol.md).*
+*State: M1 (2026-10-17): the speech models run on the Omni native MLX servers (internal/omni), downloaded by internal/models; the language models' runtime is M2's. M0 was the skeleton: Auralink copied, renamed and stripped of its remote services. Plan and milestones: [plan.md](plan.md). Behaviour compared with Voxt: [behavior.md](behavior.md). Helper wire format: [helper-protocol.md](helper-protocol.md).*
 
 VoxtNew is a Go app on MyGo (native UI, no cgo) with one small Swift helper process, on local models only. It is a copy of Auralink (@748cf55, the same author's app on remote models), whose code it keeps but for the remote layer (§5): sessions get their speech and language models from `internal/local`, which M1 (the Omni native MLX servers) and M2 (the `voxtnew-llm` process) fill in. Auralink itself reused AudioSmith's engineering (AudioSmith @f171c86, Apache-2.0): its window shell, UI kit and tokens, settings, store, i18n, logs and notification code, and its engine supervisor reduced to one helper. Milestone names up to M6 in comments are Auralink's; VoxtNew's are M0–M4 (plan.md).
 
@@ -32,18 +32,26 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   ├── local/            the local models as sessions open them: Services (Installed, ASR, LLM),
 │   │                     Library (the installed models of internal/models, opened by Openers: the
 │   │                     runtimes' ASROpener and LLMOpener; ErrNoRuntime without one), Choose,
-│   │                     ForFeature, ErrNotInstalled; NotInstalled
+│   │                     ForFeature, ErrNotInstalled; NotInstalled; VoiceActivity (a speech
+│   │                     provider that brings its VAD model)
 │   ├── models/           the model catalogue (six curated models, pinned revisions and SHA-256),
 │   │   │                 the models on disk (<data>/models/<id>/), downloads (resumable, verified,
 │   │   │                 bounded, cancellable, a mirror when the Hub is unreachable), adopting
 │   │   │                 a Hugging Face cache; Manager                                       (leaf)
 │   │   └── modelstest/   Seed: installed models of sparse files, for tests
+│   ├── omni/             the Omni native MLX servers (M1): Runtime (one qwen3_asr_server per model,
+│   │                     ready line, start timeout, idle unload, Unload, restart after death,
+│   │                     stall kill, Close), ASR (asr.FileTranscriber + asr.Streamer: Voxt's
+│   │                     Qwen3-ASR Final policy, the /v1/realtime preview; WithVAD), VAD
+│   │                     (vad.Model: Silero), the curated models and their tuning (models.go)
+│   │   └── omnitest/     a fake qwen3_asr_server for tests (the test binary re-runs itself)
 │   ├── session/          the one owner of a voice session: the state machine (reading →
 │   │                     recording → recognizing → composing → delivering → done/cancelled/
 │   │                     failed), the selection, Translate's and Rewrite's streaming answer, its
 │   │                     snapshots, the history entry; adapters over the helper (helperio.go)
-│   ├── vad/              local voice activity detection (energy over an adaptive noise floor, no
-│   │                     model): Analyze, Compact (file services), Gate (streams), Merge   (leaf)
+│   ├── vad/              local voice activity detection (energy over an adaptive noise floor):
+│   │                     Analyze, Compact (file services), Gate (streams), Merge; Model, the
+│   │                     interface of a VAD model (Silero, internal/omni) the gate can follow  (leaf)
 │   ├── dsp/              the sound of what a speech service gets: a high-pass filter (4th-order
 │   │                     Butterworth, 80 Hz), one gain from the speech (files) or a slow one
 │   │                     (streams, Leveler), a peak limiter; pure Go
@@ -91,7 +99,8 @@ store ──▶ core                 store/sqlitestore ──▶ core, store    
 uitext ──▶ i18n and the domain's types (appctx, asr, compose, core, deliver, dict, helper, helper/proto, hotkey, lang, llm, local, models, permission, session, settings, store)
 helper ──▶ core, helper/proto  helper/helpertest ──▶ helper/proto
 notify, logs ──▶ core
-asr ──▶ core                  llm ──▶ core                  local ──▶ asr, llm, models      models/modelstest ──▶ models
+asr ──▶ core                  llm ──▶ core                  local ──▶ asr, llm, models, vad     models/modelstest ──▶ models
+omni ──▶ asr, lang, vad
 session ──▶ appctx, asr, compose, core, deliver, dict, dsp, helper/proto, lang, llm, settings, store, vad
 dsp ──▶ vad
 compose ──▶ lang              deliver ──▶ helper/proto      hotkey ──▶ helper/proto, settings
@@ -212,7 +221,7 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | `a.upd` (`updateService`: MyGo's updater plugin; `fakeUpdates` in tests), `a.checkForUpdates()`, `a.updateMenuItems(act)`, `a.bundleStale` (`appbundle.Updated`), `a.appUpdated()` (the restart card), `a.relaunch()` (`appRelaunch`) | updates.go | the app menu, the menu bar, ⌘K, Settings → About, the helper's card (FailUpdated), Home |
 | `a.toast(msg)`, `a.notify(…)`, `a.post(fn)`, `a.async(fn)` | app.go, shell_notices.go | everyone |
 | `a.onSession`, `a.afterSession`, `a.onSessionEnd`, `a.onHistory` (observers, in order; `connectEvents` lists them all), published by `sessionChanged` / `sessionEnded` (session_link.go) and `historyChanged` (history_page.go) | events.go | the setup guide, the sounds, the menu bar, the overlay, Home, History: an area that cares about sessions or the history adds itself there, instead of the publisher calling it |
-| `a.local` (`local.Services`; `newLocalServices`, tests swap in fakes), `a.localOpeners()` (the runtimes: M1 and M2 fill it), `a.models` (`*models.Manager`), `a.modelStatus` (the statuses' copy, `modelsChanged`), `a.downloadModel(id)` / `cancelModel` / `deleteModel`, `a.installed(kind)` (memory only), `a.featureModel(kind, feature)` (only models that serve the feature: the translation model only translates), `featureOf(s, feature)`, `setFeatureModel`, `modelsPath`; `uitext.ModelName` / `ModelAbout` / `ModelLanguages` / `DownloadErrorText` | models_page.go, models_runtimes.go | the Local models page, the feature pages' Models section (feature_models.go), Home's readiness, the setup guide, `sessionBlocker`, `checkModels`, History's details; sessions open models through `resolver(a.local)` off the main thread (session_link.go) |
+| `a.local` (`local.Services`; `newLocalServices`, tests swap in fakes), `a.localOpeners()` (the runtimes: M1's speech models through `a.openOmniASR` and `a.unloadOmni`, models_omni.go, which also stops the servers on quit, `a.closeOmni`; M2 fills LLM), `a.models` (`*models.Manager`), `a.modelStatus` (the statuses' copy, `modelsChanged`), `a.downloadModel(id)` / `cancelModel` / `deleteModel`, `a.installed(kind)` (memory only), `a.featureModel(kind, feature)` (only models that serve the feature: the translation model only translates), `featureOf(s, feature)`, `setFeatureModel`, `modelsPath`; `uitext.ModelName` / `ModelAbout` / `ModelLanguages` / `DownloadErrorText` | models_page.go, models_runtimes.go, models_omni.go | the Local models page, the feature pages' Models section (feature_models.go), Home's readiness, the setup guide, `sessionBlocker`, `checkModels`, History's details; sessions open models through `resolver(a.local)` off the main thread (session_link.go) |
 | `a.notices` (the centre's, newest first), `a.noticeStack(c)` (the cards at the foot of the sidebar; the rail's popover), `a.setProblem(id, code, n)` (a problem's card: shown once, withdrawn when solved, kept away this run once dismissed), `a.checkModels()`, `a.checkHelper()` | shell_notices.go | the sidebar, the rail; `openModels`, `settingsChanged`, `helperChanged` |
 | `uitext.HotkeyGlyphs(keys)` | internal/uitext (keys.go) | ? sheet, menu bar, feature pages |
 | Design tokens: `tok(t)`, `px`, `fs*`, `sp*`, `radius*`; `accentName` (teal) | ui_tokens.go | every view |
@@ -229,6 +238,7 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | Apps' icons (App enhancement's lists) | `~/Library/Caches/VoxtNew/icons/<bundle id>-64.png`, drawn by the helper (`app.icons`), redrawn after a week (`internal/appicons`) |
 | Logs | `~/Library/Logs/VoxtNew/voxtnew.log` (app, rotated at 5 MB) and `helper.log` (the helper's stderr) |
 | Helper | `VoxtNew.app/Contents/Resources/helper/voxtnew-helper` (or `$VOXTNEW_HELPER`) |
+| Omni runtime | `VoxtNew.app/Contents/Resources/omni/bin/`: `qwen3_asr_server`, `libmlx.dylib`, `libjaccl.dylib`, `mlx.metallib` (`scripts/build-omni.sh`; or `$VOXTNEW_OMNI_RUNTIME`) |
 
 ## 5. What came from Auralink, and from AudioSmith before it
 
@@ -273,5 +283,7 @@ Not taken: jobs, hub (downloads), catalog, licence, engine's MLX side, services,
 | Sound | `go test -v -run 'TestCompareVariants' ./internal/dsp` (the table of levels before and after; `VOXTNEW_DSP_OUT=dir` writes the WAVs) | the filter's response at 50, 60, 80, 100, 200 Hz and 1 kHz, a DC offset at the start and a jump of it, chunks against the whole byte for byte; the gain rule (table), quiet speech raised as a file and as a stream, noise alone never raised, a stream's gain holding through silence and moving smoothly, the limiter on full-scale squares and on speech raised by 30 dB, nothing, a byte, zeros; the speech sample quiet, under hum, white and fan noise, and clipped (no speech frame cut, never over -1 dBFS, the stream's gain near the file's) |
 | Sessions | `go test ./internal/session ./internal/vad ./internal/compose ./internal/deliver ./internal/hotkey`; `go test -run 'TestSession|TestOverlay|TestAnswer|TestTranslate|TestRewrite' .` | the state machine with in-process fakes (both kinds of speech service × the language model on, off, failing, timing out × cancel at each stage × a target that takes no text × late callbacks; Translate and Rewrite: a selection read, missing, failing, by ⌘C, the strict retry, the card by choice, by a target that takes no text and by length, the JSON answer, the text given at Start, follow-ups; the voice activity detection on the speech sample with silence and noise added, a stream held until the speech, a recording without speech sent nowhere; the overlay leaving the screen after each way a session ends, on a fake clock); the app over the fake helper process (`selection=`, `copy-selection=`, `readonly`, `paste-log=`) with the fake local models of local_fakes_test.go (a transcriber, a streamer, a chat model behind `llm.Client`) |
 | Headless on a Mac | `MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh` | the real supervisor and Swift helper (`mac_e2e_test.go`, `VOXTNEW_MAC_E2E=1`): the helper's read-only methods, its test-only file input (`VOXTNEW_HELPER_CAPTURE_FILE`) against the speech sample, a Transcribe session over the fake local models, the history in a temporary SQLite; text fit with Core Text. No window, key, tap, clipboard or microphone: it runs beside other work (manual-test.md, "自动真机测试（无界面）") |
+| Omni runtime | `go test ./internal/omni`; `go test -run 'TestSessionOmni|TestOmniOpener' .` | the supervisor, Final, live preview and Silero against the fake server (`omnitest`: starts, failures, hangs, crashes, stalls, idle unload, Unload, a switch of model, Close); a whole session through the Library and `localOpeners` over it, a delete that unloads, quit |
+| Omni on a Mac | `scripts/mac.sh 'scripts/build-omni.sh --out build/omni-stage'`, then `TestMacE2EOmni` with `VOXTNEW_MAC_E2E=1`, `VOXTNEW_HELPER`, `VOXTNEW_OMNI_RUNTIME`, `VOXTNEW_OMNI_MODELS` (mac_e2e_omni_test.go's header) | the real models: a Final cold and warm, a live session with the helper playing the sample, Silero's speech; it logs the times (`MEASURE` lines) |
 | By hand on a Mac | [manual-test.md](manual-test.md) | what needs permissions and a GUI, in order (the steps that need a model wait for M1 and M2) |
 | Text fit | `VOXTNEW_TEXTFIT_PROBE=1` / `VOXTNEW_TEXTFIT_AUDIT=1 go test -run 'TestTextFits|TestTranslationsFit' .` | meaningful on macOS (Core Text) |

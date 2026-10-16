@@ -31,6 +31,7 @@ VOXTNEW_SNAPSHOTS=/tmp/shots go test -run TestSnapshots .    # pages as PNG
 go test -run TestKeyParity ./internal/i18n                   # strings and zh-Hans
 scripts/mac.sh '<command>'                                   # run on the Mac (MAC_HOST, MAC_DIR=code/VoxtNew)
 scripts/mac.sh 'scripts/build-helper.sh && go tool mygo build'   # the Swift helper, then the app
+scripts/mac.sh 'scripts/build-omni.sh && go tool mygo build'     # the Omni runtime (speech models) into the app; --out DIR for VOXTNEW_OMNI_RUNTIME
 scripts/mac.sh 'cd helper && swift test'                     # the helper's tests (same fixtures as Go)
 MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh    # headless Mac tests: real helper, fake models, no window or key
 scripts/vendor-mygo.sh --check                               # third_party/mygo is MyGo + our patches

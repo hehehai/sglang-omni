@@ -10,10 +10,11 @@ VoxtNew started as a copy of [Auralink](https://github.com/hehehai/Auralink), th
 
 ## Build from source
 
-Needs Go 1.27.1 (`GOTOOLCHAIN=auto` fetches it) and, to package, a Mac with macOS 15 or later on Apple silicon and Xcode for the Swift helper.
+Needs Go 1.27.1 (`GOTOOLCHAIN=auto` fetches it) and, to package, a Mac with macOS 15 or later on Apple silicon, Xcode for the Swift helper, and [uv](https://docs.astral.sh/uv/) or Python 3 for the Omni runtime's build tools (`scripts/build-omni.sh` builds `sglang_omni_mlx/native` with its pinned MLX; the build downloads its C++ dependencies from GitHub, through the `https_proxy` of the shell if needed).
 
 ```sh
 scripts/build-helper.sh              # the Swift helper, into resources/darwin-arm64/helper/
+scripts/build-omni.sh                # the Omni runtime (speech models), into resources/darwin-arm64/omni/
 go tool mygo dev                     # run with hot reload
 go tool mygo build                   # build/darwin-arm64/VoxtNew.app and "VoxtNew 0.1.0 arm64.dmg"
 ```
