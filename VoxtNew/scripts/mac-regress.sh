@@ -51,7 +51,12 @@ done
 [[ -x "$R/llm/voxtnew-llm" ]] || { echo "missing $R/llm (see $R/README.md)" >&2; missing=1; }
 ((missing)) && exit 2
 
-ours="$OUT|$R|$ROOT/build/darwin-arm64"
+# The runtimes run from APFS clones of their own (no copy on disk): other
+# threads run ~/voxtnew-runtime's at the same time, and the leftovers this
+# script looks for (and kills) must be its own.
+mkdir -p "$OUT/runtime"
+cp -Rc "$R/omni" "$OUT/runtime/omni" && cp -Rc "$R/llm" "$OUT/runtime/llm" || exit 2
+ours="$OUT|$ROOT/build/darwin-arm64"
 others="$(pgrep -fl 'voxtnew-llm|qwen3_asr_server' | grep -vE "$ours" || true)"
 if [[ -n "$others" ]]; then
   echo "note: other model processes are running; the times are skewed:"
@@ -64,7 +69,7 @@ if (( ${free:-0} < ${VOXTNEW_MIN_FREE:-30} )); then
   exit 3
 fi
 
-export VOXTNEW_HELPER="$OUT/helper/voxtnew-helper" VOXTNEW_OMNI_RUNTIME="$R/omni" VOXTNEW_LLM="$R/llm/voxtnew-llm"
+export VOXTNEW_HELPER="$OUT/helper/voxtnew-helper" VOXTNEW_OMNI_RUNTIME="$OUT/runtime/omni" VOXTNEW_LLM="$OUT/runtime/llm/voxtnew-llm"
 export VOXTNEW_MODELS_DIR="$M" GOFLAGS=-p=4
 
 names=() results=() times=() notes=()
@@ -139,7 +144,7 @@ smoke() {
   wait $pid || return 1
   sleep 1
   local left
-  left="$(pgrep -fl 'qwen3_asr_server|voxtnew-llm|voxtnew-helper' | grep 'build/darwin-arm64/VoxtNew.app' || true)"
+  left="$(pgrep -fl 'qwen3_asr_server|voxtnew-llm|voxtnew-helper' | grep -F "$ROOT/build/darwin-arm64/VoxtNew.app" || true)"
   if [[ -n "$left" ]]; then
     echo "smoke: FAIL left running after quit: $left"
     return 1
