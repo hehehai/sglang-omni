@@ -61,7 +61,8 @@ trap 'rm -f "$log"' EXIT
 rm -f "$PRODUCTS/voxtnew-llm"
 if ! xcodebuild build -scheme VoxtNewLLM -configuration Release -destination "platform=macOS,arch=arm64" \
     -derivedDataPath .build/xcode -clonedSourcePackagesDirPath .build/xcode-packages \
-    -skipPackagePluginValidation -skipMacroValidation >"$log" 2>&1; then
+    -skipPackagePluginValidation -skipMacroValidation \
+    CLANG_ENABLE_CODE_COVERAGE=NO ENABLE_CODE_COVERAGE=NO >"$log" 2>&1; then
   grep -E "error:" "$log" | sort -u | head -40 >&2 || tail -40 "$log" >&2
   echo "xcodebuild failed" >&2
   exit 1
@@ -85,6 +86,13 @@ runtime=()
 [[ "$IDENTITY" != "-" ]] && runtime=(--options runtime --timestamp)
 codesign --force --sign "$IDENTITY" ${runtime[@]+"${runtime[@]}"} "$OUT/llama.framework"
 codesign --force --sign "$IDENTITY" --entitlements Support/llm.entitlements ${runtime[@]+"${runtime[@]}"} "$OUT/voxtnew-llm"
+
+# Xcode's package schemes gather coverage: a release build must not count
+# every branch (it slowed generation, and wrote default.profraw files).
+if nm "$OUT/voxtnew-llm" | grep -q __llvm_profile; then
+  echo "voxtnew-llm was built with coverage instrumentation" >&2
+  exit 1
+fi
 
 # It must start and answer the handshake from where it is staged.
 hello="$(printf '%s\n' '{"id":"1","method":"llm.hello","params":{"protocol":1,"app":"build-llm"}}' | "$OUT/voxtnew-llm" 2>/dev/null | grep '"id":"1"' || true)"

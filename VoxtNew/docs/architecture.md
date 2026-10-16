@@ -1,6 +1,6 @@
 # VoxtNew architecture
 
-*State: M1 (2026-10-17): the speech models run on the Omni native MLX servers (internal/omni), downloaded by internal/models; the language models' runtime is M2's. M0 was the skeleton: Auralink copied, renamed and stripped of its remote services. Plan and milestones: [plan.md](plan.md). Behaviour compared with Voxt: [behavior.md](behavior.md). Helper wire format: [helper-protocol.md](helper-protocol.md).*
+*State: M1 (2026-10-17): the speech models run on the Omni native MLX servers (internal/omni), downloaded by internal/models; the language models run in voxtnew-llm, a Swift process of their own (internal/llmrt, M2). M0 was the skeleton: Auralink copied, renamed and stripped of its remote services. Plan and milestones: [plan.md](plan.md). Behaviour compared with Voxt: [behavior.md](behavior.md). Helper wire format: [helper-protocol.md](helper-protocol.md); the language models' process: [llm-protocol.md](llm-protocol.md), its models and their measurements: [llm-models.md](llm-models.md).*
 
 VoxtNew is a Go app on MyGo (native UI, no cgo) with one small Swift helper process, on local models only. It is a copy of Auralink (@748cf55, the same author's app on remote models), whose code it keeps but for the remote layer (§5): sessions get their speech and language models from `internal/local`, which M1 (the Omni native MLX servers) and M2 (the `voxtnew-llm` process) fill in. Auralink itself reused AudioSmith's engineering (AudioSmith @f171c86, Apache-2.0): its window shell, UI kit and tokens, settings, store, i18n, logs and notification code, and its engine supervisor reduced to one helper. Milestone names up to M6 in comments are Auralink's; VoxtNew's are M0–M4 (plan.md).
 
@@ -45,6 +45,14 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   │                     Qwen3-ASR Final policy, the /v1/realtime preview; WithVAD), VAD
 │   │                     (vad.Model: Silero), the curated models and their tuning (models.go)
 │   │   └── omnitest/     a fake qwen3_asr_server for tests (the test binary re-runs itself)
+│   ├── llmrt/            the language models (M2): Runtime (supervises voxtnew-llm: started on
+│   │   │                 first use, handshake, started again after a crash, idle stop, Unload,
+│   │   │                 Stop), Backend (an llm.Backend over llm protocol 1, deltas on the caller's
+│   │   │                 goroutine), Open (local.Chat: llm.Client over it, warmed up), the curated
+│   │   │                 models' generation settings (models.go), Hy-MT2's own prompt (hymt.go),
+│   │   │                 the VOXTNEW_DEV_LLM hook (dev.go)
+│   │   ├── wire/         llm protocol 1's wire types (leaf); fixtures in llm/Fixtures/
+│   │   └── llmrttest/    a fake voxtnew-llm for tests (the test binary re-runs itself)
 │   ├── session/          the one owner of a voice session: the state machine (reading →
 │   │                     recording → recognizing → composing → delivering → done/cancelled/
 │   │                     failed), the selection, Translate's and Rewrite's streaming answer, its
@@ -101,12 +109,13 @@ helper ──▶ core, helper/proto  helper/helpertest ──▶ helper/proto
 notify, logs ──▶ core
 asr ──▶ core                  llm ──▶ core                  local ──▶ asr, llm, models, vad     models/modelstest ──▶ models
 omni ──▶ asr, lang, vad
+llmrt ──▶ asr, core, lang, llm, llmrt/wire, local    llmrt/llmrttest ──▶ llmrt/wire
 session ──▶ appctx, asr, compose, core, deliver, dict, dsp, helper/proto, lang, llm, settings, store, vad
 dsp ──▶ vad
 compose ──▶ lang              deliver ──▶ helper/proto      hotkey ──▶ helper/proto, settings
 appctx ──▶ helper/proto, hotkey, settings                    dict ──▶ store
 appicons ──▶ helper/proto
-core, settings, helper/proto, i18n, lang, permission, macx, vad, appbundle, models ──▶ (nothing internal)
+core, settings, helper/proto, llmrt/wire, i18n, lang, permission, macx, vad, appbundle, models ──▶ (nothing internal)
 icons ──▶ mygo/ui
 ```
 
@@ -141,6 +150,8 @@ MyGo builds the root `main` package (`mygo dev`, `mygo build`, `ui.View`); views
 │ views (build pass: no I/O)   │──────────────▶ │ library: store (SQLite) · bus · settings │
 │ app view state + snapshots   │                │ helper.Supervisor ──stdio JSON lines──▶ voxtnew-helper (Swift)
 │        ▲ Window.Update       │                │    capture.* · hotkey.* · textio.* · app.* · browser.url · permissions.*
+│                              │                │ llmrt.Runtime ──stdio JSON lines──▶ voxtnew-llm (Swift: MLX, llama.cpp)
+│                              │                │    model.load · chat (chat.delta, job.cancel) · model.status; started on use, idle stop
 └────────┼─────────────────────┘                └──────────────────────────────────────────┘
    core.Bus subscribers ◀── Publish ─────────────┘
    (wiring code, once)
@@ -221,7 +232,7 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | `a.upd` (`updateService`: MyGo's updater plugin; `fakeUpdates` in tests), `a.checkForUpdates()`, `a.updateMenuItems(act)`, `a.bundleStale` (`appbundle.Updated`), `a.appUpdated()` (the restart card), `a.relaunch()` (`appRelaunch`) | updates.go | the app menu, the menu bar, ⌘K, Settings → About, the helper's card (FailUpdated), Home |
 | `a.toast(msg)`, `a.notify(…)`, `a.post(fn)`, `a.async(fn)` | app.go, shell_notices.go | everyone |
 | `a.onSession`, `a.afterSession`, `a.onSessionEnd`, `a.onHistory` (observers, in order; `connectEvents` lists them all), published by `sessionChanged` / `sessionEnded` (session_link.go) and `historyChanged` (history_page.go) | events.go | the setup guide, the sounds, the menu bar, the overlay, Home, History: an area that cares about sessions or the history adds itself there, instead of the publisher calling it |
-| `a.local` (`local.Services`; `newLocalServices`, tests swap in fakes), `a.localOpeners()` (the runtimes: M1's speech models through `a.openOmniASR` and `a.unloadOmni`, models_omni.go, which also stops the servers on quit, `a.closeOmni`; M2 fills LLM), `a.models` (`*models.Manager`), `a.modelStatus` (the statuses' copy, `modelsChanged`), `a.downloadModel(id)` / `cancelModel` / `deleteModel`, `a.installed(kind)` (memory only), `a.featureModel(kind, feature)` (only models that serve the feature: the translation model only translates), `featureOf(s, feature)`, `setFeatureModel`, `modelsPath`; `uitext.ModelName` / `ModelAbout` / `ModelLanguages` / `DownloadErrorText` | models_page.go, models_runtimes.go, models_omni.go | the Local models page, the feature pages' Models section (feature_models.go), Home's readiness, the setup guide, `sessionBlocker`, `checkModels`, History's details; sessions open models through `resolver(a.local)` off the main thread (session_link.go) |
+| `a.local` (`local.Services`; `newLocalServices`, tests swap in fakes), `a.localOpeners()` (the runtimes: M1's speech models through `a.openOmniASR` and `a.unloadOmni`, models_omni.go, which also stops the servers on quit, `a.closeOmni`; M2's language models through `a.openLLM`, llm_link.go, whose `a.llmRuntime()` is made on first use and stopped on quit, `a.stopLLM`; `a.unloadModel` sends a delete's Unload to the runtime of the model's kind; `a.withDevLLM` adds VOXTNEW_DEV_LLM's models), `a.models` (`*models.Manager`), `a.modelStatus` (the statuses' copy, `modelsChanged`), `a.downloadModel(id)` / `cancelModel` / `deleteModel`, `a.installed(kind)` (memory only), `a.featureModel(kind, feature)` (only models that serve the feature: the translation model only translates), `featureOf(s, feature)`, `setFeatureModel`, `modelsPath`; `uitext.ModelName` / `ModelAbout` / `ModelLanguages` / `DownloadErrorText` | models_page.go, models_runtimes.go, models_omni.go, llm_link.go | the Local models page, the feature pages' Models section (feature_models.go), Home's readiness, the setup guide, `sessionBlocker`, `checkModels`, History's details; sessions open models through `resolver(a.local)` off the main thread (session_link.go) |
 | `a.notices` (the centre's, newest first), `a.noticeStack(c)` (the cards at the foot of the sidebar; the rail's popover), `a.setProblem(id, code, n)` (a problem's card: shown once, withdrawn when solved, kept away this run once dismissed), `a.checkModels()`, `a.checkHelper()` | shell_notices.go | the sidebar, the rail; `openModels`, `settingsChanged`, `helperChanged` |
 | `uitext.HotkeyGlyphs(keys)` | internal/uitext (keys.go) | ? sheet, menu bar, feature pages |
 | Design tokens: `tok(t)`, `px`, `fs*`, `sp*`, `radius*`; `accentName` (teal) | ui_tokens.go | every view |
@@ -236,8 +247,9 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | Recordings kept with history entries | `…/VoxtNew/audio/<id>.wav` (only with Settings → Privacy → Keep the recordings) |
 | Data folder location | `…/VoxtNew/location.json` when the user moved it (Settings → Storage); `move.json`, `reset.json` while a move or an erase waits for the next start |
 | Apps' icons (App enhancement's lists) | `~/Library/Caches/VoxtNew/icons/<bundle id>-64.png`, drawn by the helper (`app.icons`), redrawn after a week (`internal/appicons`) |
-| Logs | `~/Library/Logs/VoxtNew/voxtnew.log` (app, rotated at 5 MB) and `helper.log` (the helper's stderr) |
+| Logs | `~/Library/Logs/VoxtNew/voxtnew.log` (app, rotated at 5 MB), `helper.log` (the helper's stderr) and `llm.log` (voxtnew-llm's stderr) |
 | Helper | `VoxtNew.app/Contents/Resources/helper/voxtnew-helper` (or `$VOXTNEW_HELPER`) |
+| Language models' runtime | `VoxtNew.app/Contents/Resources/llm/`: `voxtnew-llm`, `mlx.metallib`, `llama.framework`, `swift-transformers_Hub.bundle` (`scripts/build-llm.sh`; or `$VOXTNEW_LLM`) |
 | Omni runtime | `VoxtNew.app/Contents/Resources/omni/bin/`: `qwen3_asr_server`, `libmlx.dylib`, `libjaccl.dylib`, `mlx.metallib` (`scripts/build-omni.sh`; or `$VOXTNEW_OMNI_RUNTIME`) |
 
 ## 5. What came from Auralink, and from AudioSmith before it
@@ -285,5 +297,7 @@ Not taken: jobs, hub (downloads), catalog, licence, engine's MLX side, services,
 | Headless on a Mac | `MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh` | the real supervisor and Swift helper (`mac_e2e_test.go`, `VOXTNEW_MAC_E2E=1`): the helper's read-only methods, its test-only file input (`VOXTNEW_HELPER_CAPTURE_FILE`) against the speech sample, a Transcribe session over the fake local models, the history in a temporary SQLite; text fit with Core Text. No window, key, tap, clipboard or microphone: it runs beside other work (manual-test.md, "自动真机测试（无界面）") |
 | Omni runtime | `go test ./internal/omni`; `go test -run 'TestSessionOmni|TestOmniOpener' .` | the supervisor, Final, live preview and Silero against the fake server (`omnitest`: starts, failures, hangs, crashes, stalls, idle unload, Unload, a switch of model, Close); a whole session through the Library and `localOpeners` over it, a delete that unloads, quit |
 | Omni on a Mac | `scripts/mac.sh 'scripts/build-omni.sh --out build/omni-stage'`, then `TestMacE2EOmni` with `VOXTNEW_MAC_E2E=1`, `VOXTNEW_HELPER`, `VOXTNEW_OMNI_RUNTIME`, `VOXTNEW_OMNI_MODELS` (mac_e2e_omni_test.go's header) | the real models: a Final cold and warm, a live session with the helper playing the sample, Silero's speech; it logs the times (`MEASURE` lines) |
+| Language models | `go test ./internal/llmrt/...`; `go test -run TestLLM .` | the protocol's fixtures (`llm/Fixtures`, as the Swift tests); the runtime against the fake process (`llmrttest`: lazy start, streaming on the caller's goroutine, the profiles' parameters, idle stop, a crash retried, cancel, a cancel that hangs, mismatch, silence, no binary, a model that does not load, Stop, warm-up, Unload); Translate and Rewrite sessions and the opener through the Library over it (`llm_e2e_test.go`) |
+| Language models on a Mac | `scripts/mac.sh 'scripts/build-llm.sh && scripts/build-llm.sh --test'`, then `VOXTNEW_LLM_REAL=1 VOXTNEW_DEV_LLM=<id>=<dir>,… go test -run TestLLM -v .` | the Swift Kit's tests (fixtures, server, repetition guard, UTF-8); the real process and models: the sessions of llm_e2e_test.go, `TestLLMMeasure` (VoxtNew's prompts, each twice: first token, rate, memory, answers) and `TestLLMRealCancel`; [llm-models.md](llm-models.md) has the numbers |
 | By hand on a Mac | [manual-test.md](manual-test.md) | what needs permissions and a GUI, in order (the steps that need a model wait for M1 and M2) |
 | Text fit | `VOXTNEW_TEXTFIT_PROBE=1` / `VOXTNEW_TEXTFIT_AUDIT=1 go test -run 'TestTextFits|TestTranslationsFit' .` | meaningful on macOS (Core Text) |
