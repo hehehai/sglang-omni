@@ -16,7 +16,7 @@ These rules apply inside `VoxtNew/`. The repository's root `AGENTS.md` and its c
 - **The helper does, Go decides**: policy (when ⌘C may run, delays, keys after a paste, which device) goes in the params; the helper keeps no settings. The same holds for the model runtimes: Go supervises them and chooses the parameters.
 - **Files stay small**: at most 600 lines of code (aim for 400), 800 of tests; split by topic into `<area>_<part>.go`. `internal/archtest` checks the sizes (a ratchet over `allowlist.txt`) and the import layering (`imports.txt` lists every internal → internal import: add a line for a new one). Refactors that move code prove it with `declhash` and `scripts/snapshots.sh check` (docs/architecture.md, "Code structure rules").
 - **Licence**: VoxtNew is Apache-2.0, as the repository. Third-party code, data, models' runtimes or artwork need a licence compatible with it and an entry in `NOTICE`, with its licence text in `LICENSES/` (a new Go module: its licence file in `LICENSES/go/`). No per-file licence headers.
-- **The Mac (`mac-air`) is shared and short of disk** (about 32 GB free): build in `code/VoxtNew` (`scripts/mac.sh`), delete large build trees and models you downloaded for a test, and never touch `~/code/Auralink*`.
+- **The Mac (`mac-air`) is shared and short of disk** (about 32 GB free): build in `code/VoxtNew` (`scripts/mac.sh`), delete large build trees and models you downloaded for a test, and never touch `~/code/Auralink*`. The six catalogue models are in `~/voxtnew-models/<id>/` and the runtimes in `~/voxtnew-runtime/{omni,llm}/` for every thread (their READMEs say how to refresh them): use them instead of downloading or building again, and never delete them. Do not sync (`scripts/mac.sh`) into a checkout while it builds, nor before pulling back files the Mac made (`--pull`): the sync deletes what the Linux side lacks.
 - Code comments and commit messages in English. Keep the MyGo lifetime rules (`.agents/skills/mygo-maintenance`).
 
 ## Commands
@@ -36,6 +36,8 @@ scripts/mac.sh 'scripts/build-llm.sh && go tool mygo build'      # voxtnew-llm (
 scripts/mac.sh 'scripts/build-llm.sh --test'                     # its Swift tests (the same fixtures as Go)
 scripts/mac.sh 'cd helper && swift test'                     # the helper's tests (same fixtures as Go)
 MAC_DIR=code/VoxtNew-mt scripts/mac.sh scripts/mac-e2e.sh    # headless Mac tests: real helper, fake models, no window or key
+MAC_DIR=code/VoxtNew-xyz scripts/mac.sh scripts/mac-regress.sh  # the real models (~/voxtnew-models, ~/voxtnew-runtime): Swift tests, omni, LLM, quick eval, app smoke
+scripts/mac.sh 'VOXTNEW_EVAL=1 VOXTNEW_OMNI_RUNTIME=$HOME/voxtnew-runtime/omni VOXTNEW_LLM=$HOME/voxtnew-runtime/llm/voxtnew-llm go test -run TestEval -v .'  # the eval (docs/eval.md)
 scripts/vendor-mygo.sh --check                               # third_party/mygo is MyGo + our patches
 scripts/snapshots.sh check                                   # every snapshot, pixel for pixel, against the merge base
 go run ./internal/tools/declhash . ./internal/...            # a hash per declaration: equal before and after a pure move

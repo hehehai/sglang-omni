@@ -542,6 +542,20 @@ MAC_DIR=code/VoxtNew-ov scripts/mac.sh --pull build/overlay-check     # 把结�
 - 2026-10-15 第四次（#21 第二轮：Voxt 的图标、标题行上下各 12、我们自己的语言下拉）：第 1 次只有一条 `FAIL`，是 zh 的“处理中”胶囊，截图那一刻 loader 的点都在暗的相位，像素检查只看到图标；现在 Mac 上处理中只检查尺寸。第 2 次 40 步全部通过：卡片 560 宽，标题笔画 17.5–33.0、分隔线 48.0（上下对称，新加的断言），语言下拉在卡片顶边上方 6，右边缘对齐胶囊，开关下拉前后卡片 frame 不变；前台 App 没变，没有残留进程。
 - 2026-10-15 第五次（#21 第三轮：进卡片前都是胶囊，卡片 440）：只跑了 1 次。唯一的 `FAIL` 是结尾“前台 App 变了”：大约第 7 秒起，前台从 Arc 变成另一个项目的 `dev.hehehai.pik.m7`（Pik），一直到结束；检查程序自己一次都没到前台（frames.txt 里没有出现 overlaycheck），所以不是浮窗的问题。其余逐步检查全部通过：胶囊里的草稿 300×76（英文）和 166×76（中文），都符合胶囊的规则；卡片 440 宽，标题笔画 17.5–33.0、分隔线 48.0；语言下拉在卡片顶边上方 6；所有可见状态的底边都在 1029。
 
+**10.6 真实模型回归（`scripts/mac-regress.sh`，约 5 分钟，无界面）**
+
+用 mac-air 上常驻的模型和运行时（`~/voxtnew-models/<id>/`：六个目录里的模型；`~/voxtnew-runtime/{omni,llm}/`：Omni 运行时和 voxtnew-llm；两处的 README 写了怎么更新），不下载、不编译它们。和 `mac-e2e.sh` 分开：
+
+```sh
+# 在 Linux 上执行。同步到独立目录（不要用 code/VoxtNew）
+MAC_DIR=code/VoxtNew-xyz scripts/mac.sh scripts/mac-regress.sh          # 快速版
+MAC_DIR=code/VoxtNew-xyz scripts/mac.sh scripts/mac-regress.sh --full   # 完整评测（多约 20 分钟），表格在 build/regress/eval
+```
+
+依次：编译辅助进程，`swift test`；`TestMacE2EOmni`（真实辅助进程读语音样本文件，两个语音模型和 Silero）；`TestLLM*`（`VOXTNEW_LLM_REAL`，三个语言模型）；评测快速版（`TestEval*`：每类一段，对照下限；应用增强和词典各一个完整会话，见 [eval.md](eval.md)）；把运行时放进 app 编译（`go tool mygo build`，签名检查），再以 `VoxtNew.app/Contents/MacOS/VoxtNew --smoke <dir>` 启动：自己的数据目录、不开窗口、没有快捷键（不装事件 tap），启动打包的辅助进程，经 app 自己的 Library 让语音模型和语言模型各回答一次，然后按 app 的方式退出。每一步之后、以及最后，检查没有残留的 `qwen3_asr_server`、`voxtnew-llm`、`voxtnew-helper`。最后打印一张汇总表，退出码是失败的步骤数。不用麦克风和扬声器，不碰剪贴板和前台 App。另一个线程的 `voxtnew-llm` 或 `qwen3_asr_server` 在运行时会提示“时间不准”。
+
+2026-10-17 第一次（mac-air，另有 AudioSmith、Dicta 和 M2b 的进程，swap 约 12 GB）：7 步里 6 步通过；`llm-real` 里 `TestLLMOpenerThroughLibrary` 因为脚本导出的 `VOXTNEW_DEV_LLM` 用上了真实模型而失败，测试已改为自己清掉这两个变量。smoke：辅助进程就绪，asr.fast 826 ms、llm.fast 2.8 s 回答，退出后没有残留进程；app 280 MB。
+
 ---
 
 ## 结果怎么报

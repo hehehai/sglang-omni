@@ -88,9 +88,12 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   │                     start (Resolve, before the library opens), copying and checking a tree
 │   ├── dict/             the dictionary's rules: cleaning a term, hints for speech services,
 │   │                     CSV and text import and export, merging an import
+│   ├── eval/             the models' quality evaluation: the eval set (testdata/eval: synthesised
+│   │                     dictations, their words, the expected clean-up, checks), error rates,
+│   │                     dictionary terms found, clean-up checks (docs/eval.md)
 │   ├── archtest/         tests of the code's structure only: file sizes, import layering ("Code structure rules")
 │   └── tools/            developer commands (standard library only): snapcmp (snapshot comparison),
-│                         declhash (pure-move check)
+│                         declhash (pure-move check), evalsynth (the speech fixtures, Qwen3-TTS on a Mac)
 ├── helper/               the Swift helper (helper/README.md): Sources/, Tests/, Fixtures/, Support/
 └── third_party/mygo/     MyGo 0.5.5 with seven patches (scripts/vendor-mygo.sh)
 ```
@@ -108,7 +111,7 @@ uitext ──▶ i18n and the domain's types (appctx, asr, compose, core, delive
 helper ──▶ core, helper/proto  helper/helpertest ──▶ helper/proto
 notify, logs ──▶ core
 asr ──▶ core                  llm ──▶ core                  local ──▶ asr, llm, models, vad     models/modelstest ──▶ models
-omni ──▶ asr, lang, vad
+omni ──▶ asr, lang, vad      eval ──▶ asr
 llmrt ──▶ asr, core, lang, llm, llmrt/wire, local    llmrt/llmrttest ──▶ llmrt/wire
 session ──▶ appctx, asr, compose, core, deliver, dict, dsp, helper/proto, lang, llm, settings, store, vad
 dsp ──▶ vad
@@ -299,5 +302,7 @@ Not taken: jobs, hub (downloads), catalog, licence, engine's MLX side, services,
 | Omni on a Mac | `scripts/mac.sh 'scripts/build-omni.sh --out build/omni-stage'`, then `TestMacE2EOmni` with `VOXTNEW_MAC_E2E=1`, `VOXTNEW_HELPER`, `VOXTNEW_OMNI_RUNTIME`, `VOXTNEW_OMNI_MODELS` (mac_e2e_omni_test.go's header) | the real models: a Final cold and warm, a live session with the helper playing the sample, Silero's speech; it logs the times (`MEASURE` lines) |
 | Language models | `go test ./internal/llmrt/...`; `go test -run TestLLM .` | the protocol's fixtures (`llm/Fixtures`, as the Swift tests); the runtime against the fake process (`llmrttest`: lazy start, streaming on the caller's goroutine, the profiles' parameters, idle stop, a crash retried, cancel, a cancel that hangs, mismatch, silence, no binary, a model that does not load, Stop, warm-up, Unload); Translate and Rewrite sessions and the opener through the Library over it (`llm_e2e_test.go`) |
 | Language models on a Mac | `scripts/mac.sh 'scripts/build-llm.sh && scripts/build-llm.sh --test'`, then `VOXTNEW_LLM_REAL=1 VOXTNEW_DEV_LLM=<id>=<dir>,… go test -run TestLLM -v .` | the Swift Kit's tests (fixtures, server, repetition guard, UTF-8); the real process and models: the sessions of llm_e2e_test.go, `TestLLMMeasure` (VoxtNew's prompts, each twice: first token, rate, memory, answers) and `TestLLMRealCancel`; [llm-models.md](llm-models.md) has the numbers |
+| Eval on a Mac | `VOXTNEW_EVAL=1 … go test -run TestEval -v .` (eval_test.go's header; `VOXTNEW_EVAL_QUICK=1`, `VOXTNEW_EVAL_ONLY`, `VOXTNEW_EVAL_OUT`) | the eval set through the real runtimes and `~/voxtnew-models`: both speech models under three language hints, with and without the dictionary, live (`TestEvalASR`); the clean-up with and without compose's example, spoken Translate, Hy-MT2 (`TestEvalLLM`); app enhancement and the dictionary in whole sessions (`TestEvalAppEnhancement`, `TestEvalDictionary`); [eval.md](eval.md) has the numbers |
+| Mac regression | `MAC_DIR=code/VoxtNew-xyz scripts/mac.sh scripts/mac-regress.sh [--full]` | the helper's Swift tests, `TestMacE2EOmni`, `TestLLM*` (real), the eval (quick: floors), the app built with the runtimes, started with `--smoke` (smoke.go: its own data, no window, no shortcuts; each runtime answers once) and quit with nothing left running; a summary table |
 | By hand on a Mac | [manual-test.md](manual-test.md) | what needs permissions and a GUI, in order (the steps that need a model wait for M1 and M2) |
 | Text fit | `VOXTNEW_TEXTFIT_PROBE=1` / `VOXTNEW_TEXTFIT_AUDIT=1 go test -run 'TestTextFits|TestTranslationsFit' .` | meaningful on macOS (Core Text) |
