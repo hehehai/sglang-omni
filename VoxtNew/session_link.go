@@ -203,6 +203,15 @@ func (m modelClient) Chat(ctx context.Context, req llm.Request) (llm.Response, e
 	return m.c.Chat(ctx, req)
 }
 
+// Prefill warms the model's prompt cache up (llm.Prefiller), when it has
+// one.
+func (m modelClient) Prefill(ctx context.Context, req llm.Request) error {
+	if p, ok := m.c.(llm.Prefiller); ok {
+		return p.Prefill(ctx, req)
+	}
+	return nil
+}
+
 // sessionChanged takes a session's snapshot (the newest wins) and
 // updates the overlay, the shortcuts and the menu bar.
 func (a *app) sessionChanged(s session.Snapshot) {

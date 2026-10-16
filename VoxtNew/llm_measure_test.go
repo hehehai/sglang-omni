@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -232,8 +233,17 @@ func TestLLMRealPromptCache(t *testing.T) {
 				}
 				return resp.Text, ls[len(ls)-1]
 			}
-			for _, c := range measureCases {
-				second, ok := cacheTexts[c.name]
+			// A glossary lists the terms the text mentions first: the system
+			// prompt parts at the glossary, and the second prompt starts
+			// from the branch point before it.
+			glossary := measureCase{"transcribe en, glossary", llm.SkillTranscribeEnhance, compose.Input{Task: compose.Transcribe, Cleanup: true, MainLanguage: "en",
+				Glossary: []compose.Term{{Term: "VoxtNew"}, {Term: "MLX"}, {Term: "Qwen"}, {Term: "SGLang"}},
+				Text:     "um so the qwen model runs on m l x now"}, false}
+			cases := append([]measureCase{glossary}, measureCases...)
+			texts := map[string]string{glossary.name: "uh we should ask the s g lang team about it tomorrow"}
+			maps.Copy(texts, cacheTexts)
+			for _, c := range cases {
+				second, ok := texts[c.name]
 				if !ok {
 					continue
 				}

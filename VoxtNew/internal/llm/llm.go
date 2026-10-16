@@ -146,3 +146,11 @@ type Backend interface {
 	Info() BackendInfo
 	Chat(ctx context.Context, req Request) (Response, error)
 }
+
+// Prefiller is a model that keeps a prompt cache (a local model):
+// Prefill evaluates the shared part of req's prompt, its messages before
+// the last, so that a chat starting the same way answers sooner. The last
+// message's text does not matter.
+type Prefiller interface {
+	Prefill(ctx context.Context, req Request) error
+}

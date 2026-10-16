@@ -23,6 +23,33 @@ var answerSchema = func() *llm.Schema {
 	return s
 }()
 
+// writeInput is Translate's or Rewrite's request to compose: raw and
+// selection as write's.
+func (r *run) writeInput(raw, selection string) compose.Input {
+	in := compose.Input{
+		MainLanguage: MainLanguage(r.settings, r.m.cfg.Locale()), OtherLanguages: r.settings.General.OtherLanguages,
+		Glossary: r.glossary(), Scene: r.composeScene(), // the group decides whether it applies to the feature (appctx)
+	}
+	switch r.req.Kind {
+	case store.KindTranslate:
+		f := r.settings.Features.Translate
+		in.Task, in.TaskPrompt, in.TargetLanguage = compose.Translate, f.Prompt, r.m.Current().TargetLanguage
+		if selection != "" {
+			in.Text, in.Selected = selection, true
+		} else {
+			in.Text, in.Cleanup = raw, f.Cleanup
+		}
+	case store.KindRewrite:
+		f := r.settings.Features.Rewrite
+		in.Task, in.TaskPrompt, in.Cleanup, in.Instruction, in.Text = compose.Rewrite, f.Prompt, f.Cleanup, raw, selection
+		in.Previous = r.req.Previous
+		// Written from an instruction: an answer with a title; a follow-up
+		// answers in plain text, as a conversation does (Voxt's).
+		in.Answer = selection == "" && len(in.Previous) == 0
+	}
+	return in
+}
+
 // write is Translate's and Rewrite's language-model step: raw is what
 // was said (Translate's speech, Rewrite's instruction; "" when Translate
 // translates a selection), selection the selected text. The answer
@@ -36,39 +63,20 @@ func (r *run) write(raw, selection string) {
 		r.endWriteFailed(&Problem{Code: ProblemNoLLM, Err: errors.New("no language model is ready")}, false)
 		return
 	}
-	snap := r.m.Current()
-	in := compose.Input{
-		MainLanguage: MainLanguage(r.settings, cfg.Locale()), OtherLanguages: r.settings.General.OtherLanguages,
-		Glossary: r.glossary(), Scene: r.composeScene(), // the group decides whether it applies to the feature (appctx)
-	}
+	in := r.writeInput(raw, selection)
 	var o finishOpts
-	answer := false // a JSON answer {title, content}
 	switch kind {
 	case store.KindTranslate:
-		f := r.settings.Features.Translate
-		in.Task, in.TaskPrompt, in.TargetLanguage = compose.Translate, f.Prompt, snap.TargetLanguage
-		if selection != "" {
-			in.Text, in.Selected = selection, true
-			o.needEditable = true
-		} else {
-			in.Text, in.Cleanup = raw, f.Cleanup
-		}
-		if f.ShowCard {
+		o.needEditable = selection != ""
+		if r.settings.Features.Translate.ShowCard {
 			o.card = deliver.ReasonCard
 		}
 	case store.KindRewrite:
-		f := r.settings.Features.Rewrite
-		in.Task, in.TaskPrompt, in.Cleanup, in.Instruction, in.Text = compose.Rewrite, f.Prompt, f.Cleanup, raw, selection
-		in.Previous = r.req.Previous
-		// Written from an instruction: an answer with a title; a follow-up
-		// answers in plain text, as a conversation does (Voxt's).
-		answer = selection == "" && len(in.Previous) == 0
 		// Every answer goes to the answer card, which inserts it (or
 		// replaces the selection) when asked, and takes follow-ups (Voxt's:
 		// a Rewrite result always shows in the card).
 		o.card = deliver.ReasonCard
 	}
-	in.Answer = answer
 	if r.req.Card {
 		o.card = deliver.ReasonCard
 	}

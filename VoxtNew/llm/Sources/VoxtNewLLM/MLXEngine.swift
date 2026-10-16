@@ -4,17 +4,18 @@ import MLXLLM
 import MLXLMCommon
 import VoxtNewLLMKit
 
-/// Shared prefixes kept per model: compose's system prompts differ by
-/// feature, scene and language, so a few cover one person's use.
-private let promptCacheEntries = 4
-/// A Qwen3.5-4B snapshot of a 500-token prefix is about 65 MB (mostly the
-/// fixed linear-attention state), so this bound is rarely what evicts.
-private let promptCacheBytes = 768 << 20
+/// Snapshots kept per model: compose's system prompts differ by feature,
+/// scene and language (and a glossary's branch point), so a few cover one
+/// person's use.
+private let promptCacheEntries = 6
+/// A Qwen3.5-4B snapshot of a 500-token prefix is 65 MB (mostly the fixed
+/// linear-attention state; Qwen3.5-2B: 24 MB), so this bound is rarely
+/// what evicts.
+private let promptCacheBytes = 512 << 20
 private let promptCacheMinimumTokens = 64
-/// The shared prefix is evaluated in chunks of this many tokens, whatever
-/// the request's prefillStepSize (which follows the input's length), so
-/// that a snapshot is the state a cold chat of any length reaches.
-private let promptCachePrefixStepSize = 512
+/// The shared prefix is evaluated in chunks ending at multiples of this
+/// (PromptCache's grid), whatever the request's prefillStepSize.
+private let promptCacheGridTokens = 256
 private let promptCacheOn = ProcessInfo.processInfo.environment["VOXTNEW_LLM_PROMPT_CACHE"] != "0"
 
 /// An MLX text model (mlx-swift-lm): loaded with Voxt's loader, run with
@@ -31,7 +32,8 @@ final class MLXEngine: @unchecked Sendable {
     /// Used inside container.perform and in unload, which the Runtime
     /// never runs at once.
     private var prompts = PromptCache<[KVCache]>(
-        maximumEntries: promptCacheOn ? promptCacheEntries : 0, maximumBytes: promptCacheBytes, minimumTokens: promptCacheMinimumTokens)
+        maximumEntries: promptCacheOn ? promptCacheEntries : 0, maximumBytes: promptCacheBytes,
+        minimumTokens: promptCacheMinimumTokens, gridTokens: promptCacheGridTokens)
 
     var isLoaded: Bool { container != nil }
 
@@ -79,20 +81,27 @@ final class MLXEngine: @unchecked Sendable {
             let cache = try plan.entry.map { $0.snapshot.map { $0.copy() } } ?? context.model.newCache(parameters: parameters)
             var start = plan.reusedTokens
             var prefixMs = 0.0
-            if let end = plan.storeAt {
+            if let end = plan.prefixEnd {
                 let t0 = monotonicMs()
-                try Self.evaluate(input.text[start ..< end], model: context.model, cache: cache, stepSize: promptCachePrefixStepSize)
-                if promptCacheOn {
-                    let snapshot = cache.map { $0.copy() }
-                    eval(snapshot)
-                    let bytes = snapshot.reduce(0) { $0 + $1.state.reduce(0) { $0 + $1.nbytes } }
-                    self.prompts.insert(tokens: Array(promptTokens[..<end]), snapshot: snapshot, bytes: bytes)
-                    logLine("prompt cache: kept \(end) tokens (\(bytes >> 20) MB; \(self.prompts.entries.count) kept, \(self.prompts.bytes >> 20) MB)")
+                for stop in self.prompts.stops(from: start, to: end) {
+                    try Task.checkCancellation()
+                    autoreleasepool {
+                        _ = context.model(input.text[.newAxis, start ..< stop], cache: cache, state: nil)
+                    }
+                    eval(cache)
+                    start = stop
+                    if plan.keepAt.contains(stop) {
+                        let snapshot = cache.map { $0.copy() }
+                        eval(snapshot)
+                        let bytes = snapshot.reduce(0) { $0 + $1.state.reduce(0) { $0 + $1.nbytes } }
+                        self.prompts.insert(tokens: Array(promptTokens[..<stop]), snapshot: snapshot, bytes: bytes)
+                        logLine("prompt cache: kept \(stop) tokens (\(bytes >> 20) MB; \(self.prompts.entries.count) kept, \(self.prompts.bytes >> 20) MB)")
+                    }
                 }
-                start = end
                 prefixMs = monotonicMs() - t0
             }
-            let use: CacheUse? = promptCacheOn ? CacheUse(hit: plan.entry != nil, prefixTokens: start) : nil
+            let use: CacheUse? = promptCacheOn
+                ? CacheUse(hit: plan.entry != nil, prefixTokens: plan.entry != nil ? plan.reusedTokens : plan.keepAt.last ?? 0) : nil
             guard p.maxTokens > 0 else {
                 return Run(collector: TextCollector(), firstMs: nil, info: nil, prefixMs: prefixMs, promptTokens: promptTokens.count, cache: use)
             }
@@ -152,20 +161,6 @@ final class MLXEngine: @unchecked Sendable {
         let last = probe[probe.count - 1].content
         probe[probe.count - 1].content = last.hasPrefix("A") ? "B" : "A"
         return try await context.processor.prepare(input: UserInput(chat: probe, additionalContext: additional)).text.tokens.asArray(Int.self)
-    }
-
-    /// Evaluates tokens into cache, in chunks of stepSize (as the model's
-    /// own prefill does), and waits for it.
-    private static func evaluate(_ tokens: LMInput.Text, model: any LanguageModel, cache: [KVCache], stepSize: Int) throws {
-        let count = tokens.tokens.dim(0)
-        for chunk in stride(from: 0, to: count, by: stepSize) {
-            try Task.checkCancellation()
-            autoreleasepool {
-                _ = model(tokens[.newAxis, chunk ..< min(chunk + stepSize, count)], cache: cache, state: nil)
-                asyncEval(cache)
-            }
-        }
-        eval(cache)
     }
 
     /// The request's sampling as MLXLMCommon's parameters.

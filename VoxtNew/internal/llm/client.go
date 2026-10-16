@@ -85,6 +85,15 @@ func (c *Client) sleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
+// Prefill passes req to the backend when it is a Prefiller; nil
+// otherwise.
+func (c *Client) Prefill(ctx context.Context, req Request) error {
+	if p, ok := c.Backend.(Prefiller); ok {
+		return p.Prefill(ctx, req)
+	}
+	return nil
+}
+
 // Chat runs req with retries. A streaming request is retried only while
 // nothing has been streamed yet. The returned Usage sums every attempt.
 func (c *Client) Chat(ctx context.Context, req Request) (Response, error) {
