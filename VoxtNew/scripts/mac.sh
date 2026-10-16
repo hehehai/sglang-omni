@@ -9,6 +9,8 @@
 #
 # MAC_HOST (default mac-air) and MAC_DIR (default code/VoxtNew) pick the
 # target; MAC_GOPROXY its Go module proxy (proxy.golang.org times out there).
+# The Omni runtime's sources (../sglang_omni_mlx/native, 3 MB) go along to
+# MAC_DIR/.omni-native, for scripts/build-omni.sh.
 set -euo pipefail
 
 HOST="${MAC_HOST:-mac-air}"
@@ -29,8 +31,11 @@ ssh "$HOST" "mkdir -p '$DIR'"
 rsync -a --delete \
   --exclude .git --exclude /build --exclude /.mygo \
   --exclude /helper/.build --exclude /resources/darwin-arm64 \
-  --exclude /VoxtNew \
+  --exclude /VoxtNew --exclude /.omni-native \
   "$ROOT/" "$HOST:$DIR/"
+if [[ -d "$ROOT/../sglang_omni_mlx/native" ]]; then
+  rsync -a --delete "$ROOT/../sglang_omni_mlx/native/" "$HOST:$DIR/.omni-native/"
+fi
 
 [[ $# -eq 0 ]] && exit 0
 # shellcheck disable=SC2029

@@ -7,6 +7,11 @@ mygo_windows_*.syso
 /helper/.build/
 /helper/.swiftpm/
 /resources/darwin-arm64/helper/
+
+# The Omni runtime: its build tree is under build/; the staged copy mygo
+# ships, and the sources scripts/mac.sh syncs on the Mac
+/resources/darwin-arm64/omni/
+/.omni-native/
 /VoxtNew
 
 # The repository's root .gitignore drops *.txt, *.wav and *.log for the
