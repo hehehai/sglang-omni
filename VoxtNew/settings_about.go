@@ -300,7 +300,7 @@ func (a *app) aboutSettings(c *ui.Context) {
 	// The "appropriate legal notices" an interactive program shows under the
 	// The copyright, the licence (Apache-2.0) and where the code came from
 	// (NOTICE).
-	caption(c, i18n.T("Copyright © 2026 the VoxtNew authors."))
+	caption(c, i18n.T("Copyright © 2026 ActNow and the SGLang-Omni Team."))
 	caption(c, i18n.T("VoxtNew is licensed under the Apache License 2.0 and comes with no warranty. It derives from Auralink and AudioSmith, by the same author."))
 	ui.Row(c.Key("about-licence")).Gap(px(t, sp3)).AlignItems(ui.Center).Wrap().Children(func() {
 		ui.Link(c.Key("about-licence-apache"), i18n.T("Licence"), licenceURL).FontSize(px(t, fsCaption))

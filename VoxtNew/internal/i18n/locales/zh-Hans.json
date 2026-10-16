@@ -149,7 +149,7 @@
   "Copy the selected text": "复制选中的文字",
   "Copy: %s": "复制：%s",
   "Copying to %s. VoxtNew restarts when the copy is checked, and finishes the move as it starts.": "正在复制到 %s。复制并校验完成后 VoxtNew 会重启，并在启动时完成移动。",
-  "Copyright © 2026 the VoxtNew authors.": "Copyright © 2026 VoxtNew 作者。",
+  "Copyright © 2026 ActNow and the SGLang-Omni Team.": "Copyright © 2026 ActNow 与 SGLang-Omni 团队。",
   "Corner radius": "圆角",
   "Could not change opening at login: %v": "无法更改登录时打开：%v",
   "Could not clear the history: %v": "无法清除历史：%v",
