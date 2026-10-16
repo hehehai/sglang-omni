@@ -163,7 +163,7 @@ func newTestAppIn(t *testing.T, dir string) (*app, *fakeSupervisor, *ui.Tester) 
 
 // requireCJKFont fails a test that measures Chinese text's pixels when
 // Linux has no font for it: Pango then draws nothing ("no ink"), which
-// reads as a layout bug. CI installs fonts-noto-cjk (.github/workflows/ci.yml);
+// reads as a layout bug. CI installs fonts-noto-cjk (the root .github/workflows/voxtnew-ci.yaml);
 // a Mac always has one.
 func requireCJKFont(t *testing.T) {
 	t.Helper()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prints the Developer ID Application identity of a team that signs a
-# release: its SHA-1 hash, a tab, its name. The release workflow signs
-# with the hash (.github/workflows/release.yml): codesign refuses a name
+# release: its SHA-1 hash, a tab, its name, for VOXTNEW_SIGN_IDENTITY
+# (scripts/release.sh, docs/release.md). Sign with the hash: codesign refuses a name
 # that two certificates share ("ambiguous"), as a renewed certificate and
 # the old one do, and a keychain may hold the identities of several teams,
 # such as the Mac where the certificate is exported from (docs/release.md).
