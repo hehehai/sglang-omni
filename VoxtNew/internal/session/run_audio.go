@@ -28,9 +28,12 @@ func (r *run) hints() []string {
 }
 
 // speechLang is the language hint of the speech service: the user's
-// main language (General.MainLanguage, else the UI's). The model decides
-// whether to use it (internal/omni: Qwen3-ASR takes it when it knows the
-// language, as Voxt).
+// main language (General.MainLanguage, else the UI's), also when they
+// speak other languages (Voxt's policy, measured in docs/eval.md: the
+// hint "zh" cost nothing on English speech, while without a hint Qwen3-ASR
+// took a mixed dictation that started in English for English and
+// translated its Chinese). The model decides whether to use it
+// (internal/omni: Qwen3-ASR takes it when it knows the language).
 func (r *run) speechLang() string {
 	return MainLanguage(r.settings, r.m.cfg.Locale())
 }

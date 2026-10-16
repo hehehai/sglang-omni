@@ -195,19 +195,25 @@ func TestModelGatesStream(t *testing.T) {
 }
 
 // TestSpeechLang: the speech service gets the main language as its hint
-// (the settings', else the UI's).
+// (the settings', else the UI's), also when the user speaks other
+// languages: without a hint Qwen3-ASR may take a mixed dictation that
+// starts in English for English and translate the rest (docs/eval.md).
 func TestSpeechLang(t *testing.T) {
-	for _, c := range []struct{ main, locale, want string }{{"ja", "en", "ja"}, {"", "zh-Hans", "zh"}} {
+	for _, c := range []struct {
+		main, locale string
+		others       []string
+		want         string
+	}{{"ja", "en", nil, "ja"}, {"", "zh-Hans", nil, "zh"}, {"zh", "en", []string{"en"}, "zh"}} {
 		file := &fakeFile{text: "hi"}
 		h := newHarness(t, file, nil, func(cfg *Config, s *settings.Settings) {
-			s.General.MainLanguage = c.main
+			s.General.MainLanguage, s.General.OtherLanguages = c.main, c.others
 			cfg.Locale = func() string { return c.locale }
 		})
 		id := h.start()
 		h.speak(id, 10)
 		h.rec.wait(t)
 		if file.lang != c.want {
-			t.Errorf("main %q, locale %q: hint %q, want %q", c.main, c.locale, file.lang, c.want)
+			t.Errorf("main %q, locale %q, others %q: hint %q, want %q", c.main, c.locale, c.others, file.lang, c.want)
 		}
 	}
 }
