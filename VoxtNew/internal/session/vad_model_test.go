@@ -47,18 +47,20 @@ func (f *fakeVAD) Speech(_ context.Context, pcm []byte, rate int) ([]vad.Segment
 	return segs, nil
 }
 
-func (f *fakeVAD) Open(context.Context) (vad.ModelStream, error) {
+func (f *fakeVAD) Open(ctx context.Context) (vad.ModelStream, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.failOpen {
 		return nil, errors.New("fake vad: no server")
 	}
 	f.streams++
-	return &fakeVADStream{f: f}, nil
+	return &fakeVADStream{f: f, ctx: ctx}, nil
 }
 
+// fakeVADStream fails once Open's context ends, as a real one does.
 type fakeVADStream struct {
 	f      *fakeVAD
+	ctx    context.Context
 	pos    int // samples consumed in chunks
 	rest   int
 	chunks int
@@ -68,6 +70,9 @@ func (s *fakeVADStream) Chunk() int         { return 512 }
 func (s *fakeVADStream) Threshold() float64 { return 0.5 }
 
 func (s *fakeVADStream) Feed(pcm []byte) ([]float64, error) {
+	if err := s.ctx.Err(); err != nil {
+		return nil, err
+	}
 	s.rest += len(pcm) / 2
 	var out []float64
 	for s.rest >= 512 {
@@ -154,7 +159,7 @@ func TestModelGatesStream(t *testing.T) {
 		from  time.Duration
 		log   string
 	}{
-		{"model", &fakeVAD{speaks: laterSpeech}, 4700 * time.Millisecond, ""},
+		{"model", &fakeVAD{speaks: laterSpeech}, 4700 * time.Millisecond, "held back"},
 		{"no stream", &fakeVAD{speaks: laterSpeech, failOpen: true}, 1700 * time.Millisecond, "using the energy detector"},
 		{"stream breaks", &fakeVAD{speaks: laterSpeech, failAfter: 20}, 1700 * time.Millisecond, "the energy detector went on"},
 	} {
@@ -177,7 +182,7 @@ func TestModelGatesStream(t *testing.T) {
 			if d := sent - want; d < -70*time.Millisecond || d > 70*time.Millisecond {
 				t.Errorf("sent %v, want about %v of %v", sent, want, end.Timings.Audio)
 			}
-			if c.log != "" && !h.logged(c.log) {
+			if !h.logged(c.log) || c.name == "model" && h.logged("voice activity model") {
 				t.Errorf("logs %q", h.logs)
 			}
 			c.model.mu.Lock()

@@ -15,7 +15,9 @@ type Model interface {
 	// Speech finds the speech in a whole recording (PCM16 mono at rate
 	// Hz): its segments in samples, in order, padded a little.
 	Speech(ctx context.Context, pcm []byte, rate int) ([]Segment, error)
-	// Open starts a detector for one stream (PCM16 mono at 16 kHz).
+	// Open starts a detector for one stream (PCM16 mono at 16 kHz); ctx
+	// bounds the stream's life, not only its opening (the model bounds
+	// how long it waits for its own start).
 	Open(ctx context.Context) (ModelStream, error)
 }
 

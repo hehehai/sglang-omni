@@ -103,13 +103,14 @@ func (v *VAD) Speech(ctx context.Context, pcm []byte, rate int) ([]vad.Segment, 
 // Open starts a stream detector (/v1/vad/stream): the server keeps this
 // stream's state; each 512-sample chunk is one exchange.
 func (v *VAD) Open(ctx context.Context) (vad.ModelStream, error) {
-	l, err := v.rt.acquire(ctx, v.spec, v.dir)
+	// The start and the dial are bounded; ctx then bounds the stream.
+	dctx, cancel := context.WithTimeout(ctx, asr.ConnectTimeout)
+	defer cancel()
+	l, err := v.rt.acquire(dctx, v.spec, v.dir)
 	if err != nil {
 		return nil, err
 	}
 	ep := l.endpoint()
-	dctx, cancel := context.WithTimeout(ctx, asr.ConnectTimeout)
-	defer cancel()
 	conn, _, err := websocket.Dial(dctx, fmt.Sprintf("ws://%s:%d/v1/vad/stream", ep.host, ep.port), &websocket.DialOptions{HTTPClient: loopback})
 	if err != nil {
 		l.release()

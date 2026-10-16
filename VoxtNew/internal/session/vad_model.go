@@ -13,12 +13,9 @@ import (
 // fallback when there is no model or it fails. Either way the settings'
 // VAD.Off turns detection off.
 
-// Bounds of the model's calls: opening a stream's detector (it may start
-// its server), and finding the speech in a whole recording.
-const (
-	vadOpenTimeout   = 3 * time.Second
-	vadSpeechTimeout = 5 * time.Second
-)
+// vadSpeechTimeout bounds the model's look for the speech in a whole
+// recording.
+const vadSpeechTimeout = 5 * time.Second
 
 // gate is the gate a streaming service's audio goes through (the
 // leading silence held back), nil when the detection is off; with the
@@ -32,9 +29,9 @@ func (r *run) gate() (*vad.Gate, func()) {
 	if r.svc.VAD == nil {
 		return g, func() {}
 	}
-	ctx, cancel := context.WithTimeout(r.ctx, vadOpenTimeout)
-	defer cancel()
-	ms, err := r.svc.VAD.Open(ctx)
+	// The session's context bounds the stream (the model bounds its own
+	// start); the recording waits meanwhile, in memory.
+	ms, err := r.svc.VAD.Open(r.ctx)
 	if err != nil {
 		if r.ctx.Err() == nil {
 			r.logf("warning", "voice activity model: %v; using the energy detector", err)
