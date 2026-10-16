@@ -56,7 +56,7 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc 
 		svc = local.NotInstalled{}
 	}
 	old := newLocalServices
-	newLocalServices = func() local.Services { return svc }
+	newLocalServices = func(*app) local.Services { return svc }
 	t.Cleanup(func() { newLocalServices = old })
 	pasteLog := filepath.Join(t.TempDir(), "paste.jsonl")
 	a := newApp(lib, &helperHost{bin: self, env: helpertest.Env("frame-ms=20," + helpertest.Opt("paste-log", pasteLog) + "," + opts)})

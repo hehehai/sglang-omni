@@ -43,7 +43,7 @@ func TestOnboardingSteps(t *testing.T) {
 		t.Fatalf("permissions: step %d %q", a.ob.step, tt.Texts())
 	}
 	click(t, tt, "Continue")
-	if a.ob.step != obModels || !has(tt, "Local models") || !has(tt, "Not installed yet: this version cannot download models.") {
+	if a.ob.step != obModels || !has(tt, "Local models") || !has(tt, "Download both (6.5 GB)") {
 		t.Fatalf("models: step %d %q", a.ob.step, tt.Texts())
 	}
 	click(t, tt, "Continue")

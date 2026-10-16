@@ -106,5 +106,8 @@ func (a *app) quit() {
 	a.closeOverlay()  // overlay.go
 	a.closeTray()
 	a.stopHelper()
+	if a.models != nil {
+		a.models.Close() // a download stops; what came is kept
+	}
 	a.closeShell()
 }

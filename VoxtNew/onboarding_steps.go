@@ -9,6 +9,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
@@ -39,33 +40,84 @@ func (a *app) obWelcomeStep(c *ui.Context) {
 		i18n.T("With App enhancement, the address of the tab in front chooses a group of rules; it is never sent to a model."))
 }
 
-// obModelsStep says which local models are installed, a kind each. M0
-// cannot install any: the step says so (the downloads come with M1, M2
-// and the guide's download step with M4).
+// obModelsStep recommends the models to start with, a kind each: the
+// default speech model (the VAD comes with it) and language model, with
+// one button that downloads both. A kind with a model installed shows it.
 func (a *app) obModelsStep(c *ui.Context) {
 	t := c.Theme()
+	var want []string
+	var size int64
+	busy := false
 	for _, kind := range []local.Kind{local.ASR, local.LLM} {
-		list := a.installed(kind)
-		title := i18n.T("Speech recognition")
+		id := models.ASRAccurate
 		if kind == local.LLM {
-			title = i18n.T("Language model")
+			id = models.LLMBalanced
 		}
-		ui.Row(c.Key("ob-models-"+string(kind))).Gap(px(t, sp2)).AlignItems(ui.Center).Margin(px(t, sp2), 0, 0, 0).Children(func() {
-			sectionTitleText(c, title)
-			if len(list) > 0 {
-				statusMark(c, icons.CheckCircle, tok(t).Success, i18n.T("Ready: %s", list[0].Name))
+		if list := a.installed(kind); len(list) > 0 {
+			id = list[0].ID
+		}
+		m, _ := models.Lookup(id)
+		st := a.modelStatus[id]
+		if !st.Installed && !st.Downloading {
+			want = append(want, id)
+			size += m.Size() - st.Done
+		}
+		busy = busy || st.Downloading
+		a.obModelRow(c, kind, m, st)
+	}
+	if len(want) > 0 {
+		label := i18n.T("Download (%s)", uitext.HumanBytes(size))
+		if len(want) > 1 {
+			label = i18n.T("Download both (%s)", uitext.HumanBytes(size))
+		}
+		ui.Row(c).Margin(px(t, sp2), 0, 0, 0).Children(func() {
+			if secondaryIconButton(c.Key("ob-download"), icons.DownloadMinimalistic, label).Clicked() {
+				for _, id := range want {
+					a.downloadModel(id)
+				}
 			}
 		})
-		if len(list) > 0 {
-			continue
-		}
-		if kind == local.ASR {
-			caption(c, i18n.T("Turns what you say into text. Every feature needs one to work by voice."))
-		} else {
-			caption(c, i18n.T("Cleans up, translates and rewrites the text. Without one, Transcribe types the text as recognised."))
-		}
-		warnLine(c, i18n.T("Not installed yet: this version cannot download models."))
 	}
+	if busy {
+		caption(c, i18n.T("The models download in the background: continue, and they are ready when the bar fills."))
+	}
+}
+
+// obModelRow is the guide's line of a model: what it is, its state.
+func (a *app) obModelRow(c *ui.Context, kind local.Kind, m models.Model, st models.Status) {
+	t := c.Theme()
+	k := tok(t)
+	title := i18n.T("Speech recognition")
+	if kind == local.LLM {
+		title = i18n.T("Language model")
+	}
+	ui.Column(c.Key("ob-models-"+string(kind))).Gap(px(t, sp1)).Margin(px(t, sp2), 0, 0, 0).Children(func() {
+		ui.Row(c).Gap(px(t, sp2)).AlignItems(ui.Center).Wrap().Children(func() {
+			sectionTitleText(c, title)
+			switch {
+			case st.Installed:
+				statusMark(c, icons.CheckCircle, k.Success, i18n.T("Ready: %s", uitext.ModelName(m.ID)))
+			default:
+				ui.Text(c, uitext.ModelName(m.ID)).FontWeight(600)
+				tagChip(c, uitext.HumanBytes(m.Size()))
+			}
+		})
+		if st.Installed {
+			return
+		}
+		caption(c, uitext.ModelAbout(m.ID))
+		if st.Downloading {
+			frac := 0.0
+			if st.Total > 0 {
+				frac = float64(st.Done) / float64(st.Total)
+			}
+			ui.Progress(c, frac).Label(i18n.T("Downloading %s", uitext.ModelName(m.ID)))
+		}
+		if st.Err != nil && !st.Downloading {
+			msg, more := uitext.DownloadErrorText(st.Err)
+			notice(c, "ob-model-err", noticeError, msg, more, nil, nil)
+		}
+	})
 }
 
 // obTryStep is a try step: the shortcut, a sample, the Try area, and

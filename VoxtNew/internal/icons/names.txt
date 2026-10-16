@@ -56,6 +56,7 @@ add
 # Local models (models_page.go).
 soundwave                # speech models
 chat-round-line          # language models
+download-minimalistic    # download a model
 
 # The feature pages (feature_keys.go).
 accessibility            # a shortcut that needs Accessibility
