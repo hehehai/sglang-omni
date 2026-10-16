@@ -19,6 +19,7 @@ import (
 //	permissionsState  permissions.go  Settings → Permissions
 //	modelsState       models_page.go  the Local models page, the local models (internal/local)
 //	omniState         models_omni.go  the speech models' runtime (internal/omni)
+//	llmState          llm_link.go     the language models' runtime (internal/llmrt)
 //	sessionState      session_link.go  sessions, shortcuts, the answer card
 //	overlayState      overlay.go      the recording overlay
 //	transcribeState   feature_page.go  the feature pages (Transcribe, Translate, Rewrite)
@@ -48,6 +49,7 @@ type app struct {
 	permissionsState
 	modelsState
 	omniState
+	llmState
 	sessionState
 	overlayState
 	transcribeState

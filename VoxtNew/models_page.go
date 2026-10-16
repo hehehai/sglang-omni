@@ -48,7 +48,7 @@ func (a *app) openModels() {
 		a.models = models.Open(filepath.Join(a.dataDir(), "models"), managerOptions(func() { a.post(a.modelsChanged) }))
 	}
 	if a.local == nil {
-		a.local = newLocalServices(a)
+		a.local = a.withDevLLM(newLocalServices(a)) // llm_link.go: VOXTNEW_DEV_LLM
 	}
 	a.readModelStatus()
 	a.checkModels() // shell_notices.go

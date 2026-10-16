@@ -13,6 +13,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/llmrttest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/wire"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 )
 
 func TestProfiles(t *testing.T) {
@@ -147,4 +148,30 @@ func (baseServices) ASR(_ context.Context, id string) (asr.Provider, local.Model
 
 func (baseServices) LLM(_ context.Context, id string) (local.Chat, local.Model, error) {
 	return nil, local.Model{Kind: local.LLM, ID: id}, errors.New("base")
+}
+
+// TestProfilesMatchTheCatalogue: every curated language model has a
+// profile with its repository, runtime and (GGUF) file.
+func TestProfilesMatchTheCatalogue(t *testing.T) {
+	n := 0
+	for _, m := range models.Catalog() {
+		if m.Kind != models.LLM {
+			continue
+		}
+		n++
+		p, ok := Lookup(m.ID)
+		if !ok {
+			t.Errorf("no profile for %s", m.ID)
+			continue
+		}
+		if p.Repo != m.Repo || p.Format != string(m.Runtime) || (p.Format == wire.FormatGGUF && p.File != m.Files[0].Path) {
+			t.Errorf("%s: profile %+v, catalogue %s %s %s", m.ID, p, m.Repo, m.Runtime, m.Files[0].Path)
+		}
+		if p.TranslateOnly() != (len(m.Features) == 1 && m.Features[0] == "translate") {
+			t.Errorf("%s: translate only %v, features %v", m.ID, p.TranslateOnly(), m.Features)
+		}
+	}
+	if n != len(Profiles()) {
+		t.Errorf("%d catalogue models, %d profiles", n, len(Profiles()))
+	}
 }

@@ -30,7 +30,21 @@ var newLocalServices = func(a *app) local.Services {
 
 // localOpeners are the runtimes this build has.
 func (a *app) localOpeners() local.Openers {
-	return local.Openers{ASR: a.openOmniASR, Unload: a.unloadOmni} // models_omni.go
+	return local.Openers{
+		ASR:    a.openOmniASR, // models_omni.go
+		LLM:    a.openLLM,     // llm_link.go
+		Unload: a.unloadModel,
+	}
+}
+
+// unloadModel is Openers.Unload: the runtime of model id's kind lets it
+// go.
+func (a *app) unloadModel(id string) {
+	if m, ok := models.Lookup(id); ok && m.Kind == models.LLM {
+		a.unloadLLM(id) // llm_link.go
+		return
+	}
+	a.unloadOmni(id) // models_omni.go
 }
 
 // managerOptions are the models' options: the environment's, and onChange.

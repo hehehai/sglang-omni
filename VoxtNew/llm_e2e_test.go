@@ -12,6 +12,7 @@ package main
 //	  go test -run TestLLM -v .
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,9 +24,11 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/llmrttest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -201,4 +204,47 @@ func TestLLMTranslateModel(t *testing.T) {
 		t.Errorf("no chat line: %q", l.logs)
 	}
 	t.Logf("→ %q (llm %v)\n%s", end.Result, end.Timings.LLM.Round(time.Millisecond), strings.Join(chats, "\n"))
+}
+
+// TestLLMOpenerThroughLibrary: the catalogue's installed models open
+// through local.Openers' LLM (models_runtimes.go), and deleting the loaded
+// one stops the process first (Openers.Unload).
+func TestLLMOpenerThroughLibrary(t *testing.T) {
+	a, _, _ := newTestApp(t)
+	self, _ := os.Executable()
+	rt := llmrt.New(llmrt.Config{Bin: self, Env: llmrttest.Env(llmrttest.Opt("reply", "Done.")), IdleTimeout: -1})
+	a.llmOnce.Do(func() { a.llmrt = rt })
+	t.Cleanup(rt.Stop)
+	seedModels(t, a, models.LLMBalanced, models.LLMTranslate)
+	chat, m, err := a.local.LLM(context.Background(), "")
+	if err != nil || m.ID != models.LLMBalanced {
+		t.Fatalf("LLM: %+v %v", m, err)
+	}
+	resp, err := chat.Chat(context.Background(), llm.Request{Messages: []llm.Message{{Role: llm.User, Content: "hi"}}, Skill: llm.SkillRewrite})
+	if err != nil || resp.Text != "Done." {
+		t.Fatalf("%+v %v", resp, err)
+	}
+	if st := rt.Status(); st.Model == nil || st.Model.ID != models.LLMBalanced || st.Model.Path != a.models.Dir(models.LLMBalanced) {
+		t.Errorf("status %+v", st)
+	}
+	// The translation model's file is the catalogue's.
+	tr, _, err := a.local.LLM(context.Background(), models.LLMTranslate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tr.Chat(context.Background(), llm.Request{Skill: llm.SkillTranslateText, Translate: &llm.TranslateHint{Text: "你好", Target: "en"}}); err != nil {
+		t.Fatal(err)
+	}
+	cm, _ := models.Lookup(models.LLMTranslate)
+	if st := rt.Status(); st.Model == nil || st.Model.Path != filepath.Join(a.models.Dir(models.LLMTranslate), cm.Files[0].Path) {
+		t.Errorf("status %+v", st)
+	}
+	// Deleting another model leaves the process; deleting the loaded one stops it.
+	lib := a.local.(*local.Library)
+	if err := lib.Delete(models.LLMBalanced); err != nil || rt.Status().State != llmrt.Ready {
+		t.Errorf("delete balanced: %v %+v", err, rt.Status())
+	}
+	if err := lib.Delete(models.LLMTranslate); err != nil || rt.Status().State != llmrt.Stopped {
+		t.Errorf("delete translate: %v %+v", err, rt.Status())
+	}
 }

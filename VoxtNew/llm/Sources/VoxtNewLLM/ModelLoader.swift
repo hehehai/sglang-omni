@@ -161,7 +161,17 @@ enum ModelLoader {
         if FileManager.default.fileExists(atPath: indexURL.path) {
             let data = try Data(contentsOf: indexURL)
             let index = try JSONDecoder().decode(SafetensorsIndex.self, from: data)
-            return Set(index.weightMap.values).sorted().map { modelDirectory.appendingPathComponent($0) }
+            // A file the index names may be left out on purpose (an OptiQ
+            // model's vision tower, optiq/): the text model's weights are
+            // checked whole by update(verify: .all) below.
+            return Set(index.weightMap.values).sorted().compactMap { name in
+                let url = modelDirectory.appendingPathComponent(name)
+                guard FileManager.default.fileExists(atPath: url.path) else {
+                    logLine("\(name), in the safetensors index, is not there: skipped")
+                    return nil
+                }
+                return url
+            }
         }
         let contents = try FileManager.default.contentsOfDirectory(at: modelDirectory, includingPropertiesForKeys: nil)
         return contents

@@ -70,7 +70,11 @@ type devServices struct {
 func (d *devServices) list() []local.Model {
 	out := make([]local.Model, 0, len(d.models))
 	for _, m := range d.models {
-		out = append(out, local.Model{Kind: local.LLM, ID: m.ID, Name: "Dev: " + m.ID})
+		lm := local.Model{Kind: local.LLM, ID: m.ID, Name: "Dev: " + m.ID}
+		if p, _ := Lookup(m.ID); p.TranslateOnly() {
+			lm.Features = []string{"translate"}
+		}
+		out = append(out, lm)
 	}
 	return out
 }
