@@ -1,0 +1,257 @@
+package settings
+
+import (
+	"context"
+	"encoding/json"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+func TestDefaultsAreNormal(t *testing.T) {
+	d := Defaults()
+	if !reflect.DeepEqual(normalize(clone(d)), d) {
+		t.Fatalf("normalize changes the defaults:\n%+v\n%+v", normalize(d), d)
+	}
+	f := d.Features
+	if f.Transcribe.Hotkeys[0].Keys != "Fn" || f.Translate.Hotkeys[0].Keys != "Fn+Shift" || f.Rewrite.Hotkeys[0].Keys != "Fn+Control" || f.PasteLast.Keys != "Control+Command+V" {
+		t.Errorf("default shortcuts (plan D2): %+v", f)
+	}
+}
+
+func TestMigrate(t *testing.T) {
+	s, err := Migrate(nil)
+	if err != nil || !reflect.DeepEqual(s, Defaults()) {
+		t.Fatalf("empty: %+v %v", s, err)
+	}
+	// A partial document keeps what it has and gains the defaults.
+	s, err = Migrate([]byte(`{"version":1,"general":{"language":"zh-Hans","menuBar":false},"privacy":{"keepHistory":false},"unknown":1}`))
+	if err != nil || s.General.Language != "zh-Hans" || s.General.MenuBar || s.Privacy.KeepHistory || s.Appearance.Scale != 1 ||
+		s.Appearance.Theme != "system" || len(s.Features.Transcribe.Hotkeys) != 1 {
+		t.Fatalf("partial: %+v %v", s, err)
+	}
+	data, _ := json.Marshal(s)
+	again, err := Migrate(data)
+	if err != nil || !reflect.DeepEqual(again, s) {
+		t.Fatalf("round trip: %+v %v", again, err)
+	}
+	if _, err := Migrate([]byte(`{`)); err == nil {
+		t.Error("bad JSON accepted")
+	}
+}
+
+// docs is a Documents in memory that can fail.
+type docs struct {
+	memDocs
+	fail error
+}
+
+func (d *docs) Put(ctx context.Context, key string, doc []byte) error {
+	if d.fail != nil {
+		return d.fail
+	}
+	return d.memDocs.Put(ctx, key, doc)
+}
+
+func TestStore(t *testing.T) {
+	ctx := context.Background()
+	d := &docs{}
+	var events []Changed
+	s, err := Open(ctx, d, func(c Changed) { events = append(events, c) })
+	if err != nil || !reflect.DeepEqual(s.Get(), Defaults()) {
+		t.Fatalf("fresh: %+v %v", s.Get(), err)
+	}
+	if err := s.Update(ctx, func(s *Settings) {
+		s.General.Language = "zh-Hans"
+		s.Appearance.Scale = 1.12
+		s.Appearance.Theme = "sepia"
+		s.Appearance.SidebarWidth = 900
+		s.General.OtherLanguages = []string{" en ", "en", ""}
+		s.Features.Translate.Hotkeys = append(s.Features.Translate.Hotkeys, Hotkey{Keys: " "}, Hotkey{Keys: "Option+T", Trigger: "weird"})
+		s.Overlay.Opacity = 0.1
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got := s.Get()
+	if got.General.Language != "zh-Hans" || got.Appearance.Scale != 1.1 || got.Appearance.Theme != "system" ||
+		got.Appearance.SidebarWidth != MaxSidebarWidth || !reflect.DeepEqual(got.General.OtherLanguages, []string{"en"}) ||
+		len(got.Features.Translate.Hotkeys) != 2 || got.Features.Translate.Hotkeys[1].Trigger != TriggerTap || got.Overlay.Opacity != 0.5 {
+		t.Fatalf("normalized: %+v", got)
+	}
+	if len(events) != 1 || events[0].Old.General.Language != "" || events[0].New.General.Language != "zh-Hans" {
+		t.Fatalf("events %+v", events)
+	}
+	// A copy: changing it changes nothing.
+	got.General.OtherLanguages[0] = "x"
+	got.Features.Translate.Hotkeys[0].Keys = "x"
+	if s.Get().General.OtherLanguages[0] != "en" || s.Get().Features.Translate.Hotkeys[0].Keys != "Fn+Shift" {
+		t.Error("Get returned shared state")
+	}
+	// No change: nothing published.
+	s.Update(ctx, func(s *Settings) { s.General.Language = "zh-Hans" })
+	if len(events) != 1 {
+		t.Errorf("no-op published: %d", len(events))
+	}
+	// Reopened from the documents.
+	again, err := Open(ctx, d, nil)
+	if err != nil || !reflect.DeepEqual(again.Get(), s.Get()) {
+		t.Fatalf("reopened %+v %v", again.Get(), err)
+	}
+	// A failed save changes nothing.
+	d.fail = context.DeadlineExceeded
+	if err := s.Update(ctx, func(s *Settings) { s.General.Language = "en" }); err == nil || s.Get().General.Language != "zh-Hans" {
+		t.Errorf("failed save: %v %q", err, s.Get().General.Language)
+	}
+	// A broken document: defaults, and an error to log.
+	d.fail = nil
+	d.memDocs.Put(ctx, Key, []byte("{"))
+	broken, err := Open(ctx, d, nil)
+	if err == nil || !reflect.DeepEqual(broken.Get(), Defaults()) {
+		t.Errorf("broken: %+v %v", broken.Get(), err)
+	}
+}
+
+func TestMemory(t *testing.T) {
+	s := NewMemory()
+	s.Update(context.Background(), func(s *Settings) { s.Audio.Sounds = false })
+	if s.Get().Audio.Sounds {
+		t.Error("not updated")
+	}
+}
+
+func TestProvidersNormalized(t *testing.T) {
+	s := NewMemory()
+	err := s.Update(context.Background(), func(v *Settings) {
+		v.Providers.ASR = []Provider{
+			{ID: " doubao ", Preset: "doubao", Enabled: true, AppID: " 123 ", Model: " volc.seedasr.sauc.duration "},
+			{ID: "doubao", Model: "second"},
+			{ID: ""},
+		}
+		v.Providers.LLM = []Provider{{ID: "custom-2", Preset: "custom", Endpoint: " https://x.test/v1 "}}
+		v.Features.Transcribe.ASR = " doubao "
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := s.Get()
+	want := []Provider{{ID: "doubao", Enabled: true, AppID: "123", Model: "volc.seedasr.sauc.duration"}}
+	if !reflect.DeepEqual(got.Providers.ASR, want) {
+		t.Errorf("ASR %+v", got.Providers.ASR)
+	}
+	if l := got.Providers.LLM; len(l) != 1 || l[0].Preset != "custom" || l[0].Endpoint != "https://x.test/v1" {
+		t.Errorf("LLM %+v", l)
+	}
+	if got.Features.Transcribe.ASR != "doubao" {
+		t.Errorf("feature ASR %q", got.Features.Transcribe.ASR)
+	}
+}
+
+// TestDeviceNames: names are kept for the listed devices only, and a
+// copy never shares its map.
+func TestDeviceNames(t *testing.T) {
+	s := Defaults()
+	s.Audio.Devices = []string{"a", " a ", "b"}
+	s.Audio.DeviceNames = map[string]string{"a": "Mic A", "gone": "Old mic"}
+	n := normalize(clone(s))
+	if !reflect.DeepEqual(n.Audio.Devices, []string{"a", "b"}) || !reflect.DeepEqual(n.Audio.DeviceNames, map[string]string{"a": "Mic A"}) {
+		t.Fatalf("normalized: %+v", n.Audio)
+	}
+	c := clone(n)
+	c.Audio.DeviceNames["a"] = "changed"
+	if n.Audio.DeviceNames["a"] != "Mic A" {
+		t.Error("clone shares the names")
+	}
+	s.Audio.Devices, s.Audio.DeviceNames = nil, map[string]string{"x": "X"}
+	if n := normalize(clone(s)); n.Audio.DeviceNames != nil {
+		t.Errorf("names without devices: %v", n.Audio.DeviceNames)
+	}
+}
+
+// TestMigrateOverlayOpacity: version 2 makes the overlay translucent,
+// version 3 0.8 and rounder (24), but each keeps a value the user chose
+// (anything but an older version's default).
+func TestMigrateOverlayOpacity(t *testing.T) {
+	for _, tc := range []struct {
+		doc            string
+		opacity, round float64
+	}{
+		{`{"version":1,"overlay":{"position":"bottom","opacity":1,"radius":16,"margin":96}}`, DefaultOpacity, DefaultRadius},
+		{`{"version":1,"overlay":{"position":"bottom","opacity":0.9,"radius":10,"margin":96}}`, 0.9, 10},
+		{`{"version":2,"overlay":{"position":"bottom","opacity":0.72,"radius":16,"margin":96}}`, DefaultOpacity, DefaultRadius},
+		{`{"version":2,"overlay":{"position":"bottom","opacity":1,"radius":20,"margin":96}}`, 1, 20},
+		{`{"version":2,"overlay":{"position":"bottom","opacity":0.6,"radius":16,"margin":96}}`, 0.6, DefaultRadius},
+		{`{"version":3,"overlay":{"position":"bottom","opacity":0.72,"radius":16,"margin":96}}`, 0.72, 16},
+		{`{"version":1}`, DefaultOpacity, DefaultRadius},
+	} {
+		s, err := Migrate([]byte(tc.doc))
+		if err != nil || s.Overlay.Opacity != tc.opacity || s.Overlay.Radius != tc.round || s.Version != Version || s.Overlay.ShowTime {
+			t.Errorf("%s: %+v %v", tc.doc, s.Overlay, err)
+		}
+	}
+	if d := Defaults().Overlay; d.Opacity != 0.8 || d.Radius != 24 {
+		t.Errorf("defaults %+v", d)
+	}
+	// The detection's settings are all zero (the package's defaults) and
+	// stay out of the document.
+	data, _ := json.Marshal(Defaults())
+	if strings.Contains(string(data), `"vad"`) {
+		t.Errorf("vad written: %s", data)
+	}
+}
+
+// TestCleanOnByDefault: the sound processing is on in a fresh install and
+// in every older document (it has no field there: zero is on), stays out
+// of the document while it is on, and a choice to turn it off stays.
+func TestCleanOnByDefault(t *testing.T) {
+	if Defaults().Audio.Clean != (Clean{}) {
+		t.Errorf("defaults %+v", Defaults().Audio.Clean)
+	}
+	for _, doc := range []string{`{"version":1}`, `{"version":3,"audio":{"sounds":true,"vad":{"off":true}}}`} {
+		s, err := Migrate([]byte(doc))
+		if err != nil || s.Audio.Clean.Off || !s.Audio.VAD.Off == strings.Contains(doc, "vad") {
+			t.Errorf("%s: %+v %v", doc, s.Audio, err)
+		}
+	}
+	data, _ := json.Marshal(Defaults())
+	if strings.Contains(string(data), `"clean"`) {
+		t.Errorf("clean written: %s", data)
+	}
+	s := Defaults()
+	s.Audio.Clean.Off = true
+	data, _ = json.Marshal(s)
+	if m, err := Migrate(data); err != nil || !m.Audio.Clean.Off {
+		t.Errorf("off lost: %s", data)
+	}
+}
+
+// TestBetaUpdates: betas follow the running version until the user
+// chooses, older documents have no choice, and a choice either way stays.
+func TestBetaUpdates(t *testing.T) {
+	s, err := Migrate([]byte(`{"version":3}`))
+	if err != nil || s.Updates.Beta != nil {
+		t.Fatalf("older document: %+v %v", s.Updates, err)
+	}
+	for v, want := range map[string]bool{"0.1.0-beta.1": true, "1.0.0-rc.2": true, "0.1.0": false, "": false} {
+		if got := s.Updates.BetaOn(v); got != want {
+			t.Errorf("BetaOn(%q) = %t without a choice", v, got)
+		}
+	}
+	data, _ := json.Marshal(Defaults())
+	if strings.Contains(string(data), `"updates"`) {
+		t.Errorf("updates written without a choice: %s", data)
+	}
+	for _, on := range []bool{true, false} {
+		s := Defaults()
+		s.Updates.Beta = &on
+		data, _ := json.Marshal(s)
+		m, err := Migrate(data)
+		if err != nil || m.Updates.Beta == nil || *m.Updates.Beta != on {
+			t.Fatalf("choice %t lost: %s", on, data)
+		}
+		for _, v := range []string{"0.1.0-beta.1", "0.1.0"} {
+			if m.Updates.BetaOn(v) != on {
+				t.Errorf("choice %t, running %s: %t", on, v, m.Updates.BetaOn(v))
+			}
+		}
+	}
+}

@@ -1,0 +1,140 @@
+Auralink
+Copyright (C) 2026 actnow (https://actnow.dev) and the Auralink contributors
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public
+License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program (LICENSE). If not, see
+<https://www.gnu.org/licenses/>.
+
+Contributions are accepted under the Auralink Contributor License
+Agreement (CLA.md); CONTRIBUTING.md says how to sign it.
+
+Earlier versions
+  Auralink up to and including commit 7d1c9a7 (among them the tag
+  v0.1.0-beta.1) was released under the Apache License 2.0. Copies
+  received under those terms keep them; later changes are under the
+  GNU AGPL as above.
+
+Third-party material
+====================
+
+Auralink includes the material below. Each part keeps its own licence,
+and every one of them may be combined with and distributed under the
+GNU AGPL version 3: the Apache License 2.0 and the Unicode License v3 are
+compatible with GPLv3 and AGPLv3; MIT, ISC, BSD-3-Clause and CC BY 4.0
+(for the icons, which are artwork rather than code) ask for their notices
+to be kept, which this file and LICENSES/ do. Full licence texts:
+LICENSES/Apache-2.0.txt, LICENSES/Unicode-3.0.txt, third_party/mygo/LICENSE
+and LICENSES/go/ (the Go modules' own files, copied unchanged).
+
+AudioSmith
+  Portions of this product come from AudioSmith
+  (https://github.com/hehehai/AudioSmith) at commit f171c86, Copyright 2026
+  the AudioSmith authors, licensed under the Apache License 2.0
+  (LICENSES/Apache-2.0.txt): the window shell and UI kit, the settings,
+  store, i18n, logs, notification and Keychain code, the MyGo patches 0001
+  and 0002, and the helper supervisor (adapted from its engine
+  supervisor). They have been modified; docs/architecture.md lists what
+  was taken and how it changed.
+
+Voxt overlay preview background
+  assets/overlay-preview-background.png, the desktop picture behind the
+  overlay's preview in Settings → Overlay style, is taken unchanged from
+  Voxt (https://github.com/hehehai/voxt) at commit baa6f31
+  (Voxt/Assets.xcassets/OverlayPreviewBackground.imageset), Copyright the
+  Voxt authors, licensed under the Apache License 2.0.
+
+Voxt overlay icons
+  internal/icons/voxt.go holds the overlay's mode icons (transcription,
+  translation, rewrite), its answer icon and its small spinner, drawn from
+  the path data of Voxt (https://github.com/hehehai/voxt) at commit baa6f31
+  (Voxt/Windows/WaveformIconPathData.swift, WaveformIconViews.swift),
+  Copyright the Voxt authors, licensed under the Apache License 2.0; the
+  paths are unchanged.
+
+Voxt menu bar icon
+  internal/trayicon/voxt.png, the microphone of the menu bar icon, is
+  taken unchanged from Voxt (https://github.com/hehehai/voxt) at commit
+  baa6f31 (Voxt/Assets.xcassets/voxt.imageset/voxt.png), Copyright the Voxt
+  authors, licensed under the Apache License 2.0. internal/trayicon/gen
+  scales it to the 36 px menubar.png and adds the recording dot for
+  menubar-recording.png.
+
+Solar icon set
+  by 480 Design — https://www.figma.com/community/file/1166831539721848736
+  Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0),
+  https://creativecommons.org/licenses/by/4.0/
+  Taken from the npm package @iconify-json/solar 1.2.13 (Iconify,
+  https://icon-sets.iconify.design/solar/). Only the icons Auralink uses are
+  included, converted to Go source in internal/icons/solar_gen.go
+  (internal/icons/gen); their shapes are unchanged.
+
+Language data
+  internal/lang/languages.tsv and aliases.tsv are built by
+  internal/lang/gen from:
+  - OmniVoice's language list (https://github.com/k2-fsa/OmniVoice,
+    docs/lang_id_name_map.tsv), licensed under the Apache License 2.0;
+  - Whisper's LANGUAGES table (https://github.com/openai/whisper,
+    whisper/tokenizer.py), Copyright (c) 2022 OpenAI, licensed under the
+    MIT License:
+      Permission is hereby granted, free of charge, to any person obtaining
+      a copy of this software and associated documentation files (the
+      "Software"), to deal in the Software without restriction, including
+      without limitation the rights to use, copy, modify, merge, publish,
+      distribute, sublicense, and/or sell copies of the Software, and to
+      permit persons to whom the Software is furnished to do so, subject to
+      the following conditions: The above copyright notice and this
+      permission notice shall be included in all copies or substantial
+      portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT
+      WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+      TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+      PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+      COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+      ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+      OR OTHER DEALINGS IN THE SOFTWARE.
+  - Unicode CLDR 48.2 (the npm packages cldr-localenames-full and
+    cldr-core), Copyright © 1991-2026 Unicode, Inc., licensed under the
+    Unicode License v3 (LICENSES/Unicode-3.0.txt).
+
+Speech sample
+  testdata/speech/sample-zh-en.wav is synthetic speech made with
+  Qwen3-TTS-12Hz-0.6B-CustomVoice (Alibaba Qwen, Apache-2.0), which puts no
+  condition on its outputs; it is distributed with Auralink under
+  Auralink's licence. testdata/speech/README.md says how it was made.
+
+MyGo
+  Copyright (c) 2026 MyGo contributors — https://github.com/egoist/mygo
+  Licensed under the MIT License (third_party/mygo/LICENSE). Auralink
+  builds against a copy with its own patches (third_party/mygo-patches),
+  made by scripts/vendor-mygo.sh, until upstream releases the fixes. The
+  patches are licensed under MyGo's MIT License, not under the GNU AGPL,
+  so that they can go upstream (third_party/mygo-patches/README.md).
+  Auralink.app also carries MyGo's prebuilt SQLite library (SQLite 3.53.4,
+  https://sqlite.org, in the public domain).
+
+Go modules compiled into Auralink
+  Their licence files are copied unchanged into LICENSES/go/.
+  - github.com/coder/websocket v1.8.15, Copyright (c) 2025 Coder, ISC
+  - github.com/ebitengine/purego v0.11.1, Copyright the Ebitengine
+    authors, Apache License 2.0 (LICENSES/Apache-2.0.txt)
+  - github.com/go-text/typesetting v0.3.5, Copyright 2021 The go-text
+    authors, Unlicense OR BSD-3-Clause
+  - golang.org/x/image v0.46.0, Copyright 2009 The Go Authors,
+    BSD-3-Clause, with Google's patent grant (PATENTS)
+  - golang.org/x/text v0.43.0, Copyright 2009 The Go Authors,
+    BSD-3-Clause, with Google's patent grant (PATENTS)
+
+The Swift helper (helper/) has no third-party dependencies: it uses
+Apple's system frameworks only.

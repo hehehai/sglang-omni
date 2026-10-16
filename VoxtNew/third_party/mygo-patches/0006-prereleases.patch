@@ -1,0 +1,1055 @@
+MyGo patch 0006 (Auralink): prereleases, a beta channel of GitHub
+releases.
+
+Apps whose updates are GitHub releases only ever see the latest release
+(releases/latest/download/, or with a tag prefix the newest release that
+is neither a draft nor a prerelease). An app with a beta channel needs
+its users who opt in to get prereleases (1.3.0-beta.1), and the others
+not to.
+
+- mygo.Updater.SetPrereleases(on) / Prereleases(): with it on, Check
+  lists the releases through the GitHub API (update.ResolvePrereleaseFeed,
+  for the latest release's feed and for tagged feeds) and offers the
+  highest version that is not a draft, a release or a prerelease, when it
+  is newer than the running one. One API request a check; when the API
+  fails (GitHub allows 60 an hour for each address, said in plain words
+  when it is the limit), Check falls back to the latest release and
+  returns the API's error when that is no update. Updates never go back.
+- mygo.ErrNotPublished: Check's error wraps it when the feed has no
+  release yet (the latest release's 404 while only prereleases are
+  published, or no tagged release), and the updater plugin shows "up to
+  date" for it instead of an error.
+- updates.prereleases (mygo.json, mygo.config.ts): -upload creates the
+  draft of a version with a pre-release part with --prerelease, and
+  builds make delta updates from the newest version of both channels (the
+  latest release and the newest prerelease, each channel's first, then
+  the versions their manifests list), so that beta users get a delta of
+  the next beta or release too. Before, builds read the latest release's
+  manifest only: no delta from one beta to the next, nor to the release.
+- docs/updates.md "Prereleases", docs/configuration.md.
+
+Tests: TestUpdaterPrereleases (channels, no downgrade, the highest
+version over the newest release, the API's limit and its fallback,
+nothing published), TestResolvePrereleaseFeed, TestWriteDeltasPrereleases
+(betas before the first release, a release after betas, a beta after a
+release), TestPublishGitHub, TestNotPublished (plugin).
+diff --git a/cmd/mygo/publish.go b/cmd/mygo/publish.go
+index a6848cf..fd204a8 100644
+--- a/cmd/mygo/publish.go
++++ b/cmd/mygo/publish.go
+@@ -84,6 +84,9 @@ func publishGitHub(c *Config, artifacts []string) error {
+ 	if c.Updates.tagged() {
+ 		latest = " --latest=false"
+ 	}
++	// A prerelease is never the latest release: apps that take
++	// prereleases find it through the API.
++	prerelease := c.Updates.Prereleases && strings.Contains(c.Version, "-")
+ 	if exec.Command(gh, "release", "view", tag, "--repo", repo).Run() != nil {
+ 		notes, _ := c.releaseNotes()
+ 		t := con.start("Creating the draft release " + tag + " of " + repo)
+@@ -91,6 +94,9 @@ func publishGitHub(c *Config, artifacts []string) error {
+ 		if latest != "" {
+ 			args = append(args, "--latest=false")
+ 		}
++		if prerelease {
++			args = append(args, "--prerelease")
++		}
+ 		if out, err := exec.Command(gh, args...).CombinedOutput(); err != nil {
+ 			t.fail()
+ 			return fmt.Errorf("gh release create: %v\n%s", err, out)
+diff --git a/cmd/mygo/updates.go b/cmd/mygo/updates.go
+index 55273d5..983e0af 100644
+--- a/cmd/mygo/updates.go
++++ b/cmd/mygo/updates.go
+@@ -54,6 +54,13 @@ type Updates struct {
+ 	// Deltas is how many earlier versions get a delta update: a smaller
+ 	// download holding only what changed (default 3, 0 for none).
+ 	Deltas *int `json:"deltas"`
++	// Prereleases are published on GitHub beside the releases, for apps
++	// that offer them to the users who opt in (Updater.SetPrereleases):
++	// -upload makes the draft of a version with a pre-release part, such
++	// as 1.3.0-beta.1, a prerelease, which never becomes the latest
++	// release; and builds make delta updates from the newest prerelease
++	// too, so that both channels get one.
++	Prereleases bool `json:"prereleases"`
+ }
+ 
+ // deltas returns how many earlier versions get a delta update.
+@@ -96,6 +103,9 @@ func (u *Updates) validate() error {
+ 			return err
+ 		}
+ 	}
++	if u.Prereleases && u.GitHub == "" {
++		return errors.New("updates.prereleases needs github: prereleases are GitHub's")
++	}
+ 	if u.Deltas != nil && *u.Deltas < 0 {
+ 		return fmt.Errorf("updates.deltas is %d, not a number of versions", *u.Deltas)
+ 	}
+@@ -276,27 +286,51 @@ func writeSigned(path string, key ed25519.PrivateKey, write func(io.Writer) erro
+ // writeDeltas makes delta updates to the app of target in stage from the
+ // n versions before it, as Sparkle does: the version of the published
+ // manifest of target and those it lists as previous, whose archives it
+-// downloads. It adds them to m, with the archives the next version makes
+-// deltas from, and returns the files written. Deltas only save downloads,
+-// so a version without one is skipped with a message.
++// downloads; with updates.prereleases also the newest prerelease's and
++// those it lists, the published version of each channel first. It adds
++// them to m, with the archives the next version makes deltas from, and
++// returns the files written. Deltas only save downloads, so a version
++// without one is skipped with a message.
+ func writeDeltas(c *Config, key ed25519.PrivateKey, stage, target string, entries []string, m *update.Manifest, n int) ([]string, error) {
+-	published, err := fetchManifest(c.updateFeed(target))
+-	if err != nil {
+-		if errors.Is(err, errNotPublished) {
++	var heads, rest []update.Archive
++	feed := c.updateFeed(target)
++	published, err := fetchManifest(feed, update.ResolveFeed)
++	switch {
++	case err == nil:
++		heads = append(heads, update.Archive{Version: published.Version, URL: published.URL, Size: published.Size, Signature: published.Signature})
++		rest = append(rest, published.Previous...)
++	case errors.Is(err, errNotPublished):
++		if !c.Updates.Prereleases {
+ 			logf("No delta updates for %s: no version is published yet", target)
+-		} else {
+-			warnf("No delta updates for %s: %v", target, err)
++			return nil, nil
+ 		}
++	default:
++		warnf("No delta updates for %s: %v", target, err)
+ 		return nil, nil
+ 	}
++	if c.Updates.Prereleases {
++		pre, err := fetchManifest(feed, update.ResolvePrereleaseFeed)
++		switch {
++		case err == nil:
++			heads = append(heads, update.Archive{Version: pre.Version, URL: pre.URL, Size: pre.Size, Signature: pre.Signature})
++			rest = append(rest, pre.Previous...)
++		case errors.Is(err, errNotPublished) && len(heads) == 0:
++			logf("No delta updates for %s: no version is published yet", target)
++			return nil, nil
++		case !errors.Is(err, errNotPublished):
++			warnf("No delta updates from the prereleases for %s: %v", target, err)
++		}
++	}
++	slices.SortStableFunc(heads, func(a, b update.Archive) int { return update.Compare(b.Version, a.Version) })
++	slices.SortStableFunc(rest, func(a, b update.Archive) int { return update.Compare(b.Version, a.Version) })
+ 	var bases []update.Archive
+-	for _, a := range append([]update.Archive{{Version: published.Version, URL: published.URL, Size: published.Size, Signature: published.Signature}}, published.Previous...) {
++	for _, a := range append(heads, rest...) {
+ 		if update.Compare(a.Version, c.Version) < 0 && !slices.ContainsFunc(bases, func(b update.Archive) bool { return b.Version == a.Version }) {
+ 			bases = append(bases, a)
+ 		}
+ 	}
+ 	if len(bases) == 0 {
+-		logf("No delta updates for %s: the published version is %s", target, published.Version)
++		logf("No delta updates for %s: the published version is %s", target, heads[0].Version)
+ 		return nil, nil
+ 	}
+ 	bases = bases[:min(len(bases), n)]
+@@ -374,9 +408,10 @@ func writeDelta(key ed25519.PrivateKey, base update.Archive, work, path, version
+ 
+ var errNotPublished = errors.New("not published")
+ 
+-// fetchManifest downloads a published manifest, from its feed.
+-func fetchManifest(feed string) (*update.Manifest, error) {
+-	u, err := update.ResolveFeed(context.Background(), feed, func(_ context.Context, u string) (io.ReadCloser, error) {
++// fetchManifest downloads a published manifest, from its feed as resolve
++// finds it.
++func fetchManifest(feed string, resolve func(context.Context, string, update.Getter) (string, error)) (*update.Manifest, error) {
++	u, err := resolve(context.Background(), feed, func(_ context.Context, u string) (io.ReadCloser, error) {
+ 		resp, err := updateGet(u, 30*time.Second)
+ 		if err != nil {
+ 			return nil, err
+diff --git a/cmd/mygo/updates_test.go b/cmd/mygo/updates_test.go
+index 5e28fee..af5b63f 100644
+--- a/cmd/mygo/updates_test.go
++++ b/cmd/mygo/updates_test.go
+@@ -78,6 +78,7 @@ func TestUpdatesConfig(t *testing.T) {
+ 		`{"publicKey": "` + key + `", "github": "me"}`,
+ 		`{"publicKey": "` + key + `", "url": "http://dl.example.com"}`,
+ 		`{"publicKey": "` + key + `", "github": "me/my-app", "deltas": -1}`,
++		`{"publicKey": "` + key + `", "url": "https://dl.example.com", "prereleases": true}`,
+ 		`{"publicKey": "` + key + `", "github": "me/my-app", "s3": {"bucket": "downloads"}}`,
+ 		`{"publicKey": "` + key + `", "url": "https://dl.example.com", "s3": {}}`,
+ 		`{"publicKey": "` + key + `", "url": "https://dl.example.com", "s3": {"bucket": "downloads", "endpoint": "acc.r2.cloudflarestorage.com"}}`,
+@@ -440,6 +441,24 @@ func TestPublishGitHub(t *testing.T) {
+ 	if !strings.HasSuffix(lines[3], "update-darwin-arm64.json") {
+ 		t.Errorf("the manifests must go last: %s", lines[3])
+ 	}
++	if strings.Contains(lines[1], "--prerelease") {
++		t.Errorf("a release made a prerelease: %s", lines[1])
++	}
++
++	// With prereleases, a version with a pre-release part is a prerelease;
++	// others stay releases.
++	for _, v := range []string{"1.3.0-beta.1", "1.3.0"} {
++		os.Remove(calls)
++		pc := &Config{root: t.TempDir(), Version: v, Updates: &Updates{GitHub: "me/app", TagPrefix: "v", Prereleases: true}}
++		if err := publishGitHub(pc, artifacts); err != nil {
++			t.Fatal(err)
++		}
++		b, _ = os.ReadFile(calls)
++		create := strings.Split(strings.TrimSpace(string(b)), "\n")[1]
++		if want := strings.Contains(v, "-"); !strings.HasPrefix(create, "release create v"+v+" --repo me/app --draft") || strings.Contains(create, "--prerelease") != want || strings.Contains(create, "--latest") {
++			t.Errorf("gh release create of %s: %s", v, create)
++		}
++	}
+ 
+ 	// Tagged releases leave the repository's latest release to the others.
+ 	os.Remove(calls)
+@@ -452,3 +471,150 @@ func TestPublishGitHub(t *testing.T) {
+ 		t.Errorf("gh calls:\n%s", b)
+ 	}
+ }
++
++// TestWriteDeltasPrereleases makes delta updates from the newest release
++// and the newest prerelease on GitHub, so that both channels get one.
++func TestWriteDeltasPrereleases(t *testing.T) {
++	pub, priv, _ := ed25519.GenerateKey(nil)
++	t.Setenv("MYGO_UPDATER_PRIVATE_KEY", base64.StdEncoding.EncodeToString(priv))
++	t.Setenv("GH_TOKEN", "")
++	t.Setenv("GITHUB_TOKEN", "")
++	code := make([]byte, 50_000)
++	for i := range code {
++		code[i] = byte(i * i >> 3)
++	}
++	app := func(dir, version string) []string {
++		os.MkdirAll(dir, 0o755)
++		os.WriteFile(filepath.Join(dir, "app"), append(slices.Clone(code), version...), 0o755)
++		return []string{"app"}
++	}
++	const target = "linux-amd64"
++	// files are what github.com serves by path; releases what the API
++	// lists, newest first; latest the tag of the latest release.
++	files := map[string][]byte{}
++	var releases []map[string]any
++	latest := ""
++	var apiRequests int
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		switch {
++		case r.Host == "api.github.com" && r.URL.Path == "/repos/me/app/releases":
++			apiRequests++
++			if r.URL.Query().Get("page") != "1" {
++				w.Write([]byte("[]"))
++				return
++			}
++			json.NewEncoder(w).Encode(releases)
++		case r.Host == "github.com":
++			p := r.URL.Path
++			if rest, ok := strings.CutPrefix(p, "/me/app/releases/latest/download/"); ok {
++				if latest == "" {
++					http.NotFound(w, r)
++					return
++				}
++				p = "/me/app/releases/download/" + latest + "/" + rest
++			}
++			if b, ok := files[p]; ok {
++				w.Write(b)
++				return
++			}
++			http.NotFound(w, r)
++		default:
++			http.NotFound(w, r)
++		}
++	}))
++	defer srv.Close()
++	saved := http.DefaultTransport
++	t.Cleanup(func() { http.DefaultTransport = saved })
++	base := saved.(*http.Transport).Clone()
++	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
++		r = r.Clone(r.Context())
++		r.Host = r.URL.Host
++		r.URL.Scheme, r.URL.Host = "http", strings.TrimPrefix(srv.URL, "http://")
++		return base.RoundTrip(r)
++	})
++
++	// publish builds version as a release of GitHub would have it: its
++	// archive, deltas and manifest under its tag, and lists it.
++	build := func(version string, prereleases bool) update.Manifest {
++		t.Helper()
++		stage := t.TempDir()
++		entries := app(stage, version)
++		c := &Config{root: t.TempDir(), Name: "App", Version: version, Updates: &Updates{PublicKey: base64.StdEncoding.EncodeToString(pub), GitHub: "me/app", TagPrefix: "v", Prereleases: prereleases}}
++		written, err := writeArchive(c, stage, target, entries)
++		if err != nil {
++			t.Fatal(err)
++		}
++		var m update.Manifest
++		data, _ := os.ReadFile(written[len(written)-1])
++		if err := json.Unmarshal(data, &m); err != nil {
++			t.Fatal(err)
++		}
++		for _, f := range written {
++			b, _ := os.ReadFile(f)
++			files["/me/app/releases/download/v"+version+"/"+filepath.Base(f)] = b
++		}
++		return m
++	}
++	publish := func(version string) {
++		pre := strings.Contains(version, "-")
++		releases = append([]map[string]any{{"tag_name": "v" + version, "prerelease": pre}}, releases...)
++		if !pre {
++			latest = "v" + version
++		}
++	}
++	froms := func(m update.Manifest) []string {
++		var from []string
++		for _, d := range m.Deltas {
++			from = append(from, d.From)
++		}
++		return from
++	}
++
++	// The first versions are betas: no latest release yet.
++	if m := build("0.1.0-beta.1", true); m.Deltas != nil {
++		t.Errorf("the first version has deltas from %v", froms(m))
++	}
++	publish("0.1.0-beta.1")
++	m := build("0.1.0-beta.2", true)
++	if got := froms(m); !slices.Equal(got, []string{"0.1.0-beta.1"}) {
++		t.Errorf("0.1.0-beta.2: deltas from %v, want 0.1.0-beta.1", got)
++	}
++	publish("0.1.0-beta.2")
++	if got := froms(build("0.1.0", true)); !slices.Equal(got, []string{"0.1.0-beta.2", "0.1.0-beta.1"}) {
++		t.Errorf("0.1.0: deltas from %v", got)
++	}
++	publish("0.1.0")
++	// A beta of the next version updates the release and the last beta.
++	if got := froms(build("0.2.0-beta.1", true)); !slices.Equal(got, []string{"0.1.0", "0.1.0-beta.2", "0.1.0-beta.1"}) {
++		t.Errorf("0.2.0-beta.1: deltas from %v", got)
++	}
++	publish("0.2.0-beta.1")
++	// Each channel's newest version comes first, whatever the count.
++	m = build("0.2.0", true)
++	if got := froms(m); len(got) != 3 || got[0] != "0.2.0-beta.1" || got[1] != "0.1.0" {
++		t.Errorf("0.2.0: deltas from %v", got)
++	}
++	d := 1
++	c := &Config{root: t.TempDir(), Name: "App", Version: "0.2.0", Updates: &Updates{PublicKey: base64.StdEncoding.EncodeToString(pub), GitHub: "me/app", TagPrefix: "v", Prereleases: true, Deltas: &d}}
++	stage := t.TempDir()
++	written, err := writeArchive(c, stage, target, app(stage, "0.2.0"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	var one update.Manifest
++	data, _ := os.ReadFile(written[len(written)-1])
++	json.Unmarshal(data, &one)
++	if got := froms(one); !slices.Equal(got, []string{"0.2.0-beta.1"}) {
++		t.Errorf("one delta: from %v", got)
++	}
++
++	// Without prereleases, only the latest release's chain, and no API.
++	apiRequests = 0
++	if got := froms(build("0.2.0", false)); !slices.Equal(got, []string{"0.1.0", "0.1.0-beta.2", "0.1.0-beta.1"}) || apiRequests != 0 {
++		t.Errorf("without prereleases: deltas from %v, %d API requests", got, apiRequests)
++	}
++}
++
++type roundTripFunc func(*http.Request) (*http.Response, error)
++
++func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+diff --git a/docs/configuration.md b/docs/configuration.md
+index 886a32b..63384a4 100644
+--- a/docs/configuration.md
++++ b/docs/configuration.md
+@@ -105,6 +105,7 @@ Signed [auto-updates](updates.md). `publicKey` and one of `github` and
+ | `privateKey` | | the path of `mygo-update.key`, for `mygo build`; the `MYGO_UPDATER_PRIVATE_KEY` environment variable, holding the key, takes precedence |
+ | `changelog` | `CHANGELOG.md` when it exists | a Markdown file whose `## <version>` section becomes the release notes |
+ | `deltas` | `3` | how many earlier versions get a [delta update](updates.md#delta-updates); `0` for none |
++| `prereleases` | `false` | with `github`: versions such as `1.3.0-beta.1` are uploaded as prereleases, and deltas are made from the newest prerelease too, for apps that offer a [beta channel](updates.md#prereleases) |
+ 
+ ## macos
+ 
+diff --git a/docs/updates.md b/docs/updates.md
+index 32ce4a4..a3a21e0 100644
+--- a/docs/updates.md
++++ b/docs/updates.md
+@@ -141,6 +141,51 @@ The bucket is named in the host name of requests on Amazon S3 and in their
+ path with `endpoint`; set `pathStyle` to `false` for services that only
+ take it in the host name, or to `true` to force the path.
+ 
++## Prereleases
++
++Apps whose updates are GitHub releases can offer prereleases, such as
++`1.3.0-beta.1`, to the users who opt in: a beta channel. Set
++`prereleases` in `updates`,
++
++```ts
++updates: {
++  publicKey: "…",
++  github: "you/my-app",
++  prereleases: true,
++},
++```
++
++and `mygo build -upload` makes the draft of a version with a pre-release
++part a GitHub prerelease, which never becomes the latest release: apps
++that do not take prereleases never see it. Publish it with
++`gh release edit v1.3.0-beta.1 --draft=false`.
++
++The app chooses at run time, for example from a preference:
++
++```go
++mygo.Updater.SetPrereleases(settings.Beta)
++```
++
++`Check` then lists the releases through the GitHub API and offers the
++highest version among those that are not drafts, a release or a
++prerelease, when it is newer than the running one: a beta user gets the
++next beta, and the release that follows it. It is one API request a
++check, within the 60 an hour that GitHub allows each address; when the
++API fails, `Check` falls back to the latest release, and returns the
++API's error when that is no update. Updates never go back: a user who
++turns prereleases off on a beta waits for a release newer than it. The
++choice is not saved: set it each time the app starts, before the first
++check. A feed that has no release yet, such as the latest release's
++while only prereleases are published, makes `Check` return an error
++wrapping `mygo.ErrNotPublished`, which the updater plugin shows as up to
++date.
++
++[Delta updates](#delta-updates) of a build with `prereleases` come from
++the newest version of both channels, the latest release and the newest
++prerelease, then the versions their manifests list: a beta user on the
++last beta and a user of the last release both download a delta of the
++next version, whichever channel it is in.
++
+ ## Delta updates
+ 
+ As with Sparkle, apps download only what changed since their version,
+diff --git a/internal/update/github.go b/internal/update/github.go
+index c38f2f6..4136e6a 100644
+--- a/internal/update/github.go
++++ b/internal/update/github.go
+@@ -18,13 +18,15 @@ import (
+ //	https://github.com/<owner>/<repo>/releases/download/<prefix>{version}/update-<target>.json
+ //
+ // and ResolveFeed finds the newest release tagged <prefix> through the
+-// GitHub API. Other feeds are the URL of the manifest.
++// GitHub API. Other feeds are the URL of the manifest. Apps that take
++// prereleases resolve either feed of GitHub releases through the API
++// (ResolvePrereleaseFeed).
+ 
+ // VersionPlaceholder stands for the version in the feed of tagged releases.
+ const VersionPlaceholder = "{version}"
+ 
+-// ErrNotPublished is returned by ResolveFeed when no release is tagged
+-// with the prefix of the feed.
++// ErrNotPublished is returned by ResolveFeed and ResolvePrereleaseFeed
++// when no release is tagged with the prefix of the feed.
+ var ErrNotPublished = errors.New("no release is published")
+ 
+ // Getter gets a URL and returns the body of a successful response.
+@@ -82,16 +84,36 @@ func parseTaggedFeed(feed string) (repo, prefix string, err error) {
+ // latestTagged returns the tag of the newest release of repo tagged
+ // prefix that is neither a draft nor a prerelease.
+ func latestTagged(ctx context.Context, get Getter, repo, prefix string) (string, error) {
++	return newestTagged(ctx, get, repo, prefix, false)
++}
++
++// newestTagged returns the tag of the newest release of repo tagged prefix
++// that is not a draft, and with prereleases unset, not a prerelease: the
++// first in the API's order (newest first), or with prereleases the
++// highest version (Compare) of the first page that has one, so that a
++// stable fix published after a prerelease of a later version does not
++// hide the prerelease.
++func newestTagged(ctx context.Context, get Getter, repo, prefix string, prereleases bool) (string, error) {
+ 	for page := 1; page <= maxReleasePages; page++ {
+ 		u := GitHubAPI + "/repos/" + repo + "/releases?per_page=" + strconv.Itoa(releasesPerPage) + "&page=" + strconv.Itoa(page)
+ 		releases, err := getReleases(ctx, get, u)
+ 		if err != nil {
+ 			return "", err
+ 		}
++		best := ""
+ 		for _, r := range releases {
+-			if !r.Draft && !r.Prerelease && strings.HasPrefix(r.TagName, prefix) {
++			if r.Draft || r.Prerelease && !prereleases || !strings.HasPrefix(r.TagName, prefix) {
++				continue
++			}
++			if !prereleases {
+ 				return r.TagName, nil
+ 			}
++			if best == "" || Compare(strings.TrimPrefix(r.TagName, prefix), strings.TrimPrefix(best, prefix)) > 0 {
++				best = r.TagName
++			}
++		}
++		if best != "" {
++			return best, nil
+ 		}
+ 		if len(releases) < releasesPerPage {
+ 			break
+@@ -100,6 +122,47 @@ func latestTagged(ctx context.Context, get Getter, repo, prefix string) (string,
+ 	return "", fmt.Errorf("%w in %s tagged %s", ErrNotPublished, repo, prefix)
+ }
+ 
++// LatestFeed reports whether feed is the manifest name of the latest
++// release of a GitHub repository,
++//
++//	https://github.com/<owner>/<repo>/releases/latest/download/<name>
++//
++// and returns the repository.
++func LatestFeed(feed string) (repo, name string, ok bool) {
++	rest, ok := strings.CutPrefix(feed, "https://github.com/")
++	parts := strings.SplitN(rest, "/", 6)
++	if !ok || len(parts) != 6 || parts[2] != "releases" || parts[3] != "latest" || parts[4] != "download" || parts[5] == "" {
++		return "", "", false
++	}
++	return parts[0] + "/" + parts[1], parts[5], true
++}
++
++// ResolvePrereleaseFeed is ResolveFeed for apps that take prereleases
++// (Updater.SetPrereleases): for a feed of GitHub releases, the latest
++// release's (LatestFeed, whose tags are "v" and a version) or tagged ones'
++// (TaggedFeed), it returns the manifest in the release of the highest
++// version that is not a draft, prereleases included, through the GitHub
++// API. Other feeds have no prereleases: it returns them as they are.
++func ResolvePrereleaseFeed(ctx context.Context, feed string, get Getter) (string, error) {
++	var repo, prefix, name string
++	if r, n, ok := LatestFeed(feed); ok {
++		repo, prefix, name = r, "v", n
++	} else if strings.Contains(feed, VersionPlaceholder) {
++		var err error
++		if repo, prefix, err = parseTaggedFeed(feed); err != nil {
++			return "", err
++		}
++		name = feed[strings.LastIndex(feed, "/")+1:]
++	} else {
++		return feed, nil
++	}
++	tag, err := newestTagged(ctx, get, repo, prefix, true)
++	if err != nil {
++		return "", err
++	}
++	return "https://github.com/" + repo + "/releases/download/" + url.PathEscape(tag) + "/" + name, nil
++}
++
+ type release struct {
+ 	TagName    string `json:"tag_name"`
+ 	Draft      bool   `json:"draft"`
+diff --git a/internal/update/github_test.go b/internal/update/github_test.go
+index 0d6e81b..4e09f88 100644
+--- a/internal/update/github_test.go
++++ b/internal/update/github_test.go
+@@ -67,3 +67,61 @@ func TestResolveFeed(t *testing.T) {
+ 		t.Error("a feed with {version} outside GitHub releases was resolved")
+ 	}
+ }
++
++func TestResolvePrereleaseFeed(t *testing.T) {
++	var page []string
++	var requests int
++	get := func(_ context.Context, u string) (io.ReadCloser, error) {
++		requests++
++		if u == "https://api.github.com/repos/me/app/releases?per_page=100&page=1" {
++			return io.NopCloser(strings.NewReader("[" + strings.Join(page, ",") + "]")), nil
++		}
++		return nil, fmt.Errorf("GET %s", u)
++	}
++	rel := func(tag string, draft, pre bool) string {
++		return fmt.Sprintf(`{"tag_name": %q, "draft": %t, "prerelease": %t}`, tag, draft, pre)
++	}
++	page = []string{
++		rel("v2.0.0-beta.1", true, true),
++		rel("v1.2.1", false, false),
++		rel("cli-v9.0.0", false, false),
++		rel("v1.3.0-beta.10", false, true),
++		rel("v1.3.0-beta.9", false, true),
++		rel("v1.2.0", false, false),
++	}
++	latest := "https://github.com/me/app/releases/latest/download/update-darwin-arm64.json"
++	if repo, name, ok := LatestFeed(latest); !ok || repo != "me/app" || name != "update-darwin-arm64.json" {
++		t.Errorf("LatestFeed = %s, %s, %t", repo, name, ok)
++	}
++	got, err := ResolvePrereleaseFeed(context.Background(), latest, get)
++	if want := "https://github.com/me/app/releases/download/v1.3.0-beta.10/update-darwin-arm64.json"; err != nil || got != want {
++		t.Errorf("ResolvePrereleaseFeed = %s, %v, want %s", got, err, want)
++	}
++	// Tagged feeds keep their prefix.
++	page = append(page, rel("desktop-v1.0.0", false, false), rel("desktop-v1.1.0-rc.1", false, true))
++	got, err = ResolvePrereleaseFeed(context.Background(), TaggedFeed("me/app", "desktop-v", "update-linux-amd64.json"), get)
++	if want := "https://github.com/me/app/releases/download/desktop-v1.1.0-rc.1/update-linux-amd64.json"; err != nil || got != want {
++		t.Errorf("ResolvePrereleaseFeed of a tagged feed = %s, %v, want %s", got, err, want)
++	}
++	// Without prereleases nothing changes.
++	if got, err := ResolveFeed(context.Background(), TaggedFeed("me/app", "desktop-v", "u.json"), get); err != nil || !strings.Contains(got, "/desktop-v1.0.0/") {
++		t.Errorf("ResolveFeed = %s, %v", got, err)
++	}
++	page = []string{rel("v1.0.0-beta.1", true, true)}
++	if _, err := ResolvePrereleaseFeed(context.Background(), latest, get); !errors.Is(err, ErrNotPublished) {
++		t.Errorf("only a draft: %v", err)
++	}
++	// Other feeds are themselves, with no request.
++	requests = 0
++	for _, feed := range []string{"https://example.com/app/update.json", "https://github.com/me/app/releases/download/v1.0.0/update.json"} {
++		if _, _, ok := LatestFeed(feed); ok {
++			t.Errorf("%s is not the latest release's", feed)
++		}
++		if got, err := ResolvePrereleaseFeed(context.Background(), feed, get); err != nil || got != feed {
++			t.Errorf("ResolvePrereleaseFeed(%s) = %s, %v", feed, got, err)
++		}
++	}
++	if requests != 0 {
++		t.Errorf("%d requests for other feeds", requests)
++	}
++}
+diff --git a/packages/cli/index.d.ts b/packages/cli/index.d.ts
+index be61e62..effb8de 100644
+--- a/packages/cli/index.d.ts
++++ b/packages/cli/index.d.ts
+@@ -159,6 +159,12 @@ export interface UpdatesConfig {
+   changelog?: string;
+   /** How many earlier versions get a delta update, a smaller download of what changed (default: `3`; `0` for none). */
+   deltas?: number;
++  /**
++   * With `github`: versions with a pre-release part, such as `1.3.0-beta.1`, are uploaded as
++   * prereleases, and deltas are made from the newest prerelease too, for apps that offer a beta
++   * channel (`mygo.Updater.SetPrereleases`).
++   */
++  prereleases?: boolean;
+ }
+ 
+ /**
+diff --git a/plugins/updater/updater.go b/plugins/updater/updater.go
+index 842c735..89a75a0 100644
+--- a/plugins/updater/updater.go
++++ b/plugins/updater/updater.go
+@@ -191,6 +191,7 @@ func used() *updater {
+ var (
+ 	enabled        = mygo.Updater.Enabled
+ 	check          = checkRelease
++	updaterCheck   = mygo.Updater.Check
+ 	relaunch       = mygo.App.Relaunch
+ 	appVersion     = mygo.App.Version
+ 	locale         = mygo.App.Locale
+@@ -209,7 +210,12 @@ type release struct {
+ }
+ 
+ func checkRelease(ctx context.Context) (*release, error) {
+-	up, err := mygo.Updater.Check(ctx)
++	up, err := updaterCheck(ctx)
++	if errors.Is(err, mygo.ErrNotPublished) {
++		// Nothing is published yet, or only prereleases while the app
++		// takes none: there is nothing newer.
++		return nil, nil
++	}
+ 	if err != nil || up == nil {
+ 		return nil, err
+ 	}
+diff --git a/plugins/updater/updater_test.go b/plugins/updater/updater_test.go
+index 01317fa..fb6b9c7 100644
+--- a/plugins/updater/updater_test.go
++++ b/plugins/updater/updater_test.go
+@@ -4,6 +4,7 @@ import (
+ 	"context"
+ 	"encoding/json/v2"
+ 	"errors"
++	"fmt"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -11,6 +12,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	"github.com/egoist/mygo"
+ 	"github.com/egoist/mygo/internal/wait"
+ 	"github.com/egoist/mygo/plugins/updater/internal/markdown"
+ )
+@@ -547,3 +549,20 @@ func TestPage(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestNotPublished: a feed without releases yet, or with prereleases only
++// while the app takes none, leaves the app up to date.
++func TestNotPublished(t *testing.T) {
++	saved := updaterCheck
++	t.Cleanup(func() { updaterCheck = saved })
++	updaterCheck = func(context.Context) (*mygo.Update, error) {
++		return nil, fmt.Errorf("mygo: checking for updates: %w", mygo.ErrNotPublished)
++	}
++	if r, err := checkRelease(context.Background()); r != nil || err != nil {
++		t.Errorf("checkRelease = %v, %v, want up to date", r, err)
++	}
++	updaterCheck = func(context.Context) (*mygo.Update, error) { return nil, errors.New("offline") }
++	if _, err := checkRelease(context.Background()); err == nil || err.Error() != "offline" {
++		t.Errorf("checkRelease = %v, want offline", err)
++	}
++}
+diff --git a/updater.go b/updater.go
+index 9894ecd..49e56c1 100644
+--- a/updater.go
++++ b/updater.go
+@@ -20,6 +20,7 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++	"sync/atomic"
+ 	"time"
+ 
+ 	"github.com/egoist/mygo/internal/update"
+@@ -57,6 +58,15 @@ var Updater = &UpdaterModule{}
+ // development builds, and builds of apps without updates in mygo.config.ts.
+ var ErrUpdatesDisabled = errors.New("mygo: updates are not enabled for this build")
+ 
++// ErrNotPublished is wrapped by the error of Check when the feed has no
++// release yet: none at all, or on GitHub none that is not a prerelease
++// while the app does not take prereleases. There is nothing newer to
++// install; an update window says the app is up to date.
++var ErrNotPublished = update.ErrNotPublished
++
++// prereleases is whether Check offers prereleases (SetPrereleases).
++var prereleases atomic.Bool
++
+ // Update is a newer version of the app, found by Updater.Check.
+ type Update struct {
+ 	// Version of the update, and its release notes in Markdown.
+@@ -97,15 +107,64 @@ func (u *UpdaterModule) Check(ctx context.Context) (*Update, error) {
+ 	if !u.Enabled() {
+ 		return nil, ErrUpdatesDisabled
+ 	}
+-	return checkUpdate(ctx, packageUpdateFeed, packageUpdateKey, App.Version())
++	return checkUpdate(ctx, packageUpdateFeed, packageUpdateKey, App.Version(), prereleases.Load())
++}
++
++// SetPrereleases makes Check offer prereleases too, such as 1.3.0-beta.1,
++// or only releases (the default): a beta channel that users opt into, in
++// apps whose updates are GitHub releases. Prereleases are the releases
++// marked so on GitHub (`mygo build -upload` marks those of versions with a
++// pre-release part when updates.prereleases is set); Check then offers the
++// highest version among the releases that are not drafts, a release or a
++// prerelease, through the GitHub API (60 requests an hour for each
++// address: one a check). When the API fails, it checks the latest release
++// as without prereleases, and returns its update, or the API's error.
++// Updates never go back: with prereleases turned off, an app running a
++// prerelease waits for a release newer than it. The choice lasts while
++// the app runs; apps keep the user's in their settings and set it when
++// they start. Other feeds have no prereleases and ignore it.
++func (u *UpdaterModule) SetPrereleases(on bool) { prereleases.Store(on) }
++
++// Prereleases reports whether Check offers prereleases (SetPrereleases).
++func (u *UpdaterModule) Prereleases() bool { return prereleases.Load() }
++
++func checkUpdate(ctx context.Context, feed, key, current string, pre bool) (*Update, error) {
++	if !pre {
++		return checkFeed(ctx, feed, key, current, update.ResolveFeed)
++	}
++	up, err := checkFeed(ctx, feed, key, current, update.ResolvePrereleaseFeed)
++	var apiErr *githubAPIError
++	if !errors.As(err, &apiErr) {
++		return up, err
++	}
++	if !isLatestFeed(feed) {
++		return nil, err
++	}
++	// The latest release's manifest needs no API.
++	up, lerr := checkFeed(ctx, feed, key, current, update.ResolveFeed)
++	if up != nil || lerr != nil && !errors.Is(lerr, ErrNotPublished) {
++		return up, lerr
++	}
++	return nil, err
++}
++
++func isLatestFeed(feed string) bool {
++	_, _, ok := update.LatestFeed(feed)
++	return ok
+ }
+ 
+-func checkUpdate(ctx context.Context, feed, key, current string) (*Update, error) {
+-	feed, err := update.ResolveFeed(ctx, feed, httpGet)
++// checkFeed checks the manifest that resolve finds from feed.
++func checkFeed(ctx context.Context, feed, key, current string, resolve func(context.Context, string, update.Getter) (string, error)) (*Update, error) {
++	feed, err := resolve(ctx, feed, httpGet)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("mygo: checking for updates: %w", err)
+ 	}
+ 	body, err := httpGet(ctx, feed)
++	var status *httpStatusError
++	if errors.As(err, &status) && status.code == http.StatusNotFound && isLatestFeed(feed) {
++		// GitHub has no latest release yet: only prereleases, or none.
++		return nil, fmt.Errorf("mygo: checking for updates: %w: %w", ErrNotPublished, err)
++	}
+ 	if err != nil {
+ 		return nil, fmt.Errorf("mygo: checking for updates: %w", err)
+ 	}
+@@ -386,15 +445,50 @@ func httpGet(ctx context.Context, rawURL string) (io.ReadCloser, error) {
+ 	req.Header.Set("User-Agent", "MyGo/"+Version+" "+App.Name()+"/"+App.Version())
+ 	resp, err := http.DefaultClient.Do(req)
+ 	if err != nil {
++		if strings.HasPrefix(rawURL, update.GitHubAPI+"/") {
++			return nil, &githubAPIError{err}
++		}
+ 		return nil, err
+ 	}
+ 	if resp.StatusCode != http.StatusOK {
+ 		resp.Body.Close()
+-		return nil, fmt.Errorf("GET %s: %s", rawURL, resp.Status)
++		err := error(&httpStatusError{url: rawURL, status: resp.Status, code: resp.StatusCode})
++		if strings.HasPrefix(rawURL, update.GitHubAPI+"/") {
++			err = &githubAPIError{err}
++			if (resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests) && resp.Header.Get("X-RateLimit-Remaining") == "0" {
++				err = &githubAPIError{rateLimitError(resp.Header.Get("X-RateLimit-Reset"))}
++			}
++		}
++		return nil, err
+ 	}
+ 	return resp.Body, nil
+ }
+ 
++// httpStatusError is a response of httpGet other than 200 OK.
++type httpStatusError struct {
++	url, status string
++	code        int
++}
++
++func (e *httpStatusError) Error() string { return "GET " + e.url + ": " + e.status }
++
++// githubAPIError is the failure of a request to the GitHub API, which
++// checks for prereleases fall back from (checkUpdate).
++type githubAPIError struct{ err error }
++
++func (e *githubAPIError) Error() string { return e.err.Error() }
++func (e *githubAPIError) Unwrap() error { return e.err }
++
++// rateLimitError says that the GitHub API takes no more requests from this
++// address until reset, its X-RateLimit-Reset (Unix seconds).
++func rateLimitError(reset string) error {
++	msg := "GitHub takes no more requests from this network for now (60 an hour)"
++	if s, err := strconv.ParseInt(reset, 10, 64); err == nil {
++		msg += "; try again after " + time.Unix(s, 0).Local().Format("15:04")
++	}
++	return errors.New(msg)
++}
++
+ func isLoopback(host string) bool {
+ 	if host == "localhost" {
+ 		return true
+diff --git a/updater_js.go b/updater_js.go
+index 51f61b9..a34a0ff 100644
+--- a/updater_js.go
++++ b/updater_js.go
+@@ -23,6 +23,10 @@ var Updater = &UpdaterModule{}
+ // those for browsers.
+ var ErrUpdatesDisabled = errors.New("mygo: updates are not enabled for this build")
+ 
++// ErrNotPublished is wrapped by the error of Check when the feed has no
++// release yet.
++var ErrNotPublished = errors.New("no release is published")
++
+ // Update is a newer version of the app, found by Updater.Check.
+ type Update struct {
+ 	// Version of the update, and its release notes in Markdown.
+@@ -40,6 +44,12 @@ func (u *UpdaterModule) Check(ctx context.Context) (*Update, error) {
+ 	return nil, ErrUpdatesDisabled
+ }
+ 
++// SetPrereleases does nothing: browsers do not update.
++func (u *UpdaterModule) SetPrereleases(on bool) {}
++
++// Prereleases reports false.
++func (u *UpdaterModule) Prereleases() bool { return false }
++
+ // Install returns ErrUpdatesDisabled.
+ func (up *Update) Install(ctx context.Context, progress func(downloaded, total int64)) error {
+ 	return ErrUpdatesDisabled
+diff --git a/updater_test.go b/updater_test.go
+index 2a2f417..66d8a40 100644
+--- a/updater_test.go
++++ b/updater_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"crypto/sha256"
+ 	"encoding/base64"
+ 	"encoding/json"
++	"errors"
+ 	"math/rand/v2"
+ 	"net/http"
+ 	"net/http/httptest"
+@@ -137,16 +138,16 @@ func TestUpdater(t *testing.T) {
+ 	if _, err := Updater.Check(ctx); err != ErrUpdatesDisabled {
+ 		t.Errorf("Check without updates: %v", err)
+ 	}
+-	up, err := checkUpdate(ctx, srv.URL+"/update.json", key, "1.1.9")
++	up, err := checkUpdate(ctx, srv.URL+"/update.json", key, "1.1.9", false)
+ 	if err != nil || up == nil || up.Version != "1.2.0" || up.Notes != "- Faster" || up.Date.Year() != 2026 {
+ 		t.Fatalf("checkUpdate = %+v, %v", up, err)
+ 	}
+ 	for _, current := range []string{"1.2.0", "1.10.0"} {
+-		if up, err := checkUpdate(ctx, srv.URL+"/update.json", key, current); up != nil || err != nil {
++		if up, err := checkUpdate(ctx, srv.URL+"/update.json", key, current, false); up != nil || err != nil {
+ 			t.Errorf("checkUpdate from %s = %+v, %v", current, up, err)
+ 		}
+ 	}
+-	if _, err := checkUpdate(ctx, "http://example.com/update.json", key, "1.0.0"); err == nil || !strings.Contains(err.Error(), "HTTPS") {
++	if _, err := checkUpdate(ctx, "http://example.com/update.json", key, "1.0.0", false); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+ 		t.Errorf("plain HTTP: %v", err)
+ 	}
+ 
+@@ -191,7 +192,7 @@ func TestUpdater(t *testing.T) {
+ func TestUpdaterDelta(t *testing.T) {
+ 	ctx := context.Background()
+ 	srv, key, m, requests := updateServer(t, "1.2.0", "v2, a bigger version", "1.1.9")
+-	up, err := checkUpdate(ctx, srv.URL+"/update.json", key, "1.1.9")
++	up, err := checkUpdate(ctx, srv.URL+"/update.json", key, "1.1.9", false)
+ 	if err != nil || len(up.manifest.Deltas) != 1 {
+ 		t.Fatalf("checkUpdate = %+v, %v", up, err)
+ 	}
+@@ -259,7 +260,7 @@ func TestUpdaterWaitsForOpenFiles(t *testing.T) {
+ 	}
+ 	ctx := context.Background()
+ 	srv, key, _, _ := updateServer(t, "1.2.0", "v2", "")
+-	up, err := checkUpdate(ctx, srv.URL+"/update.json", key, "1.1.9")
++	up, err := checkUpdate(ctx, srv.URL+"/update.json", key, "1.1.9", false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -279,3 +280,150 @@ func TestUpdaterWaitsForOpenFiles(t *testing.T) {
+ 		t.Errorf("after the update main = %q", b)
+ 	}
+ }
++
++// githubHosts sends the requests of the test to github.com and
++// api.github.com to handler instead, which tells them apart by r.Host.
++func githubHosts(t *testing.T, handler http.HandlerFunc) {
++	t.Helper()
++	srv := httptest.NewServer(handler)
++	t.Cleanup(srv.Close)
++	saved := http.DefaultClient.Transport
++	t.Cleanup(func() { http.DefaultClient.Transport = saved })
++	http.DefaultClient.Transport = roundTripper(func(r *http.Request) (*http.Response, error) {
++		if r.URL.Host != "github.com" && r.URL.Host != "api.github.com" {
++			return http.DefaultTransport.RoundTrip(r)
++		}
++		r = r.Clone(r.Context())
++		r.Host = r.URL.Host
++		r.URL.Scheme, r.URL.Host = "http", strings.TrimPrefix(srv.URL, "http://")
++		return http.DefaultTransport.RoundTrip(r)
++	})
++}
++
++type roundTripper func(*http.Request) (*http.Response, error)
++
++func (f roundTripper) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
++
++// TestUpdaterPrereleases checks GitHub releases with and without
++// prereleases (SetPrereleases), as a beta channel does.
++func TestUpdaterPrereleases(t *testing.T) {
++	ctx := context.Background()
++	const feed = "https://github.com/me/app/releases/latest/download/update-darwin-arm64.json"
++	key := base64.StdEncoding.EncodeToString(make([]byte, ed25519.PublicKeySize))
++	// The releases, newest first: a stable fix published after a beta of
++	// the next version.
++	releases := []string{"v1.2.1", "v1.3.0-beta.2", "v1.3.0-beta.1", "v1.2.0", "v1.2.0-beta.1"}
++	draft := "v1.3.0-beta.3"
++	latest := "v1.2.1" // "" while only prereleases are published
++	limited := false   // the API's limit is reached
++	var apiRequests int
++	githubHosts(t, func(w http.ResponseWriter, r *http.Request) {
++		switch {
++		case r.Host == "api.github.com" && r.URL.Path == "/repos/me/app/releases":
++			apiRequests++
++			if limited {
++				w.Header().Set("X-RateLimit-Remaining", "0")
++				w.Header().Set("X-RateLimit-Reset", "1790000000")
++				http.Error(w, "API rate limit exceeded", http.StatusForbidden)
++				return
++			}
++			var list []map[string]any
++			list = append(list, map[string]any{"tag_name": draft, "draft": true, "prerelease": true})
++			for _, tag := range releases {
++				list = append(list, map[string]any{"tag_name": tag, "prerelease": strings.Contains(tag, "-")})
++			}
++			json.NewEncoder(w).Encode(list)
++		case r.Host == "github.com":
++			tag, ok := strings.CutPrefix(r.URL.Path, "/me/app/releases/download/")
++			if r.URL.Path == "/me/app/releases/latest/download/update-darwin-arm64.json" {
++				tag, ok = latest+"/update-darwin-arm64.json", latest != ""
++			}
++			tag, name, _ := strings.Cut(tag, "/")
++			if !ok || name != "update-darwin-arm64.json" {
++				http.NotFound(w, r)
++				return
++			}
++			json.NewEncoder(w).Encode(update.Manifest{Version: strings.TrimPrefix(tag, "v"), URL: "https://github.com/me/app/releases/download/" + tag + "/app.tar.gz", Size: 1, Signature: "sig"})
++		default:
++			http.NotFound(w, r)
++		}
++	})
++	check := func(current string, pre bool) string {
++		t.Helper()
++		up, err := checkUpdate(ctx, feed, key, current, pre)
++		switch {
++		case err != nil:
++			return "error: " + err.Error()
++		case up == nil:
++			return "up to date"
++		}
++		return up.Version
++	}
++	for _, c := range []struct {
++		current string
++		pre     bool
++		want    string
++	}{
++		{"1.2.0", false, "1.2.1"},
++		{"1.2.0", true, "1.3.0-beta.2"}, // the highest version, not the newest release
++		{"1.2.0-beta.1", true, "1.3.0-beta.2"},
++		{"1.2.0-beta.1", false, "1.2.1"},
++		{"1.3.0-beta.1", true, "1.3.0-beta.2"},
++		{"1.3.0-beta.2", true, "up to date"},
++		{"1.3.0-beta.1", false, "up to date"}, // never back to 1.2.1
++		{"1.2.1", false, "up to date"},
++	} {
++		if got := check(c.current, c.pre); got != c.want {
++			t.Errorf("from %s, prereleases %t: %s, want %s", c.current, c.pre, got, c.want)
++		}
++	}
++	// A release newer than every prerelease is the update of both.
++	releases = append([]string{"v1.3.0"}, releases...)
++	latest = "v1.3.0"
++	if got := check("1.3.0-beta.2", true); got != "1.3.0" {
++		t.Errorf("from the last beta: %s, want 1.3.0", got)
++	}
++	if got := check("1.3.0-beta.2", false); got != "1.3.0" {
++		t.Errorf("from the last beta, prereleases off: %s, want 1.3.0", got)
++	}
++
++	// Without the API, prereleases fall back to the latest release, and
++	// say why when it is no update.
++	limited, apiRequests = true, 0
++	if got := check("1.2.0", true); got != "1.3.0" || apiRequests != 1 {
++		t.Errorf("rate limited: %s after %d API requests, want 1.3.0", got, apiRequests)
++	}
++	if got := check("1.3.0", true); !strings.Contains(got, "GitHub takes no more requests") {
++		t.Errorf("rate limited and up to date: %s", got)
++	}
++	if got := check("1.2.0", false); got != "1.3.0" || apiRequests != 2 {
++		t.Errorf("without prereleases the API is not asked: %s after %d API requests", got, apiRequests)
++	}
++	limited = false
++
++	// Only prereleases yet: there is nothing to install without them.
++	releases, latest = []string{"v0.1.0-beta.2", "v0.1.0-beta.1"}, ""
++	if got := check("0.1.0-beta.1", true); got != "0.1.0-beta.2" {
++		t.Errorf("first betas: %s", got)
++	}
++	_, err := checkUpdate(ctx, feed, key, "0.1.0-beta.1", false)
++	if !errors.Is(err, ErrNotPublished) {
++		t.Errorf("no release yet: %v, want ErrNotPublished", err)
++	}
++	releases = nil
++	if _, err := checkUpdate(ctx, feed, key, "0.1.0-beta.1", true); !errors.Is(err, ErrNotPublished) {
++		t.Errorf("no release at all: %v, want ErrNotPublished", err)
++	}
++
++	// Feeds of other servers have no prereleases.
++	srv, key2, _, _ := updateServer(t, "1.2.0", "v2", "")
++	if up, err := checkUpdate(ctx, srv.URL+"/update.json", key2, "1.1.9", true); err != nil || up == nil || up.Version != "1.2.0" {
++		t.Errorf("a feed of another server with prereleases: %+v, %v", up, err)
++	}
++
++	Updater.SetPrereleases(true)
++	if !Updater.Prereleases() {
++		t.Error("SetPrereleases(true) did not stick")
++	}
++	Updater.SetPrereleases(false)
++}

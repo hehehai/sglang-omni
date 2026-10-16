@@ -1,0 +1,412 @@
+package main
+
+// Settings → Storage (AudioSmith's, for Auralink's files): what takes
+// room, opening the folders, moving the data folder (internal/datadir) and
+// the reset tiers: the look, all settings, everything.
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"syscall"
+
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
+	"github.com/hehehai/Auralink/internal/datadir"
+	"github.com/hehehai/Auralink/internal/i18n"
+	"github.com/hehehai/Auralink/internal/secrets"
+	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/hehehai/Auralink/internal/store/sqlitestore"
+	"github.com/hehehai/Auralink/internal/uitext"
+)
+
+// storageState is the Storage page's state.
+type storageState struct {
+	dataHome string // the default data folder (location.json lives there); "" = the one in use
+	logDir   string
+
+	stReport  *storageReport
+	stLoading bool
+	stLoc     datadir.Location
+
+	moving     bool
+	moveDone   int64
+	moveTotal  int64
+	moveTo     string
+	moveErr    string
+	moveCancel context.CancelFunc
+
+	resetAsk  string // "settings" | "everything": the confirmation shown
+	resetText string // typed confirmation
+	resetKeys bool   // erase the Keychain items too
+}
+
+// storageReport is what takes room.
+type storageReport struct {
+	cats []storageCat
+	data int64 // the data folder, all of it
+	free int64 // free space on the data folder's disk
+}
+
+// storageCat is a category of files.
+type storageCat struct {
+	id, title string
+	bytes     int64
+	dir       string // to open; "" = none
+}
+
+// Test seams: relaunching the app, choosing a folder.
+var (
+	appRelaunch   = func() { mygo.App.Relaunch() }
+	chooseMoveDir = func(a *app, then func(string)) {
+		go func() {
+			dirs, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: a.win, Title: i18n.T("Move the data folder to…"),
+				Directory: true, CreateDirectories: true, ButtonLabel: i18n.T("Move here")})
+			if err != nil || len(dirs) == 0 {
+				return
+			}
+			a.post(func() { then(dirs[0]) })
+		}()
+	}
+)
+
+func (a *app) dataDir() string { return a.lib.store.Dir() }
+
+// home is the default data folder.
+func (a *app) home() string {
+	if a.dataHome != "" {
+		return a.dataHome
+	}
+	return a.dataDir()
+}
+
+// diskFree is the space free for the user on path's disk (a variable:
+// snapshots pin it, snapshot_env_test.go).
+var diskFree = func(path string) int64 {
+	var st syscall.Statfs_t
+	for p := path; p != "" && p != "/" && p != "."; p = filepath.Dir(p) {
+		if syscall.Statfs(p, &st) == nil {
+			return int64(st.Bavail) * int64(st.Bsize)
+		}
+	}
+	if syscall.Statfs("/", &st) == nil {
+		return int64(st.Bavail) * int64(st.Bsize)
+	}
+	return 0
+}
+
+// loadStorage measures the folders in the background.
+func (a *app) loadStorage() {
+	if a.stLoading {
+		return
+	}
+	a.stLoading = true
+	data, logs, audio := a.dataDir(), a.logDir, a.lib.store.History().AudioDir()
+	a.stLoc = datadir.ReadLocation(a.home())
+	a.async(func() {
+		ctx := context.Background()
+		r := &storageReport{}
+		rec, _ := datadir.TreeSize(ctx, audio, nil)
+		r.cats = append(r.cats, storageCat{id: "audio", title: i18n.T("Recordings kept with the history"), bytes: rec, dir: audio})
+		var db int64
+		if ents, err := os.ReadDir(data); err == nil {
+			for _, e := range ents {
+				if strings.HasPrefix(e.Name(), sqlitestore.FileName) {
+					if fi, err := e.Info(); err == nil {
+						db += fi.Size()
+					}
+				}
+			}
+		}
+		r.cats = append(r.cats, storageCat{id: "database", title: i18n.T("Library database"), bytes: db})
+		r.data, _ = datadir.TreeSize(ctx, data, nil)
+		r.cats = append(r.cats, storageCat{id: "other", title: i18n.T("Other"), bytes: max(r.data-rec-db, 0), dir: data})
+		if logs != "" {
+			lb, _ := datadir.TreeSize(ctx, logs, nil)
+			r.cats = append(r.cats, storageCat{id: "logs", title: i18n.T("Logs"), bytes: lb, dir: logs})
+		}
+		r.free = diskFree(data)
+		a.post(func() { a.stReport, a.stLoading = r, false })
+	})
+}
+
+// startMove copies the data folder to dir/Auralink (or dir, when it is
+// called Auralink or empty), then restarts to finish (internal/datadir).
+func (a *app) startMove(dir string) {
+	from := a.dataDir()
+	to := dir
+	if filepath.Base(dir) != "Auralink" {
+		if ents, err := os.ReadDir(dir); err != nil || len(ents) > 0 {
+			to = filepath.Join(dir, "Auralink")
+		}
+	}
+	if filepath.Clean(to) == filepath.Clean(a.home()) && from != a.home() {
+		// Back to the default folder: it keeps location.json.
+	} else if err := datadir.CheckMoveTarget(from, to); err != nil {
+		a.toast(i18n.T("Cannot move there: %v", err))
+		return
+	}
+	need, _ := datadir.TreeSize(context.Background(), from, nil)
+	if free := diskFree(filepath.Dir(to)); free > 0 && free < need+need/20+(256<<20) {
+		a.toast(i18n.T("Not enough space there: %s needed, %s free.", uitext.HumanBytes(need), uitext.HumanBytes(free)))
+		return
+	}
+	_, existed := os.Stat(to)
+	ctx, cancel := context.WithCancel(context.Background())
+	a.moving, a.moveTo, a.moveErr, a.moveDone, a.moveTotal, a.moveCancel = true, to, "", 0, need, cancel
+	home := a.home()
+	a.async(func() {
+		skip := func(rel string) bool { return datadir.SkipData(rel, true) }
+		err := datadir.CopyTree(ctx, from, to, skip, func(done, total int64) {
+			a.post(func() { a.moveDone, a.moveTotal = done, total })
+		})
+		if err == nil {
+			err = datadir.WriteJSON(filepath.Join(home, datadir.MoveFile), datadir.PendingMove{From: from, To: to})
+		}
+		a.post(func() {
+			a.moveCancel = nil
+			if err != nil {
+				a.moving = false
+				if existed != nil && to != home { // created by the move: roll back
+					os.RemoveAll(to)
+				} else {
+					datadir.RemoveExcept(to)
+				}
+				if ctx.Err() == nil {
+					a.moveErr = i18n.T("The data was not moved: %v", err)
+				}
+				return
+			}
+			appRelaunch() // the start finishes the move (datadir.Resolve)
+		})
+	})
+}
+
+// removePrevious deletes the folder the data was moved from.
+func (a *app) removePrevious() {
+	home, loc := a.home(), a.stLoc
+	if loc.Previous == "" {
+		return
+	}
+	a.async(func() {
+		var err error
+		if filepath.Clean(loc.Previous) == filepath.Clean(home) {
+			err = datadir.RemoveExcept(home)
+		} else {
+			err = os.RemoveAll(loc.Previous)
+		}
+		loc.Previous = ""
+		if err == nil {
+			err = datadir.WriteJSON(filepath.Join(home, datadir.LocationFile), loc)
+		}
+		a.post(func() {
+			if err != nil {
+				a.toast(i18n.T("Could not remove it: %v", err))
+			}
+			a.stLoc = loc
+			a.stReport = nil
+		})
+	})
+}
+
+// dismissMoveFailure forgets the last failed move.
+func (a *app) dismissMoveFailure() {
+	loc := a.stLoc
+	loc.Failed = ""
+	a.stLoc = loc
+	home := a.home()
+	a.async(func() { datadir.WriteJSON(filepath.Join(home, datadir.LocationFile), loc) })
+}
+
+// resetLook restores the appearance and the language.
+func (a *app) resetLook() {
+	d := settings.Defaults()
+	a.updateSettings(func(s *settings.Settings) { s.Appearance, s.General.Language = d.Appearance, d.General.Language })
+	a.sideW, a.navOpen = 0, nil
+	a.toast(i18n.T("The look is back to its defaults"))
+}
+
+// resetSettings restores every setting (the setup stays done; keys stay
+// in the Keychain).
+func (a *app) resetSettings() {
+	a.updateSettings(func(s *settings.Settings) {
+		*s = settings.Defaults()
+		s.Setup.Done = true
+	})
+	a.sideW, a.navOpen = 0, nil
+	a.toast(i18n.T("Every setting is back to its default"))
+}
+
+// keychainItems are the Keychain items Auralink may have saved: a key
+// per configured provider.
+func (a *app) keychainItems() []secrets.Item {
+	var items []secrets.Item
+	for _, p := range a.prefs.Providers.ASR {
+		items = append(items, secrets.ASR(p.ID, ""))
+	}
+	for _, p := range a.prefs.Providers.LLM {
+		items = append(items, secrets.LLM(p.ID, ""))
+	}
+	return items
+}
+
+// eraseAll removes the Keychain items (when asked) now, then restarts: the
+// start erases the data and the logs (internal/datadir).
+func (a *app) eraseAll() {
+	keys, home, logs := a.resetKeys, a.home(), a.logDir
+	items := a.keychainItems()
+	a.resetAsk = ""
+	a.async(func() {
+		if keys {
+			for _, it := range items {
+				it.Delete()
+			}
+		}
+		err := datadir.WriteJSON(filepath.Join(home, datadir.ResetFile), datadir.PendingReset{Everything: true, Also: []string{logs}})
+		a.post(func() {
+			if err != nil {
+				a.toast(i18n.T("Could not erase: %v", err))
+				return
+			}
+			appRelaunch()
+		})
+	})
+}
+
+// storageSettings is Settings → Storage.
+func (a *app) storageSettings(c *ui.Context) {
+	t := c.Theme()
+	if a.stReport == nil && !a.stLoading {
+		a.loadStorage()
+	}
+	r := a.stReport
+	muted := func(s string) { ui.Text(c, s).FontSize(px(t, fsCaption)).TextColor(t.TextMuted) }
+	open := func(key, dir string) {
+		if dir != "" && a.win != nil && ui.Button(c.Key(key), i18n.T("Open")).Clicked() {
+			mygo.Shell.OpenPath(dir)
+		}
+	}
+
+	sectionTitle(c, i18n.T("Data folder"))
+	settingRow(c, "st-data", uitext.ShortPath(a.dataDir()), i18n.T("Your history, its recordings, your dictionary and the database."), func() {
+		open("st-open-data", a.dataDir())
+		if ui.Button(c.Key("st-move"), i18n.T("Move…")).Disabled(a.moving).Clicked() {
+			chooseMoveDir(a, a.startMove)
+		}
+	})
+	if l := a.stLoc; l.Previous != "" {
+		settingRowNote(c, "st-prev", i18n.T("The previous data folder is still there"), uitext.ShortPath(l.Previous), func() {
+			if ui.Button(c.Key("st-prev-rm"), i18n.T("Remove it")).Clicked() {
+				a.removePrevious()
+			}
+		})
+	}
+	if l := a.stLoc; l.Failed != "" {
+		settingRowNote(c, "st-failed", i18n.T("The last move did not happen"), l.Failed, func() {
+			if ui.Button(c.Key("st-failed-ok"), i18n.T("Dismiss")).Clicked() {
+				a.dismissMoveFailure()
+			}
+		})
+	}
+	if a.moveErr != "" {
+		ui.Text(c, a.moveErr).FontSize(px(t, fsCaption)).TextColor(t.Danger)
+	}
+
+	sectionTitle(c, i18n.T("What takes room"))
+	if r == nil {
+		ui.Row(c).Gap(px(t, sp2)).Children(func() {
+			ui.Spinner(c)
+			muted(i18n.T("Measuring…"))
+		})
+	} else {
+		muted(i18n.T("Data folder: %s · free on its disk: %s", uitext.HumanBytes(r.data), uitext.HumanBytes(r.free)))
+		ui.Grid(c.Key("st-cats")).ColumnTracks(ui.Fr(1), ui.Fixed(px(t, 90)), ui.Fixed(px(t, 80))).GapX(px(t, sp3)).GapY(px(t, 6)).AlignItems(ui.Center).Children(func() {
+			for _, cat := range r.cats {
+				ui.Text(c, cat.title)
+				ui.Text(c, uitext.HumanBytes(cat.bytes)).TextColor(t.TextMuted).TextAlign(ui.End)
+				ui.Row(c.Key("cat-" + cat.id)).Children(func() { open("open", cat.dir) })
+			}
+		})
+	}
+
+	sectionTitle(c, i18n.T("Reset"))
+	settingRow(c, "st-reset-look", i18n.T("Reset the look"), i18n.T("Theme, size, sidebar and language."), func() {
+		if ui.Button(c.Key("st-reset-look"), i18n.T("Reset")).Clicked() {
+			a.resetLook()
+		}
+	})
+	settingRow(c, "st-reset-settings", i18n.T("Reset all settings"), i18n.T("Every setting goes back to its default. Your history, dictionary and saved keys stay."), func() {
+		if ui.Button(c.Key("st-reset-settings"), i18n.T("Reset…")).Clicked() {
+			a.resetAsk = "settings"
+		}
+	})
+	settingRow(c, "st-erase", i18n.T("Erase everything"), i18n.T("Deletes your history, recordings, dictionary, app enhancement rules, settings and logs, then restarts Auralink as new."), func() {
+		if ui.Button(c.Key("st-erase"), i18n.T("Erase…")).Clicked() {
+			a.resetAsk, a.resetText = "everything", ""
+		}
+	})
+	a.storageDialogs(c)
+}
+
+// storageDialogs are the confirmations and the move's progress.
+func (a *app) storageDialogs(c *ui.Context) {
+	t := c.Theme()
+	open := a.resetAsk == "settings"
+	ui.Modal(c.Key("st-ask-settings"), &open, func() {
+		ui.Text(c, i18n.T("Reset all settings?")).Bold()
+		ui.Text(c, i18n.T("Every setting goes back to its default. Your history, dictionary and saved keys stay.")).Width(px(t, 380))
+		ui.Row(c).Gap(px(t, sp2)).Justify(ui.End).Children(func() {
+			if ui.Button(c.Key("st-ask-cancel"), i18n.T("Cancel")).AutoFocus().Clicked() {
+				a.resetAsk = ""
+			}
+			if ui.Button(c.Key("st-ask-ok"), i18n.T("Reset the settings")).Clicked() {
+				a.resetAsk = ""
+				a.resetSettings()
+			}
+		})
+	})
+	if !open && a.resetAsk == "settings" {
+		a.resetAsk = ""
+	}
+	erase := a.resetAsk == "everything"
+	ui.Modal(c.Key("st-ask-erase"), &erase, func() {
+		ui.Text(c, i18n.T("Erase everything?")).Bold()
+		ui.Text(c, i18n.T("This deletes your history and its recordings, your dictionary, your app enhancement rules, every setting and the logs. It cannot be undone. Auralink restarts as on its first day.")).Width(px(t, 420))
+		ui.Checkbox(c.Key("st-erase-keys"), &a.resetKeys, i18n.T("Also delete the API keys saved in the Keychain"))
+		ui.Text(c, i18n.T("Type DELETE to confirm.")).FontSize(px(t, fsCaption)).TextColor(t.TextMuted)
+		ui.TextInput(c.Key("st-erase-text"), &a.resetText).Placeholder("DELETE").Width(px(t, 200)).Label(i18n.T("Type DELETE to confirm."))
+		ui.Row(c).Gap(px(t, sp2)).Justify(ui.End).Children(func() {
+			if ui.Button(c.Key("st-erase-cancel"), i18n.T("Cancel")).AutoFocus().Clicked() {
+				a.resetAsk = ""
+			}
+			if recordButton(c.Key("st-erase-ok"), i18n.T("Erase and restart")).Disabled(strings.TrimSpace(a.resetText) != "DELETE").Clicked() {
+				a.eraseAll()
+			}
+		})
+	})
+	if !erase && a.resetAsk == "everything" {
+		a.resetAsk = ""
+	}
+	moving := a.moving
+	ui.DialogBase(c.Key("st-moving"), &moving, func(backdrop, panel ui.Element) {
+		backdrop.Background(ui.RGBA(0, 0, 0, 0.3))
+		panel.Width(px(t, 440)).Radius(px(t, radiusCard)).Background(t.Background).Border(1, t.Border).Padding(px(t, sp5)).Label(i18n.T("Moving the data folder"))
+		ui.Column(c).Gap(px(t, 10)).Children(func() {
+			ui.Text(c, i18n.T("Moving the data folder")).Bold()
+			ui.Text(c, i18n.T("Copying to %s. Auralink restarts when the copy is checked, and finishes the move as it starts.", uitext.ShortPath(a.moveTo))).FontSize(px(t, fsCaption))
+			frac := 0.0
+			if a.moveTotal > 0 {
+				frac = float64(a.moveDone) / float64(a.moveTotal)
+			}
+			ui.Progress(c, frac)
+			ui.Text(c, fmt.Sprintf("%s / %s", uitext.HumanBytes(a.moveDone), uitext.HumanBytes(a.moveTotal))).FontSize(px(t, fsCaption)).TextColor(t.TextMuted)
+			ui.Row(c).Justify(ui.End).Children(func() {
+				if ui.Button(c.Key("st-move-cancel"), i18n.T("Cancel")).Disabled(a.moveCancel == nil).Clicked() && a.moveCancel != nil {
+					a.moveCancel()
+				}
+			})
+		})
+	})
+}

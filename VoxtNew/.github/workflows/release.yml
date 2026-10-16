@@ -1,0 +1,272 @@
+# Release (docs/release.md): on a tag v0.x.y (a release) or v0.x.y-beta.n
+# (a beta, a GitHub prerelease), build Auralink for Apple
+# silicon on a macOS runner, sign it with the Developer ID, notarize it
+# with the Apple ID's app-specific password, sign its update with the updater's
+# key, and upload the disk image, the update archive, the deltas from the
+# last versions and the update manifest to a draft release, which a person
+# publishes: installed apps update once it is published, betas only those
+# with Beta updates on (MyGo patch 0006, updates.prereleases).
+#
+# - Run by hand (workflow_dispatch) it builds the same, signed and
+#   notarized when the secrets are there, and keeps the files as the run's
+#   artifacts; it uploads to the draft only from a tag with dry_run off.
+# - On a pull request that changes the release, it lints the workflows and
+#   builds as far as it can without secrets (ad hoc, no notarization, no
+#   update files), and checks what it built.
+# - A tag push or an upload without every secret fails at once, saying
+#   which secrets are missing.
+#
+# Actions are pinned to commits (the version in the comment).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and check without uploading (from a tag, off uploads to its draft release)
+        type: boolean
+        default: true
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/build-helper.sh
+      - scripts/release-config.sh
+      - scripts/release-verify.sh
+      - scripts/release-identity.sh
+      - release/**
+      - helper/Support/**
+      - mygo.json
+
+permissions: {}
+
+# One release build of a ref at a time, never cancelled half way through a
+# notarization or an upload.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: actionlint (with shellcheck)
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          "$(go env GOPATH)/bin/actionlint" -color
+      - name: shellcheck the release scripts
+        run: shellcheck scripts/release-config.sh scripts/release-verify.sh scripts/release-identity.sh scripts/build-helper.sh scripts/mac-update-e2e.sh
+
+  release:
+    needs: lint
+    runs-on: macos-26
+    # The draft release and its uploads; nothing else.
+    permissions:
+      contents: write
+    timeout-minutes: 60
+    env:
+      # Upload to the draft release: a tag push, or a run by hand from a tag
+      # with dry_run off. Pull requests never upload, nor see the secrets.
+      UPLOAD: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' && !inputs.dry_run) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the version
+        run: |
+          version="$(jq -r .version mygo.json)"
+          helper="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' helper/Support/Info.plist)"
+          echo "mygo.json $version, helper $helper, ref $GITHUB_REF_NAME ($GITHUB_REF_TYPE)"
+          if [[ "$version" != "$helper" ]]; then
+            echo "::error::helper/Support/Info.plist says $helper, mygo.json $version"
+            exit 1
+          fi
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::the tag $GITHUB_REF_NAME is not v$version, the version in mygo.json"
+            exit 1
+          fi
+          # The update window shows this section (docs/release.md: English, then Chinese).
+          notes="$(awk -v v="$version" '/^## /{f = index($0, "[" v "]") || $2 == v; next} f' CHANGELOG.md)"
+          if [[ -z "${notes//[[:space:]]/}" ]]; then
+            echo "::error::CHANGELOG.md has no section for $version"
+            exit 1
+          fi
+          if ! perl -CS -ne '$han = 1 if /\p{Han}/; END { exit !$han }' <<<"$notes"; then
+            echo "::warning::the CHANGELOG.md section of $version has no Chinese: Chinese users see it in English"
+          fi
+          # A version with a pre-release part (0.1.0-beta.1) is a beta: a
+          # GitHub prerelease, which only Beta updates offer.
+          prerelease=false
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+          fi
+          echo "Beta (prerelease): $prerelease"
+          {
+            echo "VERSION=$version"
+            echo "PRERELEASE=$prerelease"
+          } >>"$GITHUB_ENV"
+
+      - name: Check the secrets
+        id: secrets
+        env:
+          MACOS_CERTIFICATE: ${{ github.event_name != 'pull_request' && secrets.MACOS_CERTIFICATE || '' }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.MACOS_CERTIFICATE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ github.event_name != 'pull_request' && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_ID: ${{ github.event_name != 'pull_request' && secrets.APPLE_ID || '' }}
+          APPLE_APP_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.APPLE_APP_PASSWORD || '' }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ github.event_name != 'pull_request' && secrets.MYGO_UPDATER_PRIVATE_KEY || '' }}
+        run: |
+          missing=()
+          for name in MACOS_CERTIFICATE MACOS_CERTIFICATE_PASSWORD APPLE_TEAM_ID APPLE_ID APPLE_APP_PASSWORD MYGO_UPDATER_PRIVATE_KEY; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} == 0 )); then
+            echo "signed=true" >>"$GITHUB_OUTPUT"
+            echo "Every secret is set: a Developer ID build, notarized, with signed updates."
+          elif [[ "$UPLOAD" == true ]]; then
+            echo "::error::a release needs the secrets ${missing[*]} (docs/release.md, one-time setup)"
+            exit 1
+          else
+            echo "signed=false" >>"$GITHUB_OUTPUT"
+            echo "::notice::missing ${missing[*]}: an ad hoc build, without notarization or update files"
+          fi
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false # a release builds from scratch
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          go version
+
+      - name: Signing keychain and notary credentials
+        if: steps.secrets.outputs.signed == 'true'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          umask 077
+          # GitHub masks secrets already; these say so for every line below.
+          echo "::add-mask::$APPLE_ID"
+          echo "::add-mask::$APPLE_APP_PASSWORD"
+          echo "::add-mask::$MACOS_CERTIFICATE_PASSWORD"
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -base64 24)"
+          echo "::add-mask::$password"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          base64 --decode <<<"$MACOS_CERTIFICATE" >"$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -f pkcs12 \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
+          # Searched first, before the user's other keychains.
+          read -r -a others <<<"$(security list-keychains -d user | tr -d '"' | xargs)"
+          security list-keychains -d user -s "$keychain" "${others[@]}"
+          # The Developer ID Application identity of the team, by its hash
+          # (a name two certificates share is ambiguous to codesign).
+          if ! found="$(scripts/release-identity.sh "$APPLE_TEAM_ID" "$keychain")"; then
+            echo "::error::the certificate holds no Developer ID Application identity of the team in APPLE_TEAM_ID"
+            exit 1
+          fi
+          IFS=$'\t' read -r identity name <<<"$found"
+          # The notary service's credentials: the Apple ID and an
+          # app-specific password of it. store-credentials checks them with
+          # Apple before storing them, and prints neither (masked anyway).
+          xcrun notarytool store-credentials notary --keychain "$keychain" \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+          {
+            echo "NOTARY_KEYCHAIN=$keychain"
+            echo "SIGN_IDENTITY=$identity"
+          } >>"$GITHUB_ENV"
+          echo "Signing as $name ($identity)"
+
+      - name: Build the helper
+        run: scripts/build-helper.sh
+
+      - name: Release configuration
+        run: |
+          if [[ "${{ steps.secrets.outputs.signed }}" == true ]]; then
+            scripts/release-config.sh --sign "$SIGN_IDENTITY" --notary-keychain "$NOTARY_KEYCHAIN"
+          else
+            echo "No updates nor signing identity: an ad hoc build of mygo.json as it is."
+          fi
+          jq '{version, identifier, macos: (.macos | {signingIdentity, notarize, entitlements, helperEntitlements}), updates}' mygo.json
+
+      - name: Build${{ env.UPLOAD == 'true' && ', notarize and upload' || '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ steps.secrets.outputs.signed == 'true' && secrets.MYGO_UPDATER_PRIVATE_KEY || '' }}
+        run: |
+          args=(-platform darwin/arm64)
+          if [[ "$UPLOAD" == true ]]; then
+            args+=(-upload)
+          fi
+          go tool mygo build "${args[@]}"
+
+      - name: Verify the app
+        env:
+          # The team the app must be signed by (Developer ID builds).
+          EXPECT_TEAM: ${{ steps.secrets.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
+        run: scripts/release-verify.sh build/darwin-arm64 "${{ steps.secrets.outputs.signed == 'true' && 'developer-id' || 'ad-hoc' }}"
+
+      - name: Keep the build
+        if: env.UPLOAD != 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Auralink-${{ env.VERSION }}-darwin-arm64
+          path: |
+            build/darwin-arm64/*.dmg
+            build/darwin-arm64/*.tar.gz
+            build/darwin-arm64/*.delta
+            build/darwin-arm64/update-*.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Draft release
+        if: env.UPLOAD == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # mygo build -upload creates a beta's draft as a prerelease
+          # (updates.prereleases); a draft made before, by hand or by an
+          # earlier run, is set right here, either way.
+          gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" --prerelease="$PRERELEASE"
+          gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,assets \
+            --jq '"draft: \(.isDraft), prerelease: \(.isPrerelease)", (.assets[] | "  \(.name) \(.size)")'
+          if [[ "$PRERELEASE" == true ]]; then
+            publish="gh release edit v$VERSION --repo $GITHUB_REPOSITORY --draft=false"
+            what="a beta: only Auralink with Beta updates on sees it"
+          else
+            publish="gh release edit v$VERSION --repo $GITHUB_REPOSITORY --draft=false --latest"
+            what="a release: every Auralink sees it"
+          fi
+          echo "Check the draft ($what), then publish it: \`$publish\`" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up
+        if: always()
+        run: |
+          if [[ -n "${NOTARY_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$NOTARY_KEYCHAIN" || true
+          fi
+          rm -f "$RUNNER_TEMP"/certificate.p12
+          git checkout -- mygo.json 2>/dev/null || true

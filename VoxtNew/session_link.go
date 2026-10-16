@@ -1,0 +1,309 @@
+package main
+
+// Sessions as the UI sees them (M3, M4): the session manager
+// (internal/session) wired to the helper, the providers and the store;
+// the shortcuts (internal/hotkey) sent to the helper's event tap, with
+// MyGo's Carbon shortcuts as the fallback without Accessibility; the
+// snapshot the overlay, the Transcribe page and the menu bar read; and
+// what their buttons do (stop, cancel, insert, copy, try again, another
+// target language, paste the last result). The answer card also takes a
+// Rewrite follow-up: the Rewrite shortcut while it shows a Rewrite
+// answer records the next instruction for it.
+//
+// The manager runs sessions on goroutines; its snapshots come back
+// through a.post (sessionChanged), newest revision wins. Starting a
+// session checks on the main thread what can be checked without I/O (the
+// helper, a speech service), so that a missing setup shows a notice
+// instead of switching the microphone on.
+
+import (
+	"context"
+	"os"
+	"time"
+
+	"github.com/egoist/mygo"
+	"github.com/hehehai/Auralink/internal/compose"
+	"github.com/hehehai/Auralink/internal/core"
+	"github.com/hehehai/Auralink/internal/helper/proto"
+	"github.com/hehehai/Auralink/internal/hotkey"
+	"github.com/hehehai/Auralink/internal/i18n"
+	"github.com/hehehai/Auralink/internal/llm"
+	"github.com/hehehai/Auralink/internal/providers"
+	"github.com/hehehai/Auralink/internal/session"
+	"github.com/hehehai/Auralink/internal/settings"
+	"github.com/hehehai/Auralink/internal/store"
+)
+
+// sessionSource is the logs' source of session lines.
+const sessionSource = "session"
+
+// liveFeatures are the features whose shortcuts are bound.
+var liveFeatures = []string{hotkey.Transcribe, hotkey.Translate, hotkey.Rewrite}
+
+// sessionState is the sessions' view state.
+type sessionState struct {
+	mgr *session.Manager
+	// sess is the current (or last) session, as its newest snapshot said.
+	sess session.Snapshot
+	// answer is the answer card: open while a result waits there.
+	answer answerCard
+	// notice is the overlay's one-line message, when it shows one;
+	// noticeSeq numbers them, so that a notice's timer hides only itself.
+	notice    *sessionNotice
+	noticeSeq int
+	// hotkeysSent is the hotkey.configure last sent (as JSON), so the
+	// same one is not sent again; carbon the accelerators registered
+	// with MyGo while the event tap is missing.
+	hotkeysSent string
+	carbon      []string
+	// lastLoaded: the last result was read from the history at start.
+	lastLoaded bool
+	// followUp is the answer card's session a running Rewrite follows up
+	// on ("" for none): its answer joins the card's conversation.
+	followUp string
+}
+
+// answerCard is the answer card's state (overlay_card.go draws it).
+type answerCard struct {
+	open      bool
+	id        string // the session whose result it shows
+	kind      store.Kind
+	text      string
+	title     string // Rewrite's answer title ("" for none)
+	target    proto.App
+	inserting bool   // Insert pastes: the card is hidden meanwhile (Voxt's)
+	msg       string // a line under the text: why Insert, or another language, did not work
+	// why says why the result is in the card and not in place (Insert's
+	// tip: Voxt says nothing; one line of orange was too loud, 10-15).
+	why string
+	// problem: the session failed (the card shows why, and Try again);
+	// input is what it worked on, for Try again and another language.
+	problem  *session.Problem
+	input    session.TextInput
+	lang     string // Translate's target
+	langOpen bool   // the language menu shows (overlay_lang.go)
+	// turns are a Rewrite conversation so far, the shown answer last
+	// (a follow-up adds to them); conversation: a follow-up began, and
+	// the card shows them as one (Voxt's conversation mode), from then on.
+	turns        []compose.Turn
+	conversation bool
+	// redo is the session translating the text into redoLang, another
+	// language chosen in the card, while it runs: the card keeps the text
+	// it shows, with a spinner, until the new one replaces it (Voxt's).
+	redo, redoLang string
+	// copied: Copy's mark shows (2 s, Voxt's); copySeq numbers the
+	// copies, so that a copy's timer clears only its own mark.
+	copied  bool
+	copySeq int
+}
+
+// Notice actions: where the notice's button goes.
+const (
+	actionNone        = ""
+	actionProviders   = "providers"
+	actionPermissions = "permissions"
+	actionHelper      = "helper"
+)
+
+// sessionNotice is a one-line message in the overlay (plan §3.2), where
+// the pill's waveform goes: an error and a way forward (a click), hidden
+// after a few seconds.
+type sessionNotice struct {
+	text, more string
+	action     string
+	warn       bool // a warning (the session went on), not an error
+	seq        int  // which notice: its timer hides only itself
+}
+
+// noticeTime is how long a notice shows.
+const noticeTime = 5 * time.Second
+
+// openSessions makes the session manager; connectHelper calls it once the
+// supervisor exists.
+func (a *app) openSessions() {
+	sup := a.host.sup
+	kr := a.keys
+	lib := a.lib
+	logs := a.logs
+	st := a.settings
+	a.mgr = session.New(session.Config{
+		Audio:   session.HelperAudio{H: sup},
+		Text:    session.HelperText{H: sup},
+		Select:  session.HelperText{H: sup},
+		Resolve: resolver(kr),
+		History: lib.store.History(),
+		Glossary: func(ctx context.Context) ([]store.Term, error) {
+			return lib.store.Dictionary().List(ctx, "")
+		},
+		Settings: st.Get,
+		Locale:   i18n.Locale,
+		Scene:    a.sceneConfig(), // appenhance.go
+		Self:     os.Getpid(),
+		Activate: func(pid int) bool { ok, _ := activateTarget(pid); return ok },
+		OnChange: func(s session.Snapshot) { a.post(func() { a.sessionChanged(s) }) },
+		Log: func(level, msg string) {
+			logs.Append(core.LogEntry{Time: time.Now(), Level: core.Severity(level), Source: sessionSource, Message: msg})
+		},
+		NewID: func() string { return core.NewID(time.Now()) },
+	})
+	a.sess = a.mgr.Current()
+}
+
+// resolver builds a session's services from the settings, with the keys
+// from kr (the Keychain: off the main thread). A service that is not set
+// up stays nil: the session says what it lacks when it needs it (a
+// selection to translate needs no speech service).
+func resolver(kr keyring) session.Resolver {
+	return func(ctx context.Context, kind session.Kind, s settings.Settings) (session.Services, error) {
+		hasKey := func(acc string) bool { v, err := kr.Get(acc); return err == nil && v != "" }
+		feature := string(kind)
+		f := providers.FeatureOf(s, feature)
+		var svc session.Services
+		if pa, ok := providers.Choose(s, providers.ASR, f.ASR, hasKey); ok {
+			key, _ := kr.Get(providers.Account(providers.ASR, pa.ID))
+			p, err := providers.NewASR(pa, providers.Env{Key: key, Proxy: s.Network.Proxy, HTTP: demoHTTP})
+			if err != nil {
+				return svc, err
+			}
+			svc.ASR = p
+			svc.ASRInfo = session.Model{ID: pa.ID, Name: providers.Name(providers.ASR, pa), Model: providers.Model(providers.ASR, pa)}
+		}
+		if kind == store.KindTranscribe && !s.Features.Transcribe.Enhance {
+			return svc, nil
+		}
+		pl, ok := providers.Choose(s, providers.LLM, f.LLM, hasKey)
+		if !ok {
+			return svc, nil // no language model: the text goes on as recognised
+		}
+		lkey, _ := kr.Get(providers.Account(providers.LLM, pl.ID))
+		b, err := providers.NewLLM(pl, providers.Env{Key: lkey, Proxy: s.Network.Proxy, HTTP: demoHTTP})
+		if err != nil {
+			return svc, nil
+		}
+		model := providers.Model(providers.LLM, pl)
+		svc.LLM = modelClient{c: &llm.Client{Backend: b, Retry: llm.RetryPolicy{MaxAttempts: 2}}, model: model}
+		svc.LLMInfo = session.Model{ID: pl.ID, Name: providers.Name(providers.LLM, pl), Model: model}
+		return svc, nil
+	}
+}
+
+// modelClient sends a session's chat to the setup's model, at the skill's
+// temperature.
+type modelClient struct {
+	c     *llm.Client
+	model string
+}
+
+func (m modelClient) Chat(ctx context.Context, req llm.Request) (llm.Response, error) {
+	if req.Model == "" {
+		req.Model = m.model
+	}
+	if req.Temperature == nil {
+		req.Temperature = llm.F64(llm.DefaultTemperature(req.Skill))
+	}
+	return m.c.Chat(ctx, req)
+}
+
+// sessionChanged takes a session's snapshot (the newest wins) and
+// updates the overlay, the shortcuts and the menu bar.
+func (a *app) sessionChanged(s session.Snapshot) {
+	if s.Rev <= a.sess.Rev {
+		return
+	}
+	was := a.sess
+	a.sess = s
+	for _, fn := range a.onSession { // events.go: the setup guide, the sounds
+		fn(was, s)
+	}
+	if s.ID != was.ID {
+		a.notice = nil
+	}
+	if s.State.Ended() && !was.State.Ended() {
+		a.sessionEnded(s)
+	}
+	if s.State.Live() != was.State.Live() {
+		a.syncHotkeys()
+	}
+	for _, fn := range a.afterSession { // events.go: the menu bar, the overlay
+		fn(was, s)
+	}
+}
+
+// sessionEnded opens the answer card or shows a notice, and refreshes the
+// history.
+func (a *app) sessionEnded(s session.Snapshot) {
+	for _, fn := range a.onSessionEnd { // events.go: Home
+		fn(s)
+	}
+	if s.Try {
+		a.historyChanged() // a try keeps nothing, but the pages may show it
+		return
+	}
+	switch {
+	case a.answer.open && a.answer.redo != "" && a.answer.redo == s.ID:
+		a.endRedo(s)
+	case s.Card && (s.Result != "" || s.State == session.Failed):
+		a.openAnswer(s)
+		a.syncHotkeys() // Escape closes the card
+	}
+	if s.ID != "" && a.followUp != "" && !s.Card {
+		a.followUp = "" // a follow-up that ended without an answer: the card keeps the last one
+	}
+	if p := s.Problem; p != nil && s.State != session.Cancelled && !(s.Card && s.State == session.Failed) {
+		text, more, action := sessionProblemText(p)
+		if text != "" {
+			// Nothing heard is not a failure: a warning.
+			a.showNotice(sessionNotice{text: text, more: more, action: action, warn: p.Degraded || p.Code == session.ProblemNoSpeech})
+		}
+	}
+	if s.State != session.Cancelled {
+		a.historyChanged()
+	}
+}
+
+// showNotice shows a notice in the overlay; it hides by itself.
+func (a *app) showNotice(n sessionNotice) {
+	a.noticeSeq++
+	seq := a.noticeSeq
+	n.seq = seq
+	a.notice = &n
+	a.overlaySync()
+	a.later(noticeTime, func() {
+		if a.notice != nil && a.notice.seq == seq {
+			a.closeNotice()
+		}
+	})
+}
+
+// closeNotice hides the notice.
+func (a *app) closeNotice() {
+	a.notice = nil
+	a.overlaySync()
+}
+
+// noticeAction runs a notice's button.
+func (a *app) noticeAction(action string) {
+	a.closeNotice()
+	switch action {
+	case actionProviders:
+		a.showMainWindow()
+		a.navigate("/providers")
+	case actionPermissions:
+		a.showMainWindow()
+		a.navigate("/settings/permissions")
+	case actionHelper:
+		a.restartHelper()
+	}
+}
+
+// closeSessions cancels a running session and removes the Carbon
+// shortcuts; it runs on quit.
+func (a *app) closeSessions() {
+	a.cancelSession()
+	if a.hasMenu {
+		for _, acc := range a.carbon {
+			mygo.GlobalShortcut.Unregister(acc)
+		}
+	}
+	a.carbon = nil
+}
