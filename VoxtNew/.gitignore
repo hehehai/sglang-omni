@@ -12,6 +12,11 @@ mygo_windows_*.syso
 # ships, and the sources scripts/mac.sh syncs on the Mac
 /resources/darwin-arm64/omni/
 /.omni-native/
+
+# voxtnew-llm: build output, and the staged copy mygo ships
+/llm/.build/
+/llm/.swiftpm/
+/resources/darwin-arm64/llm/
 /VoxtNew
 
 # The repository's root .gitignore drops *.txt, *.wav and *.log for the

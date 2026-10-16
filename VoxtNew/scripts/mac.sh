@@ -30,7 +30,7 @@ fi
 ssh "$HOST" "mkdir -p '$DIR'"
 rsync -a --delete \
   --exclude .git --exclude /build --exclude /.mygo \
-  --exclude /helper/.build --exclude /resources/darwin-arm64 \
+  --exclude /helper/.build --exclude /llm/.build --exclude /resources/darwin-arm64 \
   --exclude /VoxtNew --exclude /.omni-native \
   "$ROOT/" "$HOST:$DIR/"
 if [[ -d "$ROOT/../sglang_omni_mlx/native" ]]; then
