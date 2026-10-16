@@ -58,6 +58,10 @@ func TestStripFillers(t *testing.T) {
 		{"Um, so we need to, uh, fix the bug.", "So we need to, fix the bug."},
 		{"umbrella and hummus, um", "umbrella and hummus,"},
 		{"不对，是杭州", "不对，是杭州"},
+		{"嗯，那个，我们下周二，呃不对，下周三开会。", "我们下周二，不对，下周三开会。"},
+		{"那个报告的话，嗯，周五之前发给我就行，啊不对，周四之前。", "那个报告的话，周五之前发给我就行，不对，周四之前。"},
+		{"就是说，这个方案呢，好啊。", "这个方案呢，好啊。"},
+		{"那个人说的", "那个人说的"},
 	} {
 		if got := StripFillers(c.in); got != c.want {
 			t.Errorf("StripFillers(%q) = %q, want %q", c.in, got, c.want)

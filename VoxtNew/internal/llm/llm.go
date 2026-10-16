@@ -85,7 +85,7 @@ type Request struct {
 // TranslateHint is what a translation model needs: the text and the
 // target language.
 type TranslateHint struct {
-	Text   string // the text to translate, as compose's input
+	Text   string // the text to translate: a selection as it is, speech without its fillers (compose.StripFillers)
 	Target string // the target language's code (internal/lang)
 }
 

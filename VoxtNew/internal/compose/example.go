@@ -44,7 +44,11 @@ func Example(in Input) (input, answer string, ok bool) {
 }
 
 var (
+	// Hesitations anywhere; "啊", "哦" (also sentence particles) and
+	// "那个", "就是说" (also words) only at the start of a clause and
+	// followed by a pause or a correction.
 	cjkFiller   = regexp.MustCompile(`[嗯呃额唔][，,、。.…\s]*`)
+	cjkOpener   = regexp.MustCompile(`(^|[，,。.！!？?；;、\s])(?:啊|哦|那个|就是说)(?:[，,、…\s]+|(不对|不是))`)
 	latinFiller = regexp.MustCompile(`(?i)(^|[\s,.;!?，。])(?:um+|uh+|erm|er|hmm+)\b[,.…]*\s*`)
 )
 
@@ -54,6 +58,9 @@ var (
 // self-corrections stay.
 func StripFillers(text string) string {
 	s := cjkFiller.ReplaceAllString(text, "")
+	for prev := ""; prev != s; {
+		prev, s = s, cjkOpener.ReplaceAllString(s, "$1$2")
+	}
 	s = latinFiller.ReplaceAllString(s, "$1")
 	s = strings.TrimLeft(strings.Join(strings.Fields(s), " "), "，,、 ")
 	// A text that began with "Um, so": "So".

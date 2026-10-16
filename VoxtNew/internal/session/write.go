@@ -170,7 +170,13 @@ func (r *run) ask(in compose.Input) (compose.Answer, string, error) {
 		req.Format, req.Schema = llm.FormatJSON, answerSchema
 	}
 	if in.Task == compose.Translate {
-		req.Translate = &llm.TranslateHint{Text: in.Text, Target: in.TargetLanguage}
+		// For a model that builds its own prompt and takes no clean-up
+		// rules (Hy-MT2): speech without its fillers (docs/eval.md).
+		text := in.Text
+		if !in.Selected {
+			text = compose.StripFillers(text)
+		}
+		req.Translate = &llm.TranslateHint{Text: text, Target: in.TargetLanguage}
 	}
 	ctx, cancel := context.WithTimeout(r.ctx, cfg.WriteTimeout)
 	defer cancel()
