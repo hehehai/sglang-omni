@@ -105,6 +105,24 @@ MyGo
   VoxtNew.app also carries MyGo's prebuilt SQLite library (SQLite 3.53.4,
   https://sqlite.org, in the public domain).
 
+The Omni native runtime (VoxtNew.app/Contents/Resources/omni)
+  bin/qwen3_asr_server is built from sglang-omni's sglang_omni_mlx/native
+  (this repository, Apache License 2.0) by scripts/build-omni.sh. It
+  carries, linked in or beside it:
+  - MLX 0.32.3 (libmlx.dylib, libjaccl.dylib, mlx.metallib), Copyright
+    2023 Apple Inc., MIT (LICENSES/omni/mlx.LICENSE.txt)
+  - CivetWeb 1.16, Copyright 2013-2021 the CivetWeb developers, 2004-2013
+    Sergey Lyubka, MIT (LICENSES/omni/civetweb.LICENSE.md; only its own
+    licence applies: none of the optional parts it lists is built)
+  - JSON for Modern C++ 3.11.3, Copyright 2013-2022 Niels Lohmann, MIT
+    (LICENSES/omni/nlohmann_json.LICENSE.txt)
+  - PCRE2 10.44, Copyright University of Cambridge and the PCRE2
+    authors, BSD-3-Clause with its binary exemption
+    (LICENSES/omni/pcre2.LICENCE.txt)
+  The models it runs are downloaded by the user, not shipped:
+  Qwen3-ASR (Qwen, Apache License 2.0) in the MLX conversions of
+  mlx-community, and Silero VAD (MIT).
+
 Go modules compiled into VoxtNew
   Their licence files are copied unchanged into LICENSES/go/.
   - github.com/coder/websocket v1.8.15, Copyright (c) 2025 Coder, ISC
