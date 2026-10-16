@@ -1,7 +1,7 @@
 package main
 
 // Sessions as the UI sees them (M3, M4): the session manager
-// (internal/session) wired to the helper, the providers and the store;
+// (internal/session) wired to the helper, the local models and the store;
 // the shortcuts (internal/hotkey) sent to the helper's event tap, with
 // MyGo's Carbon shortcuts as the fallback without Accessibility; the
 // snapshot the overlay, the Transcribe page and the menu bar read; and
@@ -13,11 +13,12 @@ package main
 // The manager runs sessions on goroutines; its snapshots come back
 // through a.post (sessionChanged), newest revision wins. Starting a
 // session checks on the main thread what can be checked without I/O (the
-// helper, a speech service), so that a missing setup shows a notice
+// helper, a speech model), so that a missing model shows a notice
 // instead of switching the microphone on.
 
 import (
 	"context"
+	"errors"
 	"os"
 	"time"
 
@@ -28,7 +29,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -100,7 +101,7 @@ type answerCard struct {
 // Notice actions: where the notice's button goes.
 const (
 	actionNone        = ""
-	actionProviders   = "providers"
+	actionModels      = "models"
 	actionPermissions = "permissions"
 	actionHelper      = "helper"
 )
@@ -122,7 +123,7 @@ const noticeTime = 5 * time.Second
 // supervisor exists.
 func (a *app) openSessions() {
 	sup := a.host.sup
-	kr := a.keys
+	lm := a.local
 	lib := a.lib
 	logs := a.logs
 	st := a.settings
@@ -130,7 +131,7 @@ func (a *app) openSessions() {
 		Audio:   session.HelperAudio{H: sup},
 		Text:    session.HelperText{H: sup},
 		Select:  session.HelperText{H: sup},
-		Resolve: resolver(kr),
+		Resolve: resolver(lm),
 		History: lib.store.History(),
 		Glossary: func(ctx context.Context) ([]store.Term, error) {
 			return lib.store.Dictionary().List(ctx, "")
@@ -149,55 +150,43 @@ func (a *app) openSessions() {
 	a.sess = a.mgr.Current()
 }
 
-// resolver builds a session's services from the settings, with the keys
-// from kr (the Keychain: off the main thread). A service that is not set
-// up stays nil: the session says what it lacks when it needs it (a
-// selection to translate needs no speech service).
-func resolver(kr keyring) session.Resolver {
+// resolver opens a session's local models (off the main thread: opening
+// one may start its runtime). A model that is not installed stays nil:
+// the session says what it lacks when it needs it (a selection to
+// translate needs no speech model).
+func resolver(lm local.Services) session.Resolver {
 	return func(ctx context.Context, kind session.Kind, s settings.Settings) (session.Services, error) {
-		hasKey := func(acc string) bool { v, err := kr.Get(acc); return err == nil && v != "" }
-		feature := string(kind)
-		f := providers.FeatureOf(s, feature)
+		f := featureOf(s, string(kind))
 		var svc session.Services
-		if pa, ok := providers.Choose(s, providers.ASR, f.ASR, hasKey); ok {
-			key, _ := kr.Get(providers.Account(providers.ASR, pa.ID))
-			p, err := providers.NewASR(pa, providers.Env{Key: key, Proxy: s.Network.Proxy, HTTP: demoHTTP})
-			if err != nil {
-				return svc, err
-			}
-			svc.ASR = p
-			svc.ASRInfo = session.Model{ID: pa.ID, Name: providers.Name(providers.ASR, pa), Model: providers.Model(providers.ASR, pa)}
+		p, m, err := lm.ASR(ctx, f.ASR)
+		switch {
+		case err == nil:
+			svc.ASR, svc.ASRInfo = p, sessionModel(m)
+		case !errors.Is(err, local.ErrNotInstalled):
+			return svc, err
 		}
 		if kind == store.KindTranscribe && !s.Features.Transcribe.Enhance {
 			return svc, nil
 		}
-		pl, ok := providers.Choose(s, providers.LLM, f.LLM, hasKey)
-		if !ok {
+		c, ml, err := lm.LLM(ctx, f.LLM)
+		if err != nil {
 			return svc, nil // no language model: the text goes on as recognised
 		}
-		lkey, _ := kr.Get(providers.Account(providers.LLM, pl.ID))
-		b, err := providers.NewLLM(pl, providers.Env{Key: lkey, Proxy: s.Network.Proxy, HTTP: demoHTTP})
-		if err != nil {
-			return svc, nil
-		}
-		model := providers.Model(providers.LLM, pl)
-		svc.LLM = modelClient{c: &llm.Client{Backend: b, Retry: llm.RetryPolicy{MaxAttempts: 2}}, model: model}
-		svc.LLMInfo = session.Model{ID: pl.ID, Name: providers.Name(providers.LLM, pl), Model: model}
+		svc.LLM, svc.LLMInfo = modelClient{c: c}, sessionModel(ml)
 		return svc, nil
 	}
 }
 
-// modelClient sends a session's chat to the setup's model, at the skill's
-// temperature.
-type modelClient struct {
-	c     *llm.Client
-	model string
+// sessionModel is how a session (and its history entry) names a model.
+func sessionModel(m local.Model) session.Model {
+	return session.Model{ID: m.ID, Name: m.Name, Model: m.ID}
 }
 
+// modelClient sends a session's chat to its model at the skill's
+// temperature.
+type modelClient struct{ c local.Chat }
+
 func (m modelClient) Chat(ctx context.Context, req llm.Request) (llm.Response, error) {
-	if req.Model == "" {
-		req.Model = m.model
-	}
 	if req.Temperature == nil {
 		req.Temperature = llm.F64(llm.DefaultTemperature(req.Skill))
 	}
@@ -285,9 +274,9 @@ func (a *app) closeNotice() {
 func (a *app) noticeAction(action string) {
 	a.closeNotice()
 	switch action {
-	case actionProviders:
+	case actionModels:
 		a.showMainWindow()
-		a.navigate("/providers")
+		a.navigate(modelsPath)
 	case actionPermissions:
 		a.showMainWindow()
 		a.navigate("/settings/permissions")

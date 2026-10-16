@@ -103,9 +103,6 @@ func (a *app) hotkeyPlan() hotkey.Plan { return hotkey.Build(a.prefs.Features, l
 // fallback in step with the event tap.
 func (a *app) syncHotkeys() {
 	plan := a.hotkeyPlan()
-	if demoNoKeys {
-		plan = hotkey.Plan{} // the demo takes its script's commands, not the keyboard
-	}
 	a.syncCarbon(plan)
 	if !a.helperReady() {
 		a.hotkeysSent = ""
@@ -124,9 +121,6 @@ func (a *app) syncHotkeys() {
 			return
 		}
 		was := a.hotkeys.Installed
-		if demoNoKeys {
-			st.Installed = true // no tap asked for: nothing is missing
-		}
 		a.hotkeys = st
 		if st.Installed != was {
 			a.syncCarbon(a.hotkeyPlan())
@@ -140,9 +134,6 @@ func (a *app) syncHotkeys() {
 func (a *app) syncCarbon(plan hotkey.Plan) {
 	if !a.hasMenu {
 		return
-	}
-	if demoNoKeys {
-		plan = hotkey.Plan{}
 	}
 	var want []string
 	byAcc := map[string]string{}

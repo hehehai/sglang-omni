@@ -34,7 +34,7 @@ func rewriteOnce(t *testing.T, opts string, chat *fakeChat, said string) (*sessi
 // Done, as the card's buttons do.
 func (a *sessionApp) recordFollowUp(t *testing.T, tr *fakeTranscriptions, said string) {
 	t.Helper()
-	tr.text = said
+	tr.setText(said)
 	first := a.sess.ID
 	if !a.followUpAnswer("") {
 		t.Fatalf("Continue did nothing: %+v", a.answer)
@@ -121,7 +121,7 @@ func TestRewriteConversation(t *testing.T) {
 		t.Errorf("conversation %+v", v)
 	}
 	// A second follow-up, cancelled while it records.
-	tr.text = "in French"
+	tr.setText("in French")
 	second := a.sess.ID
 	if !a.followUpAnswer("") {
 		t.Fatal("Continue did nothing")

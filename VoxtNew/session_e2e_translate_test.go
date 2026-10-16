@@ -43,8 +43,8 @@ func TestTranslateSelectionEndToEnd(t *testing.T) {
 	if p := a.pasted(); len(p) != 1 || p[0].Text != "早上好，团队。" || p[0].TargetPID != 812 {
 		t.Errorf("pasted %+v", p)
 	}
-	if tr.calls != 0 {
-		t.Errorf("%d uploads", tr.calls)
+	if tr.count() != 0 {
+		t.Errorf("%d uploads", tr.count())
 	}
 	reqs := chat.requests()
 	if len(reqs) != 1 || reqs[0]["stream"] != true {
@@ -101,8 +101,8 @@ func TestTranslateSpeechCard(t *testing.T) {
 	if a.sess.Result != "See you on Thursday." || a.sess.Raw != "周四见" || a.sess.Inserted || !a.answer.open || a.answer.lang != "en" || a.ov.mode != ovAnswer {
 		t.Fatalf("end %+v, card %+v", a.sess, a.answer)
 	}
-	if len(a.pasted()) != 0 || tr.calls != 1 {
-		t.Errorf("pasted %+v, %d uploads", a.pasted(), tr.calls)
+	if len(a.pasted()) != 0 || tr.count() != 1 {
+		t.Errorf("pasted %+v, %d uploads", a.pasted(), tr.count())
 	}
 	if msgs := chatMessages(chat.requests()[0]); !strings.Contains(msgs[0][1], "基础清理") || msgs[1][1] != "<input>\n周四见\n</input>" {
 		t.Errorf("first request %q", msgs)
@@ -121,7 +121,7 @@ func TestTranslateSpeechCard(t *testing.T) {
 		t.Errorf("on its way: %s %+v", a.ov.mode, v)
 	}
 	a.pump("the second end", func() bool { return a.sess.ID != first && a.sess.State.Ended() })
-	if a.sess.Result != "木曜日に会いましょう。" || a.sess.TargetLanguage != "ja" || !a.answer.open || a.answer.lang != "ja" || tr.calls != 1 {
+	if a.sess.Result != "木曜日に会いましょう。" || a.sess.TargetLanguage != "ja" || !a.answer.open || a.answer.lang != "ja" || tr.count() != 1 {
 		t.Errorf("again %+v, card %+v", a.sess, a.answer)
 	}
 	if a.answer.text != "木曜日に会いましょう。" || a.answer.id != a.sess.ID || a.answer.redo != "" || a.sess.Inserted || len(a.pasted()) != 0 || a.ov.mode != ovAnswer {

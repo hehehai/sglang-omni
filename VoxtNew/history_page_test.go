@@ -296,7 +296,7 @@ func TestHistoryDetail(t *testing.T) {
 	}
 	for _, s := range []string{
 		"Entry details", "Result", "Recognised text", "Inserted", "Notes",
-		"Doubao (Volcengine) · bigmodel", "deepseek-chat", "7.4 s", "620 ms", "1.2 s", "9.3 s",
+		"doubao · bigmodel", "deepseek · deepseek-chat", "7.4 s", "620 ms", "1.2 s", "9.3 s",
 		"Sound optimization", "Hum filtered, volume +7.5 dB",
 	} {
 		if !has(tt, s) {

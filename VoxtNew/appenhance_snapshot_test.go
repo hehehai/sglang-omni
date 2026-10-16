@@ -33,7 +33,7 @@ func snapshotsAppEnhance(t *testing.T, out string) {
 			tt.SetDark(run.dark)
 			tt.SetScale(2)
 			a.version = "0.1.0"
-			readyServices(a)
+			readyModels(a)
 			a.clearNotices()
 			suffix := fmt.Sprintf("%dx%d-light", size[0], size[1])
 			if run.dark {

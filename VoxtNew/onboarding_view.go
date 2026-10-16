@@ -43,8 +43,8 @@ func (a *app) onboarding(c *ui.Context) {
 						a.obWelcomeStep(c)
 					case obPermissions:
 						a.permissionsSettings(c) // permissions.go
-					case obServices:
-						a.obServicesStep(c)
+					case obModels:
+						a.obModelsStep(c)
 					case obTranscribe, obTranslate, obRewrite:
 						a.obTryStep(c)
 					default:
@@ -66,13 +66,11 @@ func (a *app) onboarding(c *ui.Context) {
 // of 5% of the window's width (sp8 at the least) and 7.5% of its height
 // (sp6 at the least): 600×440 in the 800×520 window, 600×374 in the
 // smallest (680×440), where the settings dialog is 612×387. Its header,
-// body and footer are obPadX in from its sides; the services step's
-// cards are obCardMinW wide at least: two columns.
+// body and footer are obPadX in from its sides.
 const (
-	obMaxW     = 600
-	obMaxH     = 440
-	obPadX     = sp6
-	obCardMinW = 240
+	obMaxW = 600
+	obMaxH = 440
+	obPadX = sp6
 )
 
 func onboardingDialogSize(t *ui.Theme, w, h float32) (dw, dh float32) {
@@ -157,12 +155,12 @@ func (a *app) obTitle(c *ui.Context) {
 	switch a.ob.step {
 	case obWelcome:
 		title = i18n.T("Welcome to VoxtNew")
-		sub = i18n.T("Speak in any app and get text where your cursor is: transcribe, translate and rewrite with the speech and language services you choose. A few short steps; you can skip any of them.")
+		sub = i18n.T("Speak in any app and get text where your cursor is: transcribe, translate and rewrite with models that run on this Mac. A few short steps; you can skip any of them.")
 	case obPermissions:
 		title = i18n.T("Permissions")
-	case obServices:
-		title = i18n.T("Speech and language services")
-		sub = i18n.T("Set up a speech service and a language model: paste a key, then test the connection. More are on the Model services page.")
+	case obModels:
+		title = i18n.T("Local models")
+		sub = i18n.T("VoxtNew needs a speech model, and a language model to translate and rewrite. They are installed on the Local models page.")
 	case obTranscribe:
 		title = i18n.T("Try Transcribe")
 		sub = i18n.T("Press the shortcut (or Start), read the sentence below or say anything, then press it again to stop. The result shows here.")

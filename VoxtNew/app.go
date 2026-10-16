@@ -17,7 +17,7 @@ import (
 //	helperLink        helperlink.go   the Swift helper's supervisor and status
 //	trayState         tray.go         the menu bar icon
 //	permissionsState  permissions.go  Settings → Permissions
-//	providersState    providers_page.go  the Model services page
+//	modelsState       models_page.go  the Local models page, the local models (internal/local)
 //	sessionState      session_link.go  sessions, shortcuts, the answer card
 //	overlayState      overlay.go      the recording overlay
 //	transcribeState   feature_page.go  the feature pages (Transcribe, Translate, Rewrite)
@@ -45,7 +45,7 @@ type app struct {
 	helperLink
 	trayState
 	permissionsState
-	providersState
+	modelsState
 	sessionState
 	overlayState
 	transcribeState
@@ -65,7 +65,7 @@ func newApp(lib *library, h *helperHost) *app {
 	a.helperLink.host = h
 	a.openShell(lib)
 	a.openPermissions()
-	a.openProviders()
+	a.openModels()         // models_page.go
 	a.openAppEnhancement() // appenhance.go
 	a.openAudio()          // settings_audio.go
 	return a

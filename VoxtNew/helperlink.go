@@ -108,9 +108,6 @@ func (a *app) helperChanged(st helper.Status) {
 		// session started from the menu bar.
 		helperCall(a, proto.MethodAppFrontmost, nil, 5*time.Second, func(front proto.App, err error) {
 			if err == nil && a.front.PID == 0 {
-				if demoFront != nil {
-					front = demoFront(front)
-				}
 				a.front = front
 				a.frontChanged(front) // appenhance.go
 			}
@@ -142,17 +139,11 @@ func (a *app) helperNotified(m proto.Message) {
 		if st.Accessibility != a.hotkeys.Accessibility {
 			a.recheckPermissions() // Accessibility was granted or taken away
 		}
-		if demoNoKeys {
-			st.Installed = true // no tap asked for: nothing is missing
-		}
 		a.hotkeys = st
 		a.syncCarbon(a.hotkeyPlan()) // the Carbon fallback while the tap is missing
 	case proto.MethodAppActivated:
 		var front proto.App
 		if m.DecodeParams(&front) == nil {
-			if demoFront != nil {
-				front = demoFront(front)
-			}
 			a.front = front
 			a.frontChanged(front) // appenhance.go
 			a.closeLangMenu()     // overlay_lang.go: the user went elsewhere

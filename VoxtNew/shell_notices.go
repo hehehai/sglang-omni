@@ -17,14 +17,14 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // The problems' notifications: one ID each, so a problem shows once.
 const (
-	problemServices = "problem/services"
-	problemHelper   = "problem/helper"
+	problemModels = "problem/models"
+	problemHelper = "problem/helper"
 )
 
 // linkRestartHelper is the link of the helper's card: its action
@@ -107,31 +107,31 @@ func (a *app) setProblem(id, code string, n *core.Notification) {
 	a.notes.Post(*n) // noticePosted adds it
 }
 
-// checkServices shows a card while Transcribe lacks a speech service or
-// a language model (what the status bar said), once the keys are read.
-func (a *app) checkServices() {
-	if !a.keysKnown || a.notes == nil {
+// checkModels shows a card while no speech model or no language model
+// is installed (what the status bar said).
+func (a *app) checkModels() {
+	if a.notes == nil {
 		return
 	}
-	asrOK := len(providers.Ready(a.prefs, providers.ASR, a.hasKey)) > 0
-	llmOK := len(providers.Ready(a.prefs, providers.LLM, a.hasKey)) > 0
+	asrOK := len(a.installed(local.ASR)) > 0
+	llmOK := len(a.installed(local.LLM)) > 0
 	var n *core.Notification
 	code := ""
 	switch {
 	case !asrOK && !llmOK:
 		code = "both"
-		n = &core.Notification{Title: i18n.T("No services set up"), Body: i18n.T("Set up a speech service and a language model to start.")}
+		n = &core.Notification{Title: i18n.T("No models installed"), Body: i18n.T("Install a speech model and a language model to start.")}
 	case !asrOK:
 		code = "asr"
-		n = &core.Notification{Title: i18n.T("No speech service"), Body: i18n.T("Transcribe, Translate and Rewrite need one to hear you.")}
+		n = &core.Notification{Title: i18n.T("No speech model"), Body: i18n.T("Transcribe, Translate and Rewrite need one to hear you.")}
 	case !llmOK:
 		code = "llm"
 		n = &core.Notification{Title: i18n.T("No language model"), Body: i18n.T("Translate and Rewrite need one; Transcribe types what it hears.")}
 	}
 	if n != nil {
-		n.Severity, n.Link = core.SeverityWarning, "/providers"
+		n.Severity, n.Link = core.SeverityWarning, modelsPath
 	}
-	a.setProblem(problemServices, code, n)
+	a.setProblem(problemModels, code, n)
 }
 
 // checkHelper shows a card while the helper does not run (it crashed,
@@ -293,8 +293,8 @@ func cardActionLabel(link string) string {
 		return i18n.T("Restart the helper")
 	case linkRelaunch:
 		return i18n.T("Restart VoxtNew")
-	case "/providers":
-		return i18n.T("Open Model services")
+	case modelsPath:
+		return i18n.T("Open Local models")
 	}
 	return i18n.T("Open")
 }

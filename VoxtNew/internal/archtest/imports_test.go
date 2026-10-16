@@ -22,13 +22,12 @@ const (
 )
 
 // leaves import no internal package: the bottom layer.
-var leaves = []string{"core", "settings", "i18n", "lang", "secrets", "netx", "permission", "macx", "vad",
+var leaves = []string{"core", "settings", "i18n", "lang", "permission", "macx", "vad",
 	"appbundle", "helper/proto", "trayicon", "store", "icons"}
 
 // uiPackages may import MyGo's UI. The rest of internal/ is front-end
 // free: the domain, and the pure logic taken out of the app, testable
-// without a window (the overlay's layout and ink, the data folder, the
-// demo's machinery).
+// without a window (the overlay's layout and ink, the data folder).
 var uiPackages = []string{"icons"}
 
 // textPackages may import i18n: they make the words the UI shows. The
@@ -56,7 +55,7 @@ var forbidden = []struct {
 
 // testHelper reports whether pkg is a fake for tests, which only tests and
 // other fakes may import: a package whose name, or that of a package it is
-// in, ends in "test" (helper/helpertest and its command, asr/asrtest).
+// in, ends in "test" (helper/helpertest and its command).
 func testHelper(pkg string) bool {
 	for _, part := range strings.Split(pkg, "/") {
 		if strings.HasSuffix(part, "test") && part != "archtest" {

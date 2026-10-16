@@ -39,7 +39,7 @@ type featureUI struct {
 	rows  []keyRow
 	paste keyRow
 	seen  string
-	// asr and llm are the services' selects; svcSeen what they were
+	// asr and llm are the models' selects; svcSeen what they were
 	// last set from.
 	asr, llm string
 	svcSeen  string
@@ -111,7 +111,7 @@ func (a *app) featurePage(c *ui.Context, feature string) {
 				caption(c, i18n.T("Press a shortcut anywhere, speak, and the text is typed where your cursor is."))
 			}
 			a.featureShortcuts(c, feature)
-			a.featureServices(c, feature)
+			a.featureModels(c, feature)
 			switch feature {
 			case hotkey.Translate:
 				a.translateSettings(c)

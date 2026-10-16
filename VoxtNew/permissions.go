@@ -58,9 +58,6 @@ func (a *app) helperPerms(r proto.PermissionsResult, err error) {
 	if err != nil {
 		return // the section keeps what internal/permission read
 	}
-	if demoPerms != nil {
-		demoPerms(&r)
-	}
 	a.perms.mic, a.perms.access, a.perms.checked = micState(r.Microphone), r.Accessibility, true
 }
 

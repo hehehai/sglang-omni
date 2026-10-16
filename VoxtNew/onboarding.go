@@ -7,10 +7,10 @@ package main
 //
 //	0 welcome and privacy     4 try Translate (the sample text, or speech)
 //	1 permissions             5 try Rewrite (write from a spoken request)
-//	2 services and keys       6 App enhancement and the dictionary
+//	2 the local models        6 App enhancement and the dictionary
 //	3 try Transcribe
 //
-// The tries are real sessions (the microphone, the speech service, the
+// The tries are real sessions (the microphone, the speech model, the
 // language model; nothing is inserted or kept: session.StartRequest.Try),
 // started with Start or the feature's own shortcut while VoxtNew is in
 // front. A step passes only when the session it started (by id) ends
@@ -34,7 +34,7 @@ import (
 const (
 	obWelcome = iota
 	obPermissions
-	obServices
+	obModels
 	obTranscribe
 	obTranslate
 	obRewrite
@@ -73,7 +73,7 @@ func obStepKind(step int) (store.Kind, bool) {
 
 // obStepTitles are the steps' short names, for the breadcrumbs.
 func obStepTitles() []string {
-	return []string{i18n.T("Welcome"), i18n.T("Permissions"), i18n.T("Services"), i18n.T("Transcribe"),
+	return []string{i18n.T("Welcome"), i18n.T("Permissions"), i18n.T("Models"), i18n.T("Transcribe"),
 		i18n.T("Translate"), i18n.T("Rewrite"), i18n.T("More")}
 }
 
@@ -187,7 +187,7 @@ func (a *app) obGo(step int) {
 
 // onboardingRow is Settings → General's way back to the guide.
 func (a *app) onboardingRow(c *ui.Context) {
-	settingRow(c, "setup-guide", i18n.T("Setup guide"), i18n.T("Permissions, services and keys, and a try of each feature, as on the first day."), func() {
+	settingRow(c, "setup-guide", i18n.T("Setup guide"), i18n.T("Permissions, the local models, and a try of each feature, as on the first day."), func() {
 		if ui.Button(c.Key("setup-guide-open"), i18n.T("Open the setup guide")).Clicked() {
 			a.openOnboarding()
 		}

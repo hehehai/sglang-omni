@@ -15,23 +15,24 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
-// entryService is a service and its model as the details show them: the
-// service's name today, and the model it used then; "" for none.
-func (a *app) entryService(kind providers.Kind, id, model string) string {
+// entryModel is the model an entry used, as the details show it: its
+// name when it is still installed, else its id; "" for none.
+func (a *app) entryModel(kind local.Kind, id, model string) string {
 	if id == "" {
 		return ""
 	}
-	p, _ := providers.Setup(a.prefs, kind, id)
-	name := uitext.ProviderName(kind, p)
-	if name == "" {
-		name = id
+	name := id
+	for _, m := range a.installed(kind) {
+		if m.ID == id {
+			name = m.Name
+		}
 	}
-	if model != "" {
+	if model != "" && model != id {
 		name += " · " + model
 	}
 	return name
@@ -103,9 +104,9 @@ func (a *app) historyDetail(c *ui.Context, e store.Entry) {
 		}
 		details = append(details,
 			[2]string{i18n.T("Delivery"), uitext.DeliveryLabel(e)},
-			[2]string{i18n.T("Speech recognition"), a.entryService(providers.ASR, e.ASRProvider, e.ASRModel)},
+			[2]string{i18n.T("Speech recognition"), a.entryModel(local.ASR, e.ASRProvider, e.ASRModel)},
 			[2]string{i18n.T("Sound optimization"), uitext.SoundText(e)},
-			[2]string{i18n.T("Language model"), a.entryService(providers.LLM, e.LLMProvider, e.LLMModel)},
+			[2]string{i18n.T("Language model"), a.entryModel(local.LLM, e.LLMProvider, e.LLMModel)},
 			[2]string{i18n.T("App rule"), uitext.RuleText(e)})
 		sections := []struct {
 			title string

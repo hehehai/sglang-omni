@@ -1,8 +1,8 @@
 package main
 
 // Settings → About (诊断与关于; AudioSmith's, for VoxtNew): versions
-// and the machine, a self-check (library, helper, data folder, network,
-// Keychain, permissions), "Copy diagnostics", a diagnostic bundle (a ZIP
+// and the machine, a self-check (library, helper, data folder,
+// permissions), "Copy diagnostics", a diagnostic bundle (a ZIP
 // of the logs, the settings and the diagnostics) and Report a bug, which
 // opens a prefilled GitHub issue in the browser.
 
@@ -26,8 +26,6 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/netx"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/secrets"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
@@ -119,7 +117,6 @@ func (a *app) runSelfCheck() {
 	}
 	a.selfChecking = true
 	st, hs, data := a.lib.store, a.helperStatus(), a.dataDir()
-	client := netx.NewHTTPClient(a.prefs.Network.Proxy, 10*time.Second)
 	a.recheckPermissions()
 	perms := a.perms
 	a.async(func() {
@@ -154,20 +151,6 @@ func (a *app) runSelfCheck() {
 			} else {
 				add("data", i18n.T("Data folder"), "pass", i18n.T("Writable · %s free", uitext.HumanBytes(free)))
 			}
-		}
-		// The network, through the proxy.
-		if r := reach(client, "https://api.deepseek.com"); r.ok {
-			add("network", i18n.T("Network"), "pass", i18n.T("%s answers in %d ms", "api.deepseek.com", r.latency.Milliseconds()))
-		} else {
-			add("network", i18n.T("Network"), "warn", i18n.T("%s does not answer (%s): check the proxy in Settings → Network.", "api.deepseek.com", r.err))
-		}
-		// The Keychain.
-		if runtime.GOOS != "darwin" {
-			add("keychain", i18n.T("Keychain"), "warn", i18n.T("Only on macOS"))
-		} else if _, err := secrets.Secret("selfcheck", "").Get(); err != nil {
-			add("keychain", i18n.T("Keychain"), "fail", err.Error())
-		} else {
-			add("keychain", i18n.T("Keychain"), "pass", i18n.T("Readable"))
 		}
 		// Permissions.
 		if t, ok := uitext.PermissionText(perms.mic); ok {
@@ -335,7 +318,7 @@ func (a *app) aboutSettings(c *ui.Context) {
 	a.updateSettingsSection(c) // updates.go
 
 	sectionTitle(c, i18n.T("Self-check"))
-	settingRow(c, "about-check", i18n.T("Check VoxtNew"), i18n.T("The library, the helper, the data folder, the network, the Keychain and the permissions."), func() {
+	settingRow(c, "about-check", i18n.T("Check VoxtNew"), i18n.T("The library, the helper, the data folder and the permissions."), func() {
 		if a.selfChecking {
 			ui.Spinner(c)
 		}

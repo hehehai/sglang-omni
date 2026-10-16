@@ -9,7 +9,7 @@ microphone-3            # Transcribe
 global                  # Translate
 pen-new-round           # Rewrite
 target                  # App enhancement
-cloud                   # Model services
+cpu                     # Local models
 notebook-bookmark       # Dictionary
 shield-keyhole          # Permissions
 clipboard-list          # Logs
@@ -23,7 +23,6 @@ keyboard                # shortcut sheet
 
 # Settings sections.
 pallete-2               # appearance
-wi-fi-router-minimalistic # network
 shield-check            # privacy
 database                # storage
 info-circle             # about, ⓘ info tooltip
@@ -54,9 +53,8 @@ stop
 minus                   # numberInput
 add
 
-# Model services (providers_page.go).
-key-minimalistic-square  # a saved key
-soundwave                # speech services
+# Local models (models_page.go).
+soundwave                # speech models
 chat-round-line          # language models
 
 # The feature pages (feature_keys.go).

@@ -1,24 +1,19 @@
-// Package llm is VoxtNew's provider-agnostic chat-model layer, taken from
-// AudioSmith's internal/llm (@f171c86) without its local engine backend
-// and its dubbing skills.
+// Package llm is VoxtNew's chat-model layer, the part of AudioSmith's
+// internal/llm (@f171c86, by way of Auralink) that does not depend on a
+// provider:
 //
-// Layers, bottom up:
+//   - the request and response types a session sends (Request, Response,
+//     Message, Format, Schema) and the skills it routes them by;
+//   - Backend: one model, one attempt per call. VoxtNew's language models
+//     are local (internal/local; M2: mlx-swift-lm and a few GGUF models in
+//     the voxtnew-llm process, over loopback HTTP); there is no backend here;
+//   - Client: a Backend plus timeouts, retries with backoff, usage
+//     accounting, thinking stripped from the text and JSON / structured
+//     output (schema validation and a repair retry).
 //
-//   - Backend: one model endpoint, one attempt per call. Transports:
-//     OpenAI-compatible chat completions (DeepSeek, Qwen, Volcengine Ark,
-//     Kimi, GLM, MiniMax, StepFun, MiMo, OpenAI, Gemini, OpenRouter,
-//     custom…) and the Anthropic Messages API.
-//   - Client: a Backend plus timeouts, retries with backoff on 429/5xx,
-//     usage accounting and JSON / structured output (schema validation and
-//     a repair retry).
-//   - Router: skills (transcribe_enhance, translate_text, rewrite) →
-//     ordered routes (provider + model) with fallback.
-//
-// Provider presets are data (presets.json). API keys come from a Secrets
-// provider (the app backs it with the Keychain); HTTP goes through an
-// injected *http.Client (netx's, honouring the proxy). Everything is
-// goroutine-safe and blocks: call it off the UI thread. Errors are *Error
-// values with a stable Code and Params, never user-visible text.
+// Everything is goroutine-safe and blocks: call it off the UI thread.
+// Errors are *Error values with a stable Code and Params, never
+// user-visible text.
 package llm
 
 import (
@@ -54,17 +49,17 @@ const (
 type Request struct {
 	// Model is the provider's model id. Empty: the backend's default.
 	Model    string
-	Messages []Message // a leading System message is moved where the API wants it
+	Messages []Message
 
 	Temperature *float64 // nil: provider default
 	TopP        *float64
-	MaxTokens   int // 0: provider default (Anthropic: DefaultMaxTokens)
+	MaxTokens   int // 0: the backend's default
 	Stop        []string
 	Seed        *int64
 
-	// Format and Schema ask for JSON. Backends use the provider's native
-	// mode when the preset has one (json_schema / json_object) and the
-	// prompt otherwise; Client.JSON validates and repairs either way.
+	// Format and Schema ask for JSON. Backends use the model's native
+	// mode when it has one (a grammar, json_schema) and the prompt
+	// otherwise; Client.JSON validates and repairs either way.
 	Format Format
 	Schema *Schema
 
@@ -76,7 +71,8 @@ type Request struct {
 	// Timeout bounds one attempt (0: the Client's default).
 	Timeout time.Duration
 
-	// Skill tags the call for usage accounting (set by Router).
+	// Skill tags the call for usage accounting and its default
+	// temperature (DefaultTemperature).
 	Skill Skill
 }
 
@@ -125,27 +121,15 @@ type Response struct {
 	JSON json.RawMessage
 }
 
-// ModelInfo is one entry of a provider's model list.
-type ModelInfo struct {
-	ID            string `json:"id"`
-	OwnedBy       string `json:"ownedBy,omitempty"`
-	ContextLength int    `json:"contextLength,omitempty"`
-}
-
 // BackendInfo describes a backend.
 type BackendInfo struct {
-	ID         string // provider id ("deepseek", "custom")
-	Transport  string // "openai", "anthropic"
-	Local      bool   // a server on this Mac (a loopback base URL): no data leaves it
-	JSONMode   JSONMode
-	ThirdParty bool // a third-party network service
+	ID string // the model's id in internal/local ("" for none)
 }
 
-// Backend is one model endpoint. Chat makes a single attempt (Client adds
+// Backend is one model. Chat makes a single attempt (Client adds
 // retries); it honours ctx cancellation and deadlines and returns *Error.
 // Implementations are goroutine-safe.
 type Backend interface {
 	Info() BackendInfo
 	Chat(ctx context.Context, req Request) (Response, error)
-	Models(ctx context.Context) ([]ModelInfo, error)
 }

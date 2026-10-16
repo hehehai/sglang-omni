@@ -118,8 +118,6 @@ func clone(s Settings) Settings {
 	s.Appearance.ClosedSections = slices.Clone(s.Appearance.ClosedSections)
 	s.Audio.Devices = slices.Clone(s.Audio.Devices)
 	s.Audio.DeviceNames = maps.Clone(s.Audio.DeviceNames)
-	s.Providers.ASR = slices.Clone(s.Providers.ASR)
-	s.Providers.LLM = slices.Clone(s.Providers.LLM)
 	f := &s.Features
 	f.Transcribe.Hotkeys = slices.Clone(f.Transcribe.Hotkeys)
 	f.Translate.Hotkeys = slices.Clone(f.Translate.Hotkeys)
@@ -148,7 +146,6 @@ func normalize(s Settings) Settings {
 	ap.ClosedSections = uniq(ap.ClosedSections)
 	s.General.MainLanguage = strings.TrimSpace(s.General.MainLanguage)
 	s.General.OtherLanguages = uniq(s.General.OtherLanguages)
-	s.Network.Proxy = strings.TrimSpace(s.Network.Proxy)
 	s.Audio.Devices = uniq(s.Audio.Devices)
 	for id := range s.Audio.DeviceNames { // names of the listed devices only
 		if !slices.Contains(s.Audio.Devices, id) {
@@ -181,28 +178,7 @@ func normalize(s Settings) Settings {
 	for _, f := range []*Feature{&f.Transcribe.Feature, &f.Translate.Feature, &f.Rewrite.Feature} {
 		f.ASR, f.LLM = strings.TrimSpace(f.ASR), strings.TrimSpace(f.LLM)
 	}
-	s.Providers.ASR = normalizeProviders(s.Providers.ASR)
-	s.Providers.LLM = normalizeProviders(s.Providers.LLM)
 	return s
-}
-
-// normalizeProviders trims the fields and drops entries without an ID
-// and repeated IDs (the first one stays).
-func normalizeProviders(list []Provider) []Provider {
-	var out []Provider
-	for _, p := range list {
-		p.ID, p.Preset, p.Name = strings.TrimSpace(p.ID), strings.TrimSpace(p.Preset), strings.TrimSpace(p.Name)
-		p.Endpoint, p.Model, p.AppID = strings.TrimSpace(p.Endpoint), strings.TrimSpace(p.Model), strings.TrimSpace(p.AppID)
-		p.Prompt = strings.TrimSpace(p.Prompt)
-		if p.Preset == p.ID {
-			p.Preset = ""
-		}
-		if p.ID == "" || slices.ContainsFunc(out, func(x Provider) bool { return x.ID == p.ID }) {
-			continue
-		}
-		out = append(out, p)
-	}
-	return out
 }
 
 func normalizeHotkey(h Hotkey) Hotkey {

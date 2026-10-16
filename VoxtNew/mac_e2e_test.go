@@ -16,13 +16,10 @@ package main
 //     no change of the app in front).
 //   - app.icons draws icons: no window, no focus.
 //
-// TestMacHelperReadOnly, TestMacHelperIcons and TestMacHelperCaptureFile
-// reach no service;
-// TestMacE2ESessionReal (StepFun's step-asr and DeepSeek: one call each)
-// and TestMacE2EWriteReal (DeepSeek: two or three calls) need
-// STEPFUN_API_KEY and DEEPSEEK_API_KEY in the environment or
-// ~/.config/voxtnew-dev/keys.env. docs/manual-test.md, "Automatic Mac
-// tests (headless)", says how to run them.
+// TestMacHelperReadOnly, TestMacHelperIcons, TestMacHelperCaptureFile and
+// TestMacE2ESessionLocal (a session over the fake local models) need no
+// model and reach no network. docs/manual-test.md, "Automatic Mac tests
+// (headless)", says how to run them.
 
 import (
 	"bytes"
@@ -45,10 +42,10 @@ import (
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/appctx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -409,7 +406,7 @@ func bestMatch(want, got []float64, maxLag int) (corr float64, lag int) {
 // microphone's, and the microphone is never asked for.
 func TestMacHelperCaptureFile(t *testing.T) {
 	bin := macE2E(t)
-	sample := asrtest.SamplePath()
+	sample := speechSample()
 	data, err := os.ReadFile(sample)
 	if err != nil {
 		t.Fatal(err)
@@ -545,7 +542,7 @@ func (m *macText) Paste(_ context.Context, p proto.PasteParams) (proto.PasteResu
 }
 
 // macSession is a session.Manager as the app wires it (session_link.go):
-// the helper's audio, the app's resolver over keys in memory, the history
+// the helper's audio, the app's resolver over local models, the history
 // and dictionary of a library in a temporary directory; macText instead
 // of the helper's text I/O.
 type macSession struct {
@@ -556,7 +553,7 @@ type macSession struct {
 	seen  chan session.Snapshot
 }
 
-func newMacSession(t *testing.T, h helper.Supervisor, target proto.App, keys map[string]string, set func(*settings.Settings)) *macSession {
+func newMacSession(t *testing.T, h helper.Supervisor, target proto.App, svc local.Services, set func(*settings.Settings)) *macSession {
 	t.Helper()
 	lib, err := openLibrary(t.TempDir())
 	if err != nil {
@@ -572,7 +569,7 @@ func newMacSession(t *testing.T, h helper.Supervisor, target proto.App, keys map
 	set(&s)
 	ms := &macSession{lib: lib, text: &macText{t: t, h: h, pid: target.PID}, ended: make(chan session.Snapshot, 4), seen: make(chan session.Snapshot, 1024)}
 	ms.Manager = session.New(session.Config{
-		Audio: session.HelperAudio{H: h}, Text: ms.text, Resolve: resolver(&memKeyring{m: keys}),
+		Audio: session.HelperAudio{H: h}, Text: ms.text, Resolve: resolver(svc),
 		History: lib.store.History(),
 		Glossary: func(ctx context.Context) ([]store.Term, error) {
 			return lib.store.Dictionary().List(ctx, "")
@@ -614,20 +611,19 @@ func (ms *macSession) history(t *testing.T) []store.Entry {
 	return es
 }
 
-// TestMacE2ESessionReal: a Transcribe session as the app runs it, the
-// speech sample played by the real helper in real time, recognised by
-// StepFun and cleaned up by DeepSeek with the dictionary's "VoxtNew":
-// one call to each.
-func TestMacE2ESessionReal(t *testing.T) {
+// TestMacE2ESessionLocal: a Transcribe session as the app runs it, the
+// speech sample played by the real helper in real time, then recognised
+// and cleaned up by the fake local models (local_fakes_test.go: no model
+// runs, M1 and M2 bring them): the helper's audio reaches the speech
+// model whole, the result is delivered and kept with its recording.
+func TestMacE2ESessionLocal(t *testing.T) {
 	bin := macE2E(t)
-	keys := map[string]string{"asr.stepfun": asrtest.Key(t, "STEPFUN_API_KEY"), "llm.deepseek": asrtest.Key(t, "DEEPSEEK_API_KEY")}
-	sample := asrtest.SamplePath()
+	sample := speechSample()
 	h := startMacHelper(t, bin, envCaptureFile+"="+sample)
 	front := macCall[proto.App](t, h, proto.MethodAppFrontmost, nil)
-	ms := newMacSession(t, h, front, keys, func(s *settings.Settings) {
-		s.Providers.ASR = []settings.Provider{{ID: "stepfun", Enabled: true}}
-		s.Providers.LLM = []settings.Provider{{ID: "deepseek", Enabled: true}}
-	})
+	tr := &fakeTranscriptions{text: "讨论一下 voxtnew 的发布计划"}
+	chat := &fakeChat{text: "讨论一下 VoxtNew 的发布计划。"}
+	ms := newMacSession(t, h, front, withChat(&fakeLocal{ASRP: tr}, chat), func(*settings.Settings) {})
 	t0 := time.Now()
 	id, err := ms.Start(session.StartRequest{Kind: store.KindTranscribe, Target: front})
 	if err != nil {
@@ -649,24 +645,22 @@ func TestMacE2ESessionReal(t *testing.T) {
 	time.Sleep(10*time.Second + 800*time.Millisecond) // the sample is 10.5 s
 	ms.Stop(id)
 	end := ms.wait(t)
-	t.Logf("%s → %d chars; %s → %q (audio %v, asr %v, llm %v, deliver %v, total %v)", end.ASR.Model, len([]rune(end.Raw)),
-		end.LLM.Model, end.Result, end.Timings.Audio.Round(time.Millisecond), end.Timings.ASR.Round(time.Millisecond),
-		end.Timings.LLM.Round(time.Millisecond), end.Timings.Deliver.Round(time.Millisecond), end.Timings.Total.Round(time.Millisecond))
-	t.Logf("recognised: %q", end.Raw)
-	t.Logf("real calls: StepFun 1, DeepSeek 1 (2 if it was retried after an error: %v)", end.Problem)
-	if end.State != session.Done || end.Raw == "" || !end.Inserted || end.Problem != nil {
+	calls, size := tr.uploads()
+	t.Logf("%q → %q (audio %v, sent %v in %d bytes, deliver %v, total %v)", end.Raw, end.Result,
+		end.Timings.Audio.Round(time.Millisecond), end.Timings.Sent.Round(time.Millisecond), size,
+		end.Timings.Deliver.Round(time.Millisecond), end.Timings.Total.Round(time.Millisecond))
+	if end.State != session.Done || end.Raw != tr.text || end.Result != chat.text || !end.Inserted || end.Problem != nil {
 		t.Fatalf("end %s %+v", end.State, end.Problem)
 	}
-	if !strings.Contains(end.Result, "VoxtNew") {
-		t.Errorf("the result lacks VoxtNew: %q", end.Result)
+	if end.ASR.ID != fakeASRModel.ID || end.LLM.ID != fakeLLMModel.ID || end.Device != "sample-zh-en.wav" {
+		t.Errorf("models %+v %+v, device %q", end.ASR, end.LLM, end.Device)
 	}
-	if end.ASR.ID != "stepfun" || end.LLM.ID != "deepseek" || end.Device != "sample-zh-en.wav" {
-		t.Errorf("services %+v %+v, device %q", end.ASR, end.LLM, end.Device)
+	// The speech went to the model (less the silence around it), once.
+	if tm := end.Timings; calls != 1 || size < 200_000 || tm.Audio < 10*time.Second || tm.Audio > 13*time.Second || tm.Deliver > 2*time.Second {
+		t.Errorf("%d uploads of %d bytes, timings %+v", calls, size, tm)
 	}
-	tm := end.Timings
-	if tm.Audio < 10*time.Second || tm.Audio > 13*time.Second || tm.ASR <= 0 || tm.ASR > 20*time.Second ||
-		tm.LLM <= 0 || tm.LLM > 20*time.Second || tm.Deliver > 2*time.Second {
-		t.Errorf("timings %+v", tm)
+	if reqs := chat.requests(); len(reqs) != 1 || !strings.Contains(chatMessages(reqs[0])[0][1], "VoxtNew") {
+		t.Errorf("the chat lacks the dictionary's VoxtNew: %v", reqs)
 	}
 	if p := ms.text.pasted; len(p) != 1 || p[0] != end.Result {
 		t.Errorf("pasted %q", p)
@@ -677,8 +671,8 @@ func TestMacE2ESessionReal(t *testing.T) {
 	}
 	e := es[0]
 	if e.ID != id || e.Kind != store.KindTranscribe || e.Status != store.StatusDone || e.Result != end.Result || e.RawText != end.Raw ||
-		e.ASRProvider != "stepfun" || e.ASRModel != "step-asr" || e.LLMProvider != "deepseek" || e.Delivery != "insert" ||
-		e.AppName != front.Name || e.AudioMS < 10000 || e.ASRMS <= 0 || e.LLMMS <= 0 || e.Audio == "" {
+		e.ASRProvider != fakeASRModel.ID || e.LLMProvider != fakeLLMModel.ID || e.Delivery != "insert" ||
+		e.AppName != front.Name || e.AudioMS < 10000 || e.Audio == "" {
 		t.Errorf("history %+v", e)
 	}
 	if fi, err := os.Stat(filepath.Join(ms.lib.store.History().AudioDir(), e.Audio)); err != nil || fi.Size() < 300_000 {
@@ -686,56 +680,18 @@ func TestMacE2ESessionReal(t *testing.T) {
 	}
 }
 
-// TestMacE2EWriteReal: Translate and Rewrite from text (no recording, no
-// StepFun), DeepSeek answering, delivered through macText and kept in the
-// history: two calls, three if the translation is asked again strictly.
-func TestMacE2EWriteReal(t *testing.T) {
-	bin := macE2E(t)
-	keys := map[string]string{"llm.deepseek": asrtest.Key(t, "DEEPSEEK_API_KEY")}
-	h := startMacHelper(t, bin)
-	front := macCall[proto.App](t, h, proto.MethodAppFrontmost, nil)
-	ms := newMacSession(t, h, front, keys, func(s *settings.Settings) {
-		s.Providers.LLM = []settings.Provider{{ID: "deepseek", Enabled: true}}
-	})
-	calls := 0
-	for _, tc := range []struct {
-		name string
-		kind store.Kind
-		in   session.TextInput
-		lang string
-		want func(string) bool
-	}{
-		{"translate a selection", store.KindTranslate, session.TextInput{Selection: "VoxtNew 0.1 ships on Friday; the tests are still running."}, "zh-Hans",
-			func(s string) bool { return strings.Contains(s, "VoxtNew") && strings.ContainsAny(s, "周五星期") }},
-		{"rewrite a selection", store.KindRewrite, session.TextInput{Raw: "改得更正式一些", Selection: "hey all, voxtnew release slips to friday, sorry!"}, "",
-			func(s string) bool { return s != "" && s != "hey all, voxtnew release slips to friday, sorry!" }},
-	} {
-		in := tc.in
-		id, err := ms.Start(session.StartRequest{Kind: tc.kind, Target: front, Text: &in, TargetLanguage: tc.lang})
-		if err != nil {
-			t.Fatal(err)
+// speechSample is the speech sample's path (testdata/speech), from the
+// module's root.
+func speechSample() string {
+	dir, _ := os.Getwd()
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return filepath.Join(dir, "testdata", "speech", "sample-zh-en.wav")
 		}
-		end := ms.wait(t)
-		calls++
-		if end.Retried {
-			calls++
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return filepath.Join("testdata", "speech", "sample-zh-en.wav")
 		}
-		t.Logf("%s: %s (%s, retried %v, llm %v) → %q", tc.name, end.Profile, end.LLM.Model, end.Retried, end.Timings.LLM.Round(time.Millisecond), end.Result)
-		if end.ID != id || end.State != session.Done || !end.Inserted || !tc.want(end.Result) || end.Timings.LLM > 30*time.Second {
-			t.Errorf("%s: end %s %q %+v", tc.name, end.State, end.Result, end.Problem)
-		}
-	}
-	t.Logf("real calls: DeepSeek %d", calls)
-	es := ms.history(t)
-	if len(es) != 2 {
-		t.Fatalf("%d history entries", len(es))
-	}
-	// Newest first.
-	if es[1].Kind != store.KindTranslate || es[1].TargetLang != "zh-Hans" || es[1].SourceText == "" || es[1].AudioMS != 0 || es[1].Delivery != "insert" ||
-		es[0].Kind != store.KindRewrite || es[0].PromptText != "改得更正式一些" || es[0].SourceText == "" || es[0].LLMProvider != "deepseek" {
-		t.Errorf("history %+v", es)
-	}
-	if n := len(ms.text.pasted); n != 2 {
-		t.Errorf("%d pastes", n)
+		dir = parent
 	}
 }

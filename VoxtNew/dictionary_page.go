@@ -3,7 +3,7 @@ package main
 // The Dictionary page (/dictionary, plan §2.3, D4): the user's terms,
 // kept by hand in 0.1. Each term has the spelling it must have, aliases
 // (what speech recognition tends to hear instead), a note and a switch.
-// Terms go to the speech service as hints (dict.Hints) and to the
+// Terms go to the speech model as hints (dict.Hints) and to the
 // language model as a glossary (compose.Glossary); the switches at the
 // top say where. Search, add, edit, delete, and import or export CSV and
 // plain text (internal/dict).
@@ -199,7 +199,7 @@ func (a *app) dictSwitches(c *ui.Context) {
 	ui.Row(c).Gap(px(t, sp3)).AlignItems(ui.Center).Wrap().Children(func() {
 		hints := &a.prefs.Dictionary.ASRHints
 		if ui.Checkbox(c.Key("dict-hints"), hints, i18n.T("Speech hints")).Disabled(off).
-			Tooltip(i18n.T("Sent to the speech service as words to expect (OpenAI-compatible: in the prompt; Doubao: hot words; Model Studio: context or vocabulary). Services keep a limited number: the terms changed last go first.")).Changed() {
+			Tooltip(i18n.T("Sent to the speech model as words to expect. It keeps a limited number: the terms changed last go first.")).Changed() {
 			v := *hints
 			a.updateSettings(func(s *settings.Settings) { s.Dictionary.ASRHints = v })
 		}

@@ -83,7 +83,7 @@ func (s State) Ended() bool { return s == Done || s == Cancelled || s == Failed 
 
 // Problem codes.
 const (
-	// ProblemNoASR: no speech service is ready (Model services).
+	// ProblemNoASR: no speech service is ready (Local models).
 	ProblemNoASR = "noASR"
 	// ProblemMicrophone: macOS refused the microphone.
 	ProblemMicrophone = "microphone"
@@ -103,7 +103,7 @@ const (
 	// is cancelled quietly).
 	ProblemTooShort = "tooShort"
 	// ProblemNoLLM: Translate and Rewrite need a language model, and none
-	// is ready (Model services).
+	// is ready (Local models).
 	ProblemNoLLM = "noLLM"
 	// ProblemEmpty: the language model answered nothing (Translate,
 	// Rewrite).

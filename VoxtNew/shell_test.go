@@ -101,7 +101,7 @@ func TestPaletteAndDeepLinks(t *testing.T) {
 	for link, want := range map[string]string{
 		"voxtnew://history":           "/history",
 		"voxtnew:///translate":        "/translate",
-		"voxtnew://settings/network":  "/settings/network",
+		"voxtnew://settings/audio":    "/settings/audio",
 		"/settings/privacy":           "/settings/privacy",
 		"VOXTNEW://app-enhancement/x": "/app-enhancement",
 	} {
@@ -144,7 +144,6 @@ func TestSettingsPersistAndApply(t *testing.T) {
 	a.updateSettings(func(s *settings.Settings) {
 		s.General.MainLanguage = "ja"
 		s.Appearance.Theme = "dark"
-		s.Network.Proxy = "socks5://127.0.0.1:1080"
 	})
 	// Each section shows.
 	for _, s := range settingsSections() {
@@ -158,11 +157,11 @@ func TestSettingsPersistAndApply(t *testing.T) {
 	a.quit()
 	a.lib.close()
 	b, _, _ := newTestAppIn(t, dir)
-	if p := b.prefs; p.General.Language != "zh-Hans" || p.General.MainLanguage != "ja" || p.Appearance.Theme != "dark" || p.Network.Proxy != "socks5://127.0.0.1:1080" {
+	if p := b.prefs; p.General.Language != "zh-Hans" || p.General.MainLanguage != "ja" || p.Appearance.Theme != "dark" {
 		t.Errorf("reopened: %+v", p)
 	}
-	if b.settingsForm.proxyMode != proxyOptions()[2] || b.settingsForm.mainLanguage != uitext.LangLabel("ja") {
-		t.Errorf("form %q %q", b.settingsForm.proxyMode, b.settingsForm.mainLanguage)
+	if b.settingsForm.mainLanguage != uitext.LangLabel("ja") {
+		t.Errorf("form %q", b.settingsForm.mainLanguage)
 	}
 }
 
@@ -186,11 +185,11 @@ func TestProblemCards(t *testing.T) {
 	if has(tt, "Helper ready") || has(tt, "No provider set up") {
 		t.Errorf("a status bar: %q", firstTexts(tt))
 	}
-	if !hasExact(tt, "No services set up") || !has(tt, "Set up a speech service and a language model to start.") {
-		t.Fatalf("no services card: %q", firstTexts(tt))
+	if !hasExact(tt, "No models installed") || !has(tt, "Install a speech model and a language model to start.") {
+		t.Fatalf("no models card: %q", firstTexts(tt))
 	}
-	click(t, tt, "Open Model services")
-	if a.router.Path() != "/providers" {
+	click(t, tt, "Open Local models")
+	if a.router.Path() != modelsPath {
 		t.Errorf("its action: %s", a.router.Path())
 	}
 	// The helper: a card while it does not run, the newest on top.
@@ -203,7 +202,7 @@ func TestProblemCards(t *testing.T) {
 		t.Fatalf("cleared: %+v", a.notices)
 	}
 	a.problemDismissed = nil
-	a.checkServices()
+	a.checkModels()
 	fs.set(helper.Status{State: helper.Failed, Reason: helper.FailMissing, Err: "voxtnew-helper was not found"})
 	if !has(tt, "Helper missing") {
 		t.Fatalf("missing helper again: %q", firstTexts(tt))
@@ -214,19 +213,16 @@ func TestProblemCards(t *testing.T) {
 	}
 	// Dismissed: not again while the problem lasts, even as settings change.
 	click(t, tt, "Dismiss")
-	if hasExact(tt, "No services set up") || len(a.notices) != 0 {
+	if hasExact(tt, "No models installed") || len(a.notices) != 0 {
 		t.Fatalf("dismissed: %+v", a.notices)
 	}
 	a.updateSettings(func(s *settings.Settings) { s.Appearance.Theme = "dark" })
-	if hasExact(tt, "No services set up") {
+	if hasExact(tt, "No models installed") {
 		t.Error("came back")
 	}
 	// Solved, then wrong again: it shows again, with the new text.
-	a.keys.Set("asr.doubao", "", "tok-1")
-	a.keyMasks["asr.doubao"] = "tok…1"
-	a.updateSettings(func(s *settings.Settings) {
-		s.Providers.ASR = []settings.Provider{{ID: "doubao", Enabled: true, AppID: "1"}}
-	})
+	a.local = &fakeLocal{ASRP: &fakeTranscriptions{}}
+	a.checkModels() // as installing a model does
 	if !hasExact(tt, "No language model") {
 		t.Errorf("language model card: %+v", a.notices)
 	}

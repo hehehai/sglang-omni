@@ -14,6 +14,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -31,16 +32,10 @@ func trTester(t *testing.T) (*app, *ui.Tester) {
 	return a, tt
 }
 
-// readyServices sets up a speech service and a language model with keys.
-func readyServices(a *app) {
-	a.updateSettings(func(s *settings.Settings) {
-		s.Providers.ASR = []settings.Provider{{ID: "doubao", Enabled: true}}
-		s.Providers.LLM = []settings.Provider{{ID: "deepseek", Enabled: true}, {ID: "dashscope", Enabled: true}}
-	})
-	a.keyMasks["asr.doubao"] = "tok…abcd"
-	a.keyMasks["llm.deepseek"] = "sk-…wxyz"
-	a.keyMasks["llm.dashscope"] = "sk-…qrst"
-	a.checkServices() // as reading the keys does: the services' card goes
+// readyModels installs a speech model and a language model (fakes).
+func readyModels(a *app) {
+	a.local = readyLocal()
+	a.checkModels() // as installing does: the models' card goes
 }
 
 func TestTranscribePageRenders(t *testing.T) {
@@ -48,7 +43,7 @@ func TestTranscribePageRenders(t *testing.T) {
 	for _, s := range []string{
 		"Transcribe", "Shortcuts", "fn", "Tap", "Double tap", "Long press", "Add a shortcut",
 		"Paste the last result", "⌃⌘V",
-		"Services", "No speech service is ready: set one up to transcribe.", "Open Model services",
+		"Models", "No speech model is installed: install one to transcribe.", "Open Local models",
 		"Clean-up", "Clean up with a language model", "Basic clean-up", "Structure",
 		"Your rules", "{{USER_MAIN_LANGUAGE}}", "{{APP_NAME}}", "Show the full prompt",
 		"Try it", "Start",
@@ -188,18 +183,19 @@ func TestTranscribePasteLast(t *testing.T) {
 
 func TestTranscribeServicesAndSwitches(t *testing.T) {
 	a, tt := trTester(t)
-	readyServices(a)
+	readyModels(a)
+	a.local.(*fakeLocal).MoreLLM = []local.Model{{Kind: local.LLM, ID: "fast-llm", Name: "Fast language model"}}
 	frames(tt)
-	if has(tt, "No speech service is ready: set one up to transcribe.") {
-		t.Error("notice with a ready service")
+	if has(tt, "No speech model is installed: install one to transcribe.") {
+		t.Error("notice with a model installed")
 	}
 	click(t, tt, "Language model for Transcribe")
-	click(t, tt, "Qwen (Alibaba Cloud Model Studio)")
-	if id := a.lib.settings.Get().Features.Transcribe.LLM; id != "dashscope" {
+	click(t, tt, "Fast language model")
+	if id := a.lib.settings.Get().Features.Transcribe.LLM; id != "fast-llm" {
 		t.Errorf("LLM %q", id)
 	}
 	click(t, tt, "Language model for Transcribe")
-	click(t, tt, "Automatic: DeepSeek")
+	click(t, tt, "Automatic: "+fakeLLMModel.Name)
 	if id := a.lib.settings.Get().Features.Transcribe.LLM; id != "" {
 		t.Errorf("LLM %q", id)
 	}
@@ -279,7 +275,7 @@ func trySnapshot(a *app, st session.State) session.Snapshot {
 		s.LLM = session.Model{Name: "DeepSeek"}
 		s.Timings = session.Timings{Audio: 3200 * time.Millisecond, ASR: 800 * time.Millisecond, LLM: 1100 * time.Millisecond, Total: 5300 * time.Millisecond}
 	case session.Failed:
-		s.Problem = &session.Problem{Code: session.ProblemASR, Err: &asr.Error{Kind: asr.KindAuth, Provider: "openai", Status: 401}}
+		s.Problem = &session.Problem{Code: session.ProblemASR, Err: &asr.Error{Kind: asr.KindServer, Provider: "omni-asr"}}
 	}
 	return s
 }
@@ -288,11 +284,11 @@ func TestTranscribeTry(t *testing.T) {
 	a, tt := trTester(t)
 	// Nothing set up: Start says what is missing, on the page.
 	click(t, tt, "Start a try")
-	if a.sess.State.Live() || !has(tt, "No speech service is set up.") {
+	if a.sess.State.Live() || !has(tt, "No speech model is installed.") {
 		t.Fatalf("blocked try: %+v %q", a.sess, tt.Texts())
 	}
-	click(t, tt, "Open Model services")
-	if a.shownPath() != "/providers" {
+	click(t, tt, "Open Local models")
+	if a.shownPath() != modelsPath {
 		t.Fatalf("went to %s", a.shownPath())
 	}
 	a.navigate("/transcribe")
@@ -326,7 +322,7 @@ func TestTranscribeTry(t *testing.T) {
 		t.Errorf("clipboard %q", tt.Clipboard())
 	}
 	a.sessionChanged(trySnapshot(a, session.Failed))
-	if !has(tt, "Speech recognition failed: The service refused the key. Check it and try again.") {
+	if !has(tt, "Speech recognition failed: The speech model stopped or did not answer. Try again in a moment.") {
 		t.Errorf("failed: %q", tt.Texts())
 	}
 	// A session that is not a try does not show here.
@@ -372,7 +368,7 @@ func TestTranscribeFullPage(t *testing.T) {
 			a.navigate("/" + feature)
 			tt.SetSize(w, 2600)
 			tt.SetDark(dark)
-			readyServices(a)
+			readyModels(a)
 			if feature == hotkey.Transcribe {
 				a.updateSettings(func(s *settings.Settings) {
 					s.Features.Transcribe.Hotkeys = append(s.Features.Transcribe.Hotkeys, settings.Hotkey{Keys: "Fn+Shift", Trigger: settings.TriggerDouble}, settings.Hotkey{Keys: "K"})

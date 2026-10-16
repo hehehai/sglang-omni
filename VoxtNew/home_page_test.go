@@ -50,7 +50,7 @@ func allowAll(a *app) {
 func TestHomeReadiness(t *testing.T) {
 	a, tt := homeTester(t)
 	for _, s := range []string{
-		"No speech service or language model is ready: set up one of each to start.",
+		"No speech model or language model is installed: install one of each to start.",
 		"Without Accessibility results are copied for you to paste, and fn shortcuts do not work.",
 		"fn (once Accessibility is allowed)",
 		"Try it", "Today", "Recent results", "Results show here once you use a shortcut.",
@@ -63,23 +63,22 @@ func TestHomeReadiness(t *testing.T) {
 		t.Errorf("no steps to go: %q", tt.Texts())
 	}
 	// The whole line is the way to fix it.
-	click(t, tt, "Services: Open Model services")
-	if a.shownPath() != "/providers" {
+	click(t, tt, "Models: Open Local models")
+	if a.shownPath() != modelsPath {
 		t.Fatalf("went to %s", a.shownPath())
 	}
 	a.navigate("/home")
 
-	// A speech service only: the language model is missing.
-	a.updateSettings(func(s *settings.Settings) { s.Providers.ASR = []settings.Provider{{ID: "doubao", Enabled: true}} })
-	a.keyMasks["asr.doubao"] = "tok…abcd"
-	if !has(tt, "No language model is ready: Translate and Rewrite need one, and Transcribe types the text as recognised.") || !has(tt, "Doubao (Volcengine)") {
+	// A speech model only: the language model is missing.
+	a.local = &fakeLocal{ASRP: &fakeTranscriptions{}}
+	if !has(tt, "No language model is installed: Translate and Rewrite need one, and Transcribe types the text as recognised.") || !has(tt, fakeASRModel.Name) {
 		t.Errorf("no language model: %q", tt.Texts())
 	}
 
 	// All ready: no list at all, neither its title nor what is ready.
-	readyServices(a)
+	readyModels(a)
 	allowAll(a)
-	for _, s := range []string{"Doubao (Volcengine)", "DeepSeek", "Speech recognition", "Microphone"} {
+	for _, s := range []string{fakeASRModel.Name, fakeLLMModel.Name, "Speech recognition", "Microphone"} {
 		if hasExact(tt, s) {
 			t.Errorf("ready, still %q: %q", s, tt.Texts())
 		}
@@ -96,7 +95,7 @@ func TestHomeReadiness(t *testing.T) {
 		t.Errorf("no clash: %q", tt.Texts())
 	}
 	// What is ready shows again, quieter, under what is missing.
-	if !hasExact(tt, "DeepSeek") {
+	if !hasExact(tt, fakeLLMModel.Name) {
 		t.Errorf("not ready, no ready line: %q", tt.Texts())
 	}
 	click(t, tt, "Shortcut: Open Transcribe")
@@ -109,7 +108,7 @@ func TestHomeReadiness(t *testing.T) {
 // start being ready, while Home shows.
 func TestHomeReadinessLive(t *testing.T) {
 	a, tt := homeTester(t)
-	readyServices(a)
+	readyModels(a)
 	allowAll(a)
 	if hasSuffix(tt, " to go") {
 		t.Fatalf("ready, a list: %q", tt.Texts())
@@ -123,12 +122,12 @@ func TestHomeReadinessLive(t *testing.T) {
 	if hasSuffix(tt, " to go") {
 		t.Errorf("access back, still a list: %q", tt.Texts())
 	}
-	// The language model deleted.
-	a.updateSettings(func(s *settings.Settings) { s.Providers.LLM = nil })
-	if !has(tt, "1 step to go") || !has(tt, "No language model is ready: Translate and Rewrite need one, and Transcribe types the text as recognised.") {
+	// The language model removed.
+	a.local.(*fakeLocal).Chat = nil
+	if !has(tt, "1 step to go") || !has(tt, "No language model is installed: Translate and Rewrite need one, and Transcribe types the text as recognised.") {
 		t.Errorf("model deleted: %q", tt.Texts())
 	}
-	readyServices(a)
+	readyModels(a)
 	if hasSuffix(tt, " to go") {
 		t.Errorf("model back, still a list: %q", tt.Texts())
 	}
@@ -149,7 +148,7 @@ func TestHomeReadinessLive(t *testing.T) {
 // result once; then never again, the history cleared or not.
 func TestHomeTryFirstUse(t *testing.T) {
 	a, tt := homeTester(t)
-	readyServices(a)
+	readyModels(a)
 	allowAll(a)
 	if !hasExact(tt, "Try it") || a.prefs.Setup.Tried {
 		t.Fatalf("first use, no Try it: %q", tt.Texts())
@@ -181,7 +180,7 @@ func TestHomeTryFirstUse(t *testing.T) {
 // counts as the first use too; a failure or nothing heard does not.
 func TestHomeTryGoesAfterASession(t *testing.T) {
 	a, tt := homeTester(t)
-	readyServices(a)
+	readyModels(a)
 	allowAll(a)
 	rev := func() uint64 { return a.sess.Rev + 1 }
 	a.sessionChanged(session.Snapshot{Rev: rev(), ID: "s1", Kind: store.KindTranslate, State: session.Recording})
@@ -207,7 +206,7 @@ func TestHomeTryGoesAfterASession(t *testing.T) {
 // (an upgrade) hides Try it and sets the flag.
 func TestHomeTryHistoryBeforeTheFlag(t *testing.T) {
 	a, tt := homeTester(t)
-	readyServices(a)
+	readyModels(a)
 	allowAll(a)
 	seedHistory(t, a)
 	a.historyChanged()
@@ -372,7 +371,7 @@ func TestTryPlace(t *testing.T) {
 	if a.tryPlace(store.KindTranslate, *selfFront()) != placeOnboarding || a.tryPlace(store.KindTranscribe, *selfFront()) != placeIgnore {
 		t.Error("the guide's places")
 	}
-	a.ob.step = obServices
+	a.ob.step = obModels
 	if a.tryPlace(store.KindTranscribe, *selfFront()) != placeIgnore {
 		t.Error("a shortcut on a step without a try")
 	}
@@ -386,13 +385,13 @@ func TestHomeTryByShortcut(t *testing.T) {
 	drain := queuePosts(a)
 	a.hotkeyFired(proto.HotkeyEventParams{Binding: "transcribe/0", Phase: proto.PhaseTrigger, Behavior: proto.BehaviorTap, Front: selfFront()})
 	frames(tt)
-	if a.sess.State.Live() || a.hm.block == nil || !has(tt, "No speech service is set up.") {
+	if a.sess.State.Live() || a.hm.block == nil || !has(tt, "No speech model is installed.") {
 		t.Fatalf("blocked try: %+v %v %q", a.sess, a.hm.block, tt.Texts())
 	}
 	if a.notice != nil {
 		t.Error("a try's problem went to the overlay")
 	}
-	readyServices(a)
+	readyModels(a)
 	drain()
 	a.hotkeyFired(proto.HotkeyEventParams{Binding: "transcribe/0", Phase: proto.PhaseTrigger, Behavior: proto.BehaviorTap, Front: selfFront()})
 	drain()
@@ -415,7 +414,7 @@ func TestHomeTryByShortcut(t *testing.T) {
 // try that is done (TestSnapshots), at the top and scrolled to its end.
 func homeShots(a *app, tt *ui.Tester, save func(string)) {
 	a.host.sup.Start(context.Background()) // ready again (the shots before stopped it)
-	readyServices(a)
+	readyModels(a)
 	allowAll(a)
 	a.clearNotices() // the earlier shots' cards
 	a.navigate("/home")

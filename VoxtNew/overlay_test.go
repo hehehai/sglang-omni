@@ -91,12 +91,12 @@ func TestOverlayModes(t *testing.T) {
 	}
 	// A failure: a notice with a way forward.
 	snap(a, session.Snapshot{ID: "s4", State: session.Recording})
-	snap(a, session.Snapshot{ID: "s4", State: session.Failed, Problem: &session.Problem{Code: session.ProblemASR, Err: &asr.Error{Kind: asr.KindAuth}}})
-	if a.ov.mode != ovNotice || a.notice == nil || a.notice.action != actionProviders || a.notice.text != "Speech recognition failed: The service refused the key. Check it and try again." {
+	snap(a, session.Snapshot{ID: "s4", State: session.Failed, Problem: &session.Problem{Code: session.ProblemASR, Err: &asr.Error{Kind: asr.KindServer}}})
+	if a.ov.mode != ovNotice || a.notice == nil || a.notice.action != actionModels || a.notice.text != "Speech recognition failed: The speech model stopped or did not answer. Try again in a moment." {
 		t.Fatalf("notice %s %+v", a.ov.mode, a.notice)
 	}
 	a.noticeAction(a.notice.action)
-	if a.router.Path() != "/providers" || a.ov.mode != ovHidden {
+	if a.router.Path() != modelsPath || a.ov.mode != ovHidden {
 		t.Errorf("action: %s %s", a.router.Path(), a.ov.mode)
 	}
 	// Cancelled and too short: nothing.
@@ -209,7 +209,7 @@ func TestSessionProblemTexts(t *testing.T) {
 		text   string
 		action string
 	}{
-		{session.Problem{Code: session.ProblemNoASR}, "No speech service is set up.", actionProviders},
+		{session.Problem{Code: session.ProblemNoASR}, "No speech model is installed.", actionModels},
 		{session.Problem{Code: session.ProblemMicrophone, Err: errors.New("x")}, "VoxtNew may not use the microphone.", actionPermissions},
 		{session.Problem{Code: session.ProblemHelper}, "The helper stopped: try again in a moment.", actionHelper},
 		{session.Problem{Code: session.ProblemNoSpeech}, "Nothing was heard.", actionNone},
@@ -557,7 +557,7 @@ func TestOverlayQuickSessions(t *testing.T) {
 	snap(a, session.Snapshot{ID: "s3", State: session.Recording})
 	snap(a, session.Snapshot{ID: "s3", State: session.Failed, Problem: &session.Problem{Code: session.ProblemNoASR}})
 	ft.advance(3 * time.Second) // the second's timer is due
-	if a.notice == nil || a.notice.action != actionProviders || !a.ov.visible {
+	if a.notice == nil || a.notice.action != actionModels || !a.ov.visible {
 		t.Fatalf("the third's notice went with the second's timer: %+v", a.notice)
 	}
 	ft.advance(noticeTime)

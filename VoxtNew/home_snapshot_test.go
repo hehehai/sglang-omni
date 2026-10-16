@@ -37,16 +37,15 @@ func snapshotsHome(t *testing.T, out string) {
 				}
 				switch state {
 				case "first-missing":
-					// A speech service, no language model; Accessibility
+					// A speech model, no language model; Accessibility
 					// not allowed yet.
-					a.updateSettings(func(s *settings.Settings) { s.Providers.ASR = []settings.Provider{{ID: "doubao", Enabled: true}} })
-					a.keyMasks["asr.doubao"] = "tok…abcd"
+					a.local = &fakeLocal{ASRP: &fakeTranscriptions{}}
 					a.perms.mic, a.perms.access, a.perms.checked = permission.Granted, false, true
 				case "first-ready":
-					readyServices(a)
+					readyModels(a)
 					allowAll(a)
 				case "returning":
-					readyServices(a)
+					readyModels(a)
 					allowAll(a)
 					seedHistory(t, a)
 					seedWriteHistory(t, a)

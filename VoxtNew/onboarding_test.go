@@ -33,7 +33,7 @@ func obSnap(a *app, id string, kind store.Kind, st session.State) session.Snapsh
 
 func TestOnboardingSteps(t *testing.T) {
 	a, tt := obTester(t)
-	for _, s := range []string{"Welcome to VoxtNew", "Your audio and text go only to the services you set up", "Keys stay in this Mac's Keychain", "Get started"} {
+	for _, s := range []string{"Welcome to VoxtNew", "Your audio and text stay on this Mac", "History stays on this Mac", "Get started"} {
 		if !has(tt, s) {
 			t.Errorf("welcome: no %q in %q", s, tt.Texts())
 		}
@@ -43,15 +43,9 @@ func TestOnboardingSteps(t *testing.T) {
 		t.Fatalf("permissions: step %d %q", a.ob.step, tt.Texts())
 	}
 	click(t, tt, "Continue")
-	if a.ob.step != obServices || !has(tt, "Doubao (Volcengine)") || !has(tt, "DeepSeek") {
-		t.Fatalf("services: step %d %q", a.ob.step, tt.Texts())
+	if a.ob.step != obModels || !has(tt, "Local models") || !has(tt, "Not installed yet: this version cannot download models.") {
+		t.Fatalf("models: step %d %q", a.ob.step, tt.Texts())
 	}
-	// A card opens the Model services dialog, over the guide.
-	click(t, tt, "Doubao (Volcengine)")
-	if !a.provDlg.open || a.provDlg.id != "doubao" {
-		t.Fatalf("dialog %+v", a.provDlg)
-	}
-	a.provDlg.open = false
 	click(t, tt, "Continue")
 	if a.ob.step != obTranscribe || !has(tt, "Try Transcribe") || !has(tt, "Skip this step") {
 		t.Fatalf("transcribe: step %d %q", a.ob.step, tt.Texts())
@@ -63,7 +57,7 @@ func TestOnboardingSteps(t *testing.T) {
 	}
 	// Start without a service: why, on the step.
 	a.ob.block = a.obTry("") // the guide's Start (Home's, under it, has the same label)
-	if !has(tt, "No speech service is set up.") {
+	if !has(tt, "No speech model is installed.") {
 		t.Errorf("blocked: %q", tt.Texts())
 	}
 	click(t, tt, "Skip this step")
@@ -113,7 +107,7 @@ func TestOnboardingSteps(t *testing.T) {
 func TestOnboardingTryPasses(t *testing.T) {
 	a, tt := obTester(t)
 	drain := queuePosts(a)
-	readyServices(a)
+	readyModels(a)
 	drain()
 	a.obGo(obTranscribe)
 	frames(tt)
@@ -195,21 +189,18 @@ func TestOnboardingTryPasses(t *testing.T) {
 }
 
 // onboardingShots saves each step of the setup guide (TestSnapshots):
-// the welcome, permissions and services with nothing set up, the try
+// the welcome, permissions and the models (a speech model only), the try
 // steps with a try that passed (Transcribe) or that runs (Rewrite).
 func onboardingShots(a *app, tt *ui.Tester, save func(string)) {
-	names := []string{"welcome", "permissions", "services", "transcribe", "translate", "rewrite", "more"}
+	names := []string{"welcome", "permissions", "models", "transcribe", "translate", "rewrite", "more"}
 	a.openOnboarding()
 	for step, name := range names {
 		a.ob.step = step
 		switch step {
-		case obServices:
-			a.updateSettings(func(s *settings.Settings) {
-				s.Providers.ASR = []settings.Provider{{ID: "doubao", Enabled: true}}
-			})
-			a.keyMasks["asr.doubao"] = "tok…abcd"
+		case obModels:
+			a.local = &fakeLocal{ASRP: &fakeTranscriptions{}}
 		case obTranscribe:
-			readyServices(a)
+			readyModels(a)
 			a.ob.tries[step] = "ob-try"
 			s := obSnap(a, "ob-try", store.KindTranscribe, session.Done)
 			a.sessionChanged(s)

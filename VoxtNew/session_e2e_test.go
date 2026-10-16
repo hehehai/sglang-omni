@@ -2,174 +2,30 @@ package main
 
 // Whole sessions on Linux: the app over a real supervisor and the fake
 // helper process (helpertest: a tone as the microphone, scripted
-// shortcuts, text I/O that logs what it pastes), a loopback
-// OpenAI-compatible transcription server or a loopback streaming
-// WebSocket in Model Studio's protocol, and a loopback chat-completions
-// server as the language model. A shortcut starts the session, another
-// stops it (or Escape cancels it), and the text lands in the paste log
-// and the history.
+// shortcuts, text I/O that logs what it pastes), and in-process local
+// models (local_fakes_test.go): a speech model that transcribes the
+// recording or streams, and a language model. A shortcut starts the
+// session, another stops it (or Escape cancels it), and the text lands in
+// the paste log and the history.
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr/asrtest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
-
-// fakeChat is a chat-completions server: it answers each request with
-// text (or texts in turn, the last repeating; or status), streamed as
-// server-sent events when the request streams, and keeps the requests.
-type fakeChat struct {
-	mu     sync.Mutex
-	text   string
-	texts  []string
-	status int
-	delay  time.Duration
-	bodies []map[string]any
-}
-
-func (f *fakeChat) set(text string, status int) {
-	f.mu.Lock()
-	f.text, f.texts, f.status = text, nil, status
-	f.mu.Unlock()
-}
-
-func (f *fakeChat) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	body, _ := io.ReadAll(r.Body)
-	var v map[string]any
-	json.Unmarshal(body, &v)
-	f.mu.Lock()
-	f.bodies = append(f.bodies, v)
-	text, status, delay := f.text, f.status, f.delay
-	if len(f.texts) > 0 {
-		text = f.texts[min(len(f.bodies), len(f.texts))-1]
-	}
-	f.mu.Unlock()
-	if delay > 0 {
-		select {
-		case <-time.After(delay):
-		case <-r.Context().Done():
-			return
-		}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	if status != 0 {
-		w.WriteHeader(status)
-		w.Write([]byte(`{"error":{"message":"overloaded","type":"server_error"}}`))
-		return
-	}
-	if v["stream"] == true {
-		w.Header().Set("Content-Type", "text/event-stream")
-		rs := []rune(text)
-		for i := 0; i < len(rs); i += 6 {
-			chunk, _ := json.Marshal(map[string]any{"model": "deepseek-chat",
-				"choices": []any{map[string]any{"index": 0, "delta": map[string]any{"content": string(rs[i:min(i+6, len(rs))])}}}})
-			fmt.Fprintf(w, "data: %s\n\n", chunk)
-			if fl, ok := w.(http.Flusher); ok {
-				fl.Flush()
-			}
-			time.Sleep(5 * time.Millisecond)
-		}
-		fmt.Fprint(w, `data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":120,"completion_tokens":6,"total_tokens":126}}`+"\n\n")
-		fmt.Fprint(w, "data: [DONE]\n\n")
-		return
-	}
-	out, _ := json.Marshal(map[string]any{
-		"id": "c1", "object": "chat.completion", "model": "deepseek-chat",
-		"choices": []any{map[string]any{"index": 0, "message": map[string]any{"role": "assistant", "content": text}, "finish_reason": "stop"}},
-		"usage":   map[string]any{"prompt_tokens": 120, "completion_tokens": 6, "total_tokens": 126},
-	})
-	w.Write(out)
-}
-
-func (f *fakeChat) requests() []map[string]any {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return append([]map[string]any(nil), f.bodies...)
-}
-
-// fakeTranscriptions is an OpenAI-compatible /audio/transcriptions server.
-type fakeTranscriptions struct {
-	mu    sync.Mutex
-	text  string
-	calls int
-	size  int64
-}
-
-func (f *fakeTranscriptions) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	f.mu.Lock()
-	f.calls++
-	f.size = r.ContentLength
-	text := f.text
-	f.mu.Unlock()
-	io.Copy(io.Discard, r.Body)
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"text":%q}`, text)
-}
-
-// aliyunServer is a Model Studio inference WebSocket: task-started, a
-// partial after a few frames of audio, the final sentence and
-// task-finished on finish-task.
-func aliyunServer(t *testing.T, final string) string {
-	return asrtest.WSServer(t, "/api-ws/v1/inference", func(c *asrtest.Conn) {
-		send := func(taskID, event string, payload any) {
-			b, _ := json.Marshal(map[string]any{"header": map[string]any{"task_id": taskID, "event": event, "attributes": map[string]any{}}, "payload": payload})
-			c.WriteText(string(b))
-		}
-		sentence := func(text string, end bool) any {
-			return map[string]any{"output": map[string]any{"sentence": map[string]any{
-				"begin_time": 0, "end_time": nil, "text": text, "heartbeat": false, "sentence_begin": true, "sentence_end": end, "sentence_id": 1, "words": []any{}}}}
-		}
-		taskID, frames := "", 0
-		for {
-			typ, data, ok := c.TryRead()
-			if !ok {
-				return
-			}
-			if typ == websocket.MessageBinary {
-				frames++
-				if frames == 3 {
-					send(taskID, "result-generated", sentence("hello", false))
-				}
-				continue
-			}
-			var m struct {
-				Header struct {
-					Action string `json:"action"`
-					TaskID string `json:"task_id"`
-				} `json:"header"`
-			}
-			json.Unmarshal(data, &m)
-			switch m.Header.Action {
-			case "run-task":
-				taskID = m.Header.TaskID
-				send(taskID, "task-started", map[string]any{})
-			case "finish-task":
-				send(taskID, "result-generated", sentence(final, true))
-				send(taskID, "task-finished", map[string]any{"output": map[string]any{}})
-				return
-			}
-		}
-	})
-}
 
 // sessionApp is the app over the fake helper process, its post queue
 // pumped by the test.
@@ -180,9 +36,9 @@ type sessionApp struct {
 	pasteLog string
 }
 
-// newSessionApp starts the app with helper options opts (helpertest) and
-// the settings set changes.
-func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), keys map[string]string) *sessionApp {
+// newSessionApp starts the app with helper options opts (helpertest),
+// the settings set changes and the local models svc (nil: none).
+func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc local.Services) *sessionApp {
 	t.Helper()
 	self, err := os.Executable()
 	if err != nil {
@@ -193,15 +49,15 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), keys
 		t.Fatal(err)
 	}
 	t.Cleanup(lib.close)
-	if err := lib.settings.Update(context.Background(), func(s *settings.Settings) {
-		s.Network.Proxy = settings.ProxyDirect
-		set(s)
-	}); err != nil {
+	if err := lib.settings.Update(context.Background(), set); err != nil {
 		t.Fatal(err)
 	}
-	old := newKeyring
-	newKeyring = func() keyring { return &memKeyring{m: keys} }
-	t.Cleanup(func() { newKeyring = old })
+	if svc == nil {
+		svc = local.NotInstalled{}
+	}
+	old := newLocalServices
+	newLocalServices = func() local.Services { return svc }
+	t.Cleanup(func() { newLocalServices = old })
 	pasteLog := filepath.Join(t.TempDir(), "paste.jsonl")
 	a := newApp(lib, &helperHost{bin: self, env: helpertest.Env("frame-ms=20," + helpertest.Opt("paste-log", pasteLog) + "," + opts)})
 	a.measureHook = guessText
@@ -280,18 +136,12 @@ func hotkeyLine(afterMS int, binding, phase string) string {
 
 func mustJSON(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
 
-// fileSetup is OpenAI-compatible transcription and DeepSeek on loopback.
-func fileSetup(t *testing.T, asrText string, chat *fakeChat) (func(*settings.Settings), map[string]string, *fakeTranscriptions) {
+// fileSetup is a speech model that transcribes recordings (asrText)
+// and chat as the language model; the settings need nothing (set is a
+// no-op, for the tests that change their own).
+func fileSetup(t *testing.T, asrText string, chat *fakeChat) (func(*settings.Settings), *fakeLocal, *fakeTranscriptions) {
 	tr := &fakeTranscriptions{text: asrText}
-	asrSrv := httptest.NewServer(tr)
-	t.Cleanup(asrSrv.Close)
-	llmSrv := httptest.NewServer(chat)
-	t.Cleanup(llmSrv.Close)
-	return func(s *settings.Settings) {
-			s.Providers.ASR = []settings.Provider{{ID: "openai", Enabled: true, Endpoint: asrSrv.URL + "/v1"}}
-			s.Providers.LLM = []settings.Provider{{ID: "deepseek", Enabled: true, Endpoint: llmSrv.URL + "/v1"}}
-		}, map[string]string{"asr.openai": "sk-asr", "llm.deepseek": "sk-llm"},
-		tr
+	return func(*settings.Settings) {}, withChat(&fakeLocal{ASRP: tr}, chat), tr
 }
 
 // TestSessionEndToEnd: fn, speak, fn: the cleaned-up text is pasted into
@@ -335,12 +185,12 @@ func TestSessionEndToEnd(t *testing.T) {
 		t.Errorf("still active: %s", a.hotkeysSent)
 	}
 	es := a.history()
-	if len(es) != 1 || es[0].Result != "Hello, VoxtNew." || es[0].RawText != "hello aura link" || es[0].ASRProvider != "openai" ||
-		es[0].LLMProvider != "deepseek" || es[0].LLMModel != "deepseek-flash" || es[0].Delivery != "insert" || es[0].AppName != "Slack" || es[0].AudioMS < 300 {
+	if len(es) != 1 || es[0].Result != "Hello, VoxtNew." || es[0].RawText != "hello aura link" || es[0].ASRProvider != fakeASRModel.ID ||
+		es[0].LLMProvider != fakeLLMModel.ID || es[0].LLMModel != fakeLLMModel.ID || es[0].Delivery != "insert" || es[0].AppName != "Slack" || es[0].AudioMS < 300 {
 		t.Errorf("history %+v", es)
 	}
-	if tr.calls != 1 || tr.size < 10000 {
-		t.Errorf("uploads %d, %d bytes", tr.calls, tr.size)
+	if calls, size := tr.uploads(); calls != 1 || size < 9000 {
+		t.Errorf("uploads %d, %d bytes", calls, size)
 	}
 	reqs := chat.requests()
 	if len(reqs) != 1 {
@@ -350,21 +200,19 @@ func TestSessionEndToEnd(t *testing.T) {
 	sys, _ := msgs[0].(map[string]any)["content"].(string)
 	user, _ := msgs[1].(map[string]any)["content"].(string)
 	if !strings.Contains(sys, "Keep it short.") || strings.Contains(sys, "hello aura link") || user != "<input>\nhello aura link\n</input>" ||
-		reqs[0]["model"] != "deepseek-flash" || reqs[0]["thinking"] == nil {
+		reqs[0]["temperature"] != 0.1 {
 		t.Errorf("chat %v", reqs[0])
 	}
 }
 
-// TestSessionStreamingCard: a streaming service shows its partial while
+// TestSessionStreamingCard: a streaming model shows its partial while
 // recording; the app in front takes no text, so the result waits in the
 // answer card, whose Insert pastes it anyway.
 func TestSessionStreamingCard(t *testing.T) {
-	url := aliyunServer(t, "你好，VoxtNew")
 	ev := script(t, hotkeyLine(0, "transcribe/0", proto.PhaseTrigger), hotkeyLine(600, "transcribe/0", proto.PhaseTrigger))
 	a := newSessionApp(t, "readonly,"+ev, func(s *settings.Settings) {
-		s.Providers.ASR = []settings.Provider{{ID: "aliyun", Enabled: true, Endpoint: url}}
 		s.Features.Transcribe.Enhance = false
-	}, map[string]string{"asr.aliyun": "sk-ali"})
+	}, &fakeLocal{ASRP: fakeStreamer{final: "你好，VoxtNew"}})
 	partial := false
 	a.pump("the end", func() bool {
 		partial = partial || a.sess.State == session.Recording && a.sess.Partial == "hello" && a.ov.mode == ovRecording
@@ -406,7 +254,7 @@ func TestSessionEscapeAndFailures(t *testing.T) {
 		ev := script(t, hotkeyLine(0, "transcribe/0", proto.PhaseTrigger), hotkeyLine(300, proto.HotkeyEscape, proto.PhaseTrigger))
 		a := newSessionApp(t, ev, set, keys)
 		a.pump("the end", func() bool { return a.sess.State.Ended() })
-		if a.sess.State != session.Cancelled || a.ov.mode != ovHidden || len(a.pasted()) != 0 || len(a.history()) != 0 || tr.calls != 0 {
+		if calls, _ := tr.uploads(); a.sess.State != session.Cancelled || a.ov.mode != ovHidden || len(a.pasted()) != 0 || len(a.history()) != 0 || calls != 0 {
 			t.Errorf("end %+v", a.sess)
 		}
 	})
@@ -429,15 +277,15 @@ func TestSessionEscapeAndFailures(t *testing.T) {
 			t.Errorf("history %+v", es)
 		}
 	})
-	t.Run("no speech service", func(t *testing.T) {
+	t.Run("no speech model", func(t *testing.T) {
 		ev := script(t, hotkeyLine(0, "transcribe/0", proto.PhaseTrigger))
 		a := newSessionApp(t, ev, func(*settings.Settings) {}, nil)
 		a.pump("the notice", func() bool { return a.notice != nil })
-		if a.sess.State != session.Idle || a.notice.action != actionProviders || a.ov.mode != ovNotice {
+		if a.sess.State != session.Idle || a.notice.action != actionModels || a.notice.text != "No speech model is installed." || a.ov.mode != ovNotice {
 			t.Errorf("session %s, notice %+v", a.sess.State, a.notice)
 		}
 		a.noticeAction(a.notice.action)
-		if a.router.Path() != "/providers" || a.ov.mode != ovHidden {
+		if a.router.Path() != modelsPath || a.ov.mode != ovHidden {
 			t.Errorf("went to %s, overlay %s", a.router.Path(), a.ov.mode)
 		}
 	})
@@ -469,109 +317,6 @@ func TestSessionLongPress(t *testing.T) {
 	a.pump("the end", func() bool { return a.sess.State.Ended() })
 	if a.sess.State != session.Done || a.sess.Result != "held" || a.sess.Timings.Audio < 300*time.Millisecond {
 		t.Errorf("end %+v", a.sess)
-	}
-}
-
-// wavAudio plays a WAV file as the microphone, in real time, then stops
-// by itself.
-type wavAudio struct{ pcm []byte }
-
-func (w wavAudio) Record(ctx context.Context, id string, p proto.CaptureParams, fn func(session.AudioEvent)) (proto.CaptureResult, error) {
-	fn(session.AudioEvent{Started: &proto.CaptureStartedParams{Job: id, DeviceName: "sample"}})
-	frames := asr.Frames(w.pcm, 100*time.Millisecond, asr.SampleRate)
-	t := time.NewTicker(100 * time.Millisecond)
-	defer t.Stop()
-	for i, f := range frames {
-		select {
-		case <-ctx.Done():
-			return proto.CaptureResult{}, &proto.Error{Code: proto.CodeCancelled}
-		case <-t.C:
-		}
-		fn(session.AudioEvent{PCM: &proto.PCMParams{Job: id, Seq: i, Data: f}})
-	}
-	return proto.CaptureResult{Reason: proto.CaptureMaxSeconds, Frames: len(frames)}, nil
-}
-
-func (wavAudio) Stop(context.Context, string) error { return nil }
-
-// pasteText takes every paste.
-type pasteText struct {
-	mu   sync.Mutex
-	text []string
-}
-
-func (p *pasteText) Focus(context.Context) (proto.FocusResult, error) {
-	return proto.FocusResult{PID: 812, Role: "AXTextArea", Editable: true}, nil
-}
-
-func (p *pasteText) Paste(_ context.Context, pp proto.PasteParams) (proto.PasteResult, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.text = append(p.text, pp.Text)
-	return proto.PasteResult{Posted: true}, nil
-}
-
-// TestE2ESessionReal runs the speech sample through each real speech
-// service the developer has a key for, and DeepSeek, with the app's
-// resolver (VOXTNEW_E2E=1; keys from ~/.config/voxtnew-dev/keys.env).
-func TestE2ESessionReal(t *testing.T) {
-	asrtest.E2E(t)
-	data, err := os.ReadFile(asrtest.SamplePath())
-	if err != nil {
-		t.Skipf("no speech sample: %v", err)
-	}
-	pcm, rate, ch, err := asr.ReadWAV(data)
-	if err != nil || rate != asr.SampleRate || ch != 1 {
-		t.Fatalf("sample: %d Hz %d ch %v", rate, ch, err)
-	}
-	llmKey := asrtest.Key(t, "DEEPSEEK_API_KEY")
-	for _, tc := range []struct {
-		id, keyName, appIDName string
-	}{
-		{"doubao", "DOUBAO_ACCESS_TOKEN", "DOUBAO_APP_ID"},
-		{"aliyun", "DASHSCOPE_API_KEY", ""},
-		{"openai", "OPENAI_API_KEY", ""},
-		{"stepfun", "STEPFUN_API_KEY", ""},
-	} {
-		t.Run(tc.id, func(t *testing.T) {
-			key := asrtest.Key(t, tc.keyName)
-			s := settings.Defaults()
-			prov := settings.Provider{ID: tc.id, Enabled: true}
-			if tc.appIDName != "" {
-				prov.AppID = asrtest.Key(t, tc.appIDName)
-			}
-			s.Providers.ASR = []settings.Provider{prov}
-			s.Providers.LLM = []settings.Provider{{ID: "deepseek", Enabled: true}}
-			s.General.MainLanguage = "zh"
-			kr := &memKeyring{m: map[string]string{"asr." + tc.id: key, "llm.deepseek": llmKey}}
-			text := &pasteText{}
-			ended := make(chan session.Snapshot, 4)
-			m := session.New(session.Config{
-				Audio: wavAudio{pcm: pcm}, Text: text, Resolve: resolver(kr),
-				Settings: func() settings.Settings { return s },
-				OnChange: func(sn session.Snapshot) {
-					if sn.State.Ended() {
-						ended <- sn
-					}
-				},
-				Log:        func(level, msg string) { t.Log(level, msg) },
-				LLMTimeout: 20 * time.Second,
-			})
-			if _, err := m.Start(session.StartRequest{Kind: store.KindTranscribe, Target: slackApp}); err != nil {
-				t.Fatal(err)
-			}
-			var end session.Snapshot
-			select {
-			case end = <-ended:
-			case <-time.After(90 * time.Second):
-				t.Fatal("no end")
-			}
-			if end.State != session.Done || end.Result == "" || !end.Inserted {
-				t.Fatalf("end %s %+v", end.State, end.Problem)
-			}
-			t.Logf("%s → %q; %s → %q (asr %v, llm %v)", end.ASR.Model, end.Raw, end.LLM.Model, end.Result,
-				end.Timings.ASR.Round(time.Millisecond), end.Timings.LLM.Round(time.Millisecond))
-		})
 	}
 }
 

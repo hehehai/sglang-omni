@@ -17,8 +17,8 @@ func (a *app) privacySettings(c *ui.Context) {
 	sectionTitle(c, i18n.T("What leaves this Mac"))
 	ui.Column(c.Key("priv-list")).Gap(px(t, sp1)).Children(func() {
 		for _, s := range []string{
-			i18n.T("Your recordings and the text to clean up, translate or rewrite go to the speech and language services you set up, and nowhere else. VoxtNew has no server of its own."),
-			i18n.T("API keys stay in this Mac's Keychain."),
+			i18n.T("Your recordings and the text to clean up, translate or rewrite stay on this Mac: the speech and language models run here. VoxtNew has no server of its own."),
+			i18n.T("VoxtNew goes online only to check for updates and to download models."),
 			i18n.T("The address of the browser tab in front is read only to pick your scene rules. It is never sent to a model; only the app's name is."),
 			i18n.T("VoxtNew collects no usage data, crash reports or identifiers."),
 		} {

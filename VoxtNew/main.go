@@ -1,5 +1,7 @@
-// VoxtNew is a voice input app for macOS that uses remote models only:
-// hold a shortcut to transcribe what you say into any text field, to
+// VoxtNew is a voice input app for macOS on local models only (speech
+// recognition on sglang-omni's native MLX servers, language models in a
+// process of their own): press a shortcut to transcribe what you say into
+// any text field, to
 // translate speech or the selection, or to rewrite the selection (or write
 // new text) from a spoken instruction, with per-app scene rules. The
 // window is MyGo native UI in Go; a small Swift helper (voxtnew-helper)
@@ -42,9 +44,6 @@ func main() {
 	}
 	// Dev builds are "VoxtNew Dev"; share data with the installed app.
 	mygo.App.SetName("VoxtNew")
-	if demoStart != nil {
-		demoStart() // demo.go (-tags demo): a data folder and keys of its own
-	}
 	// One VoxtNew at a time (one library, one set of global shortcuts);
 	// a second launch shows the first one's window.
 	if !mygo.App.RequestSingleInstanceLock() {
@@ -77,9 +76,6 @@ func main() {
 		showFatal(err) // shell.go: explains, then quits
 		return
 	}
-	if demoLibrary != nil {
-		demoLibrary(lib) // demo_data.go: the sample data
-	}
 	h := newHelperHost(resources, logDir) // helperlink.go
 	a := newApp(lib, h)                   // app.go
 	a.dataHome = home                     // settings_storage.go
@@ -96,9 +92,6 @@ func main() {
 		a.openTray()          // tray.go: the menu bar icon, close to the menu bar
 		a.connectWindowLife() // tray.go
 		a.watchBundle()       // updates.go: an update installed while it runs
-		if demoReady != nil {
-			demoReady(a) // demo.go: the recording script's commands
-		}
 		mygo.App.OnSecondInstance(func([]string, string) { a.post(a.showMainWindow) })
 	})
 	mygo.App.OnQuit(func() {

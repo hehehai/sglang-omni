@@ -213,7 +213,7 @@ func TestAnswerCardInteraction(t *testing.T) {
 		t.Fatal(err)
 	}
 	frames(mt)
-	if a.answer.langOpen || a.ov.lang.shown || a.answer.msg != "No language model is set up." || a.answer.lang != "zh-Hans" || !a.answer.open || a.ov.frame.Y+a.ov.frame.Height != card.Y+card.Height {
+	if a.answer.langOpen || a.ov.lang.shown || a.answer.msg != "No language model is installed." || a.answer.lang != "zh-Hans" || !a.answer.open || a.ov.frame.Y+a.ov.frame.Height != card.Y+card.Height {
 		t.Errorf("another language: %+v, menu %v", a.answer, a.ov.lang.shown)
 	}
 	// Escape closes the menu, not the card.
@@ -244,7 +244,7 @@ func TestAnswerCardInteraction(t *testing.T) {
 	steps[6].apply(a) // a Rewrite answer
 	frames(tt)
 	click(t, tt, "Continue")
-	if !a.answer.open || a.answer.conversation || a.notice == nil || a.notice.text != "No speech service is set up." {
+	if !a.answer.open || a.answer.conversation || a.notice == nil || a.notice.text != "No speech model is installed." {
 		t.Errorf("continue: %+v %+v", a.answer, a.notice)
 	}
 	// A follow-up records in the card: Done stops it; Escape cancels it,

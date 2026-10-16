@@ -63,9 +63,6 @@ func (a *app) loadDevices() {
 			a.audio.err = errText(err)
 			return
 		}
-		if demoDevices != nil {
-			r.Devices = demoDevices(r.Devices)
-		}
 		a.audio.devices, a.audio.read, a.audio.err = r.Devices, true, ""
 		a.rememberDeviceNames(r.Devices)
 	})
@@ -255,13 +252,13 @@ func (a *app) audioSettings(c *ui.Context) {
 	}
 
 	sectionTitle(c, i18n.T("Recognition"))
-	settingRow(c, "audio-silence", i18n.T("Skip silence"), i18n.T("Leaves out the silence before and after you speak and shortens long pauses before the speech service gets the recording, and sends nothing when no one spoke. The history keeps the whole recording."), func() {
+	settingRow(c, "audio-silence", i18n.T("Skip silence"), i18n.T("Leaves out the silence before and after you speak and shortens long pauses before the speech model gets the recording, and sends nothing when no one spoke. The history keeps the whole recording."), func() {
 		if ui.Switch(c.Key("audio-silence-switch"), &a.settingsForm.skipSilence).Label(i18n.T("Skip silence")).Changed() {
 			off := !a.settingsForm.skipSilence
 			a.updateSettings(func(s *settings.Settings) { s.Audio.VAD.Off = off })
 		}
 	})
-	settingRow(c, "audio-clean", i18n.T("Optimize sound"), i18n.T("Filters out low hum (air conditioning, fans, mains) and evens out the volume before the speech service gets the recording: a quiet voice is raised, a very loud one lowered a little, and nothing clips. The history keeps the original recording."), func() {
+	settingRow(c, "audio-clean", i18n.T("Optimize sound"), i18n.T("Filters out low hum (air conditioning, fans, mains) and evens out the volume before the speech model gets the recording: a quiet voice is raised, a very loud one lowered a little, and nothing clips. The history keeps the original recording."), func() {
 		if ui.Switch(c.Key("audio-clean-switch"), &a.settingsForm.cleanSound).Label(i18n.T("Optimize sound")).Changed() {
 			off := !a.settingsForm.cleanSound
 			a.updateSettings(func(s *settings.Settings) { s.Audio.Clean.Off = off })

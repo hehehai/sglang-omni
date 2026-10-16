@@ -13,7 +13,6 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
@@ -104,7 +103,7 @@ func variableInfo(name string) string {
 
 // promptOf is a feature's saved rules.
 func promptOf(s settings.Settings, feature string) string {
-	return providers.FeatureOf(s, feature).Prompt
+	return featureOf(s, feature).Prompt
 }
 
 // promptSync sets the rules from the settings when they changed

@@ -13,7 +13,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
@@ -29,22 +29,21 @@ func (a *app) helperReady() bool {
 func (a *app) transcribeBlocker() *sessionNotice { return a.sessionBlocker(store.KindTranscribe) }
 
 // sessionBlocker checks, without I/O, what a session of kind needs: a
-// running helper, a speech service (Transcribe, Rewrite: Translate may
+// running helper, a speech model (Transcribe, Rewrite: Translate may
 // translate a selection without one) and a language model (Translate,
 // Rewrite). It returns the notice that says what is missing, or nil.
 func (a *app) sessionBlocker(kind store.Kind) *sessionNotice {
 	if !a.helperReady() {
 		return &sessionNotice{text: i18n.T("The helper is not running."), action: actionHelper}
 	}
-	f := providers.FeatureOf(a.prefs, string(kind))
 	if kind != store.KindTranslate {
-		if _, ok := providers.Choose(a.prefs, providers.ASR, f.ASR, a.hasKey); !ok {
-			return &sessionNotice{text: i18n.T("No speech service is set up."), action: actionProviders}
+		if _, ok := a.featureModel(local.ASR, string(kind)); !ok {
+			return &sessionNotice{text: i18n.T("No speech model is installed."), action: actionModels}
 		}
 	}
 	if kind != store.KindTranscribe {
-		if _, ok := providers.Choose(a.prefs, providers.LLM, f.LLM, a.hasKey); !ok {
-			return &sessionNotice{text: i18n.T("No language model is set up."), action: actionProviders}
+		if _, ok := a.featureModel(local.LLM, string(kind)); !ok {
+			return &sessionNotice{text: i18n.T("No language model is installed."), action: actionModels}
 		}
 	}
 	return nil

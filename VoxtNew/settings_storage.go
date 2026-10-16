@@ -16,7 +16,6 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/datadir"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/secrets"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store/sqlitestore"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
@@ -40,7 +39,6 @@ type storageState struct {
 
 	resetAsk  string // "settings" | "everything": the confirmation shown
 	resetText string // typed confirmation
-	resetKeys bool   // erase the Keychain items too
 }
 
 // storageReport is what takes room.
@@ -228,8 +226,7 @@ func (a *app) resetLook() {
 	a.toast(i18n.T("The look is back to its defaults"))
 }
 
-// resetSettings restores every setting (the setup stays done; keys stay
-// in the Keychain).
+// resetSettings restores every setting (the setup stays done).
 func (a *app) resetSettings() {
 	a.updateSettings(func(s *settings.Settings) {
 		*s = settings.Defaults()
@@ -239,31 +236,12 @@ func (a *app) resetSettings() {
 	a.toast(i18n.T("Every setting is back to its default"))
 }
 
-// keychainItems are the Keychain items VoxtNew may have saved: a key
-// per configured provider.
-func (a *app) keychainItems() []secrets.Item {
-	var items []secrets.Item
-	for _, p := range a.prefs.Providers.ASR {
-		items = append(items, secrets.ASR(p.ID, ""))
-	}
-	for _, p := range a.prefs.Providers.LLM {
-		items = append(items, secrets.LLM(p.ID, ""))
-	}
-	return items
-}
-
-// eraseAll removes the Keychain items (when asked) now, then restarts: the
-// start erases the data and the logs (internal/datadir).
+// eraseAll restarts VoxtNew: the start erases the data and the logs
+// (internal/datadir).
 func (a *app) eraseAll() {
-	keys, home, logs := a.resetKeys, a.home(), a.logDir
-	items := a.keychainItems()
+	home, logs := a.home(), a.logDir
 	a.resetAsk = ""
 	a.async(func() {
-		if keys {
-			for _, it := range items {
-				it.Delete()
-			}
-		}
 		err := datadir.WriteJSON(filepath.Join(home, datadir.ResetFile), datadir.PendingReset{Everything: true, Also: []string{logs}})
 		a.post(func() {
 			if err != nil {
@@ -337,7 +315,7 @@ func (a *app) storageSettings(c *ui.Context) {
 			a.resetLook()
 		}
 	})
-	settingRow(c, "st-reset-settings", i18n.T("Reset all settings"), i18n.T("Every setting goes back to its default. Your history, dictionary and saved keys stay."), func() {
+	settingRow(c, "st-reset-settings", i18n.T("Reset all settings"), i18n.T("Every setting goes back to its default. Your history and dictionary stay."), func() {
 		if ui.Button(c.Key("st-reset-settings"), i18n.T("Reset…")).Clicked() {
 			a.resetAsk = "settings"
 		}
@@ -356,7 +334,7 @@ func (a *app) storageDialogs(c *ui.Context) {
 	open := a.resetAsk == "settings"
 	ui.Modal(c.Key("st-ask-settings"), &open, func() {
 		ui.Text(c, i18n.T("Reset all settings?")).Bold()
-		ui.Text(c, i18n.T("Every setting goes back to its default. Your history, dictionary and saved keys stay.")).Width(px(t, 380))
+		ui.Text(c, i18n.T("Every setting goes back to its default. Your history and dictionary stay.")).Width(px(t, 380))
 		ui.Row(c).Gap(px(t, sp2)).Justify(ui.End).Children(func() {
 			if ui.Button(c.Key("st-ask-cancel"), i18n.T("Cancel")).AutoFocus().Clicked() {
 				a.resetAsk = ""
@@ -374,7 +352,6 @@ func (a *app) storageDialogs(c *ui.Context) {
 	ui.Modal(c.Key("st-ask-erase"), &erase, func() {
 		ui.Text(c, i18n.T("Erase everything?")).Bold()
 		ui.Text(c, i18n.T("This deletes your history and its recordings, your dictionary, your app enhancement rules, every setting and the logs. It cannot be undone. VoxtNew restarts as on its first day.")).Width(px(t, 420))
-		ui.Checkbox(c.Key("st-erase-keys"), &a.resetKeys, i18n.T("Also delete the API keys saved in the Keychain"))
 		ui.Text(c, i18n.T("Type DELETE to confirm.")).FontSize(px(t, fsCaption)).TextColor(t.TextMuted)
 		ui.TextInput(c.Key("st-erase-text"), &a.resetText).Placeholder("DELETE").Width(px(t, 200)).Label(i18n.T("Type DELETE to confirm."))
 		ui.Row(c).Gap(px(t, sp2)).Justify(ui.End).Children(func() {

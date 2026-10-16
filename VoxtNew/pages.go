@@ -53,8 +53,8 @@ func (a *app) page(c *ui.Context, p navPage) {
 	case "/logs":
 		a.logsPage(c)
 		return
-	case "/providers":
-		a.providersPage(c)
+	case modelsPath:
+		a.modelsPage(c) // models_page.go
 		return
 	case "/transcribe":
 		a.transcribePage(c) // feature_page.go

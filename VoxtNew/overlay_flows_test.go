@@ -203,7 +203,7 @@ func overlayFlows() []ovFlowCase {
 			a.pump("the answer", func() bool { return a.sess.State.Ended() })
 			f := &ovFlow{a: a}
 			f.sample()
-			tr.text = "shorter"
+			tr.setText("shorter")
 			first := a.sess.ID
 			a.followUpAnswer("") // Continue
 			f.run("the follow-up's recording", func() bool {

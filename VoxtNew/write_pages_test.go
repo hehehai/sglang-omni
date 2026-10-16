@@ -11,7 +11,6 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
@@ -28,8 +27,8 @@ func pageTester(t *testing.T, path string) (*app, *ui.Tester) {
 func TestTranslatePage(t *testing.T) {
 	a, tt := pageTester(t, "/translate")
 	for _, s := range []string{
-		"Translate", "Shortcuts", "fn ⇧", "Services", "No speech service is ready: only selected text can be translated.",
-		"No language model is ready: set one up to translate.", "Translation", "Translate into", "Automatic: Simplified Chinese",
+		"Translate", "Shortcuts", "fn ⇧", "Models", "No speech model is installed: only selected text can be translated.",
+		"No language model is installed: install one to translate.", "Translation", "Translate into", "Automatic: Simplified Chinese",
 		"Basic clean-up", "Show the result in a card", "Your rules", "Try it",
 	} {
 		if !has(tt, s) {
@@ -72,9 +71,9 @@ func TestTranslatePage(t *testing.T) {
 		t.Errorf("preview %q", firstTexts(tt))
 	}
 	// Ready services: no notices.
-	readyServices(a)
+	readyModels(a)
 	frames(tt)
-	if has(tt, "No language model is ready: set one up to translate.") {
+	if has(tt, "No language model is installed: install one to translate.") {
 		t.Error("notice with a ready model")
 	}
 }
@@ -82,7 +81,7 @@ func TestTranslatePage(t *testing.T) {
 func TestRewritePage(t *testing.T) {
 	a, tt := pageTester(t, "/rewrite")
 	for _, s := range []string{
-		"Rewrite", "fn ⌃", "No speech service is ready: set one up to rewrite.", "No language model is ready: set one up to rewrite.",
+		"Rewrite", "fn ⌃", "No speech model is installed: install one to rewrite.", "No language model is installed: install one to rewrite.",
 		"Rewriting", "Clean up the instruction",
 		"While the answer card shows an answer, the shortcut records a follow-up that changes it (\"shorter\", \"in English\").",
 	} {
@@ -103,7 +102,7 @@ func TestRewritePage(t *testing.T) {
 	}
 	// A try that is blocked says why, here.
 	click(t, tt, "Start a try")
-	if a.sess.State.Live() || !has(tt, "No speech service is set up.") {
+	if a.sess.State.Live() || !has(tt, "No speech model is installed.") {
 		t.Errorf("try %+v", a.sess)
 	}
 }
@@ -136,7 +135,7 @@ func TestOverlayWriting(t *testing.T) {
 	}
 	// Another language: nothing is set up, so the card says why.
 	a.retryAnswer("ja")
-	if !a.answer.open || a.answer.msg != "No language model is set up." || a.sess.ID != "t1" {
+	if !a.answer.open || a.answer.msg != "No language model is installed." || a.sess.ID != "t1" {
 		t.Errorf("retry blocked %+v", a.answer)
 	}
 	a.closeAnswer()
@@ -198,17 +197,14 @@ func TestSessionBlocker(t *testing.T) {
 			t.Errorf("%s: no blocker with nothing set up", k)
 		}
 	}
-	a.updateSettings(func(s *settings.Settings) {
-		s.Providers.LLM = []settings.Provider{{ID: "deepseek", Enabled: true}}
-	})
-	a.keyMasks["llm.deepseek"] = "sk-…wxyz"
+	a.local = withChat(&fakeLocal{}, &fakeChat{})
 	if n := a.sessionBlocker(store.KindTranslate); n != nil {
-		t.Errorf("translate needs no speech service: %+v", n)
+		t.Errorf("translate needs no speech model: %+v", n)
 	}
-	if n := a.sessionBlocker(store.KindRewrite); n == nil || n.text != "No speech service is set up." {
+	if n := a.sessionBlocker(store.KindRewrite); n == nil || n.text != "No speech model is installed." {
 		t.Errorf("rewrite: %+v", n)
 	}
-	readyServices(a)
+	readyModels(a)
 	for _, k := range []store.Kind{store.KindTranscribe, store.KindTranslate, store.KindRewrite} {
 		if n := a.sessionBlocker(k); n != nil {
 			t.Errorf("%s: %+v", k, n)

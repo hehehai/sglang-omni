@@ -30,7 +30,7 @@ func snapshotsShortcuts(t *testing.T, out string) {
 			tt.SetDark(run.dark)
 			tt.SetScale(2)
 			a.version = "0.1.0"
-			readyServices(a) // no service notices above the section
+			readyModels(a) // no service notices above the section
 			suffix := fmt.Sprintf("%dx%d-light", size[0], size[1])
 			if run.dark {
 				suffix = fmt.Sprintf("%dx%d-dark", size[0], size[1])

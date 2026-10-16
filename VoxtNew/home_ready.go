@@ -1,7 +1,7 @@
 package main
 
 // Home's readiness list (home_page.go): what is missing before the first
-// session (permissions, services, shortcuts), shown until all of it is
+// session (permissions, models, shortcuts), shown until all of it is
 // ready.
 
 import (
@@ -11,8 +11,8 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
@@ -36,29 +36,28 @@ type readiness struct {
 // helper that is starting is neither: it is ready in a moment.
 func (a *app) readinessList() []readiness {
 	var out []readiness
-	openProv := func() { a.navigate("/providers") }
+	openModels := func() { a.navigate(modelsPath) }
 	openPerms := func() { a.navigate("/settings/permissions") }
-	f := a.prefs.Features.Transcribe.Feature
-	pa, okA := providers.Choose(a.prefs, providers.ASR, f.ASR, a.hasKey)
-	pl, okL := providers.Choose(a.prefs, providers.LLM, f.LLM, a.hasKey)
+	ma, okA := a.featureModel(local.ASR, hotkey.Transcribe)
+	ml, okL := a.featureModel(local.LLM, hotkey.Transcribe)
 	switch {
 	case !okA && !okL:
-		// Nothing set up: one line, one way.
-		out = append(out, readiness{key: "home-services", title: i18n.T("Services"), kind: noticeWarn,
-			text: i18n.T("No speech service or language model is ready: set up one of each to start."), action: i18n.T("Open Model services"), fix: openProv})
+		// Nothing installed: one line, one way.
+		out = append(out, readiness{key: "home-models", title: i18n.T("Models"), kind: noticeWarn,
+			text: i18n.T("No speech model or language model is installed: install one of each to start."), action: i18n.T("Open Local models"), fix: openModels})
 	case !okA:
 		out = append(out, readiness{key: "home-asr", title: i18n.T("Speech recognition"), kind: noticeWarn,
-			text: i18n.T("No speech service is ready: set one up to transcribe, translate and rewrite by voice."), action: i18n.T("Open Model services"), fix: openProv})
+			text: i18n.T("No speech model is installed: install one to transcribe, translate and rewrite by voice."), action: i18n.T("Open Local models"), fix: openModels})
 	default:
-		out = append(out, readiness{key: "home-asr", title: i18n.T("Speech recognition"), ok: true, text: uitext.ProviderName(providers.ASR, pa)})
+		out = append(out, readiness{key: "home-asr", title: i18n.T("Speech recognition"), ok: true, text: ma.Name})
 	}
 	switch {
 	case !okA && !okL:
 	case !okL:
 		out = append(out, readiness{key: "home-llm", title: i18n.T("Language model"), kind: noticeWarn,
-			text: i18n.T("No language model is ready: Translate and Rewrite need one, and Transcribe types the text as recognised."), action: i18n.T("Open Model services"), fix: openProv})
+			text: i18n.T("No language model is installed: Translate and Rewrite need one, and Transcribe types the text as recognised."), action: i18n.T("Open Local models"), fix: openModels})
 	default:
-		out = append(out, readiness{key: "home-llm", title: i18n.T("Language model"), ok: true, text: uitext.ProviderName(providers.LLM, pl)})
+		out = append(out, readiness{key: "home-llm", title: i18n.T("Language model"), ok: true, text: ml.Name})
 	}
 	// The Microphone.
 	switch {

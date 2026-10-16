@@ -1,6 +1,6 @@
 package main
 
-// The setup guide's steps (onboarding.go): welcome, the services, a try,
+// The setup guide's steps (onboarding.go): welcome, the models, a try,
 // and what else there is.
 
 import (
@@ -8,7 +8,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/providers"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
@@ -31,71 +31,40 @@ func obRow(c *ui.Context, key string, ic icons.Icon, title, detail string) {
 
 // obWelcomeStep is the privacy promise (plan §6).
 func (a *app) obWelcomeStep(c *ui.Context) {
-	obRow(c, "ob-p-services", providersIcon, i18n.T("Your audio and text go only to the services you set up"),
-		i18n.T("VoxtNew has no server of its own, no account and no analytics. Each service's own privacy terms apply to what it receives."))
-	obRow(c, "ob-p-keys", icons.KeyMinimalisticSquare, i18n.T("Keys stay in this Mac's Keychain"),
-		i18n.T("Never in VoxtNew's settings, history or logs."))
+	obRow(c, "ob-p-local-models", modelsIcon, i18n.T("Your audio and text stay on this Mac"),
+		i18n.T("Speech recognition and the language models run here. VoxtNew has no server of its own, no account and no analytics."))
 	obRow(c, "ob-p-local", icons.Database, i18n.T("History stays on this Mac"),
 		i18n.T("Results (and, if you choose, their recordings) are kept here only. Turn them off in Settings → Privacy."))
 	obRow(c, "ob-p-urls", appEnhancementIcon, i18n.T("Browser addresses only pick a scene"),
 		i18n.T("With App enhancement, the address of the tab in front chooses a group of rules; it is never sent to a model."))
 }
 
-// obLLMPresets are the language models the guide offers: those set up,
-// then a few that suit most people.
-var obLLMPresets = []string{"deepseek", "dashscope", "volcengine", "openai"}
-
-// obServicesStep lists the speech services and a few language models as
-// the Model services page's cards: a click opens the same dialog (key,
-// endpoint, model, Test connection).
-func (a *app) obServicesStep(c *ui.Context) {
+// obModelsStep says which local models are installed, a kind each. M0
+// cannot install any: the step says so (the downloads come with M1, M2
+// and the guide's download step with M4).
+func (a *app) obModelsStep(c *ui.Context) {
 	t := c.Theme()
-	w, h := c.Size()
-	dw, _ := onboardingDialogSize(t, w, h)
-	room := dw - px(t, 2*obPadX) - px(t, 4) // the column's padding, rounding
-	cols := max(1, int((room+px(t, sp3))/(px(t, obCardMinW)+px(t, sp3))))
-	cardW := (room - px(t, sp3)*float32(cols-1)) / float32(cols)
-	for _, kind := range []providers.Kind{providers.ASR, providers.LLM} {
-		ready := providers.Ready(a.prefs, kind, a.hasKey)
+	for _, kind := range []local.Kind{local.ASR, local.LLM} {
+		list := a.installed(kind)
 		title := i18n.T("Speech recognition")
-		if kind == providers.LLM {
+		if kind == local.LLM {
 			title = i18n.T("Language model")
 		}
-		ui.Row(c).Gap(px(t, sp2)).AlignItems(ui.Center).Margin(px(t, sp2), 0, 0, 0).Children(func() {
+		ui.Row(c.Key("ob-models-"+string(kind))).Gap(px(t, sp2)).AlignItems(ui.Center).Margin(px(t, sp2), 0, 0, 0).Children(func() {
 			sectionTitleText(c, title)
-			if len(ready) > 0 {
-				statusMark(c, icons.CheckCircle, tok(t).Success, i18n.T("Ready: %s", uitext.ProviderName(kind, ready[0])))
+			if len(list) > 0 {
+				statusMark(c, icons.CheckCircle, tok(t).Success, i18n.T("Ready: %s", list[0].Name))
 			}
 		})
-		if len(ready) == 0 {
-			if kind == providers.ASR {
-				caption(c, i18n.T("Turns what you say into text. Every feature needs one to work by voice."))
-			} else {
-				caption(c, i18n.T("Cleans up, translates and rewrites the text. Without one, Transcribe types the text as recognised."))
-			}
+		if len(list) > 0 {
+			continue
 		}
-		var list []providers.Preset
-		for _, pr := range providers.Presets(kind) {
-			_, set := providers.Setup(a.prefs, kind, pr.ID)
-			if kind == providers.ASR || set {
-				list = append(list, pr)
-			}
+		if kind == local.ASR {
+			caption(c, i18n.T("Turns what you say into text. Every feature needs one to work by voice."))
+		} else {
+			caption(c, i18n.T("Cleans up, translates and rewrites the text. Without one, Transcribe types the text as recognised."))
 		}
-		if kind == providers.LLM {
-			for _, id := range obLLMPresets {
-				if _, set := providers.Setup(a.prefs, kind, id); set {
-					continue
-				}
-				if pr, ok := providers.LookupPreset(kind, id); ok {
-					list = append(list, pr)
-				}
-			}
-		}
-		ui.Row(c.Key("ob-cards-" + string(kind))).Wrap().Gap(px(t, sp3)).AlignItems(ui.Start).Children(func() {
-			for _, pr := range list {
-				a.providerCard(c, kind, pr, cardW) // providers_page.go
-			}
-		})
+		warnLine(c, i18n.T("Not installed yet: this version cannot download models."))
 	}
 }
 
@@ -189,7 +158,7 @@ func (a *app) obMoreStep(c *ui.Context) {
 		i18n.T("Rules by app or website: a casual tone in chats, a formal one in mail, Return pressed after inserting in a messenger. The overlay shows which group applies."),
 		i18n.T("Open App enhancement"), "/app-enhancement")
 	feature("ob-dict", dictionaryIcon, i18n.T("Dictionary"),
-		i18n.T("Names and jargon the speech service should expect and the language model should keep as written."),
+		i18n.T("Names and jargon the speech model should expect and the language model should keep as written."),
 		i18n.T("Open Dictionary"), "/dictionary")
 	sectionTitle(c, i18n.T("Your shortcuts"))
 	ui.Column(c.Key("ob-keys")).Gap(px(t, sp1)).Children(func() {

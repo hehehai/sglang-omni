@@ -13,8 +13,8 @@
 // app enhancement and the dictionary, M6 the overlay and onboarding);
 // nothing reads them before that milestone does.
 //
-// Not settings: API keys live in the macOS Keychain (internal/secrets);
-// app enhancement rules are a document of their own ("appctx:rules", M5);
+// Not settings: the installed models (internal/local, from M1); app
+// enhancement rules are a document of their own ("appctx:rules", M5);
 // window geometry stays with MyGo (WindowOptions.StateKey).
 //
 // Imports: nothing internal (Changed satisfies core.Event structurally).
@@ -32,16 +32,12 @@ const Version = 3
 
 // Settings is the whole document.
 type Settings struct {
-	Version    int        `json:"version"`
-	General    General    `json:"general"`
-	Appearance Appearance `json:"appearance"`
-	Network    Network    `json:"network"`
-	Privacy    Privacy    `json:"privacy"`
-	Audio      Audio      `json:"audio"`
-	Overlay    Overlay    `json:"overlay"`
-	// Providers are the ASR and LLM services set up on the Models page
-	// (M2); their keys are in the Keychain as "asr.<id>" and "llm.<id>".
-	Providers      Providers      `json:"providers"`
+	Version        int            `json:"version"`
+	General        General        `json:"general"`
+	Appearance     Appearance     `json:"appearance"`
+	Privacy        Privacy        `json:"privacy"`
+	Audio          Audio          `json:"audio"`
+	Overlay        Overlay        `json:"overlay"`
 	Features       Features       `json:"features"`
 	AppEnhancement AppEnhancement `json:"appEnhancement"`
 	Dictionary     Dictionary     `json:"dictionary"`
@@ -85,16 +81,6 @@ type Appearance struct {
 	SidebarWidth   float64  `json:"sidebarWidth,omitempty"`
 	ClosedSections []string `json:"closedSections,omitempty"`
 }
-
-// Network: how VoxtNew reaches the providers.
-type Network struct {
-	// Proxy: "" = automatic (the environment, then the macOS system
-	// proxy), ProxyDirect, or a proxy URL (http, https, socks5).
-	Proxy string `json:"proxy,omitempty"`
-}
-
-// ProxyDirect is Network.Proxy for no proxy at all.
-const ProxyDirect = "direct"
 
 // Privacy: what VoxtNew keeps on this Mac and what it logs.
 type Privacy struct {
@@ -204,37 +190,6 @@ const (
 	DefaultRadius  = 24
 )
 
-// Providers lists the speech and language services the user set up on
-// the Model services page, in the order they were added. A preset nobody
-// set up has no entry; one entry per ID.
-type Providers struct {
-	ASR []Provider `json:"asr,omitempty"`
-	LLM []Provider `json:"llm,omitempty"`
-}
-
-// Provider is one service the user set up. Its key is in the Keychain
-// (internal/secrets: "asr.<ID>", "llm.<ID>"), never here. "" fields use
-// the preset's defaults (internal/providers).
-type Provider struct {
-	// ID is unique within its list and names the Keychain item; for a
-	// preset it is the preset's id ("openai", "doubao", "aliyun",
-	// "deepseek"…).
-	ID     string `json:"id"`
-	Preset string `json:"preset,omitempty"` // "" = ID
-	Name   string `json:"name,omitempty"`   // the user's label ("" = the preset's name)
-	// Enabled offers it to the features; off, it keeps its setup and key.
-	Enabled bool `json:"enabled"`
-	// Endpoint: an ASR service's full URL (wss://…, https://…/audio/
-	// transcriptions), an LLM's API root (https://…/v1).
-	Endpoint string `json:"endpoint,omitempty"`
-	Model    string `json:"model,omitempty"`
-	// AppID is Doubao's App ID (its Access Token is the key).
-	AppID string `json:"appID,omitempty"`
-	// Prompt is an ASR service's recognition prompt (context, spelling),
-	// for services that take one; the dictionary's terms are added to it.
-	Prompt string `json:"prompt,omitempty"`
-}
-
 // Hotkey is one binding of a feature: the keys ("Fn", "Fn+Shift",
 // "Control+Command+V") and how they trigger (M3 owns the grammar).
 type Hotkey struct {
@@ -258,10 +213,10 @@ type Features struct {
 	PasteLast Hotkey `json:"pasteLast"`
 }
 
-// Feature is what every feature has: its shortcuts, the providers it uses
-// (Provider.ID; "" = the first one ready, in the Model services page's
-// order) and the user's addition to its task prompt, which the composer
-// merges with the built-in rules.
+// Feature is what every feature has: its shortcuts, the local models it
+// uses (internal/local's Model.ID; "" = the first one installed, the
+// recommended one) and the user's addition to its task prompt, which the
+// composer merges with the built-in rules.
 type Feature struct {
 	Hotkeys []Hotkey `json:"hotkeys,omitempty"`
 	ASR     string   `json:"asr,omitempty"`

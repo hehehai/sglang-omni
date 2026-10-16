@@ -28,10 +28,3 @@ func FuzzExtractJSON(f *testing.F) {
 		tf.flush()
 	})
 }
-
-func FuzzSSE(f *testing.F) {
-	f.Add("data: {\"a\":1}\n\nevent: x\ndata: y\ndata: z\n\n: c\ndata: [DONE]\n")
-	f.Fuzz(func(t *testing.T, s string) {
-		_ = readSSE(strings.NewReader(s), func(sseEvent) bool { return true })
-	})
-}

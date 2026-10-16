@@ -1,8 +1,10 @@
-// Package asr is VoxtNew's speech recognition over remote services
-// (plan §4.4): two shapes of provider, a file transcriber that uploads a
-// finished recording (OpenAI-compatible /audio/transcriptions) and a
-// streamer that recognises while the user speaks (Doubao, Alibaba Cloud
-// Model Studio), each in a subpackage of its own.
+// Package asr is the shape of VoxtNew's speech recognition, which the
+// session uses: two kinds of provider, a file transcriber that takes a
+// finished recording and a streamer that recognises while the user
+// speaks. The providers are local models (internal/local; M1: the Omni
+// native MLX servers of sglang_omni_mlx/native, over loopback HTTP and
+// WebSockets); this package has their types, errors and audio helpers
+// only.
 //
 // Audio is what the helper records: 16-bit little-endian PCM, mono, at
 // 16 kHz (SampleRate), sent in frames of about 100 ms. File providers get
@@ -13,16 +15,11 @@
 // protocol, cancelled…) that the UI maps to a message and a way forward;
 // they never carry a key.
 //
-// Endpoints must be https:// or wss:// unless the host is loopback
-// (CheckEndpoint), and WebSockets go through the proxy of
-// settings.Network (Dial, netx.ProxyFunc).
-//
-// Imports: core, netx.
+// Imports: core.
 package asr
 
 import (
 	"context"
-	"net/http"
 	"time"
 )
 
@@ -151,24 +148,4 @@ type Event struct {
 	// Result is the final event's details (Text repeats there).
 	Result Result
 	Err    error // EventError
-}
-
-// Config is what every provider's New takes: the user's setup of it
-// (settings.Provider) with its secrets from the Keychain.
-type Config struct {
-	// Endpoint overrides the provider's default URL ("": the default).
-	Endpoint string
-	// Model is the model (Doubao: the resource id); "": the default.
-	Model string
-	// Key is the API key (Doubao: the Access Token). AppID is Doubao's
-	// App ID.
-	Key   string
-	AppID string
-	// Prompt is the user's ASR prompt for this provider, sent when a
-	// request has none of its own (Caps.Prompt).
-	Prompt string
-	// Proxy is settings.Network.Proxy (netx.ProxyFunc). HTTPClient, when
-	// set, is used instead of one built on it (tests).
-	Proxy      string
-	HTTPClient *http.Client
 }

@@ -102,9 +102,6 @@ func snapshotsMain(t *testing.T, out string) {
 				frames(tt)    // the section measures the folders when it first builds
 				pinStorage(a) // snapshot_env_test.go
 			}
-			if s.id == "network" {
-				a.proxyInfo = i18n.T("Requests go through %s.", "http://127.0.0.1:7897")
-			}
 			if s.id == "about" {
 				a.sys = &sysInfo{OS: "macOS 26.7", Chip: "Apple M2", Memory: 16 << 30, Cores: 8, Arch: "arm64"}
 			}
@@ -149,9 +146,9 @@ func snapshotsMain(t *testing.T, out string) {
 		a.clearNotices()
 		save("sidebar-notices-0")
 		a.problemDismissed = nil
-		a.checkServices()
+		a.checkModels()
 		save("sidebar-notices-1")
-		a.notify(core.SeveritySuccess, i18n.T("%s saved", "DeepSeek"), "", "")
+		a.notify(core.SeveritySuccess, i18n.T("Imported: %d new, %d updated.", 12, 3), "", "")
 		fs.set(helper.Status{State: helper.Failed, Reason: helper.FailCrashed, Err: "exit status 2"})
 		save("sidebar-notices-3")
 		a.setRail(true)

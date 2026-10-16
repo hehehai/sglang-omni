@@ -16,7 +16,6 @@ import (
 // Error codes. The UI maps them to messages; Params carry the details
 // named in each comment.
 const (
-	CodeNoKey         = "llm.no_key"           // provider: no API key stored
 	CodeAuth          = "llm.auth"             // provider, status: key rejected (401/403)
 	CodeRateLimited   = "llm.rate_limited"     // provider, retry_after (seconds, may be empty)
 	CodeServer        = "llm.server"           // provider, status: 5xx
@@ -159,8 +158,9 @@ func ctxErr(ctx context.Context, provider string, err error, timeout time.Durati
 	return x
 }
 
-// httpErr maps an HTTP error status (and the provider's error body) to an *Error.
-func httpErr(provider, model string, status int, detail string, retryAfter time.Duration) *Error {
+// HTTPError maps an HTTP error status (and the server's error body) to an
+// *Error, for a backend over (loopback) HTTP.
+func HTTPError(provider, model string, status int, detail string, retryAfter time.Duration) *Error {
 	low := strings.ToLower(detail)
 	var e *Error
 	switch {

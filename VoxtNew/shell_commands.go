@@ -362,7 +362,7 @@ func (a *app) buildMenu() {
 }
 
 // openURL follows an voxtnew:// deep link: voxtnew://history,
-// voxtnew://settings/network, voxtnew:///home. Router paths in
+// voxtnew://settings/audio, voxtnew:///home. Router paths in
 // notifications go through it too.
 func (a *app) openURL(raw string) {
 	u, err := url.Parse(raw)

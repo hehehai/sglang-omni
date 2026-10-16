@@ -26,7 +26,6 @@ import (
 // in app: each section keeps its own struct in its file.
 type settingsState struct {
 	storageState // settings_storage.go
-	networkState // settings_network.go
 	aboutState   // settings_about.go
 	settingsForm // shell_settings.go: the controls that edit a setting
 }
@@ -44,8 +43,6 @@ type settingsForm struct {
 	menuBar      bool
 	closeToTray  bool
 	openAtLogin  bool
-	proxyMode    string // label
-	proxy        string // custom proxy
 	keepHistory  bool
 	keepAudio    bool
 	logText      bool
@@ -72,7 +69,6 @@ func settingsSections() []settingsSection {
 		{"overlay", i18n.T("Overlay style"), "Overlay style position opacity corners recording pill"},
 		{"shortcuts", i18n.T("Shortcuts"), "Shortcuts hotkeys keys fn"},
 		{"appearance", i18n.T("Appearance"), "Appearance theme size sidebar"},
-		{"network", i18n.T("Network"), "Network proxy"},
 		{"privacy", i18n.T("Privacy"), "Privacy history audio logs"},
 		{"storage", i18n.T("Storage"), "Storage disk data folder reset"},
 		// "About" in English: "Diagnostics and about" does not fit the
@@ -96,8 +92,6 @@ func settingsSectionIcon(id string) icons.Icon {
 		return icons.Keyboard
 	case "appearance":
 		return icons.Pallete2
-	case "network":
-		return icons.WiFiRouterMinimalistic
 	case "privacy":
 		return icons.ShieldCheck
 	case "storage":
@@ -124,9 +118,6 @@ func (a *app) settingsChanged(old, new settings.Settings) {
 	a.prefs = new
 	if old.General.Language != new.General.Language {
 		a.applyLocale()
-	}
-	if old.Network.Proxy != new.Network.Proxy {
-		a.loadProxyInfo()
 	}
 	if old.General.MenuBar != new.General.MenuBar {
 		a.applyTray() // tray.go
@@ -157,9 +148,9 @@ func (a *app) settingsChanged(old, new settings.Settings) {
 	if old.Overlay != new.Overlay {
 		a.overlayRestyle() // overlay.go
 	}
-	// The problems' cards: the services may have changed, or the language
-	// of their text (shell_notices.go).
-	a.checkServices()
+	// The problems' cards: the language of their text may have changed
+	// (shell_notices.go).
+	a.checkModels()
 	a.checkHelper()
 	a.loadSettingsForm()
 }
@@ -190,10 +181,6 @@ func (a *app) applyTheme(c *ui.Context) {
 	c.SetTheme(&th)
 }
 
-func proxyOptions() []string {
-	return []string{i18n.T("Automatic (system proxy)"), i18n.T("None"), i18n.T("Custom…")}
-}
-
 var scaleLabels = []string{"90%", "100%", "110%", "125%"}
 
 // loadSettingsForm sets the controls from a.prefs.
@@ -214,15 +201,6 @@ func (a *app) loadSettingsForm() {
 	f.scale = max(0, slices.Index(settings.Scales, s.Appearance.Scale))
 	f.reduceMotion = s.Appearance.ReduceMotion
 	f.menuBar, f.closeToTray, f.openAtLogin = s.General.MenuBar, s.General.CloseToTray, s.General.LaunchAtLogin
-	px := proxyOptions()
-	switch s.Network.Proxy {
-	case "":
-		f.proxyMode = px[0]
-	case settings.ProxyDirect:
-		f.proxyMode = px[1]
-	default:
-		f.proxyMode, f.proxy = px[2], s.Network.Proxy
-	}
 	f.keepHistory, f.keepAudio, f.logText = s.Privacy.KeepHistory, s.Privacy.KeepAudio, s.Privacy.LogText
 	f.sounds = s.Audio.Sounds
 	f.skipSilence = !s.Audio.VAD.Off
@@ -246,7 +224,7 @@ func (a *app) syncOpenAtLogin() {
 	}()
 }
 
-// openSettings shows the settings dialog at a section's path ("/network").
+// openSettings shows the settings dialog at a section's path ("/audio").
 func (a *app) openSettings(sub string) {
 	if a.setRouter.Path() != sub || !a.settingsOpen {
 		a.settingsShown(sub)
@@ -269,7 +247,7 @@ func (a *app) settingsShown(sub string) {
 }
 
 // shownPath is the path of what shows: the settings dialog's section
-// ("/settings/network") while it is open, else the page's.
+// ("/settings/audio") while it is open, else the page's.
 func (a *app) shownPath() string {
 	if a.settingsOpen {
 		return "/settings" + a.setRouter.Path()
@@ -384,7 +362,6 @@ func (a *app) settingsSection(c *ui.Context, r *ui.Route) {
 		"overlay":     a.overlaySettings,     // settings_overlay.go
 		"shortcuts":   a.shortcutsSettings,   // settings_shortcuts.go
 		"appearance":  a.appearanceSettings,
-		"network":     a.networkSettings, // settings_network.go
 		"privacy":     a.privacySettings, // settings_privacy.go
 		"storage":     a.storageSettings, // settings_storage.go
 		"about":       a.aboutSettings,   // settings_about.go
