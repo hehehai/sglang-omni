@@ -12,10 +12,11 @@ package vad
 // concurrent use.
 type Gate struct {
 	d       *Detector
-	aux     *Detector // Hear's, nil until it is called
-	preRoll int       // bytes
-	maxHold int       // bytes
-	keep    int       // bytes held at most while closed
+	aux     *Detector   // Hear's, nil until it is called
+	m       *modelOnset // UseModel's, nil for none
+	preRoll int         // bytes
+	maxHold int         // bytes
+	keep    int         // bytes held at most while closed
 	buf     []byte
 	start   int // the stream offset of buf[0], in bytes (even)
 	total   int // bytes pushed
@@ -43,6 +44,9 @@ func NewGate(rate int, p Params) *Gate {
 // pcm itself.
 func (g *Gate) Push(pcm []byte) []byte {
 	g.d.Write(pcm)
+	if g.m != nil {
+		g.m.feed(pcm)
+	}
 	g.total += len(pcm)
 	if g.open {
 		return pcm
@@ -85,9 +89,31 @@ func (g *Gate) Hear(pcm []byte) {
 	g.aux.Write(pcm)
 }
 
+// UseModel lets a voice activity model decide where speech starts
+// instead of the energy detectors (call it before the first Push): Push
+// feeds it each chunk, and the gate opens on its onset. If the model
+// fails, the gate goes on with the energy detectors, which listened all
+// along (ModelErr says why).
+func (g *Gate) UseModel(s ModelStream) {
+	g.m = newModelOnset(s, g.d.rate, g.d.p)
+	// The model's onset may lie a few chunks back.
+	g.keep = max(g.keep, g.preRoll+(g.m.onsetN+2)*g.m.chunk*2)
+}
+
+// ModelErr is the model's failure, nil while it works (or without one).
+func (g *Gate) ModelErr() error {
+	if g.m == nil {
+		return nil
+	}
+	return g.m.err
+}
+
 // first is the start of the first speech either detector heard; -1
 // before any.
 func (g *Gate) first() int {
+	if g.m != nil && g.m.err == nil {
+		return g.m.first
+	}
 	f := g.d.first
 	if g.aux != nil && g.aux.first >= 0 && (f < 0 || g.aux.first < f) {
 		f = g.aux.first
