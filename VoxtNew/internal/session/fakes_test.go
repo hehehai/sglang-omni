@@ -297,14 +297,15 @@ func (f *fakeFile) Transcribe(ctx context.Context, req asr.FileRequest) (asr.Res
 
 // fakeLLM answers chats: text, or texts in turn (the last repeats),
 // streamed in pieces of chunk runes to OnDelta (0: in one), each after
-// pause.
+// pause; err fails every request, or only request failOn (from 1).
 type fakeLLM struct {
-	text  string
-	texts []string
-	err   error
-	hang  bool
-	chunk int
-	pause time.Duration
+	text   string
+	texts  []string
+	err    error
+	failOn int
+	hang   bool
+	chunk  int
+	pause  time.Duration
 
 	mu   sync.Mutex
 	reqs []llm.Request
@@ -317,6 +318,7 @@ func (f *fakeLLM) Chat(ctx context.Context, req llm.Request) (llm.Response, erro
 	if len(f.texts) > 0 {
 		text = f.texts[min(len(f.reqs), len(f.texts))-1]
 	}
+	failed := f.err != nil && (f.failOn == 0 || f.failOn == len(f.reqs))
 	f.mu.Unlock()
 	if f.hang {
 		if req.OnDelta != nil {
@@ -325,7 +327,7 @@ func (f *fakeLLM) Chat(ctx context.Context, req llm.Request) (llm.Response, erro
 		<-ctx.Done()
 		return llm.Response{}, ctx.Err()
 	}
-	if f.err != nil {
+	if failed {
 		return llm.Response{}, f.err
 	}
 	if req.OnDelta != nil {

@@ -131,12 +131,12 @@ func TestPipeline(t *testing.T) {
 		card     bool
 	}{
 		{"stream, llm", true, &fakeLLM{text: "Hello, VoxtNew."}, true, true, "Hello, VoxtNew.", "recording recognizing composing delivering done", "", false},
-		{"stream, llm off", true, &fakeLLM{text: "unused"}, false, true, "hello aura link", "recording recognizing delivering done", "", false},
-		{"stream, no llm", true, nil, true, true, "hello aura link", "recording recognizing delivering done", "", false},
+		{"stream, llm off", true, &fakeLLM{text: "unused"}, false, true, "hello VoxtNew", "recording recognizing delivering done", "", false},
+		{"stream, no llm", true, nil, true, true, "hello VoxtNew", "recording recognizing delivering done", "", false},
 		{"file, llm", false, &fakeLLM{text: "“Hello, VoxtNew.”"}, true, true, "Hello, VoxtNew.", "recording recognizing composing delivering done", "", false},
-		{"file, llm off", false, &fakeLLM{}, false, true, "hello aura link", "recording recognizing delivering done", "", false},
-		{"stream, llm fails", true, &fakeLLM{err: errors.New("503")}, true, true, "hello aura link", "recording recognizing composing delivering done", ProblemLLM, false},
-		{"file, llm times out", false, &fakeLLM{hang: true}, true, true, "hello aura link", "recording recognizing composing delivering done", ProblemLLM, false},
+		{"file, llm off", false, &fakeLLM{}, false, true, "hello VoxtNew", "recording recognizing delivering done", "", false},
+		{"stream, llm fails", true, &fakeLLM{err: errors.New("503")}, true, true, "hello VoxtNew", "recording recognizing composing delivering done", ProblemLLM, false},
+		{"file, llm times out", false, &fakeLLM{hang: true}, true, true, "hello VoxtNew", "recording recognizing composing delivering done", ProblemLLM, false},
 		{"stream, not writable", true, &fakeLLM{text: "Hello."}, true, false, "Hello.", "recording recognizing composing delivering done", "", true},
 		{"file, llm says nothing", false, &fakeLLM{text: "  "}, true, true, "", "recording recognizing composing done", ProblemNoSpeech, false},
 	} {
@@ -208,7 +208,7 @@ func TestPipeline(t *testing.T) {
 				msgs := reqs[0].Messages
 				sys, user := msgs[0].Content, msgs[len(msgs)-1].Content
 				if len(msgs) != 4 || msgs[1].Role != llm.User || msgs[2].Role != llm.Assistant || !strings.Contains(sys, "Be brief.") || !strings.Contains(sys, "- VoxtNew") || strings.Contains(sys, "Off") ||
-					strings.Contains(sys, "hello aura link") || user != "<input>\nhello aura link\n</input>" || reqs[0].Skill != llm.SkillTranscribeEnhance {
+					strings.Contains(sys, "hello") || user != "<input>\nhello VoxtNew\n</input>" || reqs[0].Skill != llm.SkillTranscribeEnhance {
 					t.Errorf("request %+v", reqs[0])
 				}
 				if end.Profile != "transcribe:cleanup+custom+glossary" {

@@ -21,7 +21,8 @@ type Verdict struct {
 	// input has not.
 	Copied bool
 	// Language: a clean-up changed the language: the share of Chinese in
-	// it is more than 30 points off the input's (it translated).
+	// it is more than 30 points off the input's (it translated); a
+	// translation into English left a fifth of it in Chinese.
 	Language bool
 	// Score is the answer against the expected one (a clean-up only).
 	Score Score
@@ -91,7 +92,9 @@ func CheckClean(c Clip, input, out, example string) Verdict {
 // CheckTranslation checks out, a translation of c's text, against the
 // clip's expectations of an English translation (MustEn, MustNotEn).
 func CheckTranslation(must, mustNot []string, input, out, example string) Verdict {
-	return check(out, input, example, must, mustNot)
+	v := check(out, input, example, must, mustNot)
+	v.Language = cjkShare(out) > 0.2
+	return v
 }
 
 func check(out, input, example string, must, mustNot []string) Verdict {

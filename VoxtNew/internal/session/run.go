@@ -133,7 +133,7 @@ func (r *run) main() {
 
 	if t := r.req.Text; t != nil {
 		if r.awaitServices() {
-			r.write(strings.TrimSpace(t.Raw), t.Selection)
+			r.write(r.spoken(strings.TrimSpace(t.Raw)), t.Selection)
 		}
 		return
 	}
@@ -161,11 +161,12 @@ func (r *run) main() {
 	if !ok {
 		return
 	}
+	text := r.spoken(raw)
 	switch kind {
 	case store.KindTranscribe:
-		r.transcribe(raw)
+		r.transcribe(text)
 	case store.KindTranslate:
-		r.write(raw, "")
+		r.write(text, "")
 	case store.KindRewrite:
 		sel := ""
 		if selDone != nil {
@@ -176,7 +177,7 @@ func (r *run) main() {
 				return
 			}
 		}
-		r.write(raw, sel)
+		r.write(text, sel)
 	}
 }
 

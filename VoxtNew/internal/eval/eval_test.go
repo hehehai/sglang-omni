@@ -123,6 +123,9 @@ func TestSet(t *testing.T) {
 		if j.Duration() < time.Minute || Compare(j.Text, strings.Join(textsOf(s, l), "")).Edits() != 0 {
 			t.Errorf("%s: %v", l.ID, j.Duration())
 		}
+		if v := CheckClean(j, j.Text, j.Clean, ""); !v.OK() || len(j.MustEn) < 5 || len(j.MustNotEn) < 3 {
+			t.Errorf("%s: its own clean text: %s; %d and %d checks of a translation", l.ID, v.Faults(), len(j.MustEn), len(j.MustNotEn))
+		}
 	}
 	t.Logf("%d clips, %v of audio; sets %v", len(s.Clips), total.Round(time.Second), sets)
 	if _, err := Load(t.TempDir(), false); !os.IsNotExist(err) {

@@ -1,13 +1,14 @@
 package main
 
-// TestEvalLLM: the language models' clean-up on the eval set
-// (eval_test.go), from each clip's reference text (what was said, word for
-// word): Transcribe's clean-up with compose's example turn and without
-// it, spoken Translate into English likewise, and Hy-MT2 (llm.translate)
-// given the raw speech, the speech without its fillers
-// (compose.StripFillers) or llm.balanced's clean-up. Every answer is
-// checked (internal/eval: fillers, self-corrections, invented words, the
-// example copied); the report is llm.md.
+// TestEvalLLM: the language models' clean-up on the eval set's short
+// clips (eval_test.go; the long ones: TestEvalLong), from each clip's
+// reference text (what was said, word for word): Transcribe's clean-up
+// with compose's example turn and without it, spoken Translate into
+// English likewise, and Hy-MT2 (llm.translate) given the raw speech, the
+// speech without its fillers (compose.StripFillers) or llm.balanced's
+// clean-up. Every answer is checked (internal/eval: fillers,
+// self-corrections, invented words, the example copied); the report is
+// llm.md.
 
 import (
 	"context"
@@ -44,18 +45,15 @@ func TestEvalLLM(t *testing.T) {
 	ctx := context.Background()
 	var clips, spoken []eval.Clip
 	for _, c := range e.clips() {
-		if c.Set == "long" && e.quick {
-			continue
+		if c.Set == "long" {
+			continue // TestEvalLong
 		}
 		clips = append(clips, c)
 		if c.Set == "zh-filler" || c.Set == "zh-plain" {
 			spoken = append(spoken, c)
 		}
 	}
-	terms := make([]compose.Term, len(e.set.Dictionary))
-	for i, d := range e.set.Dictionary {
-		terms[i] = compose.Term{Term: d}
-	}
+	terms := evalTerms(e)
 	var cases []llmCase
 	cleaned := map[string]string{} // llm.balanced's clean-up of each clip, for Hy-MT2
 	for _, id := range []string{llmrt.Balanced, llmrt.Fast, llmrt.Translate} {
@@ -177,11 +175,7 @@ func chatRequest(t *testing.T, in compose.Input, example bool, skill llm.Skill) 
 	if !example {
 		out.History = nil
 	}
-	req := llm.Request{Skill: skill}
-	for _, m := range out.Messages() {
-		req.Messages = append(req.Messages, llm.Message{Role: llm.Role(m.Role), Content: m.Content})
-	}
-	return req
+	return llm.Request{Skill: skill, Messages: evalMessages(out)}
 }
 
 func llmReport(cases []llmCase, quick bool) string {

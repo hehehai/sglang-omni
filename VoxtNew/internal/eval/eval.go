@@ -131,7 +131,7 @@ func (s *Set) Clip(id string) (Clip, bool) {
 
 // Join is l as one clip: the texts joined (a space between two Latin
 // ends), the audio joined with l.Gap of silence, the checks and terms
-// together.
+// together (for an English translation, the English clips' checks too).
 func (s *Set) Join(l Long) Clip {
 	out := Clip{ID: l.ID, Set: l.Set, Lang: l.Lang}
 	gap := make([]byte, 2*int(l.Gap*asr.SampleRate))
@@ -145,6 +145,13 @@ func (s *Set) Join(l Long) Clip {
 		out.PCM = append(out.PCM, c.PCM...)
 		out.Must = append(out.Must, c.Must...)
 		out.MustNot = append(out.MustNot, c.MustNot...)
+		// An English translation: the Chinese clips' checks, the English
+		// clips' own (their phrases stay English).
+		if c.Lang == "en" {
+			out.MustEn, out.MustNotEn = append(out.MustEn, c.Must...), append(out.MustNotEn, c.MustNot...)
+		} else {
+			out.MustEn, out.MustNotEn = append(out.MustEn, c.MustEn...), append(out.MustNotEn, c.MustNotEn...)
+		}
 		for _, t := range c.Terms {
 			if !slices.Contains(out.Terms, t) {
 				out.Terms = append(out.Terms, t)

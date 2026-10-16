@@ -66,7 +66,8 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   │                     Butterworth, 80 Hz), one gain from the speech (files) or a slow one
 │   │                     (streams, Leveler), a peak limiter; pure Go
 │   ├── compose/          the layered prompt composer: Transcribe, Translate, Rewrite;
-│   │                     templates/{en,zh-Hans}; 112 golden prompts; Untranslated, ParseAnswer
+│   │                     templates/{en,zh-Hans}; 112 golden prompts; Untranslated, ParseAnswer;
+│   │                     long speech in pieces (Pieces, BuildParts, JoinParts)
 │   ├── deliver/          the insert transaction: textio.focus, then textio.paste or the answer card
 │   ├── hotkey/           the shortcuts' grammar, bindings for hotkey.configure and the Carbon
 │   │                     fallback, conflict checks, routing an event to an action
@@ -89,7 +90,8 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   ├── datadir/          where the data folder is: location.json, a move or an erase finished at the
 │   │                     start (Resolve, before the library opens), copying and checking a tree
 │   ├── dict/             the dictionary's rules: cleaning a term, hints for speech services,
-│   │                     CSV and text import and export, merging an import
+│   │                     aliases replaced in a transcript (Replace), CSV and text import and
+│   │                     export, merging an import
 │   ├── eval/             the models' quality evaluation: the eval set (testdata/eval: synthesised
 │   │                     dictations, their words, the expected clean-up, checks), error rates,
 │   │                     dictionary terms found, clean-up checks (docs/eval.md)
@@ -181,14 +183,18 @@ hotkey.event (helper) ─▶ helperNotified ─▶ hotkeyFired ─▶ hotkey.Rou
          (internal/dsp: high-pass 80 Hz, then the level: one gain for an upload, a slow one after a stream's gate; a limiter)
          (internal/vad: a stream gets nothing before the speech, an upload no silence around it; no speech: nothing is sent)
          (the recording kept in the history is the original)
-   compose.Build (+ the Scene layer, the glossary) ─▶ one chat (8 s) ─▶ compose.Clean      (fails: the text as recognised, a warning)
+   dict.Replace: the dictionary's aliases ─▶ their terms (the history keeps the text as recognised)
+   compose.BuildParts (+ the Scene layer, the glossary): one request, or one per piece of speech over 400 characters
+      ─▶ a chat per part (8 s each), streaming into the draft ─▶ compose.Clean, compose.JoinParts
+         (a part fails: its text as recognised, a warning)
    deliver.Insert: textio.focus ─▶ textio.paste {targetPid, press: the group's auto key}   (or the answer card)
 Translate: textio.selection {allowCopy: session.AllowCopy(app)} first ─ text ─▶ compose (no recording)
            ─ none ─▶ record and recognise as above ─▶ compose
 Rewrite:   textio.selection while recording; the instruction (+ the selection) ─▶ compose
    deliver.Check ─ would not insert ─▶ the answer streams into the card
    one streaming chat (60 s; Rewrite without a selection: JSON {title, content}) ─▶ Draft
-   Translate: compose.Untranslated? ─▶ once more with the Strict layer
+      (long spoken Translate: one per piece, as Transcribe; a piece that fails fails the session)
+   Translate: compose.Untranslated? (per piece) ─▶ that piece once more with the Strict layer
    fails ─▶ failed, in the card with Try again (retryAnswer: StartRequest.Text)
    history entry (+ audio/<id>.wav) ─▶ the end snapshot
 snapshots ─▶ a.post ─▶ sessionChanged ─▶ (events.go, in order) the setup guide, the start and stop sounds;

@@ -49,7 +49,7 @@ func TestWrite(t *testing.T) {
 				req := model.requests()[0]
 				sys, user := req.Messages[0].Content, req.Messages[len(req.Messages)-1].Content
 				if req.Skill != llm.SkillTranslateText || req.OnDelta == nil || !strings.Contains(sys, "Basic cleanup") || len(req.Messages) != 4 ||
-					!strings.Contains(sys, "into Simplified Chinese") || user != "<input>\nhello aura link\n</input>" {
+					!strings.Contains(sys, "into Simplified Chinese") || user != "<input>\nhello VoxtNew\n</input>" {
 					t.Errorf("request %+v", req)
 				}
 				if p := sel.params(); len(p) != 1 || !p[0].AllowCopy {
@@ -173,7 +173,7 @@ func TestWrite(t *testing.T) {
 			check: func(t *testing.T, h *harness, end Snapshot, model *fakeLLM, sel *fakeSelector) {
 				req := model.requests()[0]
 				if req.Skill != llm.SkillRewrite || req.Format != llm.FormatText ||
-					req.Messages[1].Content != "<instruction>\nhello aura link\n</instruction>\n\n<selected_text>\nhey team, ship friday?\n</selected_text>" ||
+					req.Messages[1].Content != "<instruction>\nhello VoxtNew\n</instruction>\n\n<selected_text>\nhey team, ship friday?\n</selected_text>" ||
 					!strings.Contains(req.Messages[0].Content, "Reading the instruction") {
 					t.Errorf("request %+v", req)
 				}
@@ -256,7 +256,7 @@ func TestWrite(t *testing.T) {
 			speak: true, states: "recording recognizing composing done", state: Done, result: "Team: Friday.", card: deliver.ReasonCard,
 			check: func(t *testing.T, h *harness, end Snapshot, model *fakeLLM, sel *fakeSelector) {
 				msgs := model.requests()[0].Messages
-				if len(msgs) != 4 || !strings.Contains(msgs[1].Content, "<selected_text>\nship friday") || msgs[3].Content != "<instruction>\nhello aura link\n</instruction>" {
+				if len(msgs) != 4 || !strings.Contains(msgs[1].Content, "<selected_text>\nship friday") || msgs[3].Content != "<instruction>\nhello VoxtNew\n</instruction>" {
 					t.Errorf("messages %+v", msgs)
 				}
 			},

@@ -75,7 +75,7 @@ func TestTrimmedUpload(t *testing.T) {
 		id := h.start()
 		h.speak(id, speechFrames)
 		end := h.rec.wait(t)
-		if end.State != Done || end.Result != "hello aura link" || !end.Inserted {
+		if end.State != Done || end.Result != "hello VoxtNew" || !end.Inserted {
 			t.Fatalf("off %v: end %+v", off, end)
 		}
 		got := pcmDuration(file.bytes)
@@ -108,7 +108,7 @@ func TestStreamHeldUntilSpeech(t *testing.T) {
 	id := h.start()
 	h.speak(id, speechFrames)
 	end := h.rec.wait(t)
-	if end.State != Done || end.Result != "hello aura link" {
+	if end.State != Done || end.Result != "hello VoxtNew" {
 		t.Fatalf("end %+v", end)
 	}
 	s := st.streams[0]

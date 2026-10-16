@@ -294,37 +294,6 @@ func (r *run) listen() (string, bool) {
 	return raw, true
 }
 
-// transcribe cleans up raw with one language-model request (unless the
-// feature has it off or no model is ready), and delivers it; the raw
-// text goes on when the model fails.
-func (r *run) transcribe(raw string) {
-	result := raw
-	var problem *Problem
-	if f := r.settings.Features.Transcribe; f.Enhance && r.svc.LLM != nil {
-		r.m.update(r, func(s *Snapshot) { s.State = Composing })
-		llmStart := r.now()
-		text, profile, err := r.compose(raw)
-		llmTime := r.now().Sub(llmStart)
-		if r.cancelled.Load() {
-			r.endCancelled(nil)
-			return
-		}
-		r.m.update(r, func(s *Snapshot) { s.Profile, s.Timings.LLM = profile, llmTime })
-		if err != nil {
-			r.logf("warning", "language model %s (model %s) failed after %v, the text goes on as recognised: %v", r.svc.LLMInfo.ID, r.svc.LLMInfo.Model, llmTime.Round(time.Millisecond), err)
-			problem = &Problem{Code: ProblemLLM, Err: err, Degraded: true}
-		} else {
-			r.logf("info", "composed %s in %v", r.logText(text), llmTime.Round(time.Millisecond))
-			result = text
-			if result == "" {
-				r.finish(Done, &Problem{Code: ProblemNoSpeech}, "", finishOpts{})
-				return
-			}
-		}
-	}
-	r.finish(Done, problem, result, finishOpts{})
-}
-
 // isCancelled reports whether a capture error is the end of a job that
 // Stop discarded (cancelled after Config.StopGrace).
 func isCancelled(err error, stopped bool) bool {
@@ -360,10 +329,7 @@ func (r *run) warmLLM() {
 	if err != nil {
 		return
 	}
-	req := llm.Request{Skill: skill}
-	for _, m := range out.Messages() {
-		req.Messages = append(req.Messages, llm.Message{Role: llm.Role(m.Role), Content: m.Content})
-	}
+	req := llm.Request{Skill: skill, Messages: llmMessages(out)}
 	go func() {
 		start := r.now()
 		if err := p.Prefill(r.ctx, req); err != nil && r.ctx.Err() == nil {
@@ -383,28 +349,6 @@ func (r *run) transcribeInput(raw string) compose.Input {
 		Glossary: r.glossary(),
 		Scene:    r.composeScene(),
 	}
-}
-
-// compose runs the language model over raw.
-func (r *run) compose(raw string) (string, string, error) {
-	out, err := compose.Build(r.transcribeInput(raw))
-	if err != nil {
-		return "", "", err
-	}
-	ctx, cancel := context.WithTimeout(r.ctx, r.m.cfg.LLMTimeout)
-	defer cancel()
-	var msgs []llm.Message
-	for _, m := range out.Messages() {
-		msgs = append(msgs, llm.Message{Role: llm.Role(m.Role), Content: m.Content})
-	}
-	resp, err := r.svc.LLM.Chat(ctx, llm.Request{Messages: msgs, Skill: llm.SkillTranscribeEnhance, Timeout: r.m.cfg.LLMTimeout})
-	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			err = fmt.Errorf("no answer within %v: %w", r.m.cfg.LLMTimeout, err)
-		}
-		return "", out.Profile(), err
-	}
-	return compose.Clean(resp.Text, raw), out.Profile(), nil
 }
 
 // glossary is the dictionary's enabled terms for the prompt, when the

@@ -205,7 +205,7 @@ func (a *app) dictSwitches(c *ui.Context) {
 		}
 		gl := &a.prefs.Dictionary.Glossary
 		if ui.Checkbox(c.Key("dict-glossary"), gl, i18n.T("Glossary for the language model")).Disabled(off).
-			Tooltip(i18n.T("Clean-up writes the terms as spelled here, also when recognition heard an alias. A dictionary of up to 30 terms goes in whole; a larger one only with the terms found in what you said.")).Changed() {
+			Tooltip(i18n.T("Clean-up writes the terms as spelled here, also when recognition heard them a little differently. A dictionary of up to 30 terms goes in whole; a larger one only with the terms found in what you said.")).Changed() {
 			v := *gl
 			a.updateSettings(func(s *settings.Settings) { s.Dictionary.Glossary = v })
 		}
@@ -304,7 +304,7 @@ func (a *app) termDialog(c *ui.Context) {
 				a.submitTerm()
 			}
 		})
-		fieldInfo(c, i18n.T("Aliases"), i18n.T("What speech recognition tends to hear instead, separated by commas: Vox Tunew, 沃克斯牛. The glossary tells the model to write the term for them."), func() {
+		fieldInfo(c, i18n.T("Aliases"), i18n.T("What speech recognition writes instead, separated by commas: Vox Tunew, 沃克斯牛. VoxtNew puts the term in their place, also without a language model."), func() {
 			ui.TextInput(c.Key("term-aliases"), &e.aliases).Label(i18n.T("Aliases of the term")).Placeholder(i18n.T("aura link, aura-link"))
 		})
 		fieldInfo(c, i18n.T("Note"), i18n.T("For you only: it is sent nowhere."), func() {

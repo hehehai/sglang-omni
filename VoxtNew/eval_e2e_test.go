@@ -104,7 +104,9 @@ func TestEvalAppEnhancement(t *testing.T) {
 // TestEvalDictionary: "VoxtNew" in the dictionary makes the speech model
 // write it (its context bias; without the dictionary it hears "Vox
 // Tunew"), and, kept from the speech model (Settings: no hints), the
-// language model writes it from what was heard (the glossary).
+// language model writes it from what was heard (the glossary). An alias
+// needs no model: "Or Link", as the speech model hears Auralink, becomes
+// the term with the clean-up off, while the history keeps what was heard.
 func TestEvalDictionary(t *testing.T) {
 	e := evalSetup(t)
 	terms := []store.Term{{ID: "t1", Term: "VoxtNew", Enabled: true}, {ID: "t2", Term: "MLX", Enabled: true}}
@@ -119,5 +121,12 @@ func TestEvalDictionary(t *testing.T) {
 	}
 	if strings.Contains(none.Raw, "VoxtNew") || strings.Contains(none.Result, "VoxtNew") || strings.Contains(none.Profile, "glossary") {
 		t.Errorf("without the dictionary: profile %s, %q (heard %q)", none.Profile, none.Result, none.Raw)
+	}
+	aliases := []store.Term{{ID: "t3", Term: "Auralink", Aliases: []string{"Or Link"}, Enabled: true}}
+	plain := evalSession(t, e, "dict-5", "com.apple.TextEdit", aliases, func(s *settings.Settings) {
+		s.Dictionary.ASRHints, s.Features.Transcribe.Enhance = false, false
+	}, nil)
+	if !strings.Contains(plain.Raw, "Or Link") || !strings.Contains(plain.Result, "Auralink") || strings.Contains(plain.Result, "Or Link") || plain.Timings.LLM != 0 {
+		t.Errorf("the alias without a language model: %q (heard %q, LLM %v)", plain.Result, plain.Raw, plain.Timings.LLM)
 	}
 }
