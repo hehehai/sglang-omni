@@ -551,6 +551,15 @@ type macSession struct {
 	text  *macText
 	ended chan session.Snapshot
 	seen  chan session.Snapshot
+	mu    sync.Mutex
+	logs  []string // the session's log lines
+}
+
+// logged reports whether a session's log line contains sub.
+func (ms *macSession) logged(sub string) bool {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	return slices.ContainsFunc(ms.logs, func(l string) bool { return strings.Contains(l, sub) })
 }
 
 func newMacSession(t *testing.T, h helper.Supervisor, target proto.App, svc local.Services, set func(*settings.Settings)) *macSession {
@@ -584,7 +593,12 @@ func newMacSession(t *testing.T, h helper.Supervisor, target proto.App, svc loca
 				ms.ended <- sn
 			}
 		},
-		Log:        func(level, msg string) { t.Log("session", level, msg) },
+		Log: func(level, msg string) {
+			t.Log("session", level, msg)
+			ms.mu.Lock()
+			ms.logs = append(ms.logs, level+" "+msg)
+			ms.mu.Unlock()
+		},
 		LLMTimeout: 20 * time.Second,
 		NewID:      func() string { return core.NewID(time.Now()) },
 	})
