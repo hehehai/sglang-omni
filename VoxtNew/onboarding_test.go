@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -197,8 +198,10 @@ func onboardingShots(a *app, tt *ui.Tester, save func(string)) {
 	for step, name := range names {
 		a.ob.step = step
 		switch step {
-		case obModels:
+		case obModels: // a speech model installed, the language model downloading
 			a.local = &fakeLocal{ASRP: &fakeTranscriptions{}}
+			m, _ := models.Lookup(models.LLMBalanced)
+			a.modelStatus[models.LLMBalanced] = models.Status{Downloading: true, Done: m.Size() / 4, Total: m.Size()}
 		case obTranscribe:
 			readyModels(a)
 			a.ob.tries[step] = "ob-try"

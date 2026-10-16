@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,20 +40,24 @@ const fetchAttempts = 4
 // retryDelay is the wait before the next attempt (a variable: tests).
 var retryDelay = func(attempt int) time.Duration { return time.Duration(attempt) * time.Second }
 
-// fetcher downloads files from a Hub endpoint, a bounded number at once.
+// fetcher downloads files from a Hub, a bounded number at once. When the
+// network fails it moves on to its next endpoint (a mirror: every file's
+// SHA-256 is pinned, so where it comes from does not matter), and stays
+// there.
 type fetcher struct {
-	client   *http.Client
-	endpoint string
-	slots    chan struct{}
+	client    *http.Client
+	endpoints []string
+	current   atomic.Int32
+	slots     chan struct{}
 }
 
-// fileURL is where f of m is, at m's revision.
-func (d *fetcher) fileURL(m Model, f File) string {
+// fileURL is where f of m is, at m's revision, on endpoint.
+func fileURL(endpoint string, m Model, f File) string {
 	parts := strings.Split(f.Path, "/")
 	for i, p := range parts {
 		parts[i] = url.PathEscape(p)
 	}
-	return strings.TrimRight(d.endpoint, "/") + "/" + m.Repo + "/resolve/" + m.Revision + "/" + strings.Join(parts, "/")
+	return strings.TrimRight(endpoint, "/") + "/" + m.Repo + "/resolve/" + m.Revision + "/" + strings.Join(parts, "/")
 }
 
 // fetch puts f of m at dst, verified; progress gets the bytes of f there
@@ -69,9 +74,15 @@ func (d *fetcher) fetch(ctx context.Context, m Model, f File, dst string, progre
 	}
 	var err error
 	for attempt := 1; attempt <= fetchAttempts; attempt++ {
-		err = d.fetchOnce(ctx, m, f, dst, progress)
+		at := d.current.Load()
+		err = d.fetchOnce(ctx, d.endpoints[at], m, f, dst, progress)
 		if err == nil || !retryable(err) || ctx.Err() != nil {
 			break
+		}
+		var he *HTTPError
+		if !errors.As(err, &he) && int(at)+1 < len(d.endpoints) {
+			d.current.CompareAndSwap(at, at+1) // unreachable: the next endpoint
+			continue
 		}
 		select {
 		case <-time.After(retryDelay(attempt)):
@@ -99,7 +110,7 @@ func retryable(err error) bool {
 	return !errors.As(err, &pe) // a file of ours failing is not the network's
 }
 
-func (d *fetcher) fetchOnce(ctx context.Context, m Model, f File, dst string, progress func(int64)) error {
+func (d *fetcher) fetchOnce(ctx context.Context, endpoint string, m Model, f File, dst string, progress func(int64)) error {
 	part := dst + ".part"
 	file, err := os.OpenFile(part, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
@@ -123,7 +134,7 @@ func (d *fetcher) fetchOnce(ctx context.Context, m Model, f File, dst string, pr
 	}
 	progress(have)
 	if have < f.Size {
-		have, err = d.download(ctx, m, f, file, have, digest, progress)
+		have, err = d.download(ctx, fileURL(endpoint, m, f), f, file, have, digest, progress)
 		if err != nil {
 			return err
 		}
@@ -144,10 +155,9 @@ func (d *fetcher) fetchOnce(ctx context.Context, m Model, f File, dst string, pr
 	return os.Rename(part, dst)
 }
 
-// download appends the rest of f to file (at have bytes, hashed in digest),
-// and says how many bytes file then has.
-func (d *fetcher) download(ctx context.Context, m Model, f File, file *os.File, have int64, digest hash.Hash, progress func(int64)) (int64, error) {
-	u := d.fileURL(m, f)
+// download appends the rest of f, from u, to file (at have bytes, hashed
+// in digest), and says how many bytes file then has.
+func (d *fetcher) download(ctx context.Context, u string, f File, file *os.File, have int64, digest hash.Hash, progress func(int64)) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return have, err

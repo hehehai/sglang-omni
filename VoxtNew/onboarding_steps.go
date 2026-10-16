@@ -49,21 +49,22 @@ func (a *app) obModelsStep(c *ui.Context) {
 	var size int64
 	busy := false
 	for _, kind := range []local.Kind{local.ASR, local.LLM} {
+		if list := a.installed(kind); len(list) > 0 {
+			a.obModelRow(c, kind, list[0].Name, models.Model{}, models.Status{Installed: true})
+			continue
+		}
 		id := models.ASRAccurate
 		if kind == local.LLM {
 			id = models.LLMBalanced
 		}
-		if list := a.installed(kind); len(list) > 0 {
-			id = list[0].ID
-		}
 		m, _ := models.Lookup(id)
 		st := a.modelStatus[id]
-		if !st.Installed && !st.Downloading {
+		if !st.Downloading {
 			want = append(want, id)
 			size += m.Size() - st.Done
 		}
 		busy = busy || st.Downloading
-		a.obModelRow(c, kind, m, st)
+		a.obModelRow(c, kind, uitext.ModelName(id), m, st)
 	}
 	if len(want) > 0 {
 		label := i18n.T("Download (%s)", uitext.HumanBytes(size))
@@ -83,8 +84,9 @@ func (a *app) obModelsStep(c *ui.Context) {
 	}
 }
 
-// obModelRow is the guide's line of a model: what it is, its state.
-func (a *app) obModelRow(c *ui.Context, kind local.Kind, m models.Model, st models.Status) {
+// obModelRow is the guide's line of a kind's model: the one installed
+// (st.Installed), or the one recommended, its size and download.
+func (a *app) obModelRow(c *ui.Context, kind local.Kind, name string, m models.Model, st models.Status) {
 	t := c.Theme()
 	k := tok(t)
 	title := i18n.T("Speech recognition")
@@ -96,9 +98,9 @@ func (a *app) obModelRow(c *ui.Context, kind local.Kind, m models.Model, st mode
 			sectionTitleText(c, title)
 			switch {
 			case st.Installed:
-				statusMark(c, icons.CheckCircle, k.Success, i18n.T("Ready: %s", uitext.ModelName(m.ID)))
+				statusMark(c, icons.CheckCircle, k.Success, i18n.T("Ready: %s", name))
 			default:
-				ui.Text(c, uitext.ModelName(m.ID)).FontWeight(600)
+				ui.Text(c, name).FontWeight(600)
 				tagChip(c, uitext.HumanBytes(m.Size()))
 			}
 		})
@@ -111,7 +113,7 @@ func (a *app) obModelRow(c *ui.Context, kind local.Kind, m models.Model, st mode
 			if st.Total > 0 {
 				frac = float64(st.Done) / float64(st.Total)
 			}
-			ui.Progress(c, frac).Label(i18n.T("Downloading %s", uitext.ModelName(m.ID)))
+			ui.Progress(c, frac).Label(i18n.T("Downloading %s", name))
 		}
 		if st.Err != nil && !st.Downloading {
 			msg, more := uitext.DownloadErrorText(st.Err)

@@ -279,7 +279,7 @@ func (a *app) modelActions(c *ui.Context, m models.Model, st models.Status) {
 		if st.Done > 0 {
 			label = i18n.T("Resume")
 		}
-		if secondaryIconButton(c.Key("download"), icons.DownloadMinimalistic, label).Label(i18n.T("Download %s", name)).Clicked() {
+		if st.Err == nil && secondaryIconButton(c.Key("download"), icons.DownloadMinimalistic, label).Label(i18n.T("Download %s", name)).Clicked() { // a failure: the notice's Try again
 			a.downloadModel(m.ID)
 		}
 	}

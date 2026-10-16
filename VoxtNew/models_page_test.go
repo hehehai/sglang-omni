@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/egoist/mygo/ui"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models/modelstest"
@@ -159,4 +161,26 @@ func TestModelDownloadStates(t *testing.T) {
 	if st := a.modelStatus[models.LLMFast]; st.Done != 0 || has(tt, "Resume") {
 		t.Errorf("kept: %+v", st)
 	}
+}
+
+// modelShots saves the Local models page with a model of each state
+// (TestSnapshots): installed, downloading, stopped, failed, and Settings →
+// Storage with the models' size.
+func modelShots(t *testing.T, a *app, tt *ui.Tester, save func(string)) {
+	seedModels(t, a, models.ASRAccurate, models.VADSilero, models.LLMTranslate)
+	fast, _ := models.Lookup(models.ASRFast)
+	balanced, _ := models.Lookup(models.LLMBalanced)
+	a.modelStatus[models.ASRFast] = models.Status{Done: fast.Size() / 3, Total: fast.Size()}
+	a.modelStatus[models.LLMBalanced] = models.Status{Downloading: true, Done: balanced.Size() * 2 / 5, Total: balanced.Size()}
+	a.modelStatus[models.LLMFast] = models.Status{Total: 1, Err: &models.NoSpaceError{Need: 2_261_000_000, Free: 1_200_000_000}}
+	a.navigate(modelsPath)
+	save("models-states")
+	scrollToText(tt, i18n.T("Language models"))
+	save("models-states-language")
+	a.stReport = nil // measured again
+	a.navigate("/settings/storage")
+	frames(tt)
+	pinStorage(a)
+	save("settings-storage-models")
+	a.settingsOpen = false
 }

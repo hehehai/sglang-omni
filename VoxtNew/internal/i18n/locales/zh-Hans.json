@@ -22,7 +22,7 @@
   "%d websites": "%d 个网站",
   "%s (%s)": "%s（%s）",
   "%s (once Accessibility is allowed)": "%s（允许辅助功能后可用）",
-  "%s download": "下载 %s",
+  "%s download": "需下载 %s",
   "%s has no shortcut: use Start, and add one on its page.": "%s 没有快捷键：先点“开始”，再到它的页面添加一个。",
   "%s has the same keys and trigger: only one of them works.": "%s 用了相同的按键和触发方式：两者只有一个会生效。",
   "%s is installed.": "%s 已安装。",

@@ -484,3 +484,25 @@ func TestAdoptHFCache(t *testing.T) {
 		t.Errorf("the cache lost its file: %v", err)
 	}
 }
+
+// TestMirrorFallback: a Hub that cannot be reached gives way to the next
+// endpoint, for every file after.
+func TestMirrorFallback(t *testing.T) {
+	h, srv, contents := testSetup(t)
+	saved := DefaultEndpoints
+	DefaultEndpoints = []string{"http://127.0.0.1:1", srv.URL}
+	t.Cleanup(func() { DefaultEndpoints = saved })
+	root := t.TempDir()
+	m := Open(root, Options{Parallel: 1})
+	m.Download("asr")
+	if s := wait(t, m, "asr"); !s.Installed {
+		t.Fatalf("%+v", s)
+	}
+	checkInstalled(t, root, "asr", contents["asr"])
+	if n := len(h.log()); n != 5 {
+		t.Errorf("%d requests to the mirror", n)
+	}
+	if m.fetch.current.Load() != 1 {
+		t.Error("not on the mirror")
+	}
+}

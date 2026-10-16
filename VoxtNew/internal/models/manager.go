@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -25,12 +26,16 @@ func (e *NoSpaceError) Error() string {
 	return fmt.Sprintf("models: not enough disk space: %d bytes needed, %d free", e.Need, e.Free)
 }
 
+// DefaultEndpoints are the Hub, then its mirror, for networks that do not
+// reach the Hub.
+var DefaultEndpoints = []string{"https://huggingface.co", "https://hf-mirror.com"}
+
 // spareBytes is the room a download leaves free on the disk.
 const spareBytes = 512 << 20
 
 // Options configure a Manager; the zero value downloads from the Hub.
 type Options struct {
-	// Endpoint is the Hub's address (default https://huggingface.co).
+	// Endpoint is the Hub's address (default: DefaultEndpoints, in turn).
 	Endpoint string
 	// HFCache is a Hugging Face hub cache to adopt verified files from,
 	// before downloading ("": none).
@@ -85,21 +90,27 @@ type job struct {
 // Open reads which models are installed under root (a little I/O: call
 // it while the app starts, not while a view builds).
 func Open(root string, opt Options) *Manager {
-	if opt.Endpoint == "" {
-		opt.Endpoint = "https://huggingface.co"
+	endpoints := DefaultEndpoints
+	if opt.Endpoint != "" {
+		endpoints = []string{opt.Endpoint}
 	}
 	if opt.Parallel <= 0 {
 		opt.Parallel = 3
 	}
 	if opt.Client == nil {
-		opt.Client = &http.Client{Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, ResponseHeaderTimeout: 30 * time.Second}}
+		opt.Client = &http.Client{Transport: &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			DialContext:           (&net.Dialer{Timeout: 10 * time.Second}).DialContext,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
+		}}
 	}
 	if opt.DiskFree == nil {
 		opt.DiskFree = diskFree
 	}
 	m := &Manager{root: root, opt: opt, installed: map[string]bool{}, partial: map[string]int64{},
 		errs: map[string]error{}, jobs: map[string]*job{}, claimed: map[string]bool{},
-		fetch: &fetcher{client: opt.Client, endpoint: opt.Endpoint, slots: make(chan struct{}, opt.Parallel)}}
+		fetch: &fetcher{client: opt.Client, endpoints: endpoints, slots: make(chan struct{}, opt.Parallel)}}
 	for _, mod := range catalog {
 		m.installed[mod.ID] = isInstalled(root, mod)
 		if !m.installed[mod.ID] {
