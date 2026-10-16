@@ -276,6 +276,7 @@ type fakeFile struct {
 	calls int
 	bytes int
 	audio []byte // the last upload
+	lang  string // the last upload's language hint
 }
 
 func (f *fakeFile) Caps() asr.Caps { return asr.Caps{File: true, Prompt: true} }
@@ -285,6 +286,7 @@ func (f *fakeFile) Transcribe(ctx context.Context, req asr.FileRequest) (asr.Res
 	f.calls++
 	f.bytes = len(req.Audio)
 	f.audio = req.Audio
+	f.lang = req.Lang
 	f.mu.Unlock()
 	if f.hang {
 		<-ctx.Done()

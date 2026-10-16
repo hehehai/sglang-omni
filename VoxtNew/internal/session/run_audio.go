@@ -27,6 +27,14 @@ func (r *run) hints() []string {
 	return dict.Hints(r.terms)
 }
 
+// speechLang is the language hint of the speech service: the user's
+// main language (General.MainLanguage, else the UI's). The model decides
+// whether to use it (internal/omni: Qwen3-ASR takes it when it knows the
+// language, as Voxt).
+func (r *run) speechLang() string {
+	return MainLanguage(r.settings, r.m.cfg.Locale())
+}
+
 // onAudio handles the recording's events (on the helper's reader
 // goroutine: it must not block).
 func (r *run) onAudio(ev AudioEvent) {
@@ -60,9 +68,12 @@ func (r *run) feed(st asr.Stream) chan streamEnd {
 	// counts, the other must not block.
 	end := make(chan streamEnd, 2)
 	sendErr := make(chan error, 1)
-	gate := r.gate()
 	hp, lev := r.streamDSP()
 	go func() {
+		// The gate opens the model's detector, which may take a moment:
+		// here, not on the session's loop (the recording waits meanwhile).
+		gate, closeGate := r.gate()
+		defer closeGate()
 		off, sent := 0, 0
 		for {
 			chunk, closed, err := r.pcm.next(r.ctx, off)
@@ -109,6 +120,7 @@ func (r *run) feed(st asr.Stream) chan streamEnd {
 					r.noteDSP(rep)
 				}
 				if gate != nil {
+					r.noteGate(gate)
 					if !gate.Open() {
 						end <- streamEnd{silent: true}
 						return
@@ -195,9 +207,11 @@ func (r *run) dspParams() (dsp.Params, bool) {
 // (internal/dsp: the high-pass filter, one gain from the speech, the
 // limiter) and without its leading and trailing silence, long pauses
 // shortened (internal/vad), each when the settings have it on; false when
-// the detection finds no speech at all (nothing is sent). The detection
-// runs on the filtered recording and on the original, and keeps the
-// speech either finds. pcm itself is not changed: the history keeps it.
+// the detection finds no speech at all (nothing is sent). The voice
+// activity model finds the speech when there is one (vad_model.go); else
+// the energy detection runs on the filtered recording and on the
+// original, and keeps the speech either finds. pcm itself is not changed:
+// the history keeps it.
 func (r *run) prepare(pcm []byte) ([]byte, bool) {
 	p, vadOn := r.vadParams()
 	dp, dspOn := r.dspParams()
@@ -213,6 +227,9 @@ func (r *run) prepare(pcm []byte) ([]byte, bool) {
 	}
 	if !vadOn {
 		return upload, true
+	}
+	if m, ok := r.modelAnalysis(pcm, an); ok {
+		an = m
 	}
 	if !an.Speech {
 		r.logf("info", "voice activity: no speech (noise floor %.0f dBFS, loudest %.0f dBFS)", an.FloorDB, an.PeakDB)
@@ -273,14 +290,4 @@ func (r *run) streamDSP() (*dsp.HighPass, *dsp.Leveler) {
 // pcmDuration is how long n bytes of the recording's PCM play.
 func pcmDuration(n int) time.Duration {
 	return time.Duration(n/2) * time.Second / asr.SampleRate
-}
-
-// gate is the gate a streaming service's audio goes through (the
-// leading silence held back), nil when the detection is off.
-func (r *run) gate() *vad.Gate {
-	p, ok := r.vadParams()
-	if !ok {
-		return nil
-	}
-	return vad.NewGate(asr.SampleRate, p)
 }

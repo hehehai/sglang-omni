@@ -12,7 +12,11 @@
 // build; ASR and LLM may block (they may start a runtime and load a
 // model): call them off the main thread.
 //
-// Imports: asr, llm, models.
+// A speech model's provider may also implement VoiceActivity: the voice
+// activity model (Silero VAD, installed with the speech models) sessions
+// use to find speech, where the energy detector would.
+//
+// Imports: asr, llm, models, vad.
 package local
 
 import (
@@ -24,6 +28,7 @@ import (
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // Kind is a kind of model: speech recognition or a language model.
@@ -81,6 +86,14 @@ type Services interface {
 	ASR(ctx context.Context, id string) (asr.Provider, Model, error)
 	// LLM opens language model id ("": the first installed), as ASR.
 	LLM(ctx context.Context, id string) (Chat, Model, error)
+}
+
+// VoiceActivity is what a speech model's asr.Provider implements when it
+// comes with a voice activity model (M1: Silero VAD on the Omni runtime,
+// beside Qwen3-ASR). VAD is nil when that model is not installed; a
+// session then finds speech by energy (internal/vad).
+type VoiceActivity interface {
+	VAD() vad.Model
 }
 
 // ErrNotInstalled: the model asked for (or any model of its kind) is not

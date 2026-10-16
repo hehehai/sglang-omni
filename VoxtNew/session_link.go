@@ -165,6 +165,10 @@ func resolver(lm local.Services) session.Resolver {
 		case !errors.Is(err, local.ErrNotInstalled):
 			return svc, err
 		}
+		if va, ok := svc.ASR.(local.VoiceActivity); ok {
+			// No model: speech is found by energy.
+			svc.VAD = va.VAD()
+		}
 		if kind == store.KindTranscribe && !s.Features.Transcribe.Enhance {
 			return svc, nil
 		}

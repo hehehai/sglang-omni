@@ -48,6 +48,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
 // Kind is the feature of a session.
@@ -247,6 +248,10 @@ type Services struct {
 	// LLM is nil when the feature has no language model ready.
 	LLM     LLM
 	LLMInfo Model
+	// VAD is the voice activity model (Silero) that finds the speech in
+	// the recording; nil: the energy detector of internal/vad does, as it
+	// does when the model fails (vad_model.go).
+	VAD vad.Model
 }
 
 // Resolver builds the services a session of kind uses with settings s,
