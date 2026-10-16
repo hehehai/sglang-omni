@@ -62,8 +62,9 @@ public struct PromptCache<Snapshot> {
     /// other prompts share (0: none). The entry it reuses becomes the most
     /// recently used.
     public mutating func plan(tokens: [Int], sharedPrefix: Int) -> Plan {
+        let grid = gridTokens
         let usable = { (e: Entry) in
-            e.tokens.count < tokens.count && (e.tokens.count == sharedPrefix || e.tokens.count % gridTokens == 0)
+            e.tokens.count < tokens.count && (e.tokens.count == sharedPrefix || e.tokens.count % grid == 0)
                 && tokens.starts(with: e.tokens)
         }
         var best: Int?

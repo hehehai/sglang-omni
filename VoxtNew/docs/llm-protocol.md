@@ -73,17 +73,19 @@ Errors are `{"code": "…", "message": "…", "data"?: {…}}`:
 - `timings`: `loadMs` when the chat loaded its model, `promptMs` the prompt's evaluation, `firstTokenMs` from the request to the first piece of text, `totalMs` the whole chat, `tokensPerSecond` the generation's rate after the first token, `cache` the prompt cache's use (below; MLX models only).
 - `maxTokens` 0 is a **prefill**: the process evaluates the prompt's shared prefix into its prompt cache and answers `text` "", `finish` `length`, no deltas. The last message's text does not matter (a GGUF model does nothing).
 
+Policy is Go's: which model, its sampling, its token budget, its prompt shape (a translation model's own prompt, internal/llmrt) and when to unload. The process keeps no settings.
+
 ### The prompt cache
 
-An MLX model keeps its caches (attention KV and Qwen3.5's linear-attention state) after the **shared prefix** of a prompt: the tokens before the last message's text, which for compose's prompts is the system prompt (250–500 tokens, the same for one feature, scene and language). A later chat whose prompt starts with all of a kept prefix's tokens evaluates only the rest, and its first token comes sooner. It is the process's own business: nothing in the requests changes, and the answers are the same (greedy: token for token).
+An MLX model keeps its caches (attention KV and Qwen3.5's linear-attention state) after the **shared prefix** of a prompt: the tokens before the last message's text, which for compose's prompts is the system prompt and the clean-up's example turn (≈ 520–580 tokens, the same for one feature, scene, language and dictionary). A later chat whose prompt starts with all of a kept prefix's tokens evaluates only the rest, and its first token comes sooner. It is the process's own business: nothing in the requests changes, and the answers are the same (greedy: token for token).
 
-- The shared prefix is found by rendering the chat template a second time with the last message's text replaced: where the two token lists part. A prefix under 64 tokens is not kept.
+- The shared prefix is found by rendering the chat template a second time with the last message's text replaced: where the two token lists part. With compose's prompts it is the system prompt and the example turn.
 - A snapshot is reused whole, never trimmed (linear-attention state cannot be rewound): it serves a prompt that has all of its tokens and at least one more.
-- At most 4 prefixes and 768 MB are kept, the least recently used dropped first; all go with the model (`model.unload`, another model's load, the process's exit).
-- `timings.cache` says what a chat did: `hit` when it started from a kept prefix; `prefixTokens` the tokens it reused (a hit) or evaluated and kept (a miss), 0 when it did neither (no shared prefix, or a short one). It is absent for a GGUF model, and when `VOXTNEW_LLM_PROMPT_CACHE=0` in the process's environment turns the cache off (tests compare answers with and without it).
-- A cold prompt is evaluated in two parts, its shared prefix (in chunks of 512 tokens, whatever `prefillStepSize` says) and the rest, whether the prefix is kept or not; the cache off splits it the same way. A greedy answer then does not depend on what the cache holds: a hit's evaluation is a cold one's, token for token. (A prompt evaluated in one piece, as before, can differ in its last bits, which flips near ties: 感谢 / 谢谢.)
-
-Policy is Go's: which model, its sampling, its token budget, its prompt shape (a translation model's own prompt, internal/llmrt) and when to unload. The process keeps no settings.
+- The shared prefix is evaluated in chunks ending at every multiple of 256 tokens and at its end, whatever `prefillStepSize` says and whatever the cache holds (the cache off too); snapshots are kept and reused only at those points. A prompt's evaluation is then the same chunks cold or from a snapshot, and a greedy answer does not depend on the cache, token for token. (A prompt evaluated in one piece, as before M2b, can differ in its last bits, which flips near ties: 感谢 / 谢谢.)
+- A prompt that parts from a kept one inside its shared prefix (a glossary that lists the text's terms first, a scene) also keeps a **branch point**: the last multiple of 256 before they part, which the next such prompt starts from. A point under 64 tokens is not kept.
+- At most 6 snapshots and 512 MB are kept, the least recently used dropped first; all go with the model (`model.unload`, another model's load, the process's exit).
+- `timings.cache` says what a chat did: `hit` when it started from a snapshot; `prefixTokens` the tokens it reused (a hit) or kept (a miss), 0 when it did neither (no shared prefix, or a short one). It is absent for a GGUF model, and when `VOXTNEW_LLM_PROMPT_CACHE=0` in the process's environment turns the cache off (tests compare answers with and without it).
+- Go warms it up: while the user speaks, a session sends its prompt with an empty text as a prefill (`maxTokens` 0, `llmrt.Backend.Prefill`), so that the chat after the recording is a hit ([llm-models.md](llm-models.md#prompt-cache-m2b)).
 
 ## 5. Fixtures
 
