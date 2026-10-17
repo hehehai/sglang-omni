@@ -11,6 +11,7 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 - **Sounds to choose** (Settings → Audio → Play sounds): Voxt's ten pairs of start and stop sounds (Soft, the default, then Ping, Morse, Submarine, Basso, Bottle, Frog, Hero, Purr and Sosumi), in a menu beside the switch with a Try button; choosing one plays it, and so does resting on one in the open menu.
 - **Mute system audio while recording** (Settings → Audio, on by default): the current output device is muted from just after the start sound until the recording stops, so that videos, music or calls are not recorded; a device you muted stays muted, one you unmute during the recording stays on, and a device that cannot be muted leaves the recording as it is (the overlay says so). No permission is needed. If VoxtNew or its helper stops while muting, the sound comes back at once, or at the next start.
 - **A notice when your Mac is short of memory**: when the language model was slow, or did not answer in time, while the Mac's swap was over 90% full, the overlay says "Low memory slows the model: quit unused apps." after the text went in. It shows at most once each time VoxtNew runs.
+- **History settings** (the button beside History's search field): keep the recordings (the same switch as Settings → Privacy), choose the folder they are kept in (the recordings already kept move there, each one copied and checked before the original is deleted; if the folder is on a drive that is not connected, new recordings go to the default folder until it is back), see how much room they take, export them (all, or those of the tab shown) into a folder you choose, named by their date and first words, or delete them all and keep the texts. **Automatic clean-up**, on as in Voxt: entries older than 3 months are deleted with their recordings; you can choose 1 week to 1 year, keep at most 50 to 1000 entries of each feature, or turn it off. A new setting that would delete entries now asks first, with their number.
 
 ### 中文
 
@@ -21,6 +22,7 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 - **可选的提示音**（设置 → 音频 → 播放提示音）：和 Voxt 一样的 10 组开始和结束提示音（默认“柔和”，另有 Ping、Morse、Submarine、Basso、Bottle、Frog、Hero、Purr、Sosumi），开关旁边有下拉菜单和试听按钮；选中一组会试听，在打开的菜单里停在某一项上片刻也会试听。
 - **录音时静音系统声音**（设置 → 音频，默认开启）：从开始提示音之后到停止录音为止，当前输出设备静音，免得视频、音乐、通话的声音被录进去；你自己静音的设备保持静音，录音中你取消静音后不会再被静音，不支持软件静音的设备照常录音（浮窗会提示）。不需要任何权限。VoxtNew 或辅助进程在静音期间意外退出时，声音会立即恢复，最迟在下次启动时恢复。
 - **内存不足时的提示**：Mac 的 swap 用了九成以上、语言模型因此变慢或没有及时响应时，文字插入之后浮窗提示“内存不足，模型变慢：可退出不用的应用。”。每次运行 VoxtNew 最多提示一次。
+- **历史设置**（历史页搜索框右边的按钮）：保存录音（和 设置 → 隐私 是同一个开关）；选择录音存放的文件夹（已有录音会一起移过去，每段先复制并校验再删原文件；文件夹在没接上的外接盘上时，新录音先存到默认文件夹，等它回来）；查看录音占用的空间；把录音（全部，或当前 tab 的）导出到你选的文件夹，以日期和开头几个词命名；或者全部删除、保留文字。**自动清理**，和 Voxt 一样默认开启：超过 3 个月的记录连同录音一起删除；可以选 1 周到 1 年，或每种功能最多保留 50 到 1000 条，也可以关掉。新设置会立即删掉已有记录时，先告诉你会删几条并请你确认。
 
 ## [0.1.0-beta.1] - 2026-10-17
 

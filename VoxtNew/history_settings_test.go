@@ -288,7 +288,9 @@ func TestHistoryExportAndDelete(t *testing.T) {
 func historySettingsShots(a *app, save func(string)) {
 	a.navigate("/history")
 	// The sample's recording (seedHistory), for the size.
-	os.WriteFile(filepath.Join(a.lib.store.History().AudioDir(), histInserted+".wav"), make([]byte, 236_844), 0o644)
+	wav := filepath.Join(a.lib.store.History().AudioDir(), histInserted+".wav")
+	os.WriteFile(wav, make([]byte, 236_844), 0o644)
+	defer os.Remove(wav) // Settings → Storage's snapshots measure none
 	a.openHistorySettingsDialog()
 	save("history-settings")
 	hs := &a.histSet

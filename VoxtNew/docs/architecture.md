@@ -104,6 +104,8 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   │                     i18n, no MyGo; the one internal package that imports i18n
 │   ├── datadir/          where the data folder is: location.json, a move or an erase finished at the
 │   │                     start (Resolve, before the library opens), copying and checking a tree
+│   ├── recordings/       the history's recordings as files (the History settings dialog): their size,
+│   │                     moving them to another folder (copy, check, switch, then delete), exporting them
 │   ├── dict/             the dictionary's rules: cleaning a term, hints for speech services,
 │   │                     aliases replaced in a transcript (Replace), CSV and text import and
 │   │                     export, merging an import
@@ -125,7 +127,7 @@ Arrows point to what a package may import. No cycles. Leaves import nothing inte
 
 ```
 main ──▶ every internal package
-store ──▶ core                 store/sqlitestore ──▶ core, store      datadir ──▶ store/sqlitestore    overlay/layout ──▶ session (Bars), settings (Overlay)    overlay/ink ──▶ overlay/layout
+store ──▶ core                 store/sqlitestore ──▶ core, store      datadir ──▶ store/sqlitestore    recordings ──▶ datadir, store    overlay/layout ──▶ session (Bars), settings (Overlay)    overlay/ink ──▶ overlay/layout
 uitext ──▶ i18n and the domain's types (appctx, asr, compose, core, deliver, dict, helper, helper/proto, hotkey, lang, llm, local, models, permission, session, settings, store)
 helper ──▶ core, helper/proto  helper/helpertest ──▶ helper/proto
 notify, logs ──▶ core
