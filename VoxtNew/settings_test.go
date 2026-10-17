@@ -59,14 +59,14 @@ func TestOverlayStyleSettings(t *testing.T) {
 func TestShortcutsSettings(t *testing.T) {
 	a, _, tt := newTestApp(t)
 	a.navigate("/settings/shortcuts")
-	for _, s := range []string{"Transcribe", "Translate", "Rewrite", "Paste the last result", "fn ⇧", "⌃⌘V"} {
+	for _, s := range []string{"Transcribe", "Translate", "Rewrite", "Paste the last result", "Right ⌥ ⇧", "⌃⌥V"} {
 		if !has(tt, s) {
 			t.Errorf("no %q: %q", s, firstTexts(tt))
 		}
 	}
 	// A conflict shows on both rows.
 	a.updateSettings(func(s *settings.Settings) {
-		s.Features.Translate.Hotkeys = []settings.Hotkey{{Keys: "Fn", Trigger: settings.TriggerTap}}
+		s.Features.Translate.Hotkeys = []settings.Hotkey{{Keys: "RightOption", Trigger: settings.TriggerTap}}
 	})
 	if !has(tt, "Transcribe has the same keys and trigger: only one of them works.") || !has(tt, "Translate has the same keys and trigger: only one of them works.") {
 		t.Errorf("conflict: %q", tt.Texts())
@@ -75,12 +75,12 @@ func TestShortcutsSettings(t *testing.T) {
 	if !has(tt, "None") {
 		t.Error("a feature without shortcut")
 	}
-	click(t, tt, "Paste the last result ⌃⌘V")
+	click(t, tt, "Paste the last result ⌃⌥V")
 	if a.settingsOpen || a.shownPath() != "/transcribe" {
 		t.Fatalf("row click: %v %s", a.settingsOpen, a.shownPath())
 	}
 	a.navigate("/settings/shortcuts")
-	click(t, tt, "Translate fn")
+	click(t, tt, "Translate Right ⌥")
 	if a.shownPath() != "/translate" {
 		t.Fatalf("Translate row: %s", a.shownPath())
 	}

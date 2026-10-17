@@ -6,16 +6,14 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/hehehai/actnowkit/shortcuts"
 )
 
 func TestDefaultsAreNormal(t *testing.T) {
 	d := Defaults()
 	if !reflect.DeepEqual(normalize(clone(d)), d) {
 		t.Fatalf("normalize changes the defaults:\n%+v\n%+v", normalize(d), d)
-	}
-	f := d.Features
-	if f.Transcribe.Hotkeys[0].Keys != "Fn" || f.Translate.Hotkeys[0].Keys != "Fn+Shift" || f.Rewrite.Hotkeys[0].Keys != "Fn+Control" || f.PasteLast.Keys != "Control+Command+V" {
-		t.Errorf("default shortcuts (plan D2): %+v", f)
 	}
 }
 
@@ -84,7 +82,7 @@ func TestStore(t *testing.T) {
 	// A copy: changing it changes nothing.
 	got.General.OtherLanguages[0] = "x"
 	got.Features.Translate.Hotkeys[0].Keys = "x"
-	if s.Get().General.OtherLanguages[0] != "en" || s.Get().Features.Translate.Hotkeys[0].Keys != "Fn+Shift" {
+	if s.Get().General.OtherLanguages[0] != "en" || s.Get().Features.Translate.Hotkeys[0].Keys != DefaultTranslate {
 		t.Error("Get returned shared state")
 	}
 	// No change: nothing published.
@@ -192,6 +190,76 @@ func TestCleanOnByDefault(t *testing.T) {
 	data, _ = json.Marshal(s)
 	if m, err := Migrate(data); err != nil || !m.Audio.Clean.Off {
 		t.Errorf("off lost: %s", data)
+	}
+}
+
+// TestDefaultShortcutsAreTheFamilys: the defaults are VoxtNew's row of
+// the ActNow family's table (actnowkit shortcuts.DefaultsOf, spec
+// §10.2), in its canonical spelling, so that no two family apps default
+// to the same keys (Auralink has fn).
+func TestDefaultShortcutsAreTheFamilys(t *testing.T) {
+	f := Defaults().Features
+	ours := map[string]Hotkey{
+		"transcribe": f.Transcribe.Hotkeys[0],
+		"translate":  f.Translate.Hotkeys[0],
+		"rewrite":    f.Rewrite.Hotkeys[0],
+		"pasteLast":  f.PasteLast,
+	}
+	family := shortcuts.DefaultsOf("voxtnew")
+	if len(family) != len(ours) || len(f.Transcribe.Hotkeys)+len(f.Translate.Hotkeys)+len(f.Rewrite.Hotkeys) != 3 {
+		t.Fatalf("family %+v, ours %+v", family, ours)
+	}
+	for _, sc := range family {
+		h, ok := ours[sc.ID]
+		if !ok {
+			t.Errorf("family shortcut %q has no setting", sc.ID)
+			continue
+		}
+		// A modifier-only chord is a tap; a key with modifiers fires on
+		// its press, which VoxtNew writes as a tap too.
+		want := shortcuts.Tap
+		if sc.ID == "pasteLast" {
+			want = shortcuts.Press
+		}
+		if h.Keys != sc.Keys || h.Trigger != TriggerTap || sc.Trigger != want || !sc.Enabled {
+			t.Errorf("%s: ours %+v, the family's %+v", sc.ID, h, sc)
+		}
+	}
+}
+
+// TestMigrateShortcuts: version 4 moves the old defaults (Auralink's)
+// to the family's, one by one, and keeps every shortcut the user chose.
+func TestMigrateShortcuts(t *testing.T) {
+	old := `{"version":3,"features":{
+		"transcribe":{"hotkeys":[{"keys":"Fn","trigger":"tap"}]},
+		"translate":{"hotkeys":[{"keys":"Fn+Shift"}]},
+		"rewrite":{"hotkeys":[{"keys":"Fn+Control","trigger":"tap"}]},
+		"pasteLast":{"keys":"Control+Command+V","trigger":"tap"}}}`
+	s, err := Migrate([]byte(old))
+	if err != nil || !reflect.DeepEqual(s.Features, Defaults().Features) || s.Version != Version {
+		t.Fatalf("old defaults: %+v %v", s.Features, err)
+	}
+	chosen := `{"version":3,"features":{
+		"transcribe":{"hotkeys":[{"keys":"Fn","trigger":"long"}]},
+		"translate":{"hotkeys":[{"keys":"Fn+Shift","trigger":"tap"},{"keys":"F5","trigger":"tap"}]},
+		"rewrite":{"hotkeys":[{"keys":"RightCommand","trigger":"tap"}]},
+		"pasteLast":{"keys":"Control+Command+V","trigger":"double"}}}`
+	s, err = Migrate([]byte(chosen))
+	f := s.Features
+	if err != nil || f.Transcribe.Hotkeys[0] != (Hotkey{"Fn", TriggerLong}) || len(f.Translate.Hotkeys) != 2 ||
+		f.Rewrite.Hotkeys[0].Keys != "RightCommand" || f.PasteLast != (Hotkey{"Control+Command+V", TriggerDouble}) {
+		t.Fatalf("chosen: %+v %v", f, err)
+	}
+	// Version 4 documents are the user's, even with fn.
+	s, err = Migrate([]byte(strings.Replace(old, `"version":3`, `"version":4`, 1)))
+	if err != nil || s.Features.Transcribe.Hotkeys[0].Keys != "Fn" || s.Features.PasteLast.Keys != "Control+Command+V" {
+		t.Fatalf("version 4: %+v %v", s.Features, err)
+	}
+	// Partly old: each shortcut on its own.
+	s, err = Migrate([]byte(`{"version":3,"features":{"transcribe":{"hotkeys":[{"keys":"Fn"}]},"rewrite":{"hotkeys":[{"keys":"F6"}]}}}`))
+	if err != nil || s.Features.Transcribe.Hotkeys[0].Keys != DefaultTranscribe || s.Features.Rewrite.Hotkeys[0].Keys != "F6" ||
+		s.Features.Translate.Hotkeys[0].Keys != DefaultTranslate || s.Features.PasteLast.Keys != DefaultPasteLast {
+		t.Fatalf("partly old: %+v %v", s.Features, err)
 	}
 }
 

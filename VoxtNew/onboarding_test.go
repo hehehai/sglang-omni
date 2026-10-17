@@ -71,7 +71,7 @@ func TestOnboardingSteps(t *testing.T) {
 	}
 	a.obGo(obMore)
 	frames(tt)
-	for _, s := range []string{"More to explore", "App enhancement", "Dictionary", "Your shortcuts", "fn ⇧", "⌃⌘V", "Start using VoxtNew"} {
+	for _, s := range []string{"More to explore", "App enhancement", "Dictionary", "Your shortcuts", "Right ⌥ ⇧", "⌃ Right ⌥", "⌃⌥V", "Start using VoxtNew"} {
 		if !has(tt, s) {
 			t.Errorf("more: no %q in %q", s, tt.Texts())
 		}
@@ -140,7 +140,7 @@ func TestOnboardingTryPasses(t *testing.T) {
 	// Another feature's shortcut does not start anything here.
 	a.hotkeyFired(proto.HotkeyEventParams{Binding: "translate/0", Phase: proto.PhaseTrigger, Behavior: proto.BehaviorTap, Front: selfFront()})
 	frames(tt)
-	if a.sess.Kind == store.KindTranslate || !hasPrefix(tt, "That was the Translate shortcut: this step tries Transcribe (fn)") {
+	if a.sess.Kind == store.KindTranslate || !hasPrefix(tt, "That was the Translate shortcut: this step tries Transcribe (Right ⌥)") {
 		t.Errorf("translate's shortcut: %+v %q", a.sess, tt.Texts())
 	}
 

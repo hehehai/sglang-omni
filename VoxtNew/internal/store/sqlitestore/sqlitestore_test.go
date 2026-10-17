@@ -263,7 +263,7 @@ func TestDictionary(t *testing.T) {
 	d := s.Dictionary()
 	t0 := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
 	for _, term := range []store.Term{
-		{ID: "1", Term: " VoxtNew ", Aliases: []string{"aura link", "aura link", " "}, Enabled: true, CreatedAt: t0},
+		{ID: "1", Term: " VoxtNew ", Aliases: []string{"vox tunew", "vox tunew", " "}, Enabled: true, CreatedAt: t0},
 		{ID: "2", Term: "Kubernetes", Aliases: []string{"k8s"}, Note: "work", Enabled: true},
 		{ID: "3", Term: "豆包", Enabled: false},
 	} {
@@ -272,7 +272,7 @@ func TestDictionary(t *testing.T) {
 		}
 	}
 	got, err := d.Get(ctx, "1")
-	if err != nil || got.Term != "VoxtNew" || !slices.Equal(got.Aliases, []string{"aura link"}) || !got.Enabled ||
+	if err != nil || got.Term != "VoxtNew" || !slices.Equal(got.Aliases, []string{"vox tunew"}) || !got.Enabled ||
 		!got.CreatedAt.Equal(t0) || !got.UpdatedAt.Equal(t0) {
 		t.Fatalf("%+v %v", got, err)
 	}
@@ -303,7 +303,7 @@ func TestDictionary(t *testing.T) {
 	if got := names("k8s"); got != "Kubernetes" {
 		t.Errorf("by alias: %q", got)
 	}
-	if got := names("AURA"); got != "VoxtNew" {
+	if got := names("VOX"); got != "VoxtNew" {
 		t.Errorf("ignoring case: %q", got)
 	}
 	if err := d.Delete(ctx, "2"); err != nil {

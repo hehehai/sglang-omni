@@ -51,8 +51,8 @@ func TestHomeReadiness(t *testing.T) {
 	a, tt := homeTester(t)
 	for _, s := range []string{
 		"No speech model or language model is installed: install one of each to start.",
-		"Without Accessibility results are copied for you to paste, and fn shortcuts do not work.",
-		"fn (once Accessibility is allowed)",
+		"Without Accessibility results are copied for you to paste, and shortcuts such as Right ⌥ do not work.",
+		"Right ⌥ (once Accessibility is allowed)",
 		"Try it", "Today", "Recent results", "Results show here once you use a shortcut.",
 	} {
 		if !has(tt, s) {
@@ -115,7 +115,7 @@ func TestHomeReadinessLive(t *testing.T) {
 	}
 	// Accessibility taken away.
 	a.perms.access = false
-	if !has(tt, "1 step to go") || !has(tt, "Without Accessibility results are copied for you to paste, and fn shortcuts do not work.") {
+	if !has(tt, "1 step to go") || !has(tt, "Without Accessibility results are copied for you to paste, and shortcuts such as Right ⌥ do not work.") {
 		t.Errorf("access revoked: %q", tt.Texts())
 	}
 	a.perms.access = true
@@ -247,7 +247,7 @@ func TestSloganHint(t *testing.T) {
 // cap, and without one, a link to add it.
 func TestHomeSlogan(t *testing.T) {
 	a, tt := homeTester(t)
-	for _, s := range []string{"Speak anywhere, it types at your cursor", "Press", "fn", "to start"} {
+	for _, s := range []string{"Speak anywhere, it types at your cursor", "Press", "Right ⌥", "to start"} {
 		if !hasExact(tt, s) {
 			t.Errorf("no %q in %q", s, tt.Texts())
 		}

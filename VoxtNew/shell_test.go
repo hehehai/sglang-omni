@@ -119,7 +119,7 @@ func TestPaletteAndDeepLinks(t *testing.T) {
 	}
 	// The shortcut sheet lists the global shortcuts from the settings.
 	tt.Key(ui.Shift, ui.KeySlash)
-	if !has(tt, "fn ⇧") || !has(tt, "⌃⌘V") || !has(tt, "Paste the last result") {
+	if !has(tt, "Right ⌥ ⇧") || !has(tt, "⌃⌥V") || !has(tt, "Paste the last result") {
 		t.Errorf("sheet: %q", firstTexts(tt))
 	}
 }
@@ -369,8 +369,11 @@ func TestAboutAndBundle(t *testing.T) {
 	a, _, tt := newTestApp(t)
 	a.navigate("/settings/about")
 	frames(tt)
-	if !has(tt, "Helper protocol") || !has(tt, "0.1.0") {
+	if !has(tt, "Helper protocol") || !has(tt, "0.1.0") || !has(tt, "Website") || !has(tt, "Download") {
 		t.Errorf("about: %q", firstTexts(tt))
+	}
+	if websiteURL != "https://actnow.dev/voxtnew" || downloadURL != "https://actnow.dev/download/voxtnew" {
+		t.Errorf("addresses %s %s", websiteURL, downloadURL)
 	}
 	d := a.diagnosticsText()
 	if !strings.Contains(d, "Helper: 0.1.0 (ready)") || !strings.Contains(d, "Helper protocol: 1") {

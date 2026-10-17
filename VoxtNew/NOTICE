@@ -158,6 +158,9 @@ Go modules compiled into VoxtNew
     authors, Apache License 2.0 (LICENSES/Apache-2.0.txt)
   - github.com/go-text/typesetting v0.3.5, Copyright 2021 The go-text
     authors, Unlicense OR BSD-3-Clause
+  - github.com/hehehai/actnowkit v0.2.0, Copyright 2026 ActNow, Apache
+    License 2.0 (LICENSES/Apache-2.0.txt; its NOTICE names the code it
+    derives from)
   - golang.org/x/image v0.46.0, Copyright 2009 The Go Authors,
     BSD-3-Clause, with Google's patent grant (PATENTS)
   - golang.org/x/text v0.43.0, Copyright 2009 The Go Authors,

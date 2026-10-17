@@ -12,6 +12,7 @@ import (
 // vendored with its own.
 var noticeElsewhere = map[string]string{
 	"github.com/ebitengine/purego": "LICENSES/Apache-2.0.txt",
+	"github.com/hehehai/actnowkit": "LICENSES/Apache-2.0.txt",
 	"github.com/egoist/mygo":       "third_party/mygo/LICENSE",
 }
 

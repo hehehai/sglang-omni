@@ -134,7 +134,7 @@ func (a *app) permissionsSettings(c *ui.Context) {
 	if accOK {
 		accText = i18n.T("Allowed")
 	}
-	settingRow(c, "perm-access", i18n.T("Accessibility"), i18n.T("Lets VoxtNew type results where your cursor is, read the selected text and the address of the browser tab in front, and use fn and other single keys as shortcuts. Without it results are copied for you to paste."), func() {
+	settingRow(c, "perm-access", i18n.T("Accessibility"), i18n.T("Lets VoxtNew type results where your cursor is, read the selected text and the address of the browser tab in front, and use Right ⌥ and other single keys as shortcuts. Without it results are copied for you to paste."), func() {
 		badge(accText, accOK)
 		if !accOK {
 			if ghostButton(c.Key("perm-access-ask"), i18n.T("Ask")).Tooltip(i18n.T("Adds VoxtNew to the list in System Settings")).Clicked() {

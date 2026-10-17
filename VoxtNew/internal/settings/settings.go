@@ -23,7 +23,7 @@ import (
 
 // Version is the schema version Defaults writes. Bump it when a field's
 // meaning changes, and migrate older documents in Migrate.
-const Version = 3
+const Version = 4
 
 // Settings is the whole document.
 type Settings struct {
@@ -185,8 +185,8 @@ const (
 	DefaultRadius  = 24
 )
 
-// Hotkey is one binding of a feature: the keys ("Fn", "Fn+Shift",
-// "Control+Command+V") and how they trigger (internal/hotkey owns the
+// Hotkey is one binding of a feature: the keys ("RightOption",
+// "RightOption+Shift", "Control+Option+V") and how they trigger (internal/hotkey owns the
 // grammar).
 type Hotkey struct {
 	Keys    string `json:"keys"`
@@ -205,7 +205,7 @@ type Features struct {
 	Transcribe Transcribe `json:"transcribe"`
 	Translate  Translate  `json:"translate"`
 	Rewrite    Rewrite    `json:"rewrite"`
-	// PasteLast pastes the latest result again (⌃⌘V).
+	// PasteLast pastes the latest result again (⌃⌥V by default).
 	PasteLast Hotkey `json:"pasteLast"`
 }
 
@@ -308,9 +308,19 @@ func (u Updates) BetaOn(running string) bool {
 	return strings.Contains(running, "-")
 }
 
-// Defaults returns the settings of a fresh install. The shortcuts are
-// Voxt's (plan D2): fn transcribes, fn+Shift translates, fn+Control
-// rewrites, Control+Command+V pastes the last result.
+// The default shortcuts: the ActNow family's assignment to VoxtNew
+// (actnowkit shortcuts.DefaultsOf("voxtnew"), family spec §10.2), so
+// that VoxtNew and Auralink (fn) can run together. Right Option tapped
+// alone transcribes, with Shift translates, with Control rewrites;
+// Control+Option+V pastes the last result.
+const (
+	DefaultTranscribe = "RightOption"
+	DefaultTranslate  = "RightOption+Shift"
+	DefaultRewrite    = "Control+RightOption"
+	DefaultPasteLast  = "Control+Option+V"
+)
+
+// Defaults returns the settings of a fresh install.
 func Defaults() Settings {
 	return Settings{
 		Version:    Version,
@@ -320,10 +330,10 @@ func Defaults() Settings {
 		Audio:      Audio{Sounds: true},
 		Overlay:    Overlay{Position: "bottom", Opacity: DefaultOpacity, Radius: DefaultRadius, Margin: 96},
 		Features: Features{
-			Transcribe: Transcribe{Feature: Feature{Hotkeys: []Hotkey{{Keys: "Fn", Trigger: TriggerTap}}}, Enhance: true, Cleanup: true},
-			Translate:  Translate{Feature: Feature{Hotkeys: []Hotkey{{Keys: "Fn+Shift", Trigger: TriggerTap}}}, Cleanup: true},
-			Rewrite:    Rewrite{Feature: Feature{Hotkeys: []Hotkey{{Keys: "Fn+Control", Trigger: TriggerTap}}}, Cleanup: true},
-			PasteLast:  Hotkey{Keys: "Control+Command+V", Trigger: TriggerTap},
+			Transcribe: Transcribe{Feature: Feature{Hotkeys: []Hotkey{{Keys: DefaultTranscribe, Trigger: TriggerTap}}}, Enhance: true, Cleanup: true},
+			Translate:  Translate{Feature: Feature{Hotkeys: []Hotkey{{Keys: DefaultTranslate, Trigger: TriggerTap}}}, Cleanup: true},
+			Rewrite:    Rewrite{Feature: Feature{Hotkeys: []Hotkey{{Keys: DefaultRewrite, Trigger: TriggerTap}}}, Cleanup: true},
+			PasteLast:  Hotkey{Keys: DefaultPasteLast, Trigger: TriggerTap},
 		},
 		AppEnhancement: AppEnhancement{Enabled: true},
 		Dictionary:     Dictionary{Enabled: true, ASRHints: true, Glossary: true},
@@ -350,8 +360,38 @@ func Migrate(data []byte) (Settings, error) {
 	if s.Version < 3 && s.Overlay.Radius == 16 {
 		s.Overlay.Radius = DefaultRadius // version 3: rounder, as Voxt's
 	}
+	if s.Version < 4 {
+		migrateShortcuts(&s.Features)
+	}
 	s.Version = Version
 	return normalize(s), nil
+}
+
+// migrateShortcuts moves version 3's default shortcuts, Auralink's (fn,
+// fn+Shift, fn+Control, Control+Command+V), to the family's (version 4):
+// each one that is still exactly its default; a shortcut the user
+// changed, added or removed stays.
+func migrateShortcuts(f *Features) {
+	old := func(hs []Hotkey, keys string) bool {
+		return len(hs) == 1 && oldDefault(hs[0], keys)
+	}
+	if old(f.Transcribe.Hotkeys, "Fn") {
+		f.Transcribe.Hotkeys = []Hotkey{{Keys: DefaultTranscribe, Trigger: TriggerTap}}
+	}
+	if old(f.Translate.Hotkeys, "Fn+Shift") {
+		f.Translate.Hotkeys = []Hotkey{{Keys: DefaultTranslate, Trigger: TriggerTap}}
+	}
+	if old(f.Rewrite.Hotkeys, "Fn+Control") {
+		f.Rewrite.Hotkeys = []Hotkey{{Keys: DefaultRewrite, Trigger: TriggerTap}}
+	}
+	if oldDefault(f.PasteLast, "Control+Command+V") {
+		f.PasteLast = Hotkey{Keys: DefaultPasteLast, Trigger: TriggerTap}
+	}
+}
+
+// oldDefault reports whether h is keys tapped, as version 3 wrote it.
+func oldDefault(h Hotkey, keys string) bool {
+	return h.Keys == keys && (h.Trigger == "" || h.Trigger == TriggerTap)
 }
 
 // Changed is published after an update is saved. Topic "settings.changed".

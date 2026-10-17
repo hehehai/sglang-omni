@@ -90,19 +90,21 @@ func TestBuildDefaults(t *testing.T) {
 	if len(p.Bindings) != 2 {
 		t.Fatalf("bindings %+v", p.Bindings)
 	}
-	fn, paste := p.Bindings[0], p.Bindings[1]
-	if paste.ID != PasteLast || paste.Key == nil || *paste.Key != 9 || paste.Behavior != proto.BehaviorTap ||
-		paste.Modifiers[proto.ModControl] != proto.SideAny || paste.Modifiers[proto.ModCommand] != proto.SideAny {
+	ropt, paste := p.Bindings[0], p.Bindings[1]
+	if paste.ID != PasteLast || paste.Key == nil || *paste.Key != 9 || paste.Behavior != proto.BehaviorTap || len(paste.Modifiers) != 2 ||
+		paste.Modifiers[proto.ModControl] != proto.SideAny || paste.Modifiers[proto.ModOption] != proto.SideAny {
 		t.Errorf("paste-last %+v", paste)
 	}
-	if fn.ID != "transcribe/0" || fn.Key != nil || fn.Modifiers[proto.ModFn] != proto.SideAny || len(fn.Modifiers) != 1 {
-		t.Errorf("fn %+v", fn)
+	// Right Option alone: the left one is no part of it.
+	if ropt.ID != "transcribe/0" || ropt.Key != nil || ropt.Modifiers[proto.ModOption] != proto.SideRight || len(ropt.Modifiers) != 1 {
+		t.Errorf("right option %+v", ropt)
 	}
-	if len(p.Carbon) != 1 || p.Carbon[0] != (Carbon{ID: PasteLast, Accelerator: "Control+Command+V"}) {
+	if len(p.Carbon) != 1 || p.Carbon[0] != (Carbon{ID: PasteLast, Accelerator: "Control+Option+V"}) {
 		t.Errorf("carbon %+v", p.Carbon)
 	}
+	// No fn in the defaults: fn and 🌐 are left alone (Auralink's).
 	cfg := p.Configure(true)
-	if !cfg.SwallowFn || !cfg.Active || len(cfg.Bindings) != 2 || cfg.DoubleTapMS != 0 {
+	if cfg.SwallowFn || !cfg.Active || len(cfg.Bindings) != 2 || cfg.DoubleTapMS != 0 {
 		t.Errorf("configure %+v", cfg)
 	}
 	all := Build(f, Features)

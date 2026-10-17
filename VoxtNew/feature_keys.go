@@ -26,10 +26,14 @@ type keyRow struct {
 }
 
 // keyPresets are the shortcuts the selects offer, in the grammar of
-// internal/hotkey.
+// internal/hotkey: the defaults first (the ActNow family's, right
+// Option), then fn's (Auralink's defaults, for those without it). No
+// more than ten: a longer list scrolls in the popup. Right Control is
+// left out: Mac laptops' keyboards have none.
 var keyPresets = []string{
-	"Fn", "Fn+Shift", "Fn+Control", "Fn+Option",
-	"RightCommand", "RightOption", "RightShift", "RightControl",
+	"RightOption", "RightOption+Shift", "Control+RightOption",
+	"RightCommand", "RightShift",
+	"Fn", "Fn+Shift", "Fn+Control",
 	"Option+Space", "Control+Option+Space",
 }
 

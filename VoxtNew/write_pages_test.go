@@ -27,7 +27,7 @@ func pageTester(t *testing.T, path string) (*app, *ui.Tester) {
 func TestTranslatePage(t *testing.T) {
 	a, tt := pageTester(t, "/translate")
 	for _, s := range []string{
-		"Translate", "Shortcuts", "fn ⇧", "Models", "No speech model is installed: only selected text can be translated.",
+		"Translate", "Shortcuts", "Right ⌥ ⇧", "Models", "No speech model is installed: only selected text can be translated.",
 		"No language model is installed: install one to translate.", "Translation", "Translate into", "Automatic: Simplified Chinese",
 		"Basic clean-up", "Show the result in a card", "Your rules", "Try it",
 	} {
@@ -58,7 +58,7 @@ func TestTranslatePage(t *testing.T) {
 	}
 	// Its own shortcuts and rules.
 	click(t, tt, "Add a shortcut")
-	if hs := a.lib.settings.Get().Features.Translate.Hotkeys; len(hs) != 2 || hs[1].Keys != "Fn+Option" {
+	if hs := a.lib.settings.Get().Features.Translate.Hotkeys; len(hs) != 2 || hs[1].Keys != "RightCommand" {
 		t.Errorf("shortcuts %+v", hs)
 	}
 	click(t, tt, "Your rules for Translate")
@@ -81,7 +81,7 @@ func TestTranslatePage(t *testing.T) {
 func TestRewritePage(t *testing.T) {
 	a, tt := pageTester(t, "/rewrite")
 	for _, s := range []string{
-		"Rewrite", "fn ⌃", "No speech model is installed: install one to rewrite.", "No language model is installed: install one to rewrite.",
+		"Rewrite", "⌃ Right ⌥", "No speech model is installed: install one to rewrite.", "No language model is installed: install one to rewrite.",
 		"Rewriting", "Clean up the instruction",
 		"While the answer card shows an answer, the shortcut records a follow-up that changes it (\"shorter\", \"in English\").",
 	} {

@@ -79,7 +79,7 @@ func (a *app) readinessList() []readiness {
 		out = append(out, readiness{key: "home-access", title: i18n.T("Accessibility"), ok: true, text: i18n.T("Allowed")})
 	default:
 		out = append(out, readiness{key: "home-access", title: i18n.T("Accessibility"), kind: noticeWarn,
-			text: i18n.T("Without Accessibility results are copied for you to paste, and fn shortcuts do not work."), action: i18n.T("Open Permissions"), fix: openPerms})
+			text: i18n.T("Without Accessibility results are copied for you to paste, and shortcuts such as Right ⌥ do not work."), action: i18n.T("Open Permissions"), fix: openPerms})
 	}
 	// The shortcut.
 	out = append(out, a.shortcutReadiness())

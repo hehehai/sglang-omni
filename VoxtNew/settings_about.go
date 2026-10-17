@@ -30,15 +30,18 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
-// The project's addresses: issuesURL is where bugs are reported; the
-// licence, the source and the third-party notices are linked from
-// Settings → About.
+// The project's addresses: the product page and the downloads are on
+// actnow.dev (the ActNow family's site, which also serves the updates);
+// issuesURL is where bugs are reported; the licence, the source and the
+// third-party notices are linked from Settings → About.
 const (
-	repoURL    = "https://github.com/sgl-project/sglang-omni"
-	sourceURL  = repoURL + "/tree/main/VoxtNew"
-	issuesURL  = repoURL + "/issues/new"
-	licenceURL = repoURL + "/blob/main/VoxtNew/LICENSE"
-	noticeURL  = repoURL + "/blob/main/VoxtNew/NOTICE"
+	websiteURL  = "https://actnow.dev/voxtnew"
+	downloadURL = "https://actnow.dev/download/voxtnew"
+	repoURL     = "https://github.com/sgl-project/sglang-omni"
+	sourceURL   = repoURL + "/tree/main/VoxtNew"
+	issuesURL   = repoURL + "/issues/new"
+	licenceURL  = repoURL + "/blob/main/VoxtNew/LICENSE"
+	noticeURL   = repoURL + "/blob/main/VoxtNew/NOTICE"
 )
 
 // aboutState is the Diagnostics page's state.
@@ -304,6 +307,8 @@ func (a *app) aboutSettings(c *ui.Context) {
 	caption(c, i18n.T("Copyright © 2026 ActNow and the SGLang-Omni Team."))
 	caption(c, i18n.T("VoxtNew is licensed under the Apache License 2.0 and comes with no warranty."))
 	ui.Row(c.Key("about-licence")).Gap(px(t, sp3)).AlignItems(ui.Center).Wrap().Children(func() {
+		ui.Link(c.Key("about-website"), i18n.T("Website"), websiteURL).FontSize(px(t, fsCaption))
+		ui.Link(c.Key("about-download"), i18n.T("Download"), downloadURL).FontSize(px(t, fsCaption))
 		ui.Link(c.Key("about-licence-apache"), i18n.T("Licence"), licenceURL).FontSize(px(t, fsCaption))
 		ui.Link(c.Key("about-licence-source"), i18n.T("Source code"), sourceURL).FontSize(px(t, fsCaption))
 		ui.Link(c.Key("about-licence-notices"), i18n.T("Third-party notices"), noticeURL).FontSize(px(t, fsCaption))

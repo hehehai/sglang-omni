@@ -305,7 +305,7 @@ func (a *app) termDialog(c *ui.Context) {
 			}
 		})
 		fieldInfo(c, i18n.T("Aliases"), i18n.T("What speech recognition writes instead, separated by commas: Vox Tunew, 沃克斯牛. VoxtNew puts the term in their place, also without a language model."), func() {
-			ui.TextInput(c.Key("term-aliases"), &e.aliases).Label(i18n.T("Aliases of the term")).Placeholder(i18n.T("aura link, aura-link"))
+			ui.TextInput(c.Key("term-aliases"), &e.aliases).Label(i18n.T("Aliases of the term")).Placeholder(i18n.T("Vox Tunew, 沃克斯牛"))
 		})
 		fieldInfo(c, i18n.T("Note"), i18n.T("For you only: it is sent nowhere."), func() {
 			ui.TextArea(c.Key("term-note"), &e.note).Label(i18n.T("Note on the term")).MinHeight(px(t, 56))
