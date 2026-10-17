@@ -2,13 +2,11 @@ package sqlitestore
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/egoist/mygo/plugins/sqlite"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
@@ -16,13 +14,15 @@ import (
 )
 
 // historyRepo stores finished sessions (the history table: migration 001,
-// rule_source 002, sent_ms 003, dsp and gain_db 004).
+// rule_source 002, sent_ms 003, dsp and gain_db 004); its recordings
+// folder and clean-up are in history_retention.go.
 type historyRepo struct {
 	db  *sqlite.DB
-	dir string
-}
+	dir string // the store's audio directory (DefaultAudioDir)
 
-func (r *historyRepo) AudioDir() string { return r.dir }
+	mu     sync.Mutex
+	custom string // the one SetAudioDir set; "" = dir
+}
 
 // historyColumns are the columns an Entry has, in scanEntry's order.
 const historyColumns = `id, kind, created_at, status, error, app_bundle, app_name, url_host, rule_id, rule_name,
@@ -101,6 +101,9 @@ func (r *historyRepo) List(ctx context.Context, q store.HistoryQuery) ([]store.E
 	if q.Kind != "" {
 		where, args = append(where, `kind = ?`), append(args, string(q.Kind))
 	}
+	if q.WithAudio {
+		where = append(where, `audio != ''`)
+	}
 	sql := `SELECT ` + historyColumns + ` FROM history`
 	if len(where) > 0 {
 		sql += ` WHERE ` + strings.Join(where, ` AND `)
@@ -139,21 +142,5 @@ func (r *historyRepo) DeleteAll(ctx context.Context, kind store.Kind) (int, erro
 	if err != nil {
 		return 0, wrap("history", err)
 	}
-	var first error
-	for _, row := range rows.Values {
-		if err := r.removeAudio(asString(row[0])); err != nil && first == nil {
-			first = err
-		}
-	}
-	return len(rows.Values), first
-}
-
-func (r *historyRepo) removeAudio(file string) error {
-	if file == "" || filepath.Base(file) != file {
-		return nil
-	}
-	if err := os.Remove(filepath.Join(r.dir, file)); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("removing %s: %w", file, err)
-	}
-	return nil
+	return len(rows.Values), r.removeAudios(rows.Values)
 }

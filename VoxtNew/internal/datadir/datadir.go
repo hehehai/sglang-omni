@@ -174,8 +174,11 @@ func CopyTree(ctx context.Context, src, dst string, skip func(rel string) bool, 
 	return err
 }
 
-// copyVerified copies one file, keeping its mode and time, and checks the
-// copy against the original's SHA-256.
+// CopyVerified copies one file, keeping its mode and time, and checks the
+// copy against the original's SHA-256; it reports the bytes copied (the
+// History settings' recordings move and export use it too).
+func CopyVerified(src, dst string) (int64, error) { return copyVerified(src, dst) }
+
 func copyVerified(src, dst string) (int64, error) {
 	in, err := os.Open(src)
 	if err != nil {

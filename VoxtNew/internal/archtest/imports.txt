@@ -79,3 +79,5 @@ uitext models
 eval asr
 omni resident
 llmrt resident
+recordings datadir
+recordings store

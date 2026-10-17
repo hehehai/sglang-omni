@@ -124,7 +124,20 @@ type HistoryQuery struct {
 	Search string // full text over the texts; under 3 characters a substring match
 	Limit  int    // 0 = no limit
 	Offset int
+	// WithAudio selects only the entries with a recording kept.
+	WithAudio bool
 }
+
+// Retention is what the history keeps (its automatic clean-up): the
+// entries since Before (zero: of any age) and the newest PerKind of each
+// kind (0: any number). The zero value keeps everything.
+type Retention struct {
+	Before  time.Time
+	PerKind int
+}
+
+// Zero reports whether r keeps everything.
+func (r Retention) Zero() bool { return r.Before.IsZero() && r.PerKind <= 0 }
 
 // History stores finished sessions.
 type History interface {
@@ -138,8 +151,27 @@ type History interface {
 	// DeleteAll removes every entry of kind ("" = all) and their audio,
 	// and reports how many went.
 	DeleteAll(ctx context.Context, kind Kind) (int, error)
-	// AudioDir is the directory history audio lives in. Pure.
+	// Prune removes, in one transaction, the entries r does not keep, then
+	// their audio, and reports how many went; CountPrune counts them
+	// without removing anything.
+	Prune(ctx context.Context, r Retention) (int, error)
+	CountPrune(ctx context.Context, r Retention) (int, error)
+	// DeleteAudio removes every entry's recording and keeps the entries
+	// (their Audio becomes ""), and reports how many entries had one.
+	DeleteAudio(ctx context.Context) (int, error)
+	// AudioDir is the directory new recordings go to: the one SetAudioDir
+	// set, else DefaultAudioDir. Memory only.
 	AudioDir() string
+	// DefaultAudioDir is the store's own audio directory. Pure.
+	DefaultAudioDir() string
+	// SetAudioDir makes dir the directory new recordings go to; "" is
+	// DefaultAudioDir.
+	SetAudioDir(dir string)
+	// AudioPath is the file of a recording (an Entry.Audio): in AudioDir,
+	// else in DefaultAudioDir when it is there (a recording kept while
+	// the other folder was missing), else where it would be in AudioDir.
+	// It reads the disk.
+	AudioPath(name string) string
 }
 
 // Term is an entry of the user's dictionary: a name or a word of jargon
