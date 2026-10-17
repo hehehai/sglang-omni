@@ -51,6 +51,12 @@ type modelsState struct {
 	// (models_network.go).
 	netOpen bool
 	netForm networkForm
+	// modelAdvanced: the Advanced section is open; modelKeepSel is its
+	// select's label, modelKeepFor the setting and language it shows
+	// (models_keep.go).
+	modelAdvanced bool
+	modelKeepSel  string
+	modelKeepFor  string
 }
 
 // openModels reads the models on disk and sets up the local models,

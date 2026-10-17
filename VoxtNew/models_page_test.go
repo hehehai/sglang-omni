@@ -314,4 +314,18 @@ func modelShots(t *testing.T, a *app, tt *ui.Tester, save func(string)) {
 	save("settings-storage-erase")
 	a.resetAsk = ""
 	a.settingsOpen = false
+	// The Advanced section under the cards, folded and open
+	// (models_keep.go).
+	a.navigate(modelsPath)
+	scrollToText(tt, i18n.T("Advanced"))
+	save("models-advanced")
+	a.modelAdvanced = true
+	scrollToText(tt, i18n.T("Advanced"))
+	save("models-advanced-open")
+	a.modelAdvanced = false
+	// The page as it was: the setup guide's shots show it behind them.
+	a.navigate("/home")
+	a.navigate(modelsPath)
+	frames(tt)
+	scrollToText(tt, i18n.T("Fast language model"))
 }

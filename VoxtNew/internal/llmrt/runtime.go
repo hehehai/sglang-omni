@@ -125,25 +125,61 @@ func (r *Runtime) release() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.inFlight--
-	if r.inFlight > 0 || r.proc == nil || r.cfg.IdleTimeout < 0 {
+	if r.inFlight > 0 || r.proc == nil {
 		return
 	}
-	p := r.proc
-	if r.idle != nil {
-		r.idle.Stop()
-	}
-	r.idle = time.AfterFunc(r.cfg.IdleTimeout, func() { r.idleStop(p) })
+	r.armIdle(r.proc)
 }
 
-// idleStop stops p when nothing used it since the timer was armed.
-func (r *Runtime) idleStop(p *proc) {
+// armIdle stops p after the idle timeout, from now (r.mu held).
+func (r *Runtime) armIdle(p *proc) {
+	if r.idle != nil {
+		r.idle.Stop()
+		r.idle = nil
+	}
+	d := r.cfg.IdleTimeout
+	if d < 0 {
+		return
+	}
+	r.idle = time.AfterFunc(d, func() { r.idleStop(p, d) })
+}
+
+// IdleTimeout is how long the process stays without a call (< 0: until
+// Stop).
+func (r *Runtime) IdleTimeout() time.Duration {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.cfg.IdleTimeout
+}
+
+// SetIdleTimeout changes how long the process stays without a call: d <
+// 0 until Stop, 0 DefaultIdleTimeout. An unused process counts it from
+// now; one in use, from the end of its last call.
+func (r *Runtime) SetIdleTimeout(d time.Duration) {
+	if d == 0 {
+		d = DefaultIdleTimeout
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.cfg.IdleTimeout == d {
+		return
+	}
+	r.cfg.IdleTimeout = d
+	if r.proc != nil && r.inFlight == 0 && r.status.State == Ready {
+		r.armIdle(r.proc)
+	}
+}
+
+// idleStop stops p, unused for d, when nothing used it since the timer
+// was armed.
+func (r *Runtime) idleStop(p *proc, d time.Duration) {
 	r.mu.Lock()
 	if r.proc != p || r.inFlight > 0 || p.busy() {
 		r.mu.Unlock()
 		return
 	}
 	r.mu.Unlock()
-	r.log(core.SeverityInfo, fmt.Sprintf("voxtnew-llm unused for %s: stopping it", r.cfg.IdleTimeout))
+	r.log(core.SeverityInfo, fmt.Sprintf("voxtnew-llm unused for %s: stopping it", d))
 	r.shutdown(p, Stopped, "")
 }
 

@@ -41,6 +41,7 @@ type Settings struct {
 	Updates        Updates        `json:"updates,omitzero"`
 	Network        Network        `json:"network,omitzero"`
 	Family         Family         `json:"family,omitzero"`
+	Models         Models         `json:"models,omitzero"` // models.go
 }
 
 // General: languages and how the app stays around.

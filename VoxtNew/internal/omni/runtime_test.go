@@ -280,6 +280,79 @@ func TestIdleUnload(t *testing.T) {
 
 }
 
+// TestSetIdleTimeout: a change applies to the running servers at once:
+// kept (never) → stopped after the new time, counted from the change;
+// back to never, they stay; one in use counts from the end of its use.
+func TestSetIdleTimeout(t *testing.T) {
+	f := newFake(t, omnitest.Opts{}, func(c *Config) { c.IdleTimeout = -1 })
+	ctx := context.Background()
+	pcm := tone(time.Second, 0.3)
+	fast := f.asr(t, ASRFast)
+	v, err := NewVAD(f.rt, f.model(VADSilero))
+	if err != nil {
+		t.Fatal(err)
+	}
+	use := func() {
+		t.Helper()
+		if _, err := v.Speech(ctx, pcm, 16000); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fast.Transcribe(ctx, asr.FileRequest{Audio: pcm}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	use()
+	time.Sleep(150 * time.Millisecond)
+	if r := f.rt.Running(); len(r) != 2 {
+		t.Fatalf("kept: running %v", r)
+	}
+	changed := time.Now()
+	f.rt.SetIdleTimeout(250 * time.Millisecond)
+	if d := f.rt.IdleTimeout(); d != 250*time.Millisecond {
+		t.Errorf("IdleTimeout %v", d)
+	}
+	eventually(t, "the idle unload", func() bool { return len(f.rt.Running()) == 0 })
+	if took := time.Since(changed); took < 250*time.Millisecond {
+		t.Errorf("unloaded %v after the change", took)
+	}
+	if n := len(f.records("shutdown")); n != 2 {
+		t.Errorf("%d shutdowns", n)
+	}
+
+	use()
+	f.rt.SetIdleTimeout(-1)
+	time.Sleep(500 * time.Millisecond)
+	if r := f.rt.Running(); len(r) != 2 {
+		t.Errorf("never: running %v", r)
+	}
+	f.rt.SetIdleTimeout(0)
+	if d := f.rt.IdleTimeout(); d != DefaultIdleTimeout {
+		t.Errorf("0 is %v", d)
+	}
+}
+
+// TestSetIdleTimeoutInUse: a server in use when the time changes is
+// stopped once unused for the new time after its use ends.
+func TestSetIdleTimeoutInUse(t *testing.T) {
+	f := newFake(t, omnitest.Opts{Delay: 400 * time.Millisecond}, func(c *Config) { c.IdleTimeout = -1 })
+	a := f.asr(t, ASRFast)
+	done := make(chan error, 1)
+	go func() {
+		_, err := a.Transcribe(context.Background(), asr.FileRequest{Audio: tone(time.Second, 0.3)})
+		done <- err
+	}()
+	eventually(t, "the Final", func() bool { return len(f.records("final")) == 1 })
+	f.rt.SetIdleTimeout(100 * time.Millisecond)
+	if err := <-done; err != nil {
+		t.Fatalf("the use in progress failed: %v", err)
+	}
+	ended := time.Now()
+	eventually(t, "the idle unload", func() bool { return len(f.rt.Running()) == 0 })
+	if took := time.Since(ended); took < 100*time.Millisecond {
+		t.Errorf("unloaded %v after the use", took)
+	}
+}
+
 // TestSwitch: Silero beside a speech model, then a switch to the other
 // speech model: the first stops before the other starts; Silero stays.
 // Close stops everything.

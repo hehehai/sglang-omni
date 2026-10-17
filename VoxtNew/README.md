@@ -22,8 +22,8 @@ With a history, the overlay, shortcuts, the menu bar, a setup guide, settings an
 
 Everything that hears or reads your words:
 
-- **Speech recognition** and **voice detection** run on sglang-omni's native MLX servers ([`sglang_omni_mlx/native`](../sglang_omni_mlx/native), C++, no Python), one process per model, started when needed, stopped after 10 minutes unused.
-- **Language models** run in `voxtnew-llm`, a Swift process of VoxtNew's own (MLX, and llama.cpp for one model), stopped after 5 minutes unused.
+- **Speech recognition** and **voice detection** run on sglang-omni's native MLX servers ([`sglang_omni_mlx/native`](../sglang_omni_mlx/native), C++, no Python), one process per model, started when needed, stopped after 10 minutes unused (Local models → Advanced changes it).
+- **Language models** run in `voxtnew-llm`, a Swift process of VoxtNew's own (MLX, and llama.cpp for one model), stopped after 5 minutes unused (or as Local models → Advanced says).
 - A small Swift helper does what needs Apple's frameworks: the microphone, global shortcuts, Accessibility, pasting.
 
 VoxtNew offers a few models, tuned for it, and downloads them from Hugging Face (or a mirror) when you ask, each file checked against a pinned SHA-256:

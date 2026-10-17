@@ -508,6 +508,18 @@
   - 之后的转录照常，只是付一次冷启动（约 1 秒的语音识别加载和约 1 秒的语言模型加载；按下快捷键时就开始加载，和说话的时间重叠）。
 - **不对时看**：日志面板。
 
+**7.5a 保持模型载入（本地模型页 → 高级）**
+- **做**：
+  1. 本地模型页拉到底，“高级”默认收起；展开，“保持模型载入”是“自动”，ⓘ 说明立即开始、占用卡片上的内存、其他 ActNow app 仍可请 VoxtNew 释放内存。
+  2. 选“5 分钟”，转录一次，然后不碰 VoxtNew 等 6 分钟，看 `pgrep -fl 'qwen3_asr_server|voxtnew-llm'`。
+  3. 选“直到退出 VoxtNew”，转录一次，等 11 分钟再看一次；然后不重启 VoxtNew 改回“自动”。
+  4. （有 AudioSmith 或 Dicta 时）仍是“直到退出 VoxtNew”，模型空闲满 1 分钟后，在另一个 ActNow app 里加载一个大模型，让它发出内存请求。
+- **应看到**：
+  - 第 2 步：约 5 分钟后语音识别、Silero 和 `voxtnew-llm` 都退出（日志 `… unloaded after 5m0s unused`、`voxtnew-llm unused for 5m0s: stopping it`）。
+  - 第 3 步：11 分钟后进程都还在；`~/Library/Application Support/ActNow/runtime/dev.hehehai.voxtnew.json` 里它们的 `idleSince` 是转录结束的时间。改回“自动”后，从改的那一刻算起约 5 分钟 `voxtnew-llm` 退出、约 10 分钟语音服务退出，不需要重启。
+  - 第 4 步：VoxtNew 的空闲模型被卸载（日志 `family: unloading … (idle) for another app`），设置不变；下一次转录照常（冷启动一次）。
+- **不对时看**：日志面板；runtime 文件。
+
 **7.6 退出时不留进程**
 - **做**：
   1. 转录一次，`pgrep` 确认三类进程都在。用 ⌘Q 退出 VoxtNew，5 秒后再看 `pgrep -fl 'qwen3_asr_server|voxtnew-llm|voxtnew-helper'`。
@@ -803,6 +815,7 @@ Developer ID 签名、公证、发布和更新的测试见 [release.md](release.
 | 7.3 会话之间 kill | | | |
 | 7.4 会话中 kill | | | |
 | 7.5 空闲 5 / 10 分钟 | | | |
+| 7.5a 保持模型载入 | | | |
 | 7.6 退出 | | | |
 
 **每一步的结果**：写步骤编号加“✓ / ✗ + 一句话”，例如“3.3 ✗ 卡片里的下拉菜单点不开”。✗ 的步骤附上截图和诊断信息；和速度有关的，写上当时 `pgrep` 里有没有别的模型进程（别的线程的回归会让时间变长）。

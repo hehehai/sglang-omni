@@ -24,7 +24,8 @@
 // port 0, which prints {"event":"ready","port":…} on stdout once its model
 // is loaded; a server that says nothing within StartTimeout is killed.
 // Uses hold a lease; a server with no lease for IdleTimeout stops (idle
-// unload; Unload stops a model's server, before its files are deleted).
+// unload; SetIdleTimeout changes it while servers run; Unload stops a
+// model's server, before its files are deleted).
 // One speech model runs at a time (a switch stops the other once
 // its uses end, so two copies of weights are never resident, as Voxt);
 // Silero has a server of its own, shared by every detector. A server that

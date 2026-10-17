@@ -22,8 +22,8 @@
 
 所有听到、读到你的话的部分都在本机：
 
-- **语音识别**和**声音检测**跑在 sglang-omni 的原生 MLX 服务上（[`sglang_omni_mlx/native`](../sglang_omni_mlx/native)，C++，不用 Python），每个模型一个进程，用到时启动，10 分钟不用就停。
-- **语言模型**跑在 VoxtNew 自己的 Swift 进程 `voxtnew-llm` 里（MLX，其中一个模型用 llama.cpp），5 分钟不用就停。
+- **语音识别**和**声音检测**跑在 sglang-omni 的原生 MLX 服务上（[`sglang_omni_mlx/native`](../sglang_omni_mlx/native)，C++，不用 Python），每个模型一个进程，用到时启动，10 分钟不用就停（本地模型页的“高级”里可以改）。
+- **语言模型**跑在 VoxtNew 自己的 Swift 进程 `voxtnew-llm` 里（MLX，其中一个模型用 llama.cpp），5 分钟不用就停（同样可以改）。
 - 一个小的 Swift 辅助进程负责要用苹果框架的事：麦克风、全局快捷键、辅助功能、粘贴。
 
 VoxtNew 只提供少数几个为它调好的模型，在你需要时从 Hugging Face（或镜像）下载，每个文件都按固定的 SHA-256 校验：

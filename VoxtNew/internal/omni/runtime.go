@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
@@ -43,7 +44,8 @@ type Config struct {
 	// StartTimeout bounds a server's start (its model's load); a server
 	// that has not said it is ready by then is killed.
 	StartTimeout time.Duration
-	// IdleTimeout stops a server no one used for that long (< 0: never).
+	// IdleTimeout stops a server no one used for that long (< 0: never;
+	// SetIdleTimeout changes it).
 	IdleTimeout time.Duration
 	// StallTimeout: a Final whose response stream (the server's heartbeat
 	// is every 250 ms) is silent this long has hung its server, which is
@@ -101,6 +103,7 @@ func Locate(exe string) (string, error) {
 type Runtime struct {
 	cfg    Config
 	events *resident.Queue // Config.OnModel's
+	idle   atomic.Int64    // the idle timeout (Config.IdleTimeout, SetIdleTimeout)
 
 	mu      sync.Mutex
 	servers map[string]*server // by model id and directory
@@ -124,7 +127,33 @@ func NewRuntime(cfg Config) *Runtime {
 	if cfg.Log == nil {
 		cfg.Log = func(string, string) {}
 	}
-	return &Runtime{cfg: cfg, events: resident.NewQueue(cfg.OnModel), servers: map[string]*server{}}
+	rt := &Runtime{cfg: cfg, events: resident.NewQueue(cfg.OnModel), servers: map[string]*server{}}
+	rt.idle.Store(int64(cfg.IdleTimeout))
+	return rt
+}
+
+// IdleTimeout is how long an unused server stays (< 0: until Close).
+func (rt *Runtime) IdleTimeout() time.Duration { return time.Duration(rt.idle.Load()) }
+
+// SetIdleTimeout changes how long an unused server stays: d < 0 until
+// Close, 0 DefaultIdleTimeout. The servers unused now count it from now;
+// the ones in use, from the end of their use.
+func (rt *Runtime) SetIdleTimeout(d time.Duration) {
+	if d == 0 {
+		d = DefaultIdleTimeout
+	}
+	if time.Duration(rt.idle.Swap(int64(d))) == d {
+		return
+	}
+	rt.mu.Lock()
+	all := make([]*server, 0, len(rt.servers))
+	for _, s := range rt.servers {
+		all = append(all, s)
+	}
+	rt.mu.Unlock()
+	for _, s := range all {
+		s.rearm()
+	}
 }
 
 func (rt *Runtime) logf(level, format string, args ...any) {

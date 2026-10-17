@@ -193,14 +193,15 @@ func (s *server) unlease(p *process) {
 	s.armIdle(p)
 }
 
-// armIdle stops p after the idle timeout (s.mu held).
+// armIdle stops p after the idle timeout, from now (s.mu held).
 func (s *server) armIdle(p *process) {
-	d := s.rt.cfg.IdleTimeout
-	if d < 0 {
-		return
-	}
 	if s.idle != nil {
 		s.idle.Stop()
+		s.idle = nil
+	}
+	d := s.rt.IdleTimeout()
+	if d < 0 {
+		return
 	}
 	s.idle = time.AfterFunc(d, func() {
 		s.mu.Lock()
@@ -213,6 +214,17 @@ func (s *server) armIdle(p *process) {
 		s.rt.logf("info", "%s unloaded after %v unused", s.spec.ID, d)
 		p.stop()
 	})
+}
+
+// rearm arms the idle timer again with the runtime's idle timeout when
+// the server is unused (SetIdleTimeout).
+func (s *server) rearm() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.retired || s.proc == nil || s.leases > 0 {
+		return
+	}
+	s.armIdle(s.proc)
 }
 
 // retire stops the server once its uses end, for why; no new use gets

@@ -188,6 +188,50 @@ func TestIdleStopAndRestart(t *testing.T) {
 	}
 }
 
+// TestSetIdleTimeout: a change applies to the running process at once:
+// kept (never) → stopped after the new time, counted from the change;
+// back to never, it stays.
+func TestSetIdleTimeout(t *testing.T) {
+	rt, logs := newRuntime(t, "", nil) // IdleTimeout -1
+	b, err := NewModel(rt, Fast, mlxDir(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	chat := func() {
+		t.Helper()
+		if _, err := b.Chat(context.Background(), llm.Request{Messages: []llm.Message{{Role: llm.User, Content: "hi"}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	chat()
+	time.Sleep(150 * time.Millisecond)
+	if st := rt.Status(); st.State != Ready {
+		t.Fatalf("kept: %+v", st)
+	}
+	changed := time.Now()
+	rt.SetIdleTimeout(200 * time.Millisecond)
+	if d := rt.IdleTimeout(); d != 200*time.Millisecond {
+		t.Errorf("IdleTimeout %v", d)
+	}
+	waitFor(t, "the idle stop", func() bool { return rt.Status().State == Stopped })
+	if took := time.Since(changed); took < 200*time.Millisecond {
+		t.Errorf("stopped %v after the change", took)
+	}
+	if !logs.has("unused for 200ms") {
+		t.Error("no idle line with the new time")
+	}
+	chat()
+	rt.SetIdleTimeout(-1)
+	time.Sleep(400 * time.Millisecond)
+	if st := rt.Status(); st.State != Ready || st.Starts != 2 {
+		t.Errorf("never: %+v", st)
+	}
+	rt.SetIdleTimeout(0)
+	if d := rt.IdleTimeout(); d != DefaultIdleTimeout {
+		t.Errorf("0 is %v", d)
+	}
+}
+
 // A process that dies during a chat fails it; llm.Client starts another
 // and tries again.
 func TestCrashRetries(t *testing.T) {

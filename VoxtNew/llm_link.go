@@ -45,8 +45,9 @@ func (a *app) llmRuntime() *llmrt.Runtime {
 	default:
 		logDir, _ := mygo.App.Path(mygo.PathLogs)
 		logs := a.logs
+		_, idle := keepIdle(a.keepSetting()) // models_keep.go
 		a.llmrt = llmrt.New(llmrt.Config{
-			Bin: llmLocate(), AppVersion: mygo.App.Version(), LogDir: logDir,
+			Bin: llmLocate(), AppVersion: mygo.App.Version(), LogDir: logDir, IdleTimeout: idle,
 			Log: func(e core.LogEntry) {
 				if logs != nil {
 					logs.Append(e)

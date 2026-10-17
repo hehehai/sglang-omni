@@ -66,6 +66,9 @@ func Find(resources string) string {
 	return ""
 }
 
+// DefaultIdleTimeout is how long the process stays without a call.
+const DefaultIdleTimeout = 5 * time.Minute
+
 // Config configures a Runtime.
 type Config struct {
 	Bin        string // the executable (Find); "" fails every call
@@ -78,7 +81,7 @@ type Config struct {
 	// HelloTimeout bounds the handshake (default 10 s).
 	HelloTimeout time.Duration
 	// IdleTimeout stops the process after so long without a call
-	// (default 5 min; <0 never).
+	// (DefaultIdleTimeout; <0 never; SetIdleTimeout changes it).
 	IdleTimeout time.Duration
 	// CancelGrace is how long a cancelled chat may take to end before the
 	// process is killed (default 3 s).
@@ -100,7 +103,7 @@ func (c *Config) defaults() {
 		c.HelloTimeout = 10 * time.Second
 	}
 	if c.IdleTimeout == 0 {
-		c.IdleTimeout = 5 * time.Minute
+		c.IdleTimeout = DefaultIdleTimeout
 	}
 	if c.CancelGrace == 0 {
 		c.CancelGrace = 3 * time.Second

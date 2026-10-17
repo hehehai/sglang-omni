@@ -33,6 +33,7 @@ func (a *app) modelsPage(c *ui.Context) {
 			a.modelCards(c, models.ASR)
 			sectionTitleTip(c, i18n.T("Language models"), i18n.T("Cleans up, translates and rewrites the text. Without one, Transcribe types the text as recognised."))
 			a.modelCards(c, models.LLM)
+			a.modelsAdvanced(c) // models_keep.go
 		})
 	})
 	a.modelDeleteDialogs(c) // models_delete.go
