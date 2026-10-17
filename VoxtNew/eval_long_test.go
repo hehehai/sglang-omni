@@ -38,7 +38,7 @@ type longCase struct {
 	// a first token and gap the longest wait between two tokens: what
 	// the session's deadlines bound (behavior.md 5.5).
 	slowest, firstMax, gap time.Duration
-	tokens               int
+	tokens                 int
 }
 
 func TestEvalLong(t *testing.T) {
