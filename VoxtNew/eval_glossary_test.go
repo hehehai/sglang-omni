@@ -26,7 +26,7 @@ import (
 
 func TestEvalGlossary(t *testing.T) {
 	e := evalSetup(t)
-	rt := evalLLMRuntime(t)
+	rt := evalLLMRuntime(t, nil)
 	ctx := context.Background()
 	var terms []compose.Term
 	var dictionary []store.Term

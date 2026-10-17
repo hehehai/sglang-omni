@@ -1,22 +1,25 @@
 package main
 
 // TestEvalLong: long dictation (the set's long clips, 95–104 s, by their
-// words) on the language models, as one request and in pieces
-// (compose.BuildParts, as the session sends them): Transcribe's clean-up
-// and spoken Translate into English on the general models, Hy-MT2's
-// translation of the speech without its fillers. Then, for the length
-// above which the session cuts, whole clean-ups of the long clips' first
-// clips, 3 to 13 of them. The full eval only (eval_test.go); the report
+// words) on the language models: Transcribe's clean-up as one request and
+// in pieces (compose.BuildParts, as the session sends them, after warming
+// the shared prefix as the session does while the user speaks; the
+// prompt cache's hits are counted), spoken Translate into English as one
+// request (Hy-MT2: the speech without its fillers). Then whole clean-ups
+// of the long clips' first clips, 3 to 13 of them: where a whole
+// clean-up starts to fail. The full eval only (eval_test.go); the report
 // is long.md.
 
 import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/eval"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt"
@@ -29,6 +32,8 @@ type longCase struct {
 	// piece is the time to the first part's answer: when the overlay
 	// shows the first cleaned piece.
 	piece time.Duration
+	// hits are the parts whose prompt the cache served.
+	hits int
 }
 
 func TestEvalLong(t *testing.T) {
@@ -45,7 +50,12 @@ func TestEvalLong(t *testing.T) {
 	if len(longs) == 0 {
 		t.Skip("no long clip selected")
 	}
-	rt := evalLLMRuntime(t)
+	var hits atomic.Int32
+	rt := evalLLMRuntime(t, func(l core.LogEntry) {
+		if strings.Contains(l.Message, "prompt cache hit") && !strings.Contains(l.Message, " prefill:") {
+			hits.Add(1)
+		}
+	})
 	ctx := context.Background()
 	terms := evalTerms(e)
 	var cases []longCase
@@ -70,12 +80,23 @@ func TestEvalLong(t *testing.T) {
 				parts, _ = compose.BuildParts(in)
 			}
 			lc := longCase{llmCase: llmCase{model: id, task: task, variant: variant, clip: c}, parts: len(parts)}
+			skill := llm.SkillTranscribeEnhance
+			if task == "translate" {
+				skill = llm.SkillTranslateText
+			}
+			warm := in
+			warm.Text = ""
+			if out, err := compose.Build(warm); err == nil {
+				if err := client.Prefill(ctx, llm.Request{Skill: skill, Messages: evalMessages(out)}); err != nil {
+					t.Logf("%s: warming up: %v", id, err)
+				}
+			}
+			before := hits.Load()
 			var answers []string
 			t0 := time.Now()
 			for _, p := range parts {
-				req := llm.Request{Skill: llm.SkillTranscribeEnhance, Messages: evalMessages(p.Output), Timeout: 3 * time.Minute}
+				req := llm.Request{Skill: skill, Messages: evalMessages(p.Output), Timeout: 3 * time.Minute}
 				if task == "translate" {
-					req.Skill = llm.SkillTranslateText
 					req.Translate = &llm.TranslateHint{Text: compose.StripFillers(p.Text), Target: in.TargetLanguage}
 				}
 				req.OnDelta = func(string) {
@@ -93,27 +114,27 @@ func TestEvalLong(t *testing.T) {
 				}
 			}
 			lc.total = time.Since(t0)
+			lc.hits = int(hits.Load() - before)
 			lc.out = compose.JoinParts(parts, answers)
 			lc.verdict = check(lc.out)
 			cases = append(cases, lc)
 			return lc
 		}
 		for _, c := range longs {
-			for _, pieces := range []bool{false, true} {
-				variant := map[bool]string{false: "whole", true: "pieces"}[pieces]
-				if id != llmrt.Translate {
+			if id != llmrt.Translate {
+				for _, pieces := range []bool{false, true} {
 					in := compose.Input{Task: compose.Transcribe, Cleanup: true, MainLanguage: "zh", OtherLanguages: []string{"en"}, Glossary: terms, Text: c.Text}
-					run("transcribe", variant, c, in, pieces, func(out string) eval.Verdict {
+					run("transcribe", map[bool]string{false: "whole", true: "pieces"}[pieces], c, in, pieces, func(out string) eval.Verdict {
 						_, answer, _ := compose.Example(in)
 						return eval.CheckClean(c, c.Text, out, answer)
 					})
 				}
-				in := compose.Input{Task: compose.Translate, Cleanup: true, MainLanguage: "zh", OtherLanguages: []string{"en"}, TargetLanguage: "en", Glossary: terms, Text: c.Text}
-				run("translate", variant, c, in, pieces, func(out string) eval.Verdict {
-					_, answer, _ := compose.Example(in)
-					return eval.CheckTranslation(c.MustEn, c.MustNotEn, c.Text, out, answer)
-				})
 			}
+			in := compose.Input{Task: compose.Translate, Cleanup: true, MainLanguage: "zh", OtherLanguages: []string{"en"}, TargetLanguage: "en", Glossary: terms, Text: c.Text}
+			run("translate", "whole", c, in, false, func(out string) eval.Verdict {
+				_, answer, _ := compose.Example(in)
+				return eval.CheckTranslation(c.MustEn, c.MustNotEn, c.Text, out, answer)
+			})
 		}
 		if id != llmrt.Translate {
 			// The threshold: whole clean-ups of the first n clips.
@@ -156,7 +177,7 @@ func evalMessages(out compose.Output) []llm.Message {
 func longReport(cases []longCase) string {
 	var b strings.Builder
 	b.WriteString("# Long dictation\n\n")
-	tb := table{head: []string{"model", "task", "prompt", "clip", "characters", "parts", "faults", "error vs expected", "first token", "first part", "total"}}
+	tb := table{head: []string{"model", "task", "prompt", "clip", "characters", "parts", "cache hits", "faults", "error vs expected", "first token", "first part", "total"}}
 	for _, c := range cases {
 		faults, errCell := c.verdict.Faults(), "–"
 		if faults == "" {
@@ -165,7 +186,7 @@ func longReport(cases []longCase) string {
 		if c.task == "transcribe" {
 			errCell = pct(c.verdict.Score.Rate())
 		}
-		tb.add(c.model, c.task, c.variant, c.clip.ID, len([]rune(c.clip.Text)), c.parts, mdText(faults), errCell, ms(c.first), ms(c.piece), ms(c.total))
+		tb.add(c.model, c.task, c.variant, c.clip.ID, len([]rune(c.clip.Text)), c.parts, c.hits, mdText(faults), errCell, ms(c.first), ms(c.piece), ms(c.total))
 	}
 	b.WriteString(tb.String() + "\nEvery answer:\n\n")
 	at := table{head: []string{"model", "task", "prompt", "clip", "answer"}}

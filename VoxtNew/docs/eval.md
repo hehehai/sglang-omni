@@ -44,7 +44,7 @@ On mac-air, from the persistent models and runtimes:
 | `~/voxtnew-runtime/{omni,llm}/` | `scripts/build-omni.sh --out` and `scripts/build-llm.sh --out` from `voxtnew/dev` | its `README.md` |
 
 ```sh
-# the whole eval, about 25 minutes; tables in build/eval (asr.md, llm.md, glossary.md)
+# the whole eval, about 35 minutes; tables in build/eval (asr.md, llm.md, glossary.md, long.md)
 MAC_DIR=code/VoxtNew-xyz scripts/mac.sh 'VOXTNEW_EVAL=1 VOXTNEW_OMNI_RUNTIME=$HOME/voxtnew-runtime/omni \
   VOXTNEW_LLM=$HOME/voxtnew-runtime/llm/voxtnew-llm VOXTNEW_EVAL_OUT=build/eval go test -count=1 -timeout 2h -run TestEval -v .'
 # quick: a clip of each kind, checked against floors (part of scripts/mac-regress.sh)
@@ -56,6 +56,7 @@ MAC_DIR=code/VoxtNew-xyz scripts/mac.sh 'VOXTNEW_EVAL=1 VOXTNEW_OMNI_RUNTIME=$HO
 The tests are:
 - `TestEvalASR`: `eval_asr_test.go`;
 - `TestEvalLLM` and `TestEvalGlossary`: `eval_llm_test.go` and `eval_glossary_test.go`;
+- `TestEvalLong` (the long clips: Transcribe whole and in pieces, the prompt cache's hits, long spoken Translate; the full eval only): `eval_long_test.go`;
 - `TestEvalAppEnhancement` and `TestEvalDictionary`: `eval_e2e_test.go`.
 
 They log a `CONTENTION` line when another `voxtnew-llm` or `qwen3_asr_server` was running before they started, since that skews the times. The numbers below come from runs without one at their start. mac-air is shared, though: other apps' engines (AudioSmith, Dicta) and another thread's runs were seen during the day, with swap in use. Read the times as upper bounds, and compare them only with runs on the same machine. `scripts/mac-regress.sh` (manual-test.md §10.6) runs the quick eval with the other Mac tests.
@@ -151,14 +152,58 @@ The faults without the example were the self-corrections kept and "uh" left in. 
 - It costs about 80–160 ms more of the first token: the example is about 60 more prompt tokens.
 - compose's golden prompts show the turn (`internal/compose/testdata/golden`).
 
-### Long dictation (two clips, 95–104 s)
+### Long dictation (two clips, 95–104 s; M3b, `TestEvalLong`)
 
-- **Both models translate long mixed dictation into English.**
-  - `llm.balanced`, with or without the example, turned the clip that starts in English entirely into English: "changed the language", 32% errors.
-  - `llm.fast` did the same without the example.
-  - With the example, `llm.fast` kept the language but left most fillers in both long clips.
-- **Long clean-ups are slow.** `llm.balanced` takes 12.6–12.8 s and `llm.fast` about 5 s.
-- This is not fixed in M3: see Decisions needed in the handoff (clean up long text in pieces, or not at all over a length).
+The two long clips by their words: `long-zh` (441 characters, Chinese with English words) and `long-all` (742 characters, whole sentences alternating between English and Chinese, starting in English). M3 found that `llm.balanced` translated all of `long-all` into English. M3b measured where that starts, and how to cut the text so that it does not.
+
+**Where a whole clean-up fails.** Whole clean-ups of the long clips' first 3, 5, 7… clips (`llm.balanced`):
+
+| text | characters | result |
+|---|---|---|
+| `long-zh`, first 3 to 11 clips | 99–362 | no fault (error 7–13%) |
+| `long-all`, first 3 clips | 192 | returned as it was: every filler kept |
+| `long-all`, first 5 to 13 clips | 297–716 | translated into English (45–55% errors) |
+
+The trigger is sentences that switch language, not length: Chinese with English words is fine at any length measured, while 192 characters of alternating sentences already fail.
+
+**How to cut.** `long-all` on `llm.balanced`, each piece with the same system prompt and example turn:
+
+| cut | requests | faults | error vs expected |
+|---|---|---|---|
+| whole | 1 | translated into English | 58.5% |
+| pieces of at most 300 characters at sentence ends | 3 | the first piece (English, Chinese, English…) translated | 25.1% |
+| pieces of at most 150 characters | 6 | two pieces translated | 32.4% |
+| 300-character pieces, the English template (main language "en") | 3 | translated, fillers kept | 42.0% |
+| **where whole sentences change language (and at most 300 characters)** | 10 | one self-correction at a sentence's end kept (周五…不对，周四, as on the short clip) | **6.3–7.7%** |
+
+**Decision: Transcribe's clean-up is cut where the language changes, at any length, and by length over 400 characters** (`compose.LanguagePieces`, `BuildParts`; behavior.md 5.31).
+- A sentence counts as Chinese when most of its words are Chinese characters, so "我们的服务用 Kubernetes 部署" stays with the Chinese.
+- A dictation in one language under 400 characters is one request, the same as before: all 20 short clips, as said and as heard, are one piece.
+- On `long-zh` (one language, 441 characters: two pieces) `llm.balanced` scores the same whole and in pieces: no fault, 7.3%.
+
+**What it costs, with M2b's prompt cache.** Every piece has the same system prompt and example turn, and the session warms that prefix up while the user speaks (`warmLLM`). So every piece's request starts from the cache: 10 of 10 hits on `long-all`, 2 of 2 on `long-zh`. Times on mac-air with the cache, after the warm-up, as the session runs:
+
+| `llm.balanced` | whole | in pieces |
+|---|---|---|
+| `long-all` (742 characters) | 10.7 s, translated into English | **13.8 s** (10 requests), language kept; the first piece's answer after **1.6 s** |
+| `long-zh` (441 characters) | 11.6 s | 12.0 s (2 requests); the first after 5.6 s |
+
+- **Without the cache** (`voxtnew-llm` before M2b, under load), the 10 pieces took 63 s against 12.8 s whole: the cache is what makes the language cuts affordable.
+- **The overlay shows the cleaned pieces as they come** (the session's Draft), so the first words appear after 1.6 s instead of 11 s.
+- **Each request has its own timeout** (15 s, behavior.md 5.5). A whole clean-up of 12.8 s no longer risks the session's timeout: M3's 8 s would have inserted the raw text.
+- `llm.fast` in pieces: `long-all` 4.8 s (whole 3.7 s); `long-zh` 4.1 s, with fewer fillers left than whole (6.4% against 16.4% error), still not clean.
+
+**Spoken Translate stays one request.** Into English, in 300-character pieces against whole:
+
+| model | whole | pieces |
+|---|---|---|
+| `llm.balanced` | `long-zh` faultless; `long-all` keeps two replaced phrases (Friday, Shanghai); 14 s | the same faults; 17–38 s |
+| `llm.fast` | `long-all` faultless; `long-zh` copies the example's sentence | `long-all` keeps fillers and three replaced phrases; `long-zh` copies the example too |
+| Hy-MT2 | self-corrections kept as spoken (as on short clips); 12–13 s | the same; 12–14 s |
+
+The translation's target is one language, so it has no language to lose. A whole translation was as good or better, and faster.
+
+**`llm.fast` does not clean up long text.** It keeps nearly every filler on Chinese from about 100 characters up (3 short clips joined), whole or in pieces. Pieces do not help it. It cleans one short dictation well (16 of 20, above), so the 300-character pieces are no fix for it. Users who dictate long texts need `llm.balanced`.
 
 ### Spoken Translate with Hy-MT2 (`llm.translate`)
 
@@ -178,15 +223,18 @@ Hy-MT2 takes its own prompt and no clean-up rules (behavior.md 3.13). Raw speech
 
 ### The glossary on misheard terms (`TestEvalGlossary`)
 
-Each dictionary clip's transcript as a speech model wrote it without the dictionary (`heard`), cleaned up with the eval dictionary as the glossary:
+Each dictionary clip's transcript as a speech model wrote it without the dictionary (`heard`), cleaned up with the eval dictionary as the glossary. Since M3b the session first replaces the dictionary's aliases (`dict.Replace`: "Or Link" becomes Auralink, behavior.md 7.9a), and the glossary of a dictionary of up to 30 terms is in the dictionary's order (M2b's decision: the same system prompt for every dictation, which the prompt cache keeps):
 
-| model | terms written | terms put in where none was said (2 clips without terms) |
-|---|---|---|
-| `llm.balanced` | **9 of 10** | 0 |
-| `llm.fast` | 5 of 10 | 0 |
+| model | glossary order | as heard | aliases replaced first (the session) | terms put in where none was said |
+|---|---|---|---|---|
+| `llm.balanced` | the terms the text mentions first (M3) | 9 of 10 | **10 of 10** | 0 |
+| `llm.balanced` | the dictionary's order (M3b) | 8 of 10 | **9 of 10** | 0 |
+| `llm.fast` | the terms the text mentions first (M3) | 5 of 10 | 6 of 10 | 0 |
+| `llm.fast` | the dictionary's order (M3b) | 5 of 10 | 6 of 10 | 0 |
 
-- `llm.balanced` turns "Vox Tunew", "Voxnu", "Vox New", "S G Long", "Pixcal" and "Act Now" into the dictionary's spellings.
-- It misses "Or Link" for "Auralink", although that is the term's alias: it keeps it as a name. A more insistent glossary wording changed nothing (the same 9 and 5 of 10), so compose's wording stays.
+- `llm.balanced` turns "Vox Tunew", "Vox New", "S G Long", "Pixcal" and "Act Now" into the dictionary's spellings.
+- **It keeps "Or Link" as a name** although that is Auralink's alias: a more insistent glossary wording changed nothing (M3). The alias replacement fixes it with no model at all.
+- **The dictionary's order costs one term.** On `dict-5`, "Voxnu" stays "Voxnu" when Auralink, the term the text mentions, is no longer listed first (greedy decoding: the same every run); the other nine answers are the same. The 20 short clips' clean-ups and translations score the same with either order (the tables above are from M3b's run).
 - `llm.fast` mostly ignores the glossary, as M2 saw.
 
 ## App enhancement and the dictionary, whole sessions on the real models
@@ -207,6 +255,9 @@ Each session took about 6.5 s end to end, cold starts included: ASR 0.7–1.0 s 
 | Dictionary | `dict-1`, the dictionary on | VoxtNew的新版本用MLX在本地跑语音模型。 | VoxtNew 的新版本用 MLX 在本地跑语音模型。 |
 | | the terms not sent to the speech model (glossary only) | Vox Tunew的新版本用MLX在本地跑语音模型。 | **VoxtNew** 的新版本用 MLX 在本地跑语音模型。 |
 | | the dictionary off | Vox Tunew的新版本用MLX在本地跑语音模型。 | Vox Tunew 的新版本用 MLX 在本地跑语音模型。 |
+| Dictionary alias (M3b) | `dict-5`, Auralink with the alias "Or Link", no speech hints, the clean-up off | Or Link and Voxnu share the same prompt composer. | **Auralink** and Voxnu share the same prompt composer. |
+
+These sessions are sensitive to load. While two other threads ran their models on mac-air (swap 14–17 of 18 GB), the alias session failed twice: the speech model wrote "I'm not sure." and "I'm not a good person." for the whole `dict-5` recording, its usual output on near-silence. It passed 3 of 3 on a quieter Mac. Once, the glossary-only session heard "Vox Tunio" and `llm.balanced` left it.
 
 ## Not measured here
 

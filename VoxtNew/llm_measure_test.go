@@ -235,8 +235,9 @@ func TestLLMRealPromptCache(t *testing.T) {
 				}
 				return resp.Text, ls[len(ls)-1]
 			}
-			// A glossary lists the terms the text mentions first: the system
-			// prompt changes at the glossary from one input to the next.
+			// A small dictionary's glossary is in the dictionary's order,
+			// whatever the text mentions (compose.Glossary): the system
+			// prompt stays the same from one input to the next.
 			glossary := measureCase{"transcribe en, glossary", llm.SkillTranscribeEnhance, compose.Input{Task: compose.Transcribe, Cleanup: true, MainLanguage: "en",
 				Glossary: []compose.Term{{Term: "VoxtNew"}, {Term: "MLX"}, {Term: "Qwen"}, {Term: "SGLang"}},
 				Text:     "um so the qwen model runs on m l x now"}, false}
@@ -250,9 +251,7 @@ func TestLLMRealPromptCache(t *testing.T) {
 				}
 				// The first chat may start from another kind's branch point;
 				// another input with the same system prompt is a hit, and so
-				// is the first input again. The glossary's second input
-				// parts at the glossary (a miss that keeps the branch point),
-				// its third starts from that point.
+				// is the first input again; with a glossary too.
 				list := []string{c.in.Text, second, c.in.Text}
 				if c.name == glossary.name {
 					list = append(list, "and voxt new should load it at start up")
@@ -261,8 +260,7 @@ func TestLLMRealPromptCache(t *testing.T) {
 					want, offLine := chat(off, offModel, c, text)
 					got, onLine := chat(on, onModel, c, text)
 					hit := strings.Contains(onLine, "prompt cache hit")
-					wantHit := i >= 2 || i == 1 && c.name != glossary.name
-					if i > 0 && hit != wantHit || got != want {
+					if i > 0 && !hit || got != want {
 						t.Errorf("%s #%d: hit %v\n    without: %q\n    with:    %q", c.name, i+1, hit, want, got)
 					}
 					t.Logf("%s #%d:\n    off: %s\n    on:  %s", c.name, i+1, offLine, onLine)

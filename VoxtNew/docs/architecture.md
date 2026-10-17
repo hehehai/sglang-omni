@@ -184,7 +184,7 @@ hotkey.event (helper) ─▶ helperNotified ─▶ hotkeyFired ─▶ hotkey.Rou
          (internal/vad: a stream gets nothing before the speech, an upload no silence around it; no speech: nothing is sent)
          (the recording kept in the history is the original)
    dict.Replace: the dictionary's aliases ─▶ their terms (the history keeps the text as recognised)
-   compose.BuildParts (+ the Scene layer, the glossary): one request, or one per piece of speech over 400 characters
+   compose.BuildParts (+ the Scene layer, the glossary): one request, or one per piece where the language changes or over 400 characters
       ─▶ a chat per part (15 s each), streaming into the draft ─▶ compose.Clean, compose.JoinParts
          (a part fails: its text as recognised, a warning)
    deliver.Insert: textio.focus ─▶ textio.paste {targetPid, press: the group's auto key}   (or the answer card)
@@ -193,8 +193,7 @@ Translate: textio.selection {allowCopy: session.AllowCopy(app)} first ─ text �
 Rewrite:   textio.selection while recording; the instruction (+ the selection) ─▶ compose
    deliver.Check ─ would not insert ─▶ the answer streams into the card
    one streaming chat (60 s; Rewrite without a selection: JSON {title, content}) ─▶ Draft
-      (long spoken Translate: one per piece, as Transcribe; a piece that fails fails the session)
-   Translate: compose.Untranslated? (per piece) ─▶ that piece once more with the Strict layer
+   Translate: compose.Untranslated? ─▶ once more with the Strict layer
    fails ─▶ failed, in the card with Try again (retryAnswer: StartRequest.Text)
    history entry (+ audio/<id>.wav) ─▶ the end snapshot
 snapshots ─▶ a.post ─▶ sessionChanged ─▶ (events.go, in order) the setup guide, the start and stop sounds;

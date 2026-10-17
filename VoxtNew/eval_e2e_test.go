@@ -72,7 +72,8 @@ func runEvalSession(t *testing.T, e *evalRun, id, front string, terms []store.Te
 	if end.State != session.Done || end.Result == "" {
 		t.Fatalf("%s: end %s %+v %q", id, end.State, end.Problem, end.Result)
 	}
-	t.Logf("%s in %s: %v (ASR %v, LLM %v); profile %s\n    heard  %q\n    result %q", id, front, time.Since(t0).Round(time.Millisecond),
+	t.Logf("%s in %s: %v (audio %v of %v, sent %v; ASR %v, LLM %v); profile %s\n    heard  %q\n    result %q", id, front, time.Since(t0).Round(time.Millisecond),
+		end.Timings.Audio.Round(time.Millisecond), c.Duration().Round(time.Millisecond), end.Timings.Sent.Round(time.Millisecond),
 		end.Timings.ASR.Round(time.Millisecond), end.Timings.LLM.Round(time.Millisecond), end.Profile, end.Raw, end.Result)
 	return end
 }

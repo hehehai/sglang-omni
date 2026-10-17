@@ -41,7 +41,7 @@ const evalLLMFloor = 0.6
 
 func TestEvalLLM(t *testing.T) {
 	e := evalSetup(t)
-	rt := evalLLMRuntime(t)
+	rt := evalLLMRuntime(t, nil)
 	ctx := context.Background()
 	var clips, spoken []eval.Clip
 	for _, c := range e.clips() {
@@ -145,14 +145,17 @@ func TestEvalLLM(t *testing.T) {
 }
 
 // evalLLMRuntime is voxtnew-llm ($VOXTNEW_LLM, else ~/voxtnew-runtime's),
-// stopped at the test's end.
-func evalLLMRuntime(t *testing.T) *llmrt.Runtime {
+// stopped at the test's end; log gets its log lines (nil: none).
+func evalLLMRuntime(t *testing.T, log func(core.LogEntry)) *llmrt.Runtime {
 	bin := os.Getenv("VOXTNEW_LLM")
 	if bin == "" {
 		home, _ := os.UserHomeDir()
 		bin = filepath.Join(home, "voxtnew-runtime", "llm", llmrt.BinName)
 	}
-	rt := llmrt.New(llmrt.Config{Bin: bin, AppVersion: "eval", LogDir: t.TempDir(), IdleTimeout: -1, Log: func(core.LogEntry) {}})
+	if log == nil {
+		log = func(core.LogEntry) {}
+	}
+	rt := llmrt.New(llmrt.Config{Bin: bin, AppVersion: "eval", LogDir: t.TempDir(), IdleTimeout: -1, Log: log})
 	t.Cleanup(rt.Stop)
 	return rt
 }
