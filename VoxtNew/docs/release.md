@@ -36,7 +36,7 @@ scripts/mac-gui.sh scripts/release.sh（在 Mac 上，ssh 里经 mac-gui.sh 进�
 | `Resources/omni/bin/qwen3_asr_server`、`*.dylib`、`mlx.metallib` | Omni 原生运行时（sglang_omni_mlx/native）：Qwen3-ASR 和 Silero VAD | 保留原 entitlement（没有） |
 | `Resources/llm/voxtnew-llm`、`llama.framework`、`mlx.metallib`、`swift-transformers_Hub.bundle` | 语言模型进程（mlx-swift-lm 和 llama.cpp） | `llm/Support/llm.entitlements`（空：Metal 不需要） |
 
-`mlx.metallib` 不是代码，是资源，由 app 的签名封住。模型本身不在 app 里，用户在 app 里下载（`~/Library/Application Support/VoxtNew/models/`）。
+`mlx.metallib` 不是代码，是资源，由 app 的签名封住。模型本身不在 app 里，用户在 app 里下载到 ActNow 家族的模型库 `$HUB`（默认 `~/.cache/huggingface/hub`，和家族其他 app 共用；见 [architecture.md](architecture.md)）。
 
 更新用的是 MyGo 官方方案（`mygo.Updater` + updater 插件的 `native.Plugin` 窗口），说明见 MyGo 的 `docs/updates.md`、`docs/plugins/updater.md`；beta 通道是我们的补丁 0006（`third_party/mygo-patches/`，和 Auralink 的同一个）。
 
@@ -268,7 +268,7 @@ macOS 按 bundle ID + 代码签名的要求记住麦克风和辅助功能授权�
   ```
 - **之后的更新**（同一个 Team ID、同一个 bundle ID）授权保留，beta 和正式版之间也一样。`identifier` 发布后就不能再改。
 - 开发时用 Apple Development 证书签名的构建，与发布版之间切换也要 reset 一次。
-- 下载好的模型（`~/Library/Application Support/VoxtNew/models/`）不受签名影响，换版本、更新都保留。
+- 下载好的模型（`$HUB`，默认 `~/.cache/huggingface/hub`）不受签名影响，换版本、更新都保留。
 
 ## 5. 更新怎么工作
 

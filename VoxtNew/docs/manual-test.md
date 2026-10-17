@@ -15,8 +15,8 @@
 |---|---|
 | 日志面板 | VoxtNew 里按 ⇧⌘L（来源 `session`、`omni`、`llm`、`helper`） |
 | 日志文件 | `~/Library/Logs/VoxtNew/voxtnew.log`（app，含 Omni 服务的启动、退出、卸载）、`helper.log`（辅助进程：热键、AX、粘贴、URL）、`llm.log`（voxtnew-llm 的 stderr） |
-| 模型文件 | `~/Library/Application Support/VoxtNew/models/<id>/`（下载中的在 `models/.partial/`） |
-| 模型进程 | `pgrep -fl 'qwen3_asr_server\|voxtnew-llm\|voxtnew-helper'`：`qwen3_asr_server` 每个模型一个（命令行里的 `--model-directory …/models/<id>` 说明是哪个：语音识别模型或 `vad.silero`），`voxtnew-llm` 最多一个 |
+| 模型文件 | 家族模型库 `$HUB`（默认 `~/.cache/huggingface/hub`）的 `models--<owner>--<name>/snapshots/<commit>/`；VoxtNew 的声明在 `~/Library/Application Support/ActNow/models/claims/dev.hehehai.voxtnew.json` |
+| 模型进程 | `pgrep -fl 'qwen3_asr_server\|voxtnew-llm\|voxtnew-helper'`：`qwen3_asr_server` 每个模型一个（命令行里的 `--model-directory …/models--<owner>--<name>/snapshots/<commit>` 说明是哪个：语音识别模型或 `vad.silero`），`voxtnew-llm` 最多一个 |
 | 历史详情 | 每次会话的识别原文、结果、交付方式、用的语音识别模型和语言模型、各阶段耗时、命中的规则 |
 | 系统设置 | 隐私与安全 → 辅助功能 / 麦克风；网络 → 代理 |
 
