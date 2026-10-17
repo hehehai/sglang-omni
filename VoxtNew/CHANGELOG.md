@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to VoxtNew. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). Each version's section is what the update window shows: English first, then the same in Chinese under matching headings (docs/release.md).
+All notable changes to VoxtNew. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). Each version's section is what the update window and actnow.dev show: English first, then the same in Chinese under `### 中文`, with `####` headings below it (docs/release.md §2.1).
 
 ## [0.1.0-beta.1] - 2026-10-17
 
@@ -14,9 +14,12 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 - Dictionary: its terms help the speech model hear your names and jargon, and the language model write them as you spell them.
 - The Local models page: download, pause and resume, every file verified, delete; the memory a loaded model uses. Downloads use the system's proxy, or a mirror when Hugging Face cannot be reached.
 - A setup guide that installs the two recommended models and tries each feature; history, the overlay, the menu bar, shortcuts and settings.
+- Shortcuts: tap the right Option key to transcribe, right Option with Shift to translate, Control with right Option to rewrite; Control-Option-V pastes the last result. They leave fn to Auralink, so the two apps run side by side.
 - Updates from actnow.dev, with a Beta channel (Settings → About). The app is signed and notarised.
 
-### 新增
+### 中文
+
+#### 新增
 
 - VoxtNew 的第一个版本：只用本地模型的 macOS 语音输入。在任意 App 里按下快捷键说话，文字出现在光标处。音频和文字不会离开你的 Mac。
 - 本地语音识别：精准（推荐）和快速两个模型，说话时实时显示文字；声音检测只把说话的部分交给它们。
@@ -26,4 +29,5 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 - 词典：词条帮助语音识别模型听准你的人名和术语，并让语言模型照你的写法输出。
 - 本地模型页：下载、暂停和继续下载，每个文件都经过校验，可删除；显示已加载模型占用的内存。下载走系统代理，连不上 Hugging Face 时改用镜像。
 - 设置引导：安装推荐的两个模型，并把每个功能试一遍；还有历史、浮窗、菜单栏、快捷键和设置。
+- 快捷键：单按右 Option 转录，右 Option 加 Shift 翻译，Control 加右 Option 转写；Control-Option-V 粘贴上一条结果。fn 留给 Auralink，两个 app 可以同时使用。
 - 从 actnow.dev 更新，有 Beta 通道（设置 → 诊断与关于）。app 已签名并经过公证。

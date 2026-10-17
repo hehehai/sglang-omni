@@ -21,7 +21,7 @@
 # when an upload fails.
 #
 # Options:
-#   --app <slug>          pik | auralink | dicta | audiosmith (required)
+#   --app <slug>          pik | auralink | dicta | audiosmith | voxtnew (required)
 #   --channel <name>      stable | beta (default: beta for x.y.z-pre, else stable)
 #   --dir <path>          MyGo's output directory, e.g. build/darwin-arm64 (required;
 #                         searched two levels deep, so build/ works for several platforms)

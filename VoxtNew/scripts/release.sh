@@ -6,8 +6,9 @@
 # of them inside, and scripts/release-verify.sh checks the result.
 #
 #   scripts/release.sh                                  # ad hoc: a release-style test build
-#   VOXTNEW_SIGN_IDENTITY="Developer ID Application: wei guan (779M533DL5)" \
+#   VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh RY2TQTYSKQ | cut -f1)" \
 #     scripts/release.sh [--notarize PROFILE] [--publish]
+#   scripts/mac-gui.sh scripts/release.sh …              # the same over ssh (see below)
 #
 # Options:
 #   --runtimes DIR       take the runtimes prebuilt from DIR/omni and DIR/llm
@@ -19,24 +20,30 @@
 #                        staple the app and the disk image; needs the identity
 #   --keychain FILE      the keychain holding PROFILE (default: the login keychain)
 #   --publish            publish on actnow.dev with scripts/actnow-publish.sh
-#                        (ACTNOW_INGEST_TOKEN); needs a notarized Developer ID
-#                        build with update files (MYGO_UPDATER_PRIVATE_KEY).
+#                        (ACTNOW_INGEST_TOKEN, from the environment only); needs
+#                        a notarized Developer ID build with update files.
 #                        Without it, a build with update files gets the
 #                        script's --dry-run
 #   --keep-runtimes      leave the staged runtimes in resources/darwin-arm64
 #
-# With VOXTNEW_SIGN_IDENTITY (a Developer ID Application identity, its name
-# or SHA-1: scripts/release-identity.sh TEAMID) the helper, the LLM and then
-# every Mach-O file and framework inside the app are signed with it, with
-# the hardened runtime and a secure timestamp (mygo build: signNestedCode),
-# and the build takes the update feed of release/mygo.release.json
-# (scripts/release-config.sh; MYGO_UPDATER_PRIVATE_KEY signs the update
-# files). Without it everything is signed ad hoc and the app has no update
-# feed, as every development build.
+# With VOXTNEW_SIGN_IDENTITY (a Developer ID Application identity of the
+# team RY2TQTYSKQ, its SHA-1: scripts/release-identity.sh) the helper, the
+# LLM and then every Mach-O file and framework inside the app are signed
+# with it, with the hardened runtime and a secure timestamp (mygo build:
+# signNestedCode), and the build takes the update feed of
+# release/mygo.release.json (scripts/release-config.sh): actnow.dev's
+# /updates/voxtnew, or /updates/voxtnew/beta for a version with a "-".
+# The update files are signed with VoxtNew's update key:
+# MYGO_UPDATER_PRIVATE_KEY (the key itself) or the file VOXTNEW_UPDATE_KEY
+# (default ~/.config/voxtnew-release/update-keys/mygo-update.key), which
+# must match the public key of release/mygo.release.json. Without an
+# identity everything is signed ad hoc and the app has no update feed, as
+# every development build.
 #
-# Over ssh, codesign cannot use a key of the locked login keychain
-# (errSecInternalComponent): run it in Terminal on the Mac, or unlock the
-# keychain first (security unlock-keychain). mygo.json is put back as it
+# Over ssh, codesign cannot use a key of the login keychain
+# (errSecInternalComponent): the script checks that first, and stops. Run
+# it in the GUI session through scripts/mac-gui.sh (nothing to type), or in
+# Terminal on the Mac (docs/release.md §1.1). mygo.json is put back as it
 # was at the end, whatever happens.
 set -euo pipefail
 
@@ -54,7 +61,7 @@ while (($#)); do
     --keychain) KEYCHAIN="${2:?--keychain needs a keychain file}"; shift 2 ;;
     --publish) PUBLISH=1; shift ;;
     --keep-runtimes) KEEP=1; shift ;;
-    -h | --help) sed -n '2,40p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,/^set -euo/{/^set -euo/d;p;}' "$0"; exit 0 ;;
     *) echo "release.sh: unknown argument $1 (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -63,11 +70,48 @@ if [[ -n "$PROFILE" && -z "$IDENTITY" ]]; then
   echo "notarization needs a Developer ID: set VOXTNEW_SIGN_IDENTITY" >&2
   exit 2
 fi
-if ((PUBLISH)) && [[ -z "$PROFILE" || -z "${MYGO_UPDATER_PRIVATE_KEY:-}" || -z "${ACTNOW_INGEST_TOKEN:-}" ]]; then
-  echo "--publish needs --notarize, MYGO_UPDATER_PRIVATE_KEY and ACTNOW_INGEST_TOKEN" >&2
+command -v jq >/dev/null || { echo "release.sh needs jq" >&2; exit 1; }
+
+# The update key: the key itself, or its file (never printed, never on a
+# command line). It must be the pair of the public key installed apps check.
+KEYFILE="${VOXTNEW_UPDATE_KEY:-$HOME/.config/voxtnew-release/update-keys/mygo-update.key}"
+pub_of_key() { # the key's text on stdin → its public key (Ed25519: seed ‖ public)
+  tr -d '[:space:]' | base64 --decode 2>/dev/null | tail -c 32 | base64
+}
+want_pub="$(jq -r .updates.publicKey release/mygo.release.json)"
+HAVE_KEY=0 KEY_ARG=()
+if [[ -n "$IDENTITY" ]]; then
+  if [[ -n "${MYGO_UPDATER_PRIVATE_KEY:-}" ]]; then
+    [[ "$(printf '%s' "$MYGO_UPDATER_PRIVATE_KEY" | pub_of_key)" == "$want_pub" ]] ||
+      { echo "MYGO_UPDATER_PRIVATE_KEY is not the key of $want_pub (release/mygo.release.json)" >&2; exit 2; }
+    HAVE_KEY=1
+  elif [[ -f "$KEYFILE" ]]; then
+    [[ "$(pub_of_key <"$KEYFILE")" == "$want_pub" ]] ||
+      { echo "$KEYFILE is not the key of $want_pub (release/mygo.release.json)" >&2; exit 2; }
+    HAVE_KEY=1 KEY_ARG=(--update-key "$KEYFILE")
+  fi
+fi
+if ((PUBLISH)) && [[ -z "$PROFILE" || $HAVE_KEY == 0 || -z "${ACTNOW_INGEST_TOKEN:-}" ]]; then
+  echo "--publish needs --notarize, the update key (MYGO_UPDATER_PRIVATE_KEY or $KEYFILE) and ACTNOW_INGEST_TOKEN" >&2
   exit 2
 fi
-command -v jq >/dev/null || { echo "release.sh needs jq" >&2; exit 1; }
+
+# Can codesign use the identity here? Over ssh it cannot (the keychain is
+# locked in that session): stop now rather than after the build.
+if [[ -n "$IDENTITY" ]]; then
+  probe="$(mktemp -d)"
+  cp /usr/bin/true "$probe/probe"
+  if ! err="$(codesign -f -s "$IDENTITY" --timestamp=none "$probe/probe" 2>&1)"; then
+    rm -rf "$probe"
+    echo "codesign cannot sign with $IDENTITY here: ${err##*: }" >&2
+    if [[ "$err" == *errSecInternalComponent* ]]; then
+      echo "Over ssh the login keychain is locked: run it in the GUI session, scripts/mac-gui.sh scripts/release.sh …," >&2
+      echo "or in Terminal on the Mac (docs/release.md §1.1)." >&2
+    fi
+    exit 1
+  fi
+  rm -rf "$probe"
+fi
 
 # One version everywhere: the app, the helper, the LLM, the notes.
 version="$(jq -r .version mygo.json)"
@@ -89,13 +133,14 @@ if [[ -z "${notes//[[:space:]]/}" ]]; then
 else
   :
 fi
-channel=stable
+channel=stable feed="$(jq -r .updates.url release/mygo.release.json)"
 if [[ "$version" == *-* ]]; then
-  channel=beta
+  channel=beta feed="$feed/beta"
 else
   :
 fi
 echo "== VoxtNew $version ($channel), signed ${IDENTITY:-ad hoc}${PROFILE:+, notarized with $PROFILE}"
+[[ -n "$IDENTITY" ]] && echo "   update feed $feed$( ((HAVE_KEY)) && echo ", update files signed" || echo ", no update key: no update files")"
 
 RES="$ROOT/resources/darwin-arm64"
 saved="$(mktemp -d)"
@@ -133,9 +178,10 @@ fi
 
 echo "== configuration"
 if [[ -n "$IDENTITY" ]]; then
-  scripts/release-config.sh --sign "$IDENTITY" ${PROFILE:+--notary-profile "$PROFILE"} ${KEYCHAIN:+--notary-keychain "$KEYCHAIN"}
-  if [[ -z "${MYGO_UPDATER_PRIVATE_KEY:-}" ]]; then
-    echo "note: no MYGO_UPDATER_PRIVATE_KEY: no update files (a release needs them)"
+  scripts/release-config.sh --sign "$IDENTITY" ${PROFILE:+--notary-profile "$PROFILE"} ${KEYCHAIN:+--notary-keychain "$KEYCHAIN"} \
+    ${KEY_ARG[@]+"${KEY_ARG[@]}"}
+  if ((HAVE_KEY == 0)); then
+    echo "note: no update key (MYGO_UPDATER_PRIVATE_KEY or $KEYFILE): no update files (a release needs them)"
   else
     :
   fi

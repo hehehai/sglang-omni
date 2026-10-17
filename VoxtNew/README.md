@@ -12,6 +12,10 @@ Voice input for macOS on **local models only**: press a shortcut in any app, spe
 
 With a history, the overlay, shortcuts, the menu bar, a setup guide, settings and updates.
 
+**Shortcuts** (change them on each feature's page): tap the **right Option** key to transcribe, right Option with Shift to translate, Control with right Option to rewrite; Control-Option-V pastes the last result. VoxtNew is one of the [ActNow](https://actnow.dev) apps: these keys leave fn to Auralink, so the two run side by side.
+
+**Website** [actnow.dev/voxtnew](https://actnow.dev/voxtnew) · **Download** [actnow.dev/download/voxtnew](https://actnow.dev/download/voxtnew) (sign in first) · updates come from actnow.dev.
+
 > **Status: 0.1.0** (first beta: `0.1.0-beta.1`). Every feature above works on the local models; see [CHANGELOG.md](CHANGELOG.md).
 
 ## What runs on your Mac
@@ -54,7 +58,7 @@ go tool mygo build                   # build/darwin-arm64/VoxtNew.app and its di
 
 The helper and `voxtnew-llm` must be built before `go tool mygo build` or `mygo dev`: `mygo.json` gives both their entitlements and fails without them. Without the Omni runtime the app runs but cannot recognise speech (or point `VOXTNEW_OMNI_RUNTIME` at one built with `scripts/build-omni.sh --out DIR`; likewise `VOXTNEW_LLM` for `scripts/build-llm.sh --out DIR`).
 
-**The release build** is one command, on the Mac: `scripts/release.sh` builds the three, packages and signs the app, and checks the result (`--runtimes DIR` takes prebuilt runtimes; with a Developer ID, `--notarize` and `--publish` notarise it and publish it on actnow.dev). See [docs/release.md](docs/release.md).
+**The release build** is one command, on the Mac: `scripts/release.sh` builds the three, packages and signs the app, and checks the result (`--runtimes DIR` takes prebuilt runtimes; with the Developer ID of the team RY2TQTYSKQ, `--notarize` and `--publish` notarise it and publish it on actnow.dev; over ssh it runs through `scripts/mac-gui.sh`). See [docs/release.md](docs/release.md).
 
 From Linux, `scripts/mac.sh <command>` mirrors the project to a Mac (`MAC_HOST`, default `mac-air`; `MAC_DIR`, default `code/VoxtNew`) and runs the command there: `scripts/mac.sh 'scripts/build-helper.sh && scripts/build-llm.sh && go tool mygo build'`.
 

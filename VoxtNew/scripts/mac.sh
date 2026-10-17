@@ -11,6 +11,15 @@
 # target; MAC_GOPROXY its Go module proxy (proxy.golang.org times out there).
 # The Omni runtime's sources (../sglang_omni_mlx/native, 3 MB) go along to
 # MAC_DIR/.omni-native, for scripts/build-omni.sh.
+#
+# ACTNOW_INGEST_TOKEN, when set here, reaches the command's environment
+# through ssh's standard input (never a command line, which the Mac's ps
+# would show), for scripts/release.sh --publish (docs/release.md §2.1):
+#
+#   ACTNOW_INGEST_TOKEN="$(sed -n 's/^RELEASE_INGEST_TOKEN_VOXTNEW=//p' ~/.config/actnow/ingest-tokens.env)" \
+#     scripts/mac.sh 'scripts/mac-gui.sh scripts/release.sh --notarize voxtnew-notary --publish'
+#
+# The command then reads an empty standard input.
 set -euo pipefail
 
 HOST="${MAC_HOST:-mac-air}"
@@ -38,5 +47,12 @@ if [[ -d "$ROOT/../sglang_omni_mlx/native" ]]; then
 fi
 
 [[ $# -eq 0 ]] && exit 0
-# shellcheck disable=SC2029
-ssh "$HOST" "cd '$DIR' && export PATH=/opt/homebrew/bin:\$PATH GOTOOLCHAIN=auto GOPROXY='$GOPROXY_MAC' && $*"
+setup="cd '$DIR' && export PATH=/opt/homebrew/bin:\$PATH GOTOOLCHAIN=auto GOPROXY='$GOPROXY_MAC'"
+if [[ -n "${ACTNOW_INGEST_TOKEN:-}" ]]; then
+  # shellcheck disable=SC2029
+  printf '%s\n' "$ACTNOW_INGEST_TOKEN" |
+    ssh "$HOST" "IFS= read -r ACTNOW_INGEST_TOKEN && export ACTNOW_INGEST_TOKEN && $setup && $*"
+else
+  # shellcheck disable=SC2029
+  ssh "$HOST" "$setup && $*"
+fi

@@ -12,6 +12,10 @@
 
 还有历史、浮窗、快捷键、菜单栏、设置引导、设置和更新。
 
+**快捷键**（在各功能页里可以改）：单按**右 Option** 转录，右 Option 加 Shift 翻译，Control 加右 Option 转写；Control-Option-V 粘贴上一条结果。VoxtNew 是 [ActNow](https://actnow.dev) 家族的 app：这套按键把 fn 留给 Auralink，两个 app 可以同时使用。
+
+**官网** [actnow.dev/voxtnew](https://actnow.dev/voxtnew) · **下载** [actnow.dev/download/voxtnew](https://actnow.dev/download/voxtnew)（需要先登录）· 更新也来自 actnow.dev。
+
 > **状态：0.1.0**（第一个 beta：`0.1.0-beta.1`）。上面的功能都已在本地模型上可用，见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 在你的 Mac 上运行什么
@@ -54,7 +58,7 @@ go tool mygo build                   # 生成 build/darwin-arm64/VoxtNew.app 和
 
 `go tool mygo build` 和 `mygo dev` 之前必须先编好辅助进程和 `voxtnew-llm`：`mygo.json` 给这两者指定了 entitlement，缺了就会失败。没有 Omni 运行时 app 也能运行，但不能识别语音（也可以把 `VOXTNEW_OMNI_RUNTIME` 指向 `scripts/build-omni.sh --out DIR` 编出的运行时；`VOXTNEW_LLM` 对应 `scripts/build-llm.sh --out DIR`）。
 
-**发布版本**在 Mac 上用一条命令构建：`scripts/release.sh` 编译这三样，打包、签名 app 并检查结果（`--runtimes DIR` 直接用编好的运行时；有 Developer ID 时，`--notarize` 和 `--publish` 公证并发布到 actnow.dev）。见 [docs/release.md](docs/release.md)。
+**发布版本**在 Mac 上用一条命令构建：`scripts/release.sh` 编译这三样，打包、签名 app 并检查结果（`--runtimes DIR` 直接用编好的运行时；有 RY2TQTYSKQ 团队的 Developer ID 时，`--notarize` 和 `--publish` 公证并发布到 actnow.dev；ssh 里经 `scripts/mac-gui.sh` 运行）。见 [docs/release.md](docs/release.md)。
 
 在 Linux 上，`scripts/mac.sh <命令>` 会把项目同步到 Mac（`MAC_HOST` 默认 `mac-air`，`MAC_DIR` 默认 `code/VoxtNew`）并在那里执行，例如 `scripts/mac.sh 'scripts/build-helper.sh && scripts/build-llm.sh && go tool mygo build'`。
 
