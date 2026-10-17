@@ -309,7 +309,7 @@ func TestFailures(t *testing.T) {
 		problem string
 		kept    bool
 	}{
-		{"no speech service", &fakeFile{}, func(h *harness) { h.resolveErr = fmt.Errorf("transcribe: %w", ErrNoASR) }, false, ProblemNoASR, false},
+		{"no speech model", &fakeFile{}, func(h *harness) { h.resolveErr = fmt.Errorf("transcribe: %w", ErrNoASR) }, false, ProblemNoASR, false},
 		{"microphone denied", &fakeFile{}, func(h *harness) {
 			h.audio.startErr = &proto.Error{Code: proto.CodePermissionDenied, Message: "denied"}
 		}, false, ProblemMicrophone, false},

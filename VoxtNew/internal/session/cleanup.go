@@ -47,7 +47,7 @@ func (r *run) transcribe(text string) {
 		result = cleaned
 		switch {
 		case err != nil:
-			r.logf("warning", "language model %s (model %s) failed after %v, the text goes on as recognised: %v", r.svc.LLMInfo.ID, r.svc.LLMInfo.Model, llmTime.Round(time.Millisecond), err)
+			r.logf("warning", "language model %s (%s) failed after %v, the text goes on as recognised: %v", r.svc.LLMInfo.ID, r.svc.LLMInfo.Model, llmTime.Round(time.Millisecond), err)
 			problem = &Problem{Code: ProblemLLM, Err: err, Degraded: true}
 		case result == "":
 			r.finish(Done, &Problem{Code: ProblemNoSpeech}, "", finishOpts{})

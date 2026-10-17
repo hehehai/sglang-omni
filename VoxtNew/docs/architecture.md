@@ -185,7 +185,7 @@ hotkey.event (helper) ─▶ helperNotified ─▶ hotkeyFired ─▶ hotkey.Rou
          (the recording kept in the history is the original)
    dict.Replace: the dictionary's aliases ─▶ their terms (the history keeps the text as recognised)
    compose.BuildParts (+ the Scene layer, the glossary): one request, or one per piece of speech over 400 characters
-      ─▶ a chat per part (8 s each), streaming into the draft ─▶ compose.Clean, compose.JoinParts
+      ─▶ a chat per part (15 s each), streaming into the draft ─▶ compose.Clean, compose.JoinParts
          (a part fails: its text as recognised, a warning)
    deliver.Insert: textio.focus ─▶ textio.paste {targetPid, press: the group's auto key}   (or the answer card)
 Translate: textio.selection {allowCopy: session.AllowCopy(app)} first ─ text ─▶ compose (no recording)

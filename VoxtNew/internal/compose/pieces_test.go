@@ -77,6 +77,39 @@ func TestPieces(t *testing.T) {
 	}
 }
 
+// TestLanguagePieces: speech is cut where whole sentences change
+// language, at any length; a sentence with words of the other script, or
+// with no letters, stays with its run; one language is one piece, as
+// Pieces cuts it.
+func TestLanguagePieces(t *testing.T) {
+	zh := "嗯，那个，我们下周二，呃不对，下周三下午三点开个会，讨论一下预算。"
+	for _, c := range []struct {
+		name, text string
+		want       []string
+	}{
+		{"alternating", "So um, update the docs. 嗯，我们下周三开会。Let's ship on Thursday. OK.",
+			[]string{"So um, update the docs.", "嗯，我们下周三开会。", "Let's ship on Thursday. OK."}},
+		{"words of the other script", "我们的服务用 Kubernetes 部署，CPU 占用太高了，需要 scale out。今天下午我们 review 一下这个 PR。",
+			[]string{"我们的服务用 Kubernetes 部署，CPU 占用太高了，需要 scale out。今天下午我们 review 一下这个 PR。"}},
+		{"no letters", "123. 我们开会。Let's go! 456。", []string{"123. 我们开会。", "Let's go! 456。"}},
+		{"one language", zh + zh, []string{zh + zh}},
+	} {
+		ps := LanguagePieces(c.text)
+		var got []string
+		for _, p := range ps {
+			got = append(got, p.Text)
+		}
+		if strings.Join(got, "|") != strings.Join(c.want, "|") || joinPieces(ps) != c.text {
+			t.Errorf("%s: %q", c.name, ps)
+		}
+	}
+	// A long run is cut by length too.
+	long := strings.Repeat(zh, 20) + "Let's ship on Thursday."
+	if ps := LanguagePieces(long); len(ps) != 4 || ps[3].Text != "Let's ship on Thursday." || joinPieces(ps) != long {
+		t.Errorf("long run: %d pieces %q", len(ps), ps)
+	}
+}
+
 // TestBuildParts: long speech gets a part per piece, every one with the
 // same system prompt and example turn; a selection, Rewrite and short
 // speech get one.
@@ -114,6 +147,15 @@ func TestBuildParts(t *testing.T) {
 	}
 	if parts, _ := BuildParts(Input{Task: Translate, Cleanup: true, TargetLanguage: "en", Text: long}); len(parts) != 2 {
 		t.Errorf("spoken Translate: %d parts", len(parts))
+	}
+	// Transcribe cuts where the language changes; Translate, into one
+	// language, only by length.
+	mixed := "So um, update the docs. 嗯，我们下周三开会。"
+	if parts, _ := BuildParts(Input{Task: Transcribe, Text: mixed}); len(parts) != 2 {
+		t.Errorf("mixed Transcribe: %d parts", len(parts))
+	}
+	if parts, _ := BuildParts(Input{Task: Translate, TargetLanguage: "en", Text: mixed}); len(parts) != 1 {
+		t.Errorf("mixed Translate: %d parts", len(parts))
 	}
 }
 

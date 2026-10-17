@@ -105,5 +105,5 @@ func Recognize(ctx context.Context, p Provider, pcm []byte, lang string, hints [
 	if st, ok := p.(Streamer); ok {
 		return StreamAll(ctx, st, StreamRequest{SampleRate: SampleRate, Lang: lang, Hints: hints, Prompt: prompt}, pcm, f)
 	}
-	return Result{}, &Error{Kind: KindConfig, Detail: "the provider neither uploads nor streams"}
+	return Result{}, &Error{Kind: KindConfig, Detail: "the speech model neither takes a whole recording nor streams"}
 }

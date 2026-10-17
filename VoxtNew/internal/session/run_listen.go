@@ -271,7 +271,7 @@ func (r *run) listen() (string, bool) {
 			err = r.ctxErr(actx)
 		}
 	} else {
-		err = &asr.Error{Kind: asr.KindConfig, Detail: "the speech service neither uploads nor streams"}
+		err = &asr.Error{Kind: asr.KindConfig, Detail: "the speech model neither takes a whole recording nor streams"}
 	}
 	if r.cancelled.Load() {
 		r.endCancelled(nil)
@@ -280,7 +280,7 @@ func (r *run) listen() (string, bool) {
 	asrTime := r.now().Sub(asrStart)
 	if err != nil {
 		// The error itself follows in endFailed's line.
-		r.logf("warning", "speech service %s (model %s) failed after %v", r.svc.ASRInfo.ID, r.svc.ASRInfo.Model, asrTime.Round(time.Millisecond))
+		r.logf("warning", "speech model %s (%s) failed after %v", r.svc.ASRInfo.ID, r.svc.ASRInfo.Model, asrTime.Round(time.Millisecond))
 		r.endFailed(r.asrProblem(err), nil, func(s *Snapshot) { s.Timings.ASR = asrTime })
 		return "", false
 	}

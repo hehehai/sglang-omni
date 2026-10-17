@@ -260,7 +260,7 @@ type Services struct {
 type Resolver func(ctx context.Context, kind Kind, s settings.Settings) (Services, error)
 
 // ErrNoASR: no speech service is ready.
-var ErrNoASR = errors.New("session: no speech service is ready")
+var ErrNoASR = errors.New("session: no speech model is ready")
 
 // ErrBusy: a session is live already.
 var ErrBusy = errors.New("session: a session is running")
@@ -308,7 +308,7 @@ type Config struct {
 	MaxRecording time.Duration // DefaultMaxRecording
 	MinRecording time.Duration // DefaultMinRecording
 	ASRTimeout   time.Duration // after Stop; DefaultASRTimeout
-	LLMTimeout   time.Duration // Transcribe's clean-up; DefaultLLMTimeout
+	LLMTimeout   time.Duration // a request (a piece) of Transcribe's clean-up; DefaultLLMTimeout
 	WriteTimeout time.Duration // Translate's and Rewrite's answer; DefaultWriteTimeout
 	ReadTimeout  time.Duration // reading the selection; DefaultReadTimeout
 	DeliverTime  time.Duration // DefaultDeliverTimeout
@@ -323,7 +323,7 @@ const (
 	DefaultMaxRecording   = 10 * time.Minute
 	DefaultMinRecording   = 300 * time.Millisecond
 	DefaultASRTimeout     = 30 * time.Second
-	DefaultLLMTimeout     = 8 * time.Second
+	DefaultLLMTimeout     = 15 * time.Second // a request, or a piece of a long one: local models slow down under memory pressure
 	DefaultWriteTimeout   = 60 * time.Second
 	DefaultReadTimeout    = 1500 * time.Millisecond
 	DefaultDeliverTimeout = 5 * time.Second

@@ -3,13 +3,14 @@ package compose
 import (
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
-// Long speech is cleaned up in pieces (docs/eval.md): over a long mixed
-// dictation a small model loses the rules and translates the whole text
-// into the language it starts in, and one long answer outlasts the
-// clean-up's timeout.
+// Speech is cleaned up in pieces (docs/eval.md): where whole sentences
+// change language, a small model loses the clean-up's rules (it returns
+// the text as it is, or translates it into the language it starts in),
+// and one long answer outlasts the clean-up's timeout.
 const (
 	// LongChars: speech longer than this, in characters, is composed in
 	// pieces.
@@ -31,8 +32,10 @@ type Part struct {
 	Piece
 }
 
-// BuildParts composes in as one request or, for speech (Transcribe,
-// Translate of speech) over LongChars characters, one per piece (Pieces).
+// BuildParts composes in as one request or, for speech, one per piece:
+// Transcribe's where the language changes or over LongChars characters
+// (LanguagePieces), spoken Translate's over LongChars (Pieces; its target
+// is one language).
 // Every part has the whole input's system prompt (the glossary picked
 // from the whole text) and example turn, and its piece as the user
 // message: the parts share their prefix, which the model's prompt cache
@@ -46,6 +49,9 @@ func BuildParts(in Input) ([]Part, error) {
 		return []Part{{Output: out, Piece: Piece{Text: in.Text}}}, nil
 	}
 	pieces := Pieces(in.Text)
+	if in.Task == Transcribe {
+		pieces = LanguagePieces(in.Text)
+	}
 	parts := make([]Part, len(pieces))
 	for i, p := range pieces {
 		o := out
@@ -109,6 +115,51 @@ func Pieces(text string) []Piece {
 	}
 	return pack(text, 0)
 }
+
+// LanguagePieces is Pieces, also cut wherever whole sentences change
+// language, at any length: runs of sentences whose words are mostly
+// Chinese, Japanese or Korean apart from runs of other sentences (a
+// Chinese sentence with English words is Chinese; one without letters
+// goes with the run before it), each run cut as Pieces cuts it.
+func LanguagePieces(text string) []Piece {
+	text = strings.TrimSpace(text)
+	var runs []Piece
+	runCJK, runLetters := false, false
+	for _, u := range units(text, 0) {
+		cjk, letters := cjkWords(u.Text)
+		if len(runs) > 0 && (!letters || !runLetters || cjk == runCJK) {
+			last := &runs[len(runs)-1]
+			last.Text += last.After + u.Text
+			last.After = u.After
+			if letters && !runLetters {
+				runCJK, runLetters = cjk, true
+			}
+			continue
+		}
+		runs = append(runs, u)
+		runCJK, runLetters = cjk, letters
+	}
+	if len(runs) <= 1 {
+		return Pieces(text)
+	}
+	var out []Piece
+	for _, r := range runs {
+		ps := Pieces(r.Text)
+		ps[len(ps)-1].After = r.After
+		out = append(out, ps...)
+	}
+	return out
+}
+
+// cjkWords: whether text is mostly Chinese, Japanese or Korean, counting
+// words (an ideograph, kana or Hangul syllable, or a word of letters), and
+// whether it has words at all.
+func cjkWords(text string) (cjk, words bool) {
+	part, n := share(text, isCJK)
+	return n > 0 && part >= 0.5, n > 0
+}
+
+func isCJK(r rune) bool { return unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul) }
 
 // pack cuts text at the boundaries of level and below.
 func pack(text string, level int) []Piece {
