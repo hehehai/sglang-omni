@@ -311,7 +311,8 @@ func TestHomeRecent(t *testing.T) {
 	if !has(tt, "Let's move the design review to Thursday afternoon.") || !has(tt, "By feature") {
 		t.Fatalf("recent: %q", tt.Texts())
 	}
-	if a.hm.today.count == 0 {
+	// The newest seeded entry is 5 minutes old: just after midnight it is yesterday's.
+	if now := time.Now(); a.hm.today.count == 0 && sameDay(now, now.Add(-5*time.Minute)) {
 		t.Errorf("nothing today: %+v", a.hm.today)
 	}
 	if len(a.hm.recent) != homeRecent {
@@ -429,4 +430,11 @@ func homeShots(a *app, tt *ui.Tester, save func(string)) {
 	}
 	save("page-home-ready-end")
 	a.sessionChanged(session.Snapshot{Rev: a.sess.Rev + 1})
+}
+
+// sameDay reports whether a and b fall on the same local calendar day.
+func sameDay(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
 }
