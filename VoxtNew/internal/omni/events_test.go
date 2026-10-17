@@ -153,4 +153,3 @@ func TestModelEventsEnds(t *testing.T) {
 		}
 	})
 }
-
