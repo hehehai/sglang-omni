@@ -68,7 +68,7 @@ Measurements (mac-air, 2026-10-17, medians of `TestLLMMeasure` ×3, `TestLLMReal
 | `llm.balanced`, rewriting (330–390 tokens; no warm-up) | 1.2–1.4 s | 0.16–0.27 s | – |
 | `llm.fast`, rewriting | 0.48–0.56 s | 0.14 s | – |
 
-A prompt that starts from a glossary's branch point (256 of 547 tokens) evaluates the other 290: under contention (another thread's eval running) `llm.fast` took 0.76 s against 1.3–1.4 s cold, `llm.balanced` about the same share. Rewrite has no warm-up, but its second request with the same system prompt is a hit like the others.
+A prompt that starts from a glossary's branch point (256 of 547 tokens) evaluates the other 290: under contention (another thread's eval running) `llm.fast` took 0.76 s against 1.3–1.4 s cold (`llm.balanced`'s times in that run were too noisy to quote). Rewrite has no warm-up, but its second request with the same system prompt is a hit like the others.
 
 TestEvalLLM in quick mode (5 clean-ups, 2 spoken translations per model, one process, the cache on vs off): clean-up's median first token 2311 → 165 ms on `llm.balanced` and 965 → 100 ms on `llm.fast`, totals 2956 → 815 ms and 1191 → 324 ms; every MLX answer identical.
 
