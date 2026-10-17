@@ -143,6 +143,19 @@ func (a *app) familyFound(found []registry.Found) {
 	a.shortcutPrompt() // settings_shortcuts_family.go: the one-time prompt
 }
 
+// familyOthers reports whether the last discovery found a release of
+// another ActNow app installed on this Mac (spec §6.3): only then do the
+// shared settings speak of the family ("Applies to all ActNow apps"); the
+// data still follows the family's files either way.
+func (a *app) familyOthers() bool {
+	for _, f := range a.famApps {
+		if f.Installed && f.Variant == family.Release && f.App.ID != actnow.AppID {
+			return true
+		}
+	}
+	return false
+}
+
 // familyShared applies the family's settings after settings.json changed:
 // those VoxtNew follows become its own (the language), the downloads'
 // network is set again.

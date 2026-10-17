@@ -55,9 +55,9 @@ func ModelAbout(id string) string {
 	case models.LLMTranslate:
 		return i18n.T("Made for translation: quick and natural. Only Translate uses it.")
 	case models.LLMQwen3:
-		return i18n.T("Another ActNow app installed it. Cleans up, translates and rewrites well; VoxtNew can use it instead of downloading its own.")
+		return i18n.T("Cleans up, translates and rewrites well.")
 	case models.LLMGemma4:
-		return i18n.T("Another ActNow app installed it. Writes well in many languages, but is slower and needs more memory.")
+		return i18n.T("Writes well in many languages, but is slower and needs more memory.")
 	}
 	return ""
 }

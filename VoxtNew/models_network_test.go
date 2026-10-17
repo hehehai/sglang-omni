@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	famsettings "github.com/hehehai/actnowkit/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/actnow"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
 )
 
 // familyValue is the family's value of a shared key ("" unset).
@@ -27,6 +30,8 @@ func familyValue(t *testing.T, a *app, key string) string {
 func TestNetworkDialog(t *testing.T) {
 	a, _, tt := newTestApp(t)
 	a.famStarted = true // familySettingsChanged writes the shared settings
+	addPeer(t, a, dictaID, nil)
+	a.familyFound(a.fam.Discover())
 	a.openURL("voxtnew://models/network")
 	if a.currentPage() != "models" || !a.netOpen || !has(tt, "How model downloads reach Hugging Face") {
 		t.Fatalf("deep link: page %q open %v %q", a.currentPage(), a.netOpen, tt.Texts())
@@ -86,6 +91,8 @@ func TestNetworkDialog(t *testing.T) {
 func TestNetworkUseTheirs(t *testing.T) {
 	a, _, tt := newTestApp(t)
 	a.famStarted = true
+	addPeer(t, a, audioSmithID, nil)
+	a.familyFound(a.fam.Discover())
 	if _, err := famsettings.Set(context.Background(), a.fam.Dir(), audioSmithID, actnow.KeyProxy, "http://10.0.0.1:8080"); err != nil {
 		t.Fatal(err)
 	}
@@ -120,5 +127,59 @@ func TestNetworkUseTheirs(t *testing.T) {
 	click(t, tt, "Cancel")
 	if a.netOpen || slices.Contains(a.prefs.Family.Conflicts, actnow.KeyHFEndpoints) {
 		t.Errorf("still noted: %v", a.prefs.Family.Conflicts)
+	}
+}
+
+// TestFamilyLinesNeedAnotherApp: the shared settings speak of the family
+// only when a release of another ActNow app is installed (a dev build of
+// one does not count); alone, VoxtNew says nothing of it, though the data
+// still follows the family's files. Model descriptions never say "another
+// app": the status line names it ("Installed by Dicta").
+func TestFamilyLinesNeedAnotherApp(t *testing.T) {
+	a, _, tt := newTestApp(t)
+	a.famStarted = true
+	family := []string{"Applies to all ActNow apps", "Only VoxtNew uses this setting.", "Use the same setting as the other ActNow apps",
+		"Use a different setting for this app"}
+	check := func(when string, want bool) {
+		t.Helper()
+		a.navigate(modelsPath)
+		a.openNetwork()
+		frames(tt)
+		if has(tt, family[0]) != want {
+			t.Errorf("%s: %q shown %v", when, family[0], !want)
+		}
+		for _, s := range family[1:] {
+			if !want && has(tt, s) {
+				t.Errorf("%s: %q shown", when, s)
+			}
+		}
+		click(t, tt, "Cancel")
+		a.navigate("/settings/storage")
+		frames(tt)
+		if has(tt, "Shared by all ActNow apps") != want || has(tt, "Shared with other ActNow apps") != want || has(tt, "Used by VoxtNew") == want {
+			t.Errorf("%s: storage %q", when, tt.Texts())
+		}
+	}
+	check("alone", false)
+	if got := familyValue(t, a, actnow.KeyProxy); got != "" {
+		t.Errorf("family's proxy %q before any change", got)
+	}
+	a.updateSettings(func(s *settings.Settings) { s.Network.Proxy = famsettings.ProxyDirect })
+	if got := familyValue(t, a, actnow.KeyProxy); got != famsettings.ProxyDirect {
+		t.Errorf("alone, a change still goes to the family: %q", got)
+	}
+
+	addPeer(t, a, dictaID+".dev", nil)
+	a.familyFound(a.fam.Discover())
+	check("a dev build of Dicta", false)
+
+	addPeer(t, a, dictaID, nil)
+	a.familyFound(a.fam.Discover())
+	check("Dicta installed", true)
+
+	for _, id := range []string{models.LLMQwen3, models.LLMGemma4} {
+		if about := uitext.ModelAbout(id); about == "" || strings.Contains(strings.ToLower(about), "another") {
+			t.Errorf("%s: %q", id, about)
+		}
 	}
 }

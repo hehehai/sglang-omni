@@ -41,7 +41,7 @@ type networkForm struct {
 	proxyURL  string
 	proxyErr  string
 	source    int    // index in networkSources, or len(networkSources): sourceURLs
-	sourceURL string // a list of endpoints another app set ("" none)
+	sourceURL string // a list of endpoints another app set ("" none); settings.json does not say which app
 }
 
 // openNetwork opens the Network dialog with the values VoxtNew uses.
@@ -163,7 +163,7 @@ func (a *app) networkDialog(c *ui.Context) {
 		case f.source < len(networkSources):
 			caption(c, i18n.T("Only this server: when it cannot be reached, downloads fail."))
 		default:
-			caption(c, i18n.T("Set by another ActNow app: %s", f.sourceURL))
+			caption(c, i18n.T("Custom servers: %s", f.sourceURL))
 		}
 		a.networkFamilyLine(c, actnow.KeyHFEndpoints, i18n.T("Other ActNow apps use a different download source."))
 	}, func() {
@@ -182,7 +182,9 @@ func (a *app) networkDialog(c *ui.Context) {
 
 // networkFamilyLine says under a shared setting whether it applies to
 // every ActNow app, with the link that changes it (spec §9.3), or, once
-// after the first start, that the family uses another value (§9.4).
+// after the first start, that the family uses another value (§9.4). With
+// no other ActNow app installed it says nothing but the conflict (which
+// another app's value implies) or a newer app's read-only directory.
 func (a *app) networkFamilyLine(c *ui.Context, key, other string) {
 	t := c.Theme()
 	follows := a.prefs.Family.Follows(key)
@@ -192,6 +194,9 @@ func (a *app) networkFamilyLine(c *ui.Context, key, other string) {
 				a.followNetwork(key, true)
 			}
 		}, nil)
+		return
+	}
+	if !a.familyOthers() && !(follows && a.fam.ReadOnly()) {
 		return
 	}
 	ui.Row(c.Key("net-family-" + keySuffix(key))).Gap(px(t, sp2)).AlignItems(ui.Center).Wrap().Children(func() {

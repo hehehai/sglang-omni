@@ -17,6 +17,8 @@ func TestStorageModels(t *testing.T) {
 	seedModels(t, a, models.ASRFast, models.VADSilero, models.LLMTranslate)
 	useModels(t, a, models.ASRFast, models.VADSilero, models.LLMTranslate)
 	claimFor(t, a, audioSmithID, models.ASRFast)
+	addPeer(t, a, audioSmithID, nil)
+	a.familyFound(a.fam.Discover())
 	a.navigate("/settings/storage")
 	frames(tt)
 	r := a.stReport

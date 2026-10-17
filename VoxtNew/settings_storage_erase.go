@@ -27,22 +27,34 @@ import (
 )
 
 // modelFolderRows are the model library's folder, shared by the family,
-// and the room VoxtNew's models take in it (r nil: still measuring).
+// and the room VoxtNew's models take in it (r nil: still measuring). With
+// no other ActNow app installed and nothing shared, the family goes
+// unsaid: one row of VoxtNew's models.
 func (a *app) modelFolderRows(c *ui.Context, r *storageReport, open func(key, dir string)) {
 	t := c.Theme()
 	hub := a.models.Hub()
+	others := a.familyOthers()
+	note := ""
+	if others {
+		note = i18n.T("Shared by all ActNow apps")
+	}
 	sectionTitle(c, i18n.T("Model folder"))
-	settingRowNote(c, "st-models", uitext.ShortPath(hub), i18n.T("Shared by all ActNow apps"), func() {
+	settingRowNote(c, "st-models", uitext.ShortPath(hub), note, func() {
 		open("st-open-models", hub)
 	})
 	if r == nil {
 		return
 	}
+	type useRow struct {
+		title string
+		bytes int64
+	}
+	rows := []useRow{{i18n.T("Used by VoxtNew"), r.modelsMine}}
+	if others || r.modelsShared > 0 {
+		rows = []useRow{{i18n.T("Only VoxtNew"), r.modelsMine}, {i18n.T("Shared with other ActNow apps"), r.modelsShared}}
+	}
 	ui.Grid(c.Key("st-models-use")).ColumnTracks(ui.Fr(1), ui.Fixed(px(t, 90)), ui.Fixed(px(t, 80))).GapX(px(t, sp3)).GapY(px(t, 6)).AlignItems(ui.Center).Children(func() {
-		for _, row := range []struct {
-			title string
-			bytes int64
-		}{{i18n.T("Only VoxtNew"), r.modelsMine}, {i18n.T("Shared with other ActNow apps"), r.modelsShared}} {
+		for _, row := range rows {
 			ui.Text(c, row.title)
 			ui.Text(c, uitext.HumanBytes(row.bytes)).TextColor(t.TextMuted).TextAlign(ui.End)
 			ui.Box(c)

@@ -265,6 +265,10 @@ func modelShots(t *testing.T, a *app, tt *ui.Tester, save func(string)) {
 	useModels(t, a, models.ASRAccurate, models.VADSilero, models.LLMTranslate)
 	claimFor(t, a, audioSmithID, models.ASRAccurate, models.VADSilero)
 	claimFor(t, a, dictaID, models.LLMQwen3)
+	// Both installed: the shared settings speak of the family.
+	addPeer(t, a, audioSmithID, nil)
+	addPeer(t, a, dictaID, nil)
+	a.familyFound(a.fam.Discover())
 	fast, _ := models.Lookup(models.ASRFast)
 	balanced, _ := models.Lookup(models.LLMBalanced)
 	a.modelStatus[models.ASRFast] = models.Status{Done: fast.Size() / 3, Total: fast.Size()}

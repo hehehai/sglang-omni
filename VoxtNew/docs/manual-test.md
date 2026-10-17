@@ -122,7 +122,7 @@
   - 两节：“语音识别”和“语言模型”。推荐的两个带“默认”标签。每张卡片有名字、擅长什么、语言（地球图标）和大小：没装的是“需下载 x”，装好的是“已安装”和“占用 x”。
   - Silero（声音检测）不单独列出。
   - 删除前弹出确认：“删除快速语言模型？”“将释放 1.7 GB。之后可以重新下载。”取消什么都不删；确认后卡片回到“需下载 1.7 GB”，文件夹不见了。
-  - 设置 → 存储 的“模型文件夹”一行是 `~/.cache/huggingface/hub`，“由所有 ActNow app 共用”；下面“仅 VoxtNew”和“与其他 ActNow app 共享”两项加起来和装的模型对得上（没有别的 ActNow app 时全在“仅 VoxtNew”）。
+  - 设置 → 存储 的“模型文件夹”一行是 `~/.cache/huggingface/hub`，“由所有 ActNow app 共用”；下面“仅 VoxtNew”和“与其他 ActNow app 共享”两项加起来和装的模型对得上。没有装别的 ActNow app 时不写“由所有 ActNow app 共用”，只有一行“VoxtNew 使用”；“网络…”对话框里也没有“应用于所有 ActNow app”那一行。
 - **不对时看**：`ls -la ~/Library/Application\ Support/VoxtNew/models/`（装好的模型文件夹里有 `.voxtnew-model.json`）。
 
 **1.5b 与其他 ActNow app 共用模型**（需要装了 AudioSmith 或 Dicta；没有就跳过）
