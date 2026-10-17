@@ -31,7 +31,8 @@ func TestPieces(t *testing.T) {
 		longest int // the longest piece's characters at most
 		ends    string
 	}{
-		{"short", strings.Repeat(zh, 10), 1, 330, "。"},
+		{"short", strings.Repeat(zh, 9), 1, 297, "。"},
+		{"just over", strings.Repeat(zh, 11), 2, 198, "。"},
 		{"chinese", strings.Repeat(zh, 20), 3, PieceChars, "。"},
 		{"english", strings.Repeat(en, 10), 3, PieceChars, "."},
 		{"mixed", strings.Repeat(en+zh, 6), 2, PieceChars, "。."},

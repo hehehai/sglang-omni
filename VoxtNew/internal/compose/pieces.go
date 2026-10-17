@@ -9,12 +9,14 @@ import (
 
 // Speech is cleaned up in pieces (docs/eval.md): where whole sentences
 // change language, a small model loses the clean-up's rules (it returns
-// the text as it is, or translates it into the language it starts in),
-// and one long answer outlasts the clean-up's timeout.
+// the text as it is, or translates it into the language it starts in);
+// and a long answer takes a slowed-down model half a minute, while a
+// piece's answer reaches the overlay sooner and, when it fails, only its
+// piece stays as recognised.
 const (
 	// LongChars: speech longer than this, in characters, is composed in
-	// pieces.
-	LongChars = 400
+	// pieces (as long as each other: 301 characters are two of about 150).
+	LongChars = 300
 	// PieceChars is a piece's most characters, unless one sentence is
 	// longer and has no clause or space to cut at.
 	PieceChars = 300
