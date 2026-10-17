@@ -3,9 +3,9 @@ package session
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
@@ -168,7 +168,7 @@ func (r *run) ask(in compose.Input) (compose.Answer, string, error) {
 		r.m.update(r, func(s *Snapshot) { s.Draft, s.Title = a.Content, a.Title })
 	}
 	req := llm.Request{
-		Messages: msgs, Skill: skill, Timeout: cfg.WriteTimeout,
+		Messages: msgs, Skill: skill,
 		OnDelta: func(d string) {
 			buf.WriteString(d)
 			publish(false)
@@ -186,13 +186,8 @@ func (r *run) ask(in compose.Input) (compose.Answer, string, error) {
 		}
 		req.Translate = &llm.TranslateHint{Text: text, Target: in.TargetLanguage}
 	}
-	ctx, cancel := context.WithTimeout(r.ctx, cfg.WriteTimeout)
-	defer cancel()
-	resp, err := r.svc.LLM.Chat(ctx, req)
+	resp, err := r.llmChat(cfg.llmDeadlines(req, utf8.RuneCountInString(in.Text+in.Instruction), cfg.WriteTimeout))
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded && r.ctx.Err() == nil {
-			err = fmt.Errorf("no answer within %v: %w", cfg.WriteTimeout, err)
-		}
 		return compose.Answer{}, out.Profile(), err
 	}
 	if buf.Len() > 0 {

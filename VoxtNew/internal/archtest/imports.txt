@@ -27,6 +27,7 @@ llmrt lang
 llmrt llm
 llmrt llmrt/wire
 llmrt local
+llmrt macx
 llmrt/llmrttest llmrt/wire
 local asr
 local llm

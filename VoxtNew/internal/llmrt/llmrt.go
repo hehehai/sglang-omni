@@ -19,7 +19,7 @@
 // to unload. The catalogue, the downloads and local.Services are M1b's;
 // dev.go's VOXTNEW_DEV_LLM is a hook for trying a model without them.
 //
-// Imports: core, lang, llm, llmrt/wire, local, resident.
+// Imports: core, lang, llm, llmrt/wire, local, macx, resident.
 package llmrt
 
 import (

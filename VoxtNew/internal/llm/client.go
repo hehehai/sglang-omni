@@ -114,6 +114,17 @@ func (c *Client) Chat(ctx context.Context, req Request) (Response, error) {
 		filter = &thinkFilter{emit: func(s string) { streamed = true; user(s) }}
 		req.OnDelta = filter.write
 	}
+	var watch *progress
+	if req.FirstTokenTimeout > 0 || req.StallTimeout > 0 {
+		watch = &progress{firstToken: req.FirstTokenTimeout, stall: req.StallTimeout}
+		inner := req.OnDelta
+		req.OnDelta = func(s string) {
+			watch.tick()
+			if inner != nil {
+				inner(s)
+			}
+		}
+	}
 	var total Usage
 	start := time.Now()
 	for attempt := 1; ; attempt++ {
@@ -124,7 +135,17 @@ func (c *Client) Chat(ctx context.Context, req Request) (Response, error) {
 			filter.reset()
 		}
 		actx, cancel := context.WithTimeout(ctx, timeout)
+		if watch != nil {
+			actx = watch.begin(actx)
+		}
 		resp, err := c.Backend.Chat(actx, req)
+		var stalled *Error
+		if watch != nil {
+			wait, waited, deltas, elapsed := watch.end()
+			if wait != "" && err != nil && ctx.Err() == nil {
+				stalled = progressErr(c.Backend.Info().ID, wait, waited, deltas, elapsed, err)
+			}
+		}
 		cancel()
 		if err == nil {
 			if filter != nil {
@@ -147,6 +168,9 @@ func (c *Client) Chat(ctx context.Context, req Request) (Response, error) {
 		var e *Error
 		if !errors.As(err, &e) {
 			e = ctxErr(ctx, c.Backend.Info().ID, err, timeout)
+		}
+		if stalled != nil {
+			e = stalled
 		}
 		// A timeout of the attempt (not the caller's deadline) is retryable.
 		if ctx.Err() != nil {

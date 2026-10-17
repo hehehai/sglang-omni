@@ -34,6 +34,11 @@ type longCase struct {
 	piece time.Duration
 	// hits are the parts whose prompt the cache served.
 	hits int
+	// slowest is the longest part's request, firstMax its longest wait for
+	// a first token and gap the longest wait between two tokens: what
+	// the session's deadlines bound (behavior.md 5.5).
+	slowest, firstMax, gap time.Duration
+	tokens               int
 }
 
 func TestEvalLong(t *testing.T) {
@@ -99,15 +104,26 @@ func TestEvalLong(t *testing.T) {
 				if task == "translate" {
 					req.Translate = &llm.TranslateHint{Text: compose.StripFillers(p.Text), Target: in.TargetLanguage}
 				}
+				start := time.Now()
+				last := start
 				req.OnDelta = func(string) {
+					now := time.Now()
 					if lc.first == 0 {
-						lc.first = time.Since(t0)
+						lc.first = now.Sub(t0)
 					}
+					if last == start {
+						lc.firstMax = max(lc.firstMax, now.Sub(start))
+					} else {
+						lc.gap = max(lc.gap, now.Sub(last))
+					}
+					last = now
 				}
 				resp, err := client.Chat(ctx, req)
 				if err != nil {
 					t.Fatalf("%s %s %s: %v", id, task, c.ID, err)
 				}
+				lc.slowest = max(lc.slowest, time.Since(start))
+				lc.tokens += resp.Usage.CompletionTokens
 				answers = append(answers, compose.Clean(resp.Text, p.Text))
 				if lc.piece == 0 {
 					lc.piece = time.Since(t0)
@@ -144,10 +160,14 @@ func TestEvalLong(t *testing.T) {
 					part.ID, part.Of = fmt.Sprintf("%s[:%d]", l.ID, n), l.Of[:n]
 					c := e.set.Join(part)
 					in := compose.Input{Task: compose.Transcribe, Cleanup: true, MainLanguage: "zh", OtherLanguages: []string{"en"}, Glossary: terms, Text: c.Text}
-					run("transcribe", "first clips", c, in, false, func(out string) eval.Verdict {
+					check := func(out string) eval.Verdict {
 						_, answer, _ := compose.Example(in)
 						return eval.CheckClean(c, c.Text, out, answer)
-					})
+					}
+					run("transcribe", "first clips", c, in, false, check)
+					if parts, _ := compose.BuildParts(in); len(parts) > 1 {
+						run("transcribe", "first clips, pieces", c, in, true, check)
+					}
 				}
 			}
 		}
@@ -177,7 +197,7 @@ func evalMessages(out compose.Output) []llm.Message {
 func longReport(cases []longCase) string {
 	var b strings.Builder
 	b.WriteString("# Long dictation\n\n")
-	tb := table{head: []string{"model", "task", "prompt", "clip", "characters", "parts", "cache hits", "faults", "error vs expected", "first token", "first part", "total"}}
+	tb := table{head: []string{"model", "task", "prompt", "clip", "characters", "parts", "cache hits", "faults", "error vs expected", "first token", "first part", "total", "tokens/s", "slowest part", "longest first token", "longest gap"}}
 	for _, c := range cases {
 		faults, errCell := c.verdict.Faults(), "–"
 		if faults == "" {
@@ -186,7 +206,8 @@ func longReport(cases []longCase) string {
 		if c.task == "transcribe" {
 			errCell = pct(c.verdict.Score.Rate())
 		}
-		tb.add(c.model, c.task, c.variant, c.clip.ID, len([]rune(c.clip.Text)), c.parts, c.hits, mdText(faults), errCell, ms(c.first), ms(c.piece), ms(c.total))
+		tb.add(c.model, c.task, c.variant, c.clip.ID, len([]rune(c.clip.Text)), c.parts, c.hits, mdText(faults), errCell, ms(c.first), ms(c.piece), ms(c.total),
+			fmt.Sprintf("%.1f", float64(c.tokens)/c.total.Seconds()), ms(c.slowest), ms(c.firstMax), ms(c.gap))
 	}
 	b.WriteString(tb.String() + "\nEvery answer:\n\n")
 	at := table{head: []string{"model", "task", "prompt", "clip", "answer"}}

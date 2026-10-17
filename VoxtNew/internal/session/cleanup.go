@@ -1,10 +1,10 @@
 package session
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/dict"
@@ -71,22 +71,16 @@ func (r *run) cleanUp(text string) (string, string, error) {
 	if len(parts) > 1 {
 		r.logf("info", "cleaning up %d characters in %d pieces", len([]rune(text)), len(parts))
 	}
-	timeout := r.m.cfg.LLMTimeout
 	var answers []string
 	var failed error
 	for i, p := range parts {
 		draft := newDrafter(r, parts[:i+1], answers)
-		ctx, cancel := context.WithTimeout(r.ctx, timeout)
-		resp, err := r.svc.LLM.Chat(ctx, llm.Request{Messages: llmMessages(p.Output), Skill: llm.SkillTranscribeEnhance, Timeout: timeout, OnDelta: draft.add})
-		deadline := ctx.Err() == context.DeadlineExceeded
-		cancel()
+		req := llm.Request{Messages: llmMessages(p.Output), Skill: llm.SkillTranscribeEnhance, OnDelta: draft.add}
+		resp, err := r.llmChat(r.m.cfg.llmDeadlines(req, utf8.RuneCountInString(p.Text), r.m.cfg.LLMTimeout))
 		switch {
 		case r.ctx.Err() != nil:
 			return text, p.Profile(), r.ctx.Err()
 		case err != nil:
-			if deadline {
-				err = fmt.Errorf("no answer within %v: %w", timeout, err)
-			}
 			if len(parts) > 1 {
 				err = fmt.Errorf("piece %d of %d: %w", i+1, len(parts), err)
 				r.logf("warning", "%v: kept as recognised", err)

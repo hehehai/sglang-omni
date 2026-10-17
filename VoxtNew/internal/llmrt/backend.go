@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -73,18 +72,15 @@ func (b *Backend) Chat(ctx context.Context, req llm.Request) (llm.Response, erro
 		return llm.Response{}, err
 	}
 	start := time.Now()
-	pump := &deltaPump{signal: make(chan struct{}, 1)}
-	var notify func(wire.Message)
-	if req.OnDelta != nil {
-		notify = pump.push
-	}
+	system, _ := readSystemMemory()
+	pump := &deltaPump{signal: make(chan struct{}, 1), start: start}
 	type result struct {
 		raw json.RawMessage
 		err error
 	}
 	done := make(chan result, 1)
 	go func() {
-		raw, err := b.rt.modelCall(ctx, b.model, wire.MethodChat, params, notify)
+		raw, err := b.rt.modelCall(ctx, b.model, wire.MethodChat, params, pump.push)
 		done <- result{raw, err}
 	}()
 	var res result
@@ -96,10 +92,11 @@ func (b *Backend) Chat(ctx context.Context, req llm.Request) (llm.Response, erro
 			waiting = false
 		}
 	}
-	if req.OnDelta != nil {
-		pump.deliver(req.OnDelta)
-	}
+	pump.deliver(req.OnDelta)
 	if res.err != nil {
+		if stopped(ctx) {
+			b.rt.log(core.SeverityWarning, b.stoppedLine(req.Skill, pump.stats(), system))
+		}
 		return llm.Response{}, b.chatErr(ctx, res.err)
 	}
 	var out wire.ChatResult
@@ -107,7 +104,11 @@ func (b *Backend) Chat(ctx context.Context, req llm.Request) (llm.Response, erro
 		return llm.Response{}, &llm.Error{Code: llm.CodeBadResponse, Params: map[string]string{"provider": b.profile.ID, "detail": err.Error()}, Err: err}
 	}
 	b.rt.noteModel(&b.model, out.Memory)
-	b.rt.log(core.SeverityInfo, chatLine(b.profile.ID, req.Skill, out))
+	line := chatLine(b.profile.ID, req.Skill, out)
+	if slow(out) {
+		line += "; slow: " + systemLine(system, pump.stats().longestGap)
+	}
+	b.rt.log(core.SeverityInfo, line)
 	finish := llm.FinishStop
 	if out.Finish == wire.FinishLength {
 		finish = llm.FinishLength
@@ -211,36 +212,4 @@ func chatLine(id string, skill llm.Skill, r wire.ChatResult) string {
 	return fmt.Sprintf("%s %s: %d+%d tokens, first token %.0f ms%s%s, %.1f tokens/s, %.0f ms in all, %s; footprint %d MB (peak %d MB), resident %d MB",
 		id, skill, r.Usage.PromptTokens, r.Usage.CompletionTokens, r.Timings.FirstTokenMs, load, cache, r.Timings.TokensPerSecond,
 		r.Timings.TotalMs, r.Finish, r.Memory.FootprintBytes>>20, r.Memory.PeakFootprintBytes>>20, r.Memory.ResidentBytes>>20)
-}
-
-// deltaPump hands chat.delta texts from the reader goroutine to the
-// caller's, without blocking the reader.
-type deltaPump struct {
-	mu     sync.Mutex
-	texts  []string
-	signal chan struct{}
-}
-
-func (d *deltaPump) push(m wire.Message) {
-	var p wire.DeltaParams
-	if m.Method != wire.MethodChatDelta || m.DecodeParams(&p) != nil || p.Text == "" {
-		return
-	}
-	d.mu.Lock()
-	d.texts = append(d.texts, p.Text)
-	d.mu.Unlock()
-	select {
-	case d.signal <- struct{}{}:
-	default:
-	}
-}
-
-func (d *deltaPump) deliver(fn func(string)) {
-	d.mu.Lock()
-	texts := d.texts
-	d.texts = nil
-	d.mu.Unlock()
-	for _, t := range texts {
-		fn(t)
-	}
 }
