@@ -81,4 +81,3 @@ func (a *adapter) Conflicts(context.Context) ([]string, error) {
 	}
 	return out, nil
 }
-

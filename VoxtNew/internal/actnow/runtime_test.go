@@ -168,7 +168,7 @@ func TestReserve(t *testing.T) {
 		t.Fatalf("budget %d", b)
 	}
 	ctx := context.Background()
-	r.Loaded("llm.fast", "llm", "c", "1", 2<<30)     // idle, the largest
+	r.Loaded("llm.fast", "llm", "c", "1", 2<<30)      // idle, the largest
 	r.Loaded("vad.silero", "omni", "b", "1", 100<<20) // idle
 	r.Loaded("asr.fast", "omni", "a", "1", 512<<20)   // busy
 	r.Idle("llm.fast")
