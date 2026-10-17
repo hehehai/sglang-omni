@@ -211,11 +211,22 @@ func countingProxy(t *testing.T, upstream string, n *atomic.Int64) string {
 			return
 		}
 		io.WriteString(in, "HTTP/1.1 200 Connection established\r\n\r\n")
-		go func() { c, _ := io.Copy(out, in); n.Add(c); out.Close() }()
-		c, _ := io.Copy(in, out)
-		n.Add(c)
+		go func() { io.Copy(counter{out, n}, in); out.Close() }()
+		io.Copy(counter{in, n}, out)
 		in.Close()
 	})}
 	go srv.Serve(ln)
 	return ln.Addr().String()
+}
+
+// counter counts what goes through to w.
+type counter struct {
+	w io.Writer
+	n *atomic.Int64
+}
+
+func (c counter) Write(p []byte) (int, error) {
+	k, err := c.w.Write(p)
+	c.n.Add(int64(k))
+	return k, err
 }
