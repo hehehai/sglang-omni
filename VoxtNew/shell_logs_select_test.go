@@ -414,3 +414,27 @@ func TestLogsDragScrolls(t *testing.T) {
 		t.Errorf("first selected %q", sel[0])
 	}
 }
+
+// TestLogsHeaderFits: at the window's smallest, in the panel and in
+// Chinese, the selection's count keeps its width (the filter gives way):
+// it does not end in an ellipsis.
+func TestLogsHeaderFits(t *testing.T) {
+	for _, lang := range []string{"en", "zh-Hans"} {
+		a, tt := logsApp(t, 6)
+		i18n.SetLocale(lang)
+		clickLine(t, tt, ui.Cmd, 2)
+		clickLine(t, tt, ui.Cmd, 3)
+		selected := i18n.N(2, "%d line selected", "%d lines selected", 2)
+		wide, _ := tt.Find(selected)
+		a.navigate("/history")
+		a.logsPanel = true
+		tt.SetSize(windowMinWidth, windowMinHeight)
+		frames(tt)
+		if _, ok := tt.Find(i18n.T("Deselect")); !ok {
+			t.Fatalf("%s: no Deselect in the panel: %q", lang, firstTexts(tt))
+		}
+		if r, _ := tt.Find(selected); r.W < wide.W-0.5 {
+			t.Errorf("%s: %q squeezed to %.1f (%.1f)", lang, selected, r.W, wide.W)
+		}
+	}
+}

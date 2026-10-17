@@ -53,7 +53,7 @@ func (a *app) logsView(c *ui.Context, panel bool) {
 	picked.Prune(logSeqs(lines)) // lines filtered out or gone from the log
 	ui.Row(c).Padding(px(t, 6), px(t, sp3), px(t, 6), px(t, sp6)).Gap(px(t, 6)).AlignItems(ui.Center).Shrink(0).Children(func() {
 		if panel {
-			ui.Text(c, i18n.T("Logs")).FontWeight(600).FontSize(px(t, fsCaption)).SingleLine()
+			ui.Text(c, i18n.T("Logs")).FontWeight(600).FontSize(px(t, fsCaption)).SingleLine().Shrink(0)
 		}
 		var labels []string
 		for _, s := range logSources {
@@ -72,7 +72,7 @@ func (a *app) logsView(c *ui.Context, panel bool) {
 		ui.Spacer(c)
 		if n := picked.Count(); n > 0 {
 			// While lines are selected: how many, Copy and Deselect.
-			ui.Text(c, i18n.N(n, "%d line selected", "%d lines selected", n)).FontSize(px(t, fsMicro)).FontWeight(600).TextColor(k.AccentInk).SingleLine()
+			ui.Text(c, i18n.N(n, "%d line selected", "%d lines selected", n)).FontSize(px(t, fsMicro)).FontWeight(600).TextColor(k.AccentInk).SingleLine().Shrink(0)
 			if quietButton(c.Key("logs-copy-selected"), icons.Copy, i18n.T("Copy")).Tooltip(i18n.N(n, "Copy %d selected line", "Copy %d selected lines", n)).Clicked() {
 				a.copyLogLines(c.Services(), listsel.Items(picked, lines, entrySeq))
 			}
