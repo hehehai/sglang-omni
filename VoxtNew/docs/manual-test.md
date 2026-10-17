@@ -721,7 +721,7 @@ MAC_DIR=code/VoxtNew-xyz scripts/mac.sh scripts/mac-regress.sh   # 真实模型�
 | `TestMacHelperCaptureFile` | 辅助进程以 4 倍速读语音样本：`capture.started` 报告文件名、16 kHz、单声道；帧序号和偏移连续；录到的 PCM 和文件逐样本一致；电平约 20 Hz；`capture.stop`、取消、`maxSeconds` 三种结束方式；22.05 kHz 立体声的 fixture 混音后峰值是 0.375；麦克风的权限状态没有变 | 通过：和文件的相关系数 1.00000，延迟 0 个样本；`maxSeconds=1` 时正好 16000 个样本 |
 | `TestMacE2ESessionLocal` | 和 app 一样组装的 `session.Manager`：辅助进程按实时节奏读语音样本，假的本地语音识别和语言模型（`local_fakes_test.go`），文字交给假的文本输出，历史写进临时目录里的 SQLite | 10-16（M0）通过：整段样本都送到了假的语音识别，结果整理、交付、写进历史 |
 | 文字测量 | `TestTextFitsItsOwnWidth`、`TestTranslationsFit`（strict）：Core Text 下每条中英文字符串按自身宽度排版不折行 | 10-16（M0）通过：0 条折行 |
-| `TestMacHelperOutputMute`（只在设了 `VOXTNEW_MAC_OUTPUT=<设备 UID>` 时跑，不在 mac-e2e.sh 里） | 真实辅助进程和 CoreAudio：静音这个设备再 release；静音后用 SIGKILL 杀掉辅助进程，另一个辅助进程 `output.recover` 恢复；静音后 `helper.shutdown`，辅助进程退出前恢复；每次静音不到 1 秒。设备是默认输出时拒绝运行（除非 `VOXTNEW_MAC_OUTPUT_DEFAULT=1`：会被同时用这台 Mac 的人听到），设备本来静音时跳过 | RESULT-PENDING |
+| `TestMacHelperOutputMute`（只在设了 `VOXTNEW_MAC_OUTPUT=<设备 UID>` 时跑，不在 mac-e2e.sh 里） | 真实辅助进程和 CoreAudio：静音这个设备再 release；静音后用 SIGKILL 杀掉辅助进程，另一个辅助进程 `output.recover` 恢复；静音后 `helper.shutdown`，辅助进程退出前恢复；每次静音不到 1 秒。设备是默认输出时拒绝运行（除非 `VOXTNEW_MAC_OUTPUT_DEFAULT=1`：会被同时用这台 Mac 的人听到），设备本来静音时跳过 | 10-17 通过（用户同意在默认输出上测：mac-air 只有内置扬声器 `BuiltInSpeakerDevice`，它就是默认输出，`VOXTNEW_MAC_OUTPUT_DEFAULT=1`）：5 次静音各 1–3 ms，整个测试 0.21 s；前后都是 `output volume:19, output muted:false`，没有残留的辅助进程和 journal |
 
 真实模型上的完整会话（真实辅助进程读样本文件 → 两个语音识别模型和 Silero）是 `TestMacE2EOmni`，在 `mac-regress.sh` 里跑（10.6）。
 
