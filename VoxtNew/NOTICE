@@ -53,6 +53,12 @@ Voxt menu bar icon
   scales it to the 36 px menubar.png and adds the recording dot for
   menubar-recording.png.
 
+VoxtNew app icon
+  resources/icon.png is drawn by scripts/icon/make_icon.py (its SVG source
+  beside it) from the microphone mascot of Voxt's logo, taken from Voxt
+  (Voxt/logo.svg), Copyright the Voxt authors, licensed under the Apache
+  License 2.0, on an orange tile of VoxtNew's own.
+
 Solar icon set
   by 480 Design — https://www.figma.com/community/file/1166831539721848736
   Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0),
