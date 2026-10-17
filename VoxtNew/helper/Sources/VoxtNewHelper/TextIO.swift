@@ -208,7 +208,7 @@ func postKey(_ key: UInt16, flags: CGEventFlags) {
     for down in [true, false] {
         guard let e = CGEvent(keyboardEventSource: src, virtualKey: key, keyDown: down) else { continue }
         e.flags = flags
-        e.setIntegerValueField(.eventSourceUserData, value: injectedMarker)
+        e.setIntegerValueField(.eventSourceUserData, value: InjectedEvent.marker)
         e.post(tap: .cghidEventTap)
     }
 }

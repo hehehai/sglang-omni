@@ -10,7 +10,14 @@ import Foundation
 // Modifier-only chords (fn, fn+⇧, fn+⌃, right ⌘ …) are judged per "chord
 // session": from the first modifier pressed to the last one released. The
 // chord is every modifier seen during the session, so fn then ⇧ is fn+⇧, never
-// fn. A non-modifier key during the session (fn+→, ⌘C) spoils it.
+// fn. A non-modifier key during the session (fn+→, ⌘C, right ⌥+E typing é)
+// spoils it, and so does a mouse button (⌥-click, ⌥-drag): the
+// modifier was used for something else. Modifier-only chords are never
+// swallowed (fn's own events aside, with swallowFn), so a modifier the
+// user holds to type or click works as usual: the shortcut just does not
+// fire. Sides are told apart by the device bits of the flags: a binding
+// for right ⌥ ignores left ⌥, so ⌥-characters typed with the left key are
+// untouched.
 
 /// One modifier key, with its side. fn has none.
 public enum ModKey: String, CaseIterable, Codable, Sendable {
@@ -217,10 +224,12 @@ public enum KeyInput: Sendable {
     case flagsChanged(keyCode: UInt16, flags: UInt64, t: Double)
     case keyDown(keyCode: UInt16, flags: UInt64, isRepeat: Bool, t: Double)
     case keyUp(keyCode: UInt16, flags: UInt64, t: Double)
+    /// A mouse button pressed: it only spoils a chord.
+    case pointer(t: Double)
 
     var t: Double {
         switch self {
-        case .flagsChanged(_, _, let t), .keyDown(_, _, _, let t), .keyUp(_, _, let t): t
+        case .flagsChanged(_, _, let t), .keyDown(_, _, _, let t), .keyUp(_, _, let t), .pointer(let t): t
         }
     }
 }
@@ -296,6 +305,8 @@ public struct HotkeyRecognizer: Sendable {
             swallow = handleKeyDown(keyCode: keyCode, flags: flags, isRepeat: isRepeat, t: t, &out)
         case .keyUp(let keyCode, _, let t):
             swallow = handleKeyUp(keyCode: keyCode, t: t, &out)
+        case .pointer:
+            if !pressed.isEmpty { spoiled = true; longPressDeadline = nil }
         }
         return (out, swallow)
     }

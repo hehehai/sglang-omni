@@ -15,11 +15,9 @@ import Foundation
 // and sends hotkey.state once in (no restart needed after the user grants
 // it). Accessibility taken away removes the tap, and it retries again.
 //
-// Events VoxtNew posts itself (⌘V, ⌘C, Return) carry injectedMarker in
-// eventSourceUserData and pass untouched.
-
-/// eventSourceUserData of the events VoxtNew posts ("AURA").
-let injectedMarker: Int64 = 0x4155_5241
+// Events VoxtNew posts itself (⌘V, ⌘C, Return) carry InjectedEvent.marker
+// ("VOXT") in eventSourceUserData and pass untouched; other apps' posted
+// events (Auralink's "AURA") are judged as typing.
 
 final class HotkeyTap: @unchecked Sendable {
     let out: Writer
@@ -67,8 +65,11 @@ final class HotkeyTap: @unchecked Sendable {
     private func install() {
         let ready = DispatchSemaphore(value: 0)
         let thread = Thread { [self] in
+            // Mouse presses too (not moves or scrolls: too many): they spoil
+            // a modifier chord held for an ⌥-click or ⌥-drag, and always pass.
             let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue) |
-                (1 << CGEventType.flagsChanged.rawValue)
+                (1 << CGEventType.flagsChanged.rawValue) | (1 << CGEventType.leftMouseDown.rawValue) |
+                (1 << CGEventType.rightMouseDown.rawValue) | (1 << CGEventType.otherMouseDown.rawValue)
             let callback: CGEventTapCallBack = { _, type, event, refcon in
                 guard let refcon else { return Unmanaged.passUnretained(event) }
                 let me = Unmanaged<HotkeyTap>.fromOpaque(refcon).takeUnretainedValue()
@@ -173,7 +174,7 @@ final class HotkeyTap: @unchecked Sendable {
             log("event tap was disabled (\(type.rawValue)); enabled again")
             return false
         }
-        let injected = event.getIntegerValueField(.eventSourceUserData) == injectedMarker
+        let injected = InjectedEvent.isOurs(event.getIntegerValueField(.eventSourceUserData))
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let flags = event.flags.rawValue
         let input: KeyInput
@@ -181,6 +182,7 @@ final class HotkeyTap: @unchecked Sendable {
         case .flagsChanged: input = .flagsChanged(keyCode: keyCode, flags: flags, t: start)
         case .keyDown: input = .keyDown(keyCode: keyCode, flags: flags, isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0, t: start)
         case .keyUp: input = .keyUp(keyCode: keyCode, flags: flags, t: start)
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown: input = .pointer(t: start)
         default: return false
         }
         let (fired, swallow, deadline): ([HotkeyEvent], Bool, Double?) = lock.withLock {
