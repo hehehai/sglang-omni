@@ -617,7 +617,12 @@ func TestOverlayInk(t *testing.T) {
 		{"live-long", rec(store.KindTranscribe, long), false, ink.Want{W: 300, H: 76, Row: true, Even: true, Text: true, Scrolled: true}, 300},
 		{"live-long-zh", rec(store.KindTranscribe, longZh), false, ink.Want{W: 300, H: 76, Row: true, Even: true, Text: true, Scrolled: true}, 300},
 		{"working", session.Snapshot{State: session.Recognizing}, false, ink.Want{W: 148, H: 48, Row: true}, 148},
-		{"notice", session.Snapshot{State: session.Failed, Problem: &session.Problem{Code: session.ProblemASR, Err: &asr.Error{Kind: asr.KindAuth}}}, false, ink.Want{H: 48, Row: true}, 0},
+		// A notice's icon is coloured, not ink (as in the Mac's check,
+		// overlayInkWant): its row's first stroke would be the text, whose
+		// ink's middle is its glyphs' (Core Text's caps sit on the row's
+		// middle, its descenders 1.5 under the chevron's), so its size
+		// only.
+		{"notice", session.Snapshot{State: session.Failed, Problem: &session.Problem{Code: session.ProblemASR, Err: &asr.Error{Kind: asr.KindAuth}}}, false, ink.Want{H: 48}, 0},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if strings.HasSuffix(c.name, "-zh") {
