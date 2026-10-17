@@ -146,12 +146,12 @@ func (f *Family) UsedBy(keys string) []shortcuts.Hit {
 	return shortcuts.UsedBy(keys, f.bundleID, f.others())
 }
 
-// others are the shortcut holders of the other installed apps: their
-// release builds (developers' builds and VoxtNew's own others are not
-// the user's, spec §6.3).
+// others are the shortcut holders of the other installed apps (any
+// build of theirs: a developer's Auralink fires on the same keys), not
+// VoxtNew's own other builds.
 func (f *Family) others() []shortcuts.Holder {
 	var apps []registry.Found
-	for _, a := range registry.Visible(f.Found()) {
+	for _, a := range f.Found() {
 		if a.App.ID != AppID {
 			apps = append(apps, a)
 		}

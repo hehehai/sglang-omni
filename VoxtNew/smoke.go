@@ -3,9 +3,10 @@ package main
 // The packaged app's smoke run (scripts/mac-regress.sh): started as
 // VoxtNew.app/Contents/MacOS/VoxtNew --smoke <dir>, it runs instead of the
 // app, with no window, no menu bar icon and no single-instance lock, on a
-// data folder of its own (<dir>/data, whose models/ the script links in):
-// it starts the bundled helper, opens the first installed speech and
-// language models through the app's own Library and runtimes (the
+// data folder of its own (<dir>/data; the models are the model library's,
+// $HUB): it starts the bundled helper, opens the first installed speech and
+// language models (or those VOXTNEW_SMOKE_MODELS=<asr id>,<llm id> names)
+// through the app's own Library and runtimes (the
 // bundled Omni server and voxtnew-llm), asks each for an answer (a second
 // of silence; a short chat), then quits as the app does. The script then
 // checks that nothing it started is left running. Lines starting
@@ -14,7 +15,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -81,8 +84,11 @@ func runSmoke(dir string) int {
 	go func() {
 		asrs, llms := a.local.Installed(local.ASR), a.local.Installed(local.LLM)
 		if len(asrs) == 0 || len(llms) == 0 {
-			done <- result{err: fmt.Errorf("no speech model (%d) or language model (%d) installed in %s", len(asrs), len(llms), dir)}
+			done <- result{err: fmt.Errorf("no speech model (%d) or language model (%d) installed in %s", len(asrs), len(llms), a.models.Hub())}
 			return
+		}
+		if want, wantLLM, ok := strings.Cut(os.Getenv("VOXTNEW_SMOKE_MODELS"), ","); ok {
+			asrs, llms = []local.Model{{ID: want}}, []local.Model{{ID: wantLLM}}
 		}
 		t0 := time.Now()
 		p, _, err := a.local.ASR(ctx, asrs[0].ID)

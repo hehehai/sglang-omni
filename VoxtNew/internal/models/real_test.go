@@ -218,3 +218,26 @@ func hashes(path string) (sum, git string, err error) {
 	}
 	return hex.EncodeToString(s.Sum(nil)), hex.EncodeToString(g.Sum(nil)), nil
 }
+
+// TestRealSnapshots prints "<id>=<snapshot folder>" for each catalogue
+// model installed in $HUB, a line each (MISSING <id> for the others):
+// scripts/mac-regress.sh reads the models' folders from it.
+//
+//	VOXTNEW_SNAPSHOTS_OUT=list.txt go test -count=1 -run TestRealSnapshots ./internal/models
+func TestRealSnapshots(t *testing.T) {
+	out := os.Getenv("VOXTNEW_SNAPSHOTS_OUT")
+	if out == "" {
+		t.Skip("set VOXTNEW_SNAPSHOTS_OUT to the file to write")
+	}
+	var b strings.Builder
+	for _, m := range Catalog() {
+		if d := Installed(Hub(), m); d != "" {
+			fmt.Fprintf(&b, "%s=%s\n", m.ID, d)
+		} else {
+			fmt.Fprintf(&b, "MISSING %s\n", m.ID)
+		}
+	}
+	if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -13,7 +13,9 @@
 #
 # It reads the persistent models and runtimes, never downloads or builds
 # them (their READMEs say how to refresh them):
-#   ~/voxtnew-models/<id>/      VOXTNEW_MODELS_DIR: the six catalogue models
+#   $HUB (~/.cache/huggingface/hub, or $HF_HUB_CACHE): the six catalogue
+#     models' snapshots at their pinned commits (the ActNow family's model
+#     library; internal/models' TestRealSnapshots lists them)
 #   ~/voxtnew-runtime/omni/     VOXTNEW_RUNTIME_DIR: scripts/build-omni.sh --out
 #   ~/voxtnew-runtime/llm/      scripts/build-llm.sh --out
 # --full runs the whole eval (about 20 minutes more) and writes its tables
@@ -37,15 +39,19 @@ for a in "$@"; do
     *) echo "unknown argument $a" >&2; exit 1 ;;
   esac
 done
-M="${VOXTNEW_MODELS_DIR:-$HOME/voxtnew-models}"
 R="${VOXTNEW_RUNTIME_DIR:-$HOME/voxtnew-runtime}"
 OUT="$ROOT/build/regress"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
 missing=0
+# The models' snapshot folders in $HUB, by catalogue id (the catalogue says
+# which commit; nothing is downloaded).
+VOXTNEW_SNAPSHOTS_OUT="$OUT/snapshots.txt" go test -count=1 -run TestRealSnapshots ./internal/models >/dev/null || exit 2
+# snap ID: model ID's snapshot folder ("" when it is not installed).
+snap() { sed -n "s|^$1=||p" "$OUT/snapshots.txt"; }
 for id in asr.accurate asr.fast vad.silero llm.balanced llm.fast llm.translate; do
-  [[ -f "$M/$id/.voxtnew-model.json" ]] || { echo "missing model $M/$id (see $M/README.md)" >&2; missing=1; }
+  [[ -n "$(snap "$id")" ]] || { echo "missing model $id in the model library (download it in VoxtNew, or internal/models' TestRealMoveToHub)" >&2; missing=1; }
 done
 [[ -x "$R/omni/bin/qwen3_asr_server" ]] || { echo "missing $R/omni (see $R/README.md)" >&2; missing=1; }
 [[ -x "$R/llm/voxtnew-llm" ]] || { echo "missing $R/llm (see $R/README.md)" >&2; missing=1; }
@@ -70,7 +76,7 @@ if (( ${free:-0} < ${VOXTNEW_MIN_FREE:-30} )); then
 fi
 
 export VOXTNEW_HELPER="$OUT/helper/voxtnew-helper" VOXTNEW_OMNI_RUNTIME="$OUT/runtime/omni" VOXTNEW_LLM="$OUT/runtime/llm/voxtnew-llm"
-export VOXTNEW_MODELS_DIR="$M" GOFLAGS=-p=4
+export GOFLAGS=-p=4
 
 names=() results=() times=() notes=()
 # step NAME NOTE-GREP CMD...: runs CMD, its output in $OUT/NAME.log; the
@@ -101,8 +107,8 @@ step() {
   echo "   ${results[${#results[@]}-1]} in ${times[${#times[@]}-1]}: $note"
 }
 
-omni_models="asr.accurate=$M/asr.accurate;asr.fast=$M/asr.fast;vad.silero=$M/vad.silero"
-dev_llm="llm.balanced=$M/llm.balanced,llm.fast=$M/llm.fast,llm.translate=$M/llm.translate"
+omni_models="asr.accurate=$(snap asr.accurate);asr.fast=$(snap asr.fast);vad.silero=$(snap vad.silero)"
+dev_llm="llm.balanced=$(snap llm.balanced),llm.fast=$(snap llm.fast),llm.translate=$(snap llm.translate)"
 
 step helper-build 'built|helper' scripts/build-helper.sh --out "$OUT/helper"
 step helper-swift-test 'Executed .* tests' bash -c 'cd helper && swift test -j 2'
@@ -129,10 +135,12 @@ app_build() {
 }
 smoke() {
   local dir="$OUT/smoke"
-  mkdir -p "$dir/data/models"
-  for id in asr.fast vad.silero llm.fast; do ln -s "$M/$id" "$dir/data/models/$id"; done
-  # The app's own processes, not the environment's.
+  mkdir -p "$dir/data"
+  # The app's own processes, not the environment's; the models from $HUB
+  # (the fast ones), a family directory of its own (the real one is not
+  # written).
   env -u VOXTNEW_HELPER -u VOXTNEW_OMNI_RUNTIME -u VOXTNEW_LLM \
+    ACTNOW_FAMILY_DIR="$dir/ActNow" VOXTNEW_SMOKE_MODELS=asr.fast,llm.fast \
     "$ROOT/build/darwin-arm64/VoxtNew.app/Contents/MacOS/VoxtNew" --smoke "$dir" &
   local pid=$! t=0
   while kill -0 $pid 2>/dev/null && ((t < 300)); do sleep 1; t=$((t + 1)); done
