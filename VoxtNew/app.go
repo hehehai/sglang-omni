@@ -32,6 +32,7 @@ import (
 //	onboardingState   onboarding.go   the setup guide
 //	scPromptState     settings_shortcuts_family.go  a shortcut another ActNow app uses too: the prompt
 //	audioState        settings_audio.go   Settings → Audio, the recording's sounds
+//	soundsState       settings_sounds.go  the sounds' presets and previews
 //	updateState       updates.go      the updater, an update installed while running
 //
 // Add fields to your area's struct, not here.
@@ -66,6 +67,7 @@ type app struct {
 	onboardingState
 	scPromptState
 	audioState
+	soundsState
 	updateState
 }
 

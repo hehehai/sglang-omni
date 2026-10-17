@@ -19,6 +19,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
@@ -47,6 +48,7 @@ type settingsForm struct {
 	keepAudio    bool
 	logText      bool
 	sounds       bool
+	soundPreset  string      // a macx.Presets ID (settings_sounds.go)
 	skipSilence  bool        // !Audio.VAD.Off
 	cleanSound   bool        // !Audio.Clean.Off
 	sidebar      int         // automatic, names and icons, icons only (settings_appearance.go)
@@ -204,6 +206,7 @@ func (a *app) loadSettingsForm() {
 	f.menuBar, f.closeToTray, f.openAtLogin = s.General.MenuBar, s.General.CloseToTray, s.General.LaunchAtLogin
 	f.keepHistory, f.keepAudio, f.logText = s.Privacy.KeepHistory, s.Privacy.KeepAudio, s.Privacy.LogText
 	f.sounds = s.Audio.Sounds
+	f.soundPreset = macx.PresetFor(s.Audio.SoundPreset).ID
 	f.skipSilence = !s.Audio.VAD.Off
 	f.cleanSound = !s.Audio.Clean.Off
 	f.sidebar = sidebarChoice(s.Appearance)

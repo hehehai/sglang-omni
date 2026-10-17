@@ -131,6 +131,15 @@ func snapshotsMain(t *testing.T, out string) {
 				save("settings-about-check")
 				a.checks = nil
 			}
+			if s.id == "audio" { // the sounds and their presets' menu, under the fold (settings_sounds.go)
+				scrollToText(tt, i18n.T("Play sounds"))
+				save("settings-audio-sounds")
+				tt.Click(i18n.T("Sound preset"))
+				frames(tt)
+				save("settings-audio-sounds-menu")
+				tt.Key(0, ui.KeyEscape)
+				frames(tt)
+			}
 			if s.id == "overlay" { // its preview, under the controls
 				w, h := snapshotSize()
 				tt.Scroll(float32(w)*0.7, float32(h)*0.6, 0, 600)

@@ -6,7 +6,8 @@ package main
 // recording is left out before the speech model gets it (Audio.VAD.Off,
 // internal/vad) and whether its sound is cleaned up (Audio.Clean.Off,
 // internal/dsp), and the sounds a recording makes when it starts and
-// stops. The helper lists the inputs
+// stops (their presets and previews: settings_sounds.go). The helper
+// lists the inputs
 // (capture.devices) when the section opens, when the helper becomes
 // ready while it shows, and with Refresh. Muting the system's output
 // while recording (Audio.MuteOutput) is P1: no switch yet.
@@ -41,6 +42,7 @@ type audioState struct {
 
 func (a *app) openAudio() {
 	a.playSound = func(s macx.Sound) { macx.Play(s) }
+	a.startSound = startPreview // settings_sounds.go
 }
 
 // audioShown reads the inputs when the section shows; helperChanged
@@ -266,12 +268,7 @@ func (a *app) audioSettings(c *ui.Context) {
 	})
 
 	sectionTitle(c, i18n.T("Sounds"))
-	settingRow(c, "audio-sounds", i18n.T("Play sounds"), i18n.T("A short sound when recording starts, and another when it stops."), func() {
-		if ui.Switch(c.Key("audio-sounds-switch"), &a.settingsForm.sounds).Label(i18n.T("Play sounds")).Changed() {
-			on := a.settingsForm.sounds
-			a.updateSettings(func(s *settings.Settings) { s.Audio.Sounds = on })
-		}
-	})
+	a.soundsRow(c) // settings_sounds.go
 }
 
 // deviceName is an input's name and, under it, notes on its state; a
@@ -296,28 +293,47 @@ func deviceName(c *ui.Context, name, notes string, inUse, present bool) {
 	})
 }
 
-// recordingCue is the sound a change of the session makes: one when it
+// cue is a sound of a recording: its start, or its stop.
+type cue int
+
+const (
+	noCue cue = iota
+	startCue
+	stopCue
+)
+
+// recordingCue is the cue a change of the session makes: one when it
 // starts recording, another when the recording stops and the text is on
 // its way. A cancelled or failed recording stops silently.
-func recordingCue(was, s session.Snapshot) (macx.Sound, bool) {
+func recordingCue(was, s session.Snapshot) cue {
 	switch {
 	case s.State == session.Recording && (was.State != session.Recording || was.ID != s.ID):
-		return macx.SoundStart, true
+		return startCue
 	case was.State == session.Recording && was.ID == s.ID && s.State != session.Recording &&
 		s.State != session.Cancelled && s.State != session.Failed:
-		return macx.SoundStop, true
+		return stopCue
 	}
-	return "", false
+	return noCue
+}
+
+// cueSound is the sound of a cue in the preset of Settings → Audio (an ID
+// of macx.Presets; Soft when empty or unknown).
+func cueSound(c cue, preset string) macx.Sound {
+	p := macx.PresetFor(preset)
+	if c == stopCue {
+		return p.Stop
+	}
+	return p.Start
 }
 
 // playCue plays the cue of a change of the session (Settings → Audio →
-// Play sounds), off the main thread.
+// Play sounds), in the chosen preset, off the main thread.
 func (a *app) playCue(was, s session.Snapshot) {
 	if !a.prefs.Audio.Sounds || a.playSound == nil {
 		return
 	}
-	if cue, ok := recordingCue(was, s); ok {
-		play := a.playSound
-		a.async(func() { play(cue) })
+	if c := recordingCue(was, s); c != noCue {
+		play, sound := a.playSound, cueSound(c, a.prefs.Audio.SoundPreset)
+		a.async(func() { play(sound) })
 	}
 }

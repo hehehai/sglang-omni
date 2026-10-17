@@ -7,12 +7,28 @@ import (
 	"path/filepath"
 )
 
-func play(s Sound) error {
+func soundCmd(s Sound) *exec.Cmd {
 	path := filepath.Join("/System/Library/Sounds", filepath.Base(string(s))+".aiff")
-	cmd := exec.Command("/usr/bin/afplay", "-v", soundVolume, path)
+	return exec.Command("/usr/bin/afplay", "-v", soundVolume, path)
+}
+
+// start: afplay exits when the sound ended; killing it stops the sound.
+func start(s Sound) (*Playing, error) {
+	cmd := soundCmd(s)
 	if err := cmd.Start(); err != nil {
-		return err
+		return nil, err
 	}
-	go cmd.Wait() // reap it
-	return nil
+	p := &Playing{done: make(chan struct{})}
+	p.stop = func() {
+		select {
+		case <-p.done:
+		default:
+			cmd.Process.Kill()
+		}
+	}
+	go func() {
+		cmd.Wait() // reap it
+		close(p.done)
+	}()
+	return p, nil
 }

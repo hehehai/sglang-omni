@@ -101,9 +101,13 @@ type Audio struct {
 	DeviceNames map[string]string `json:"deviceNames,omitempty"`
 	// MuteOutput lowers the system's output while recording, restoring
 	// only what VoxtNew changed (P1). Sounds plays a cue when recording
-	// starts and another when it stops.
-	MuteOutput bool `json:"muteOutput,omitempty"`
-	Sounds     bool `json:"sounds"`
+	// starts and another when it stops; SoundPreset is the pair it plays,
+	// by Voxt's preset IDs (macx.Presets: "soft", "glass", …). Empty, or
+	// an ID VoxtNew does not know, is "soft" (Pop, then Tink), so older
+	// documents need no migration (10-17).
+	MuteOutput  bool   `json:"muteOutput,omitempty"`
+	Sounds      bool   `json:"sounds"`
+	SoundPreset string `json:"soundPreset,omitempty"`
 	// VAD is the local voice activity detection a recording goes
 	// through before a speech model hears it (10-15).
 	VAD VAD `json:"vad,omitzero"`

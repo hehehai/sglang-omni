@@ -117,6 +117,29 @@ func TestMemory(t *testing.T) {
 	}
 }
 
+// TestSoundPreset: older documents have none (Soft, without a
+// migration); a chosen one is kept, and an empty one stays out of the
+// document.
+func TestSoundPreset(t *testing.T) {
+	s, err := Migrate([]byte(`{"version":4,"audio":{"sounds":true}}`))
+	if err != nil || !s.Audio.Sounds || s.Audio.SoundPreset != "" {
+		t.Fatalf("old document: %+v %v", s.Audio, err)
+	}
+	if Defaults().Audio.SoundPreset != "" {
+		t.Errorf("default %q", Defaults().Audio.SoundPreset)
+	}
+	data, _ := json.Marshal(Defaults())
+	if strings.Contains(string(data), "soundPreset") {
+		t.Errorf("empty preset written: %s", data)
+	}
+	s.Audio.SoundPreset = "hero"
+	data, _ = json.Marshal(s)
+	back, err := Migrate(data)
+	if err != nil || back.Audio.SoundPreset != "hero" {
+		t.Errorf("round trip: %q %v", back.Audio.SoundPreset, err)
+	}
+}
+
 func TestDeviceNames(t *testing.T) {
 	s := Defaults()
 	s.Audio.Devices = []string{"a", " a ", "b"}

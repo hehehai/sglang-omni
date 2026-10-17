@@ -7,12 +7,14 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 ### Added
 
 - History entries have a context menu: right-click (or Control-click) one to copy its result or its recognised text, show its details, show its recording in Finder, or delete it. Home's recent results have the same menu. In History a selected entry also takes ⌘C (copy) and Delete.
+- **Sounds to choose** (Settings → Audio → Play sounds): Voxt's ten pairs of start and stop sounds (Soft, the default, then Ping, Morse, Submarine, Basso, Bottle, Frog, Hero, Purr and Sosumi), in a menu beside the switch with a Try button; choosing one plays it, and so does resting on one in the open menu.
 
 ### 中文
 
 #### 新增
 
 - 历史记录有了右键菜单：右键（或按住 Control 点）一条记录，可以复制结果或识别原文、查看详情、在访达中显示录音，或者删除它。首页的最近结果也有同样的菜单。在历史页选中一条记录后，也可以按 ⌘C 复制、按 Delete 删除。
+- **可选的提示音**（设置 → 音频 → 播放提示音）：和 Voxt 一样的 10 组开始和结束提示音（默认“柔和”，另有 Ping、Morse、Submarine、Basso、Bottle、Frog、Hero、Purr、Sosumi），开关旁边有下拉菜单和试听按钮；选中一组会试听，在打开的菜单里停在某一项上片刻也会试听。
 
 ## [0.1.0-beta.1] - 2026-10-17
 

@@ -82,25 +82,34 @@ func TestDeviceInUse(t *testing.T) {
 func TestRecordingCues(t *testing.T) {
 	snap := func(id string, st session.State) session.Snapshot { return session.Snapshot{ID: id, State: st} }
 	for _, tc := range []struct {
-		name    string
-		was, s  session.Snapshot
-		want    macx.Sound
-		wantAny bool
+		name   string
+		was, s session.Snapshot
+		want   cue
 	}{
-		{"start", snap("", session.Idle), snap("a", session.Recording), macx.SoundStart, true},
-		{"after reading", snap("a", session.Reading), snap("a", session.Recording), macx.SoundStart, true},
-		{"a new session", snap("a", session.Recording), snap("b", session.Recording), macx.SoundStart, true},
-		{"still recording", snap("a", session.Recording), snap("a", session.Recording), "", false},
-		{"stop", snap("a", session.Recording), snap("a", session.Recognizing), macx.SoundStop, true},
-		{"stop to compose", snap("a", session.Recording), snap("a", session.Composing), macx.SoundStop, true},
-		{"cancelled", snap("a", session.Recording), snap("a", session.Cancelled), "", false},
-		{"failed", snap("a", session.Recording), snap("a", session.Failed), "", false},
-		{"reading a selection", snap("a", session.Reading), snap("a", session.Composing), "", false},
-		{"recognized", snap("a", session.Recognizing), snap("a", session.Composing), "", false},
+		{"start", snap("", session.Idle), snap("a", session.Recording), startCue},
+		{"after reading", snap("a", session.Reading), snap("a", session.Recording), startCue},
+		{"a new session", snap("a", session.Recording), snap("b", session.Recording), startCue},
+		{"still recording", snap("a", session.Recording), snap("a", session.Recording), noCue},
+		{"stop", snap("a", session.Recording), snap("a", session.Recognizing), stopCue},
+		{"stop to compose", snap("a", session.Recording), snap("a", session.Composing), stopCue},
+		{"cancelled", snap("a", session.Recording), snap("a", session.Cancelled), noCue},
+		{"failed", snap("a", session.Recording), snap("a", session.Failed), noCue},
+		{"reading a selection", snap("a", session.Reading), snap("a", session.Composing), noCue},
+		{"recognized", snap("a", session.Recognizing), snap("a", session.Composing), noCue},
 	} {
-		got, ok := recordingCue(tc.was, tc.s)
-		if got != tc.want || ok != tc.wantAny {
-			t.Errorf("%s: %q %v", tc.name, got, ok)
+		if got := recordingCue(tc.was, tc.s); got != tc.want {
+			t.Errorf("%s: %v", tc.name, got)
+		}
+	}
+	for _, tc := range []struct {
+		preset      string
+		start, stop macx.Sound
+	}{
+		{"", "Pop", "Tink"}, {"soft", "Pop", "Tink"}, {"nope", "Pop", "Tink"},
+		{"glass", "Ping", "Ping"}, {"submarine", "Submarine", "Submarine"}, {"sosumi", "Sosumi", "Sosumi"},
+	} {
+		if s, e := cueSound(startCue, tc.preset), cueSound(stopCue, tc.preset); s != tc.start || e != tc.stop {
+			t.Errorf("%q: %s, %s", tc.preset, s, e)
 		}
 	}
 }
@@ -121,6 +130,19 @@ func TestSessionSounds(t *testing.T) {
 	feed("s2", session.Cancelled)
 	if want := []macx.Sound{macx.SoundStart, macx.SoundStop, macx.SoundStart}; !slices.Equal(cues, want) {
 		t.Fatalf("cues %q, want %q", cues, want)
+	}
+	// Another preset: its sounds, Hero's the same for both.
+	for _, tc := range []struct {
+		preset string
+		want   []macx.Sound
+	}{{"frog", []macx.Sound{"Frog", "Frog"}}, {"hero", []macx.Sound{"Hero", "Hero"}}} {
+		a.updateSettings(func(s *settings.Settings) { s.Audio.SoundPreset = tc.preset })
+		cues = nil
+		feed("s-"+tc.preset, session.Recording)
+		feed("s-"+tc.preset, session.Done)
+		if !slices.Equal(cues, tc.want) {
+			t.Fatalf("%s: cues %q", tc.preset, cues)
+		}
 	}
 	// Off in Settings → Audio: silence.
 	a.navigate("/settings/audio")

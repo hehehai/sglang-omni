@@ -53,6 +53,9 @@ stop
 minus                   # numberInput
 add
 
+# Settings → Audio (settings_sounds.go).
+music-note               # try a sound
+
 # Local models (models_page.go).
 soundwave                # speech models
 chat-round-line          # language models
