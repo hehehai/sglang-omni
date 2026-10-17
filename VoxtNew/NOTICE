@@ -163,7 +163,7 @@ Go modules compiled into VoxtNew
   - github.com/ebitengine/purego v0.11.1, Copyright the Ebitengine
     authors, Apache License 2.0 (LICENSES/Apache-2.0.txt)
   - github.com/hehehai/actnowkit v0.2.0, Copyright 2026 ActNow
-    (https://actnow.dev), Apache License 2.0 (its LICENSE in LICENSES/go/):
+    (https://actnow.dev), Apache License 2.0 (LICENSES/Apache-2.0.txt):
     the ActNow family's shared code (the family directory, model
     library, claims and locks, settings, shortcuts, runtime files) and its
     Hugging Face downloader. Its NOTICE reads: "Package hfhub derives from
@@ -175,9 +175,6 @@ Go modules compiled into VoxtNew
     AudioSmith authors."
   - github.com/go-text/typesetting v0.3.5, Copyright 2021 The go-text
     authors, Unlicense OR BSD-3-Clause
-  - github.com/hehehai/actnowkit v0.2.0, Copyright 2026 ActNow, Apache
-    License 2.0 (LICENSES/Apache-2.0.txt; its NOTICE names the code it
-    derives from)
   - golang.org/x/image v0.46.0, Copyright 2009 The Go Authors,
     BSD-3-Clause, with Google's patent grant (PATENTS)
   - golang.org/x/text v0.43.0, Copyright 2009 The Go Authors,
