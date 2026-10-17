@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hehehai/actnowkit/hfhub"
 )
 
 // SystemProxies are the system's web proxies (macx.Proxies, the same
@@ -108,4 +110,25 @@ func bypassProxy(host string, proxies SystemProxies) bool {
 		}
 	}
 	return false
+}
+
+// ProxyFor is the downloads' proxy rule for the family's network.proxy
+// (family spec §9.1): "" automatic, system (the environment's, then the
+// Mac's: SystemProxy); "direct", or a proxy URL, as hfhub reads them. The
+// loopback is never proxied.
+func ProxyFor(mode string, system func(*http.Request) (*url.URL, error)) func(*http.Request) (*url.URL, error) {
+	if strings.TrimSpace(mode) == "" && system != nil {
+		return system
+	}
+	return hfhub.ProxyFunc(mode)
+}
+
+// NewHTTPClient is the downloads' HTTP client through proxy, with hfhub's
+// timeouts (30 s for the response headers).
+func NewHTTPClient(proxy func(*http.Request) (*url.URL, error)) *http.Client {
+	c := hfhub.NewHTTPClient(hfhub.ProxyDirect, 30*time.Second)
+	if t, ok := c.Transport.(*http.Transport); ok {
+		t.Proxy = proxy
+	}
+	return c
 }

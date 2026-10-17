@@ -1,16 +1,17 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/hehehai/actnowkit/hfhub"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
@@ -22,7 +23,7 @@ import (
 // and opens a's models again over them, as a start would.
 func seedModels(t *testing.T, a *app, ids ...string) {
 	t.Helper()
-	if err := modelstest.Seed(a.models.Root(), ids...); err != nil {
+	if err := modelstest.Seed(a.models.Hub(), ids...); err != nil {
 		t.Fatal(err)
 	}
 	reopenModels(a)
@@ -85,8 +86,8 @@ func TestModelsPage(t *testing.T) {
 	if a.models.Installed(models.ASRFast) || a.modelStatus[models.ASRFast].Installed {
 		t.Error("still installed")
 	}
-	if _, err := os.Stat(filepath.Join(a.models.Root(), models.ASRFast)); !os.IsNotExist(err) {
-		t.Errorf("folder: %v", err)
+	if fast, _ := models.Lookup(models.ASRFast); models.Installed(a.models.Hub(), fast) != "" {
+		t.Error("the snapshot stayed")
 	}
 	if len(a.installed(local.ASR)) != 0 || a.notes == nil {
 		t.Error("installed list")
@@ -100,14 +101,19 @@ func TestModelDownloadStates(t *testing.T) {
 	var mode atomic.Value // "hold" | "missing"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if mode.Load() == "missing" {
-			http.NotFound(w, r)
+			http.Error(w, `{"error":"Repository not found"}`, http.StatusNotFound)
 			return
 		}
-		if r.Header.Get("Range") != "" {
+		if rest, ok := strings.CutPrefix(r.URL.Path, "/api/models/"); ok {
+			repo, _, _ := strings.Cut(rest, "/revision/")
+			fakeModelInfo(w, repo)
+			return
+		}
+		if r.Header.Get("Range") != "" && !strings.HasPrefix(r.Header.Get("Range"), "bytes=0-") {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
-		w.Header().Set("Content-Length", "1000000000")
+		w.Header().Set("Content-Length", fmt.Sprint(fakeFileSize(r.URL.Path)))
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(strings.Repeat("x", 100))) // less than any file: the rest never comes
 		w.(http.Flusher).Flush()
@@ -118,10 +124,10 @@ func TestModelDownloadStates(t *testing.T) {
 	}))
 	defer srv.Close()
 	defer close(release)
-	t.Setenv("VOXTNEW_HF_ENDPOINT", srv.URL)
-	free := diskFree
-	diskFree = func(string) int64 { return 100 << 30 }
-	defer func() { diskFree = free }()
+	t.Setenv("HF_ENDPOINT", srv.URL)
+	reserve := modelsReserve
+	modelsReserve = -1 // no free-space check
+	defer func() { modelsReserve = reserve }()
 	a, _, tt := newTestApp(t)
 	tt.SetSize(windowWidth, 1600)
 	drain := queuePosts(a)
@@ -163,6 +169,56 @@ func TestModelDownloadStates(t *testing.T) {
 	}
 }
 
+// fakeModelInfo answers the Hub's model info for a catalogue repo, at
+// its pinned commit (hfhub plans a download with it).
+func fakeModelInfo(w http.ResponseWriter, repo string) {
+	type lfs struct {
+		SHA256 string `json:"sha256"`
+		Size   int64  `json:"size"`
+	}
+	type sibling struct {
+		Path   string `json:"rfilename"`
+		Size   int64  `json:"size"`
+		BlobID string `json:"blobId"`
+		LFS    *lfs   `json:"lfs,omitempty"`
+	}
+	for _, m := range models.Catalog() {
+		if m.Repo != repo {
+			continue
+		}
+		var sib []sibling
+		for i, f := range m.Files {
+			x := sibling{Path: f.Path, Size: f.Size, BlobID: fmt.Sprintf("%040x", i+1)}
+			if f.LFS {
+				x.LFS = &lfs{SHA256: f.SHA256, Size: f.Size}
+			}
+			sib = append(sib, x)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"id": repo, "sha": m.Revision, "siblings": sib})
+		return
+	}
+	http.NotFound(w, nil)
+}
+
+// fakeFileSize is the size of the catalogue's file at a Hub path
+// (/<owner>/<name>/resolve/<rev>/<path>).
+func fakeFileSize(p string) int64 {
+	parts := strings.SplitN(strings.TrimPrefix(p, "/"), "/", 5)
+	if len(parts) < 5 {
+		return 0
+	}
+	for _, m := range models.Catalog() {
+		if m.Repo == parts[0]+"/"+parts[1] {
+			for _, f := range m.Files {
+				if f.Path == parts[4] {
+					return f.Size
+				}
+			}
+		}
+	}
+	return 0
+}
+
 // modelShots saves the Local models page with a model of each state
 // (TestSnapshots): installed, downloading, stopped, failed, and Settings →
 // Storage with the models' size.
@@ -172,7 +228,7 @@ func modelShots(t *testing.T, a *app, tt *ui.Tester, save func(string)) {
 	balanced, _ := models.Lookup(models.LLMBalanced)
 	a.modelStatus[models.ASRFast] = models.Status{Done: fast.Size() / 3, Total: fast.Size()}
 	a.modelStatus[models.LLMBalanced] = models.Status{Downloading: true, Done: balanced.Size() * 2 / 5, Total: balanced.Size()}
-	a.modelStatus[models.LLMFast] = models.Status{Total: 1, Err: &models.NoSpaceError{Need: 2_261_000_000, Free: 1_200_000_000}}
+	a.modelStatus[models.LLMFast] = models.Status{Total: 1, Err: fmt.Errorf("needs 1.7 GB: %w", hfhub.ErrDiskSpace)}
 	a.navigate(modelsPath)
 	// Two of them loaded (models_memory.go), as a session leaves them.
 	a.modelMem = map[string]int64{models.ASRAccurate: 2_469_606_195, models.LLMTranslate: 1_234_173_952}

@@ -1,8 +1,8 @@
 package main
 
 // App enhancement and the dictionary end to end on the real models
-// (VOXTNEW_EVAL=1, eval_test.go): the app's own Library and runtimes with
-// ~/voxtnew-models' asr.accurate, Silero and llm.balanced linked in, the
+// (VOXTNEW_EVAL=1, eval_test.go): the app's own Library and runtimes over
+// the model library ($HUB) with asr.accurate, Silero and llm.balanced, the
 // fake helper playing an eval clip as the recording (never the
 // microphone or the speaker) with an app in front. An app group's prompt
 // changes the answer; a dictionary term reaches the speech model's
@@ -44,10 +44,10 @@ func runEvalSession(t *testing.T, e *evalRun, id, front string, terms []store.Te
 	if !ok {
 		t.Fatalf("no clip %s", id)
 	}
-	svc := realLocal{link: map[string]string{}}
 	for _, m := range []string{models.ASRAccurate, models.VADSilero, models.LLMBalanced} {
-		svc.link[m] = e.dir(t, m)
+		e.dir(t, m) // installed
 	}
+	svc := realLocal{hub: e.hub}
 	wav, _ := filepath.Abs(filepath.Join("testdata", "eval", id+".wav")) // the helper runs elsewhere
 	opts := script(t, hotkeyIn(300, front), hotkeyIn(300+int(c.Duration()/time.Millisecond/5)+1500, front)) +
 		",front=" + front + "," + helpertest.Opt("pcm", wav)

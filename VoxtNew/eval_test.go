@@ -2,9 +2,10 @@ package main
 
 // The quality evaluation of the curated models on a Mac (docs/eval.md):
 // the eval set (testdata/eval, internal/eval) through the real runtimes,
-// with the models installed by VoxtNew's own models package:
+// with the catalogue's models from the model library ($HUB: $HF_HUB_CACHE,
+// else ~/.cache/huggingface/hub, the snapshots of their pinned commits):
 //
-//	VOXTNEW_EVAL=1 VOXTNEW_MODELS_DIR=~/voxtnew-models \
+//	VOXTNEW_EVAL=1 \
 //	  VOXTNEW_OMNI_RUNTIME=~/voxtnew-runtime/omni VOXTNEW_LLM=~/voxtnew-runtime/llm/voxtnew-llm \
 //	  go test -count=1 -timeout 1h -run 'TestEval' -v .
 //
@@ -27,13 +28,14 @@ import (
 	"time"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/eval"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 )
 
 type evalRun struct {
-	set    *eval.Set
-	models string
-	quick  bool
-	out    string
+	set   *eval.Set
+	hub   string // the model library
+	quick bool
+	out   string
 }
 
 func evalSetup(t *testing.T) *evalRun {
@@ -48,24 +50,20 @@ func evalSetup(t *testing.T) *evalRun {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := os.Getenv("VOXTNEW_MODELS_DIR")
-	if dir == "" {
-		home, _ := os.UserHomeDir()
-		dir = filepath.Join(home, "voxtnew-models")
-	}
-	e := &evalRun{set: set, models: dir, quick: os.Getenv("VOXTNEW_EVAL_QUICK") == "1", out: os.Getenv("VOXTNEW_EVAL_OUT")}
+	e := &evalRun{set: set, hub: realHub, quick: os.Getenv("VOXTNEW_EVAL_QUICK") == "1", out: os.Getenv("VOXTNEW_EVAL_OUT")}
 	if out, err := exec.Command("pgrep", "-fl", "voxtnew-llm|qwen3_asr_server").Output(); err == nil && len(out) > 0 {
 		t.Logf("CONTENTION: other model processes were running before the eval:\n%s", out)
 	}
 	return e
 }
 
-// dir is model id's installed folder.
+// dir is model id's snapshot in the model library.
 func (e *evalRun) dir(t *testing.T, id string) string {
 	t.Helper()
-	d := filepath.Join(e.models, id)
-	if _, err := os.Stat(filepath.Join(d, ".voxtnew-model.json")); err != nil {
-		t.Fatalf("%s is not installed in %s (TestRealInstall, internal/models): %v", id, e.models, err)
+	m, _ := models.Lookup(id)
+	d := models.Installed(e.hub, m)
+	if d == "" {
+		t.Fatalf("%s is not installed in %s (download it in VoxtNew, or internal/models' TestRealMoveToHub)", id, e.hub)
 	}
 	return d
 }

@@ -10,6 +10,10 @@ const (
 	Balanced  = "llm.balanced"  // the default: clean-up, translation and rewriting
 	Fast      = "llm.fast"      // smaller and quicker
 	Translate = "llm.translate" // translation only, a model of its own
+	// Other ActNow apps' models VoxtNew runs when they are on the Mac
+	// (models.Model.Borrowed).
+	Qwen3  = "llm.qwen3"  // AudioSmith's and Dicta's Qwen3-4B-Instruct-2507
+	Gemma4 = "llm.gemma4" // Dicta's Gemma 4 E4B
 )
 
 // PromptStyle is how a model takes a request.
@@ -125,6 +129,22 @@ var profiles = []Profile{
 		Prompt:       PromptHyMT,
 		Default:      wire.Sampling{Temperature: 0.7, TopP: 0.6, TopK: 20, RepetitionPenalty: 1.05, RepetitionContextSize: 64},
 		MaxTokensCap: 2048,
+	},
+	{
+		// Qwen3-4B-Instruct-2507 has no thinking mode; its card
+		// recommends 0.7, top-p 0.8, top-k 20 (rewriting), greedy for
+		// the exact skills as the other Qwens.
+		ID: Qwen3, Format: wire.FormatMLX, Repo: "mlx-community/Qwen3-4B-Instruct-2507-4bit",
+		Sampling: map[llm.Skill]wire.Sampling{llm.SkillRewrite: qwenRewrite},
+		Default:  qwenExact,
+	},
+	{
+		// Gemma 4's card: temperature 1.0, top-p 0.95, top-k 64; greedy
+		// for the exact skills, no repetition penalty (Gemma's own
+		// sampling has none).
+		ID: Gemma4, Format: wire.FormatMLX, Repo: "mlx-community/gemma-4-e4b-it-4bit",
+		Sampling: map[llm.Skill]wire.Sampling{llm.SkillRewrite: {Temperature: 1.0, TopP: 0.95, TopK: 64, RepetitionPenalty: 1}},
+		Default:  wire.Sampling{Temperature: 0, TopP: 1, RepetitionPenalty: 1},
 	},
 }
 

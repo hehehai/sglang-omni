@@ -90,6 +90,7 @@ func main() {
 	a.connectHelper()                     // helperlink.go
 	a.upd, a.bundleStale = pluginUpdates{}, h.stale
 	a.connectUpdates() // updates.go
+	a.startFamily()    // family.go: the manifest, the other ActNow apps, the first start's migration
 
 	mygo.App.WhenReady(func() {
 		a.openWindow()        // shell.go

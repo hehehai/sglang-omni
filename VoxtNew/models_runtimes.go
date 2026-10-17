@@ -3,21 +3,21 @@ package main
 // The runtimes behind the local models (internal/local's Openers): the
 // one place that says which runtime opens which model. A runtime that is
 // not wired here is "not available" (local.ErrNoRuntime). ASR is
-// internal/omni's (the speech model's folder, and the VAD's from
+// internal/omni's (the speech model's snapshot, and the VAD's from
 // a.models.Dir(models.VADSilero)), LLM the voxtnew-llm process's
-// (internal/llmrt).
+// (internal/llmrt). Both load from the family's model library: the
+// snapshot folder $HUB/models--<owner>--<name>/snapshots/<commit> of the
+// commit installed (models.Manager.Dir).
 //
-// Developers' options, from the environment:
-//
-//	VOXTNEW_HF_ENDPOINT=<url>   download from this Hub instead of https://huggingface.co
-//	VOXTNEW_HF_CACHE=1|<dir>    adopt verified files from a Hugging Face cache
-//	                            (1: $HF_HUB_CACHE, $HF_HOME/hub or ~/.cache/huggingface/hub)
-//	                            instead of downloading them
+// Developers' options, from the environment: HF_ENDPOINT=<url> downloads
+// from that Hub only (huggingface_hub's variable); HF_HUB_CACHE or
+// HF_HOME move the model library, unless the family's settings name one
+// (models.root); ACTNOW_FAMILY_DIR moves the family directory.
 
 import (
 	"log"
-	"os"
 
+	famsettings "github.com/hehehai/actnowkit/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
@@ -52,18 +52,19 @@ func (a *app) unloadModel(id string) {
 // systemProxies are the Mac's web proxies, for the downloads.
 func systemProxies() models.SystemProxies { return models.SystemProxies(macx.SystemProxies()) }
 
-// managerOptions are the models' options: the environment's, the
-// system's proxy, and onChange.
-func managerOptions(onChange func()) models.Options {
-	opt := models.Options{Endpoint: os.Getenv("VOXTNEW_HF_ENDPOINT"), OnChange: onChange,
-		Proxy:    models.SystemProxy(systemProxies, log.Printf),
-		DiskFree: func(path string) int64 { return diskFree(path) }} // settings_storage.go: snapshots and tests pin it
-	switch cache := os.Getenv("VOXTNEW_HF_CACHE"); cache {
-	case "", "0":
-	case "1":
-		opt.HFCache = models.DefaultHFCache()
-	default:
-		opt.HFCache = cache
-	}
-	return opt
+// systemProxy is the downloads' automatic proxy: the environment's, else
+// the Mac's (read again every 5 s).
+var systemProxy = models.SystemProxy(systemProxies, log.Printf)
+
+// familyEndpoints are the Hub endpoints a network.hfEndpoints value races.
+func familyEndpoints(v string) []string { return famsettings.Endpoints(v) }
+
+// managerOptions are the models' options: the family's library, the
+// network, onChange.
+func (a *app) managerOptions(onChange func()) models.Options {
+	return models.Options{Store: a.fam.Store(), Network: a.networkFor(a.prefs), ReserveBytes: modelsReserve, OnChange: onChange}
 }
+
+// modelsReserve is the room a download leaves free (0: hfhub's 2 GB;
+// tests turn the check off).
+var modelsReserve int64

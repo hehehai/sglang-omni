@@ -1,7 +1,8 @@
 package main
 
 // TestRealSystemProxy downloads the VAD from huggingface.co alone (no
-// mirror, no proxy in the environment, the app's own models.Options) on a
+// mirror, no proxy in the environment, the app's automatic proxy, into a
+// temporary family library) on a
 // Mac whose network reaches the Hub only through the system's proxy
 // (mac-air: 127.0.0.1:7897), and checks every request went through it.
 //
@@ -16,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hehehai/actnowkit/conformance"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 )
 
@@ -33,12 +35,10 @@ func TestRealSystemProxy(t *testing.T) {
 	if system.HTTPS == "" {
 		t.Skip("no system HTTPS proxy")
 	}
-	opt := managerOptions(nil)
-	opt.Endpoint, opt.HFCache = "https://huggingface.co", ""
 	var mu sync.Mutex
 	used := map[string]int{} // requests by the proxy they went through
-	appProxy := opt.Proxy
-	opt.Proxy = func(request *http.Request) (*url.URL, error) {
+	appProxy := models.ProxyFor("", systemProxy)
+	proxy := func(request *http.Request) (*url.URL, error) {
 		proxyURL, err := appProxy(request)
 		mu.Lock()
 		defer mu.Unlock()
@@ -49,7 +49,10 @@ func TestRealSystemProxy(t *testing.T) {
 		}
 		return proxyURL, err
 	}
-	m := models.Open(t.TempDir(), opt)
+	fx := conformance.New(t)
+	opt := models.Options{Store: fx.Peer("dev.hehehai.voxtnew.test"),
+		Network: models.Network{Endpoints: []string{"https://huggingface.co"}, Client: models.NewHTTPClient(proxy)}}
+	m := models.Open(opt)
 	defer m.Close()
 	start := time.Now()
 	if err := m.Download(models.VADSilero); err != nil {

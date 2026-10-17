@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -17,6 +18,9 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/hehehai/actnowkit/family"
+	"github.com/hehehai/actnowkit/registry"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/actnow"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
@@ -24,6 +28,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/llmrttest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/omni/omnitest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/permission"
@@ -41,8 +46,50 @@ func TestMain(m *testing.M) {
 	if llmrttest.Enabled() {
 		llmrttest.Main()
 	}
-	os.Exit(m.Run())
+	os.Exit(runIsolated(m))
 }
+
+// runIsolated runs the tests away from the user's ActNow family and
+// Hugging Face cache: each app's family directory and model library are
+// in its data folder (familyConfig), and the environment points
+// elsewhere too, for what resolves the defaults.
+func runIsolated(m *testing.M) int {
+	tmp, err := os.MkdirTemp("", "voxtnew-family-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(tmp)
+	realHub = models.Hub()
+	os.Setenv(family.EnvDir, filepath.Join(tmp, "ActNow"))
+	os.Setenv("HF_HUB_CACHE", filepath.Join(tmp, "hub"))
+	os.Unsetenv("HF_HOME")
+	os.Unsetenv("HF_ENDPOINT")
+	familyConfig = func(a *app) actnow.Config {
+		d := a.dataDir()
+		hub := filepath.Join(d, "hub")
+		if h, ok := testHubs.Load(d); ok {
+			hub = h.(string)
+		}
+		return actnow.Config{Dir: family.At(filepath.Join(d, "ActNow")), Hub: hub,
+			BundleID: "dev.hehehai.voxtnew", Version: "0.1.0-test", System: noApps{}}
+	}
+	return m.Run()
+}
+
+// testHubs are the model libraries of test apps that use another than
+// their data folder's (a real one), by data folder.
+var testHubs sync.Map
+
+// realHub is the user's model library, before runIsolated moved the
+// environment's: the Mac's tests of the real models read it (eval_test.go).
+var realHub string
+
+// noApps is a registry.System that finds no installed or running app.
+type noApps struct{}
+
+func (noApps) AppPaths(string) []string                { return nil }
+func (noApps) Running(string) []registry.Process       { return nil }
+func (noApps) BundleID(appPath string) (string, error) { return registry.BundleIDAt(appPath) }
 
 // fakeSupervisor is a helper.Supervisor in process: Start makes it ready
 // (publishing StatusChanged), and Call answers from handlers, by default

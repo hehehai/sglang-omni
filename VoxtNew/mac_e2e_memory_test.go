@@ -1,8 +1,8 @@
 package main
 
 // The loaded models' memory on a Mac (VOXTNEW_MAC_E2E=1, the runtimes in
-// VOXTNEW_OMNI_RUNTIME and VOXTNEW_LLM, the models in VOXTNEW_MODELS_DIR,
-// default ~/voxtnew-models): the app's own local models load asr.fast,
+// VOXTNEW_OMNI_RUNTIME and VOXTNEW_LLM, the models in the model library,
+// $HF_HUB_CACHE or ~/.cache/huggingface/hub): the app's own local models load asr.fast,
 // then llm.fast and llm.translate, and the Local models page's
 // measurement (macx.Memory by pid) is compared with what voxtnew-llm
 // says of itself. It logs MEASURE lines:
@@ -14,7 +14,6 @@ package main
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -30,15 +29,12 @@ func TestMacModelMemory(t *testing.T) {
 	if os.Getenv("VOXTNEW_MAC_E2E") != "1" || runtime.GOOS != "darwin" {
 		t.Skip("set VOXTNEW_MAC_E2E=1 on a Mac, with VOXTNEW_OMNI_RUNTIME and VOXTNEW_LLM")
 	}
-	dir := os.Getenv("VOXTNEW_MODELS_DIR")
-	if dir == "" {
-		home, _ := os.UserHomeDir()
-		dir = filepath.Join(home, "voxtnew-models")
-	}
-	svc := realLocal{link: map[string]string{}}
 	for _, id := range []string{models.ASRFast, models.VADSilero, models.LLMFast, models.LLMTranslate} {
-		svc.link[id] = filepath.Join(dir, id)
+		if m, _ := models.Lookup(id); models.Installed(realHub, m) == "" {
+			t.Fatalf("%s is not in the model library %s", id, realHub)
+		}
 	}
+	svc := realLocal{hub: realHub}
 	s := newSessionApp(t, "", func(*settings.Settings) {}, svc)
 	a := s.app
 	ctx := context.Background()

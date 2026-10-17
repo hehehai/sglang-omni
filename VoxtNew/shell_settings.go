@@ -116,6 +116,7 @@ func (a *app) updateSettings(fn func(*settings.Settings)) {
 // settingsChanged applies saved settings to the app.
 func (a *app) settingsChanged(old, new settings.Settings) {
 	a.prefs = new
+	a.familySettingsChanged(old, new) // family.go: the shared settings, the manifest
 	if old.General.Language != new.General.Language {
 		a.applyLocale()
 	}

@@ -58,16 +58,12 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc 
 	}
 	if real, ok := svc.(realLocal); ok {
 		// The app's own local models (the Library and its runtimes),
-		// these installed: seeded, or real ones linked in.
-		dir := filepath.Join(lib.store.Dir(), "models")
-		if err := modelstest.Seed(dir, real.installed...); err != nil {
+		// these installed: seeded in its library, or a real library's.
+		if real.hub != "" {
+			testHubs.Store(lib.store.Dir(), real.hub)
+			t.Cleanup(func() { testHubs.Delete(lib.store.Dir()) })
+		} else if err := modelstest.Seed(filepath.Join(lib.store.Dir(), "hub"), real.installed...); err != nil {
 			t.Fatal(err)
-		}
-		for id, from := range real.link {
-			os.MkdirAll(dir, 0o755)
-			if err := os.Symlink(from, filepath.Join(dir, id)); err != nil {
-				t.Fatal(err)
-			}
 		}
 	} else {
 		old := newLocalServices
@@ -98,11 +94,11 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc 
 }
 
 // realLocal makes newSessionApp keep the app's own local models, with
-// the models installed (modelstest.Seed).
+// the models installed (modelstest.Seed), or a real model library's.
 type realLocal struct {
 	local.NotInstalled
 	installed []string
-	link      map[string]string // installed models' folders, by id (eval_e2e_test.go)
+	hub       string // the library of real models (realHub, eval_e2e_test.go): read, never written
 }
 
 // pump runs posted functions until cond holds.

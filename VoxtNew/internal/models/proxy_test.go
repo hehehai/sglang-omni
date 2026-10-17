@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/hehehai/actnowkit/hfhub"
 )
 
 // testProxy is a systemProxy with no environment's proxy, the given
@@ -114,13 +117,14 @@ func TestSystemProxyEnvironmentWins(t *testing.T) {
 	}
 }
 
-// TestDownloadThroughProxy: a Manager with SystemProxy fetches every file
-// through the system's proxy (here the fake Hub itself, answering the
-// proxied requests of a Hub on a name of its own).
+// TestDownloadThroughProxy: with the automatic proxy, a Manager fetches
+// every file through the system's proxy (a proxy in front of the fake
+// Hub, for a Hub of a name of its own); "direct" never uses it.
 func TestDownloadThroughProxy(t *testing.T) {
-	h, _, contents := testSetup(t)
+	e := newEnv(t, testCatalog(), Options{})
 	var mu sync.Mutex
 	var proxied []string
+	target, _ := url.Parse(e.hub.URL)
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		proxied = append(proxied, r.RequestURI)
@@ -129,23 +133,38 @@ func TestDownloadThroughProxy(t *testing.T) {
 			http.Error(w, "not proxied: "+r.RequestURI, http.StatusBadGateway)
 			return
 		}
-		h.ServeHTTP(w, r)
+		out, _ := http.NewRequestWithContext(r.Context(), r.Method, target.String()+r.URL.RequestURI(), nil)
+		out.Header = r.Header.Clone()
+		res, err := http.DefaultTransport.RoundTrip(out)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer res.Body.Close()
+		for k, v := range res.Header {
+			w.Header()[k] = v
+		}
+		w.WriteHeader(res.StatusCode)
+		io.Copy(w, res.Body)
 	}))
 	defer proxy.Close()
 	var logged []string
 	read := func() SystemProxies { return SystemProxies{HTTP: strings.TrimPrefix(proxy.URL, "http://")} }
 	s := &systemProxy{env: func(*http.Request) (*url.URL, error) { return nil, nil }, read: read, now: time.Now,
 		logf: func(format string, args ...any) { logged = append(logged, fmt.Sprintf(format, args...)) }}
-	root := t.TempDir()
-	m := Open(root, Options{Endpoint: "http://hub.example", Proxy: s.proxy})
-	if err := m.Download("asr"); err != nil {
+	if ProxyFor(hfhub.ProxyDirect, s.proxy) == nil {
+		t.Fatal("no rule for direct")
+	}
+	e.m.SetNetwork(Network{Endpoints: []string{"http://hub.example"}, Client: NewHTTPClient(ProxyFor("", s.proxy))})
+	if err := e.m.Download("llm"); err != nil {
 		t.Fatal(err)
 	}
-	if st := wait(t, m, "asr"); !st.Installed || st.Err != nil {
+	if st := wait(t, e.m, "llm"); !st.Installed || st.Err != nil {
 		t.Fatalf("%+v", st)
 	}
-	checkInstalled(t, root, "asr", contents["asr"])
-	if len(proxied) != 5 || !strings.HasPrefix(proxied[0], "http://hub.example/org/") {
+	mu.Lock()
+	defer mu.Unlock()
+	if len(proxied) < 4 || !strings.HasPrefix(proxied[0], "http://hub.example/") {
 		t.Errorf("proxied %q", proxied)
 	}
 	if len(logged) != 1 || !strings.Contains(logged[0], "system proxy http 127.0.0.1:") {

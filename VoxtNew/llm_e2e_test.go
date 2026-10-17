@@ -13,6 +13,7 @@ package main
 
 import (
 	"context"
+	fammodels "github.com/hehehai/actnowkit/models"
 	"os"
 	"path/filepath"
 	"strings"
@@ -246,10 +247,10 @@ func TestLLMOpenerThroughLibrary(t *testing.T) {
 	}
 	// Deleting another model leaves the process; deleting the loaded one stops it.
 	lib := a.local.(*local.Library)
-	if err := lib.Delete(models.LLMBalanced); err != nil || rt.Status().State != llmrt.Ready {
+	if _, err := lib.Delete(context.Background(), models.LLMBalanced, fammodels.ThisApp); err != nil || rt.Status().State != llmrt.Ready {
 		t.Errorf("delete balanced: %v %+v", err, rt.Status())
 	}
-	if err := lib.Delete(models.LLMTranslate); err != nil || rt.Status().State != llmrt.Stopped {
+	if _, err := lib.Delete(context.Background(), models.LLMTranslate, fammodels.ThisApp); err != nil || rt.Status().State != llmrt.Stopped {
 		t.Errorf("delete translate: %v %+v", err, rt.Status())
 	}
 }

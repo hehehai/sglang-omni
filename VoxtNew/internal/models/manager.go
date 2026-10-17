@@ -1,213 +1,293 @@
 package models
 
-// Manager: which models are installed (in memory, read once when it
-// opens), and their downloads, each on a goroutine of its own.
+// Manager: which models are installed (in memory, read when it opens and
+// on Refresh), and their downloads, each on a goroutine of its own,
+// through actnowkit's hfhub into the family's model library.
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
+	"slices"
 	"sync"
-	"syscall"
 	"time"
+
+	"github.com/hehehai/actnowkit/hfhub"
+	fammodels "github.com/hehehai/actnowkit/models"
 )
 
 // ErrUnknown: no model of the catalogue has that id.
 var ErrUnknown = errors.New("models: unknown model")
 
-// NoSpaceError: the disk has not the room a download needs.
-type NoSpaceError struct{ Need, Free int64 }
+// ErrBorrowed: a borrowed model is not downloaded by VoxtNew.
+var ErrBorrowed = errors.New("models: another app's model")
 
-func (e *NoSpaceError) Error() string {
-	return fmt.Sprintf("models: not enough disk space: %d bytes needed, %d free", e.Need, e.Free)
-}
-
-// DefaultEndpoints are the Hub, then its mirror, for networks that do not
-// reach the Hub.
-var DefaultEndpoints = []string{"https://huggingface.co", "https://hf-mirror.com"}
-
-// spareBytes is the room a download leaves free on the disk.
-const spareBytes = 512 << 20
-
-// Options configure a Manager; the zero value downloads from the Hub.
+// Options configure a Manager.
 type Options struct {
-	// Endpoint is the Hub's address (default: DefaultEndpoints, in turn).
-	Endpoint string
-	// HFCache is a Hugging Face hub cache to adopt verified files from,
-	// before downloading ("": none).
-	HFCache string
-	// Parallel is how many files download at once, across models
-	// (default 3).
-	Parallel int
-	Client   *http.Client
-	// Proxy is the default Client's proxy (default: the environment's;
-	// the app's: SystemProxy).
-	Proxy func(*http.Request) (*url.URL, error)
-	// DiskFree is the space free on path's disk (default: statfs).
-	DiskFree func(path string) int64
+	// Store is VoxtNew's view of the family's model library: its $HUB,
+	// its claims, the other apps' (required).
+	Store *fammodels.Store
+	// Network is how downloads reach the Hub (SetNetwork changes it).
+	Network Network
+	// ReserveBytes is the room a download leaves free on the disk
+	// (0: hfhub's 2 GB; negative: no check).
+	ReserveBytes int64
+	// Catalog replaces the catalogue (tests: conformance's repos).
+	Catalog []Model
 	// OnChange is called after a status changed, on any goroutine; at
 	// most every 200 ms while bytes arrive.
 	OnChange func()
 }
 
+// Network is the downloads' way to the Hub: the endpoints raced (nil:
+// hfhub's, $HF_ENDPOINT or huggingface.co and hf-mirror.com) and the HTTP
+// client (nil: hfhub's, through the system's proxy).
+type Network struct {
+	Endpoints []string
+	Client    *http.Client
+}
+
 // Status is a model's state.
 type Status struct {
-	Installed   bool
+	// Installed: on disk at a commit VoxtNew runs, and VoxtNew's to use
+	// (a borrowed model: once VoxtNew claims it). OnDisk: on disk, whether
+	// or not (a borrowed model VoxtNew may use).
+	Installed, OnDisk bool
+	// Revision is the commit on disk ("" when none is).
+	Revision    string
 	Downloading bool
 	// Done and Total are a download's bytes (of the model and the models
 	// it needs); Done is also what a stopped download kept.
 	Done, Total int64
+	// WaitingFor is the bundle id of the app downloading what this
+	// download waits for (hfhub.UnknownOwner when unknown).
+	WaitingFor string
+	// Elsewhere is the bundle id of another app downloading the model
+	// while VoxtNew does not (family spec §7.10.4).
+	Elsewhere string
 	// Err is the last download's failure, until the next starts.
 	Err error
+	// Mine: VoxtNew claims it. Users are the other apps that claim it
+	// (installed ones, names for "Shared with …").
+	Mine  bool
+	Users []string
+	// DeletedBy is the bundle id of the app that deleted it for all apps,
+	// while that is why it is gone.
+	DeletedBy string
 }
 
-// Manager keeps the models under its root. Goroutine-safe.
+// Manager keeps the catalogue's models in the family's library.
+// Goroutine-safe.
 type Manager struct {
-	root  string
-	opt   Options
-	fetch *fetcher
+	store   *fammodels.Store
+	opt     Options
+	catalog []Model
 
+	refreshMu sync.Mutex // one Refresh at a time: a slow one never writes over a later one
 	mu        sync.Mutex
-	installed map[string]bool
-	partial   map[string]int64
-	errs      map[string]error
+	client    *hfhub.Client
+	status    map[string]Status // by id; downloads' bytes live in jobs
 	jobs      map[string]*job
-	claimed   map[string]bool // models a job is installing (a speech model's VAD: one job)
+	busy      map[string]bool // ids a job is installing (a speech model's VAD: one job)
 	lastNote  time.Time
 	closed    bool
-	diskMu    sync.Mutex // installs and removals, one at a time
 }
 
 // job is one download: a model and the models it needs.
 type job struct {
-	cancel context.CancelFunc
-	done   chan struct{}
-	total  int64
-	files  map[string]int64 // bytes there of each "<id>/<path>"
+	cancel  context.CancelFunc
+	done    chan struct{}
+	total   int64
+	base    int64 // bytes of the entries finished
+	current int64 // of the entry downloading
+	waiting string
 }
 
-// Open reads which models are installed under root (a little I/O: call
-// it while the app starts, not while a view builds).
-func Open(root string, opt Options) *Manager {
-	endpoints := DefaultEndpoints
-	if opt.Endpoint != "" {
-		endpoints = []string{opt.Endpoint}
+// Open reads which models are on disk and which VoxtNew claims (I/O:
+// call it while the app starts, not while a view builds).
+func Open(opt Options) *Manager {
+	if opt.Store == nil {
+		panic("models: Open without a Store")
 	}
-	if opt.Parallel <= 0 {
-		opt.Parallel = 3
+	m := &Manager{store: opt.Store, opt: opt, catalog: opt.Catalog,
+		status: map[string]Status{}, jobs: map[string]*job{}, busy: map[string]bool{}}
+	if m.catalog == nil {
+		m.catalog = catalog
 	}
-	if opt.Proxy == nil {
-		opt.Proxy = http.ProxyFromEnvironment
-	}
-	if opt.Client == nil {
-		opt.Client = &http.Client{Transport: &http.Transport{
-			Proxy:                 opt.Proxy,
-			DialContext:           (&net.Dialer{Timeout: 10 * time.Second}).DialContext,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ResponseHeaderTimeout: 30 * time.Second,
-		}}
-	}
-	if opt.DiskFree == nil {
-		opt.DiskFree = diskFree
-	}
-	m := &Manager{root: root, opt: opt, installed: map[string]bool{}, partial: map[string]int64{},
-		errs: map[string]error{}, jobs: map[string]*job{}, claimed: map[string]bool{},
-		fetch: &fetcher{client: opt.Client, endpoints: endpoints, slots: make(chan struct{}, opt.Parallel)}}
-	for _, mod := range catalog {
-		m.installed[mod.ID] = isInstalled(root, mod)
-		if !m.installed[mod.ID] {
-			m.partial[mod.ID] = partialBytes(root, mod)
-		}
-	}
+	m.client = m.newClient(opt.Network)
+	m.refresh()
 	return m
 }
 
-// Root is the folder of the models.
-func (m *Manager) Root() string { return m.root }
+func (m *Manager) newClient(n Network) *hfhub.Client {
+	return hfhub.New(hfhub.Options{Store: m.store, Endpoints: n.Endpoints, HTTPClient: n.Client,
+		ReserveBytes: m.opt.ReserveBytes, UserAgent: "VoxtNew"})
+}
 
-// Installed says whether model id is installed (memory only).
+// SetNetwork changes the way to the Hub; downloads already running keep
+// theirs.
+func (m *Manager) SetNetwork(n Network) {
+	c := m.newClient(n)
+	m.mu.Lock()
+	m.client = c
+	m.mu.Unlock()
+}
+
+// Hub is the family's model library VoxtNew uses ($HUB).
+func (m *Manager) Hub() string { return m.store.Hub }
+
+// Store is the family's view of it.
+func (m *Manager) Store() *fammodels.Store { return m.store }
+
+// Lookup is the model of id in the Manager's catalogue.
+func (m *Manager) Lookup(id string) (Model, bool) {
+	for _, mod := range m.catalog {
+		if mod.ID == id {
+			return mod, true
+		}
+	}
+	return Model{}, false
+}
+
+// Catalog is the Manager's catalogue.
+func (m *Manager) Catalog() []Model { return slices.Clone(m.catalog) }
+
+// Installed says whether model id is VoxtNew's to use (memory only).
 func (m *Manager) Installed(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.installed[id]
+	return m.status[id].Installed
 }
 
-// Dir is the folder of model id, "" when it is not installed.
+// Dir is the snapshot folder of model id, "" when it is not installed.
 func (m *Manager) Dir(id string) string {
-	if !m.Installed(id) {
+	mod, ok := m.Lookup(id)
+	m.mu.Lock()
+	s := m.status[id]
+	m.mu.Unlock()
+	if !ok || !s.Installed {
 		return ""
 	}
-	return modelDir(m.root, id)
+	return SnapshotDir(m.store.Hub, mod, s.Revision)
 }
 
 // Status is model id's state (memory only).
 func (m *Manager) Status(id string) Status {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	s := Status{Installed: m.installed[id], Err: m.errs[id], Done: m.partial[id]}
-	if mod, ok := Lookup(id); ok {
-		s.Total = mod.Size()
-	}
+	s := m.status[id]
+	s.Users = slices.Clone(s.Users)
 	if j := m.jobs[id]; j != nil {
-		s.Downloading, s.Done, s.Total = true, 0, j.total
-		for _, n := range j.files {
-			s.Done += n
-		}
+		s.Downloading, s.Done, s.Total, s.WaitingFor = true, j.base+j.current, j.total, j.waiting
 	}
 	return s
 }
 
+// Refresh reads the disk and the family's claims again (another app
+// downloaded or deleted a model, or the user came back to VoxtNew): it
+// drops VoxtNew's claims on models deleted for all apps (tombstones). It
+// blocks on I/O: call it off the main thread.
+func (m *Manager) Refresh() {
+	m.refresh()
+	m.note(true)
+}
+
+func (m *Manager) refresh() {
+	m.refreshMu.Lock()
+	defer m.refreshMu.Unlock()
+	tombs, _ := m.store.ApplyTombstones()
+	all, _ := m.store.Claims()
+	survey := map[fammodels.Ref][]string{}
+	var want []fammodels.Claim
+	for _, mod := range m.catalog {
+		want = append(want, mod.Claim("", ""))
+		for _, rev := range mod.Accept {
+			want = append(want, mod.Claim(rev, ""))
+		}
+	}
+	for _, f := range m.store.Survey(want...) {
+		for _, u := range f.By {
+			survey[f.Want.Ref()] = append(survey[f.Want.Ref()], u.Name)
+		}
+	}
+	next := map[string]Status{}
+	for _, mod := range m.catalog {
+		var s Status
+		rev, _ := find(m.store.Hub, mod)
+		ref := mod.Ref(rev)
+		if rev != "" {
+			s.OnDisk, s.Revision, s.Users = true, rev, survey[ref]
+			_, s.Mine = all.Find(ref)
+			s.Installed = !mod.Borrowed || s.Mine
+		} else if !mod.Borrowed {
+			if l, err := hfhub.Status(m.store.Hub, mod.Entry("")); err == nil && l.State == hfhub.Partial {
+				s.Done = l.Bytes
+			}
+			if o, ok := fammodels.Activity(m.store.Hub, mod.Repo, m.store.BundleID); ok && o.Op == fammodels.OpDownload {
+				s.Elsewhere = o.BundleID
+			}
+			for _, t := range tombs {
+				if t.Ref() == mod.Ref("") {
+					s.DeletedBy = t.RemovedBy
+				}
+			}
+		}
+		next[mod.ID] = s
+	}
+	m.mu.Lock()
+	for id, s := range next {
+		old := m.status[id]
+		if s.DeletedBy == "" && !s.OnDisk {
+			s.DeletedBy = old.DeletedBy // a tombstone is applied once: keep saying it
+		}
+		s.Err = old.Err
+		m.status[id] = s
+	}
+	m.mu.Unlock()
+}
+
 // Download starts installing model id and the models it needs, unless
-// it is installed or downloading. It fails at once when there is not the
-// disk space; later failures are the Status's Err.
+// it is installed or downloading. Failures are the Status's Err.
 func (m *Manager) Download(id string) error {
-	mod, ok := Lookup(id)
+	mod, ok := m.Lookup(id)
 	if !ok {
 		return fmt.Errorf("%w: %q", ErrUnknown, id)
 	}
+	if mod.Borrowed {
+		return fmt.Errorf("%w: %q", ErrBorrowed, id)
+	}
 	m.mu.Lock()
-	if m.closed || m.installed[id] || m.jobs[id] != nil {
+	if m.closed || m.status[id].OnDisk || m.jobs[id] != nil {
 		m.mu.Unlock()
 		return nil
 	}
 	var list []Model
 	for _, need := range mod.Needs {
-		if n, ok := Lookup(need); ok && !m.installed[need] && !m.claimed[need] {
+		if n, ok := m.Lookup(need); ok && !m.status[need].OnDisk && !m.busy[need] {
 			list = append(list, n)
 		}
 	}
 	list = append(list, mod)
-	var total, need int64
-	for _, l := range list {
-		total += l.Size()
-		need += l.Size() - m.partial[l.ID]
-	}
-	if free := m.opt.DiskFree(m.root); free > 0 && free < need+spareBytes {
-		err := &NoSpaceError{Need: need + spareBytes, Free: free}
-		m.errs[id] = err
-		m.mu.Unlock()
-		m.note(true)
-		return err
-	}
 	ctx, cancel := context.WithCancel(context.Background())
-	j := &job{cancel: cancel, done: make(chan struct{}), total: total, files: map[string]int64{}}
+	j := &job{cancel: cancel, done: make(chan struct{})}
 	for _, l := range list {
-		m.claimed[l.ID] = true
+		j.total += l.Size()
+		m.busy[l.ID] = true
 	}
 	m.jobs[id] = j
-	delete(m.errs, id)
+	s := m.status[id]
+	s.Err, s.DeletedBy = nil, ""
+	m.status[id] = s
+	client := m.client
 	m.mu.Unlock()
 	m.note(true)
-	go m.run(ctx, id, j, list)
+	go m.run(ctx, client, id, j, list)
 	return nil
 }
 
-// Cancel stops model id's download; what came is kept for the next.
+// Cancel stops model id's download; what came is kept for the next (this
+// app's or another's).
 func (m *Manager) Cancel(id string) {
 	m.mu.Lock()
 	j := m.jobs[id]
@@ -216,25 +296,6 @@ func (m *Manager) Cancel(id string) {
 		j.cancel()
 		<-j.done
 	}
-}
-
-// Delete stops model id's download and removes the model and what came
-// of it. It blocks on the disk: call it off the main thread.
-func (m *Manager) Delete(id string) error {
-	if _, ok := Lookup(id); !ok {
-		return fmt.Errorf("%w: %q", ErrUnknown, id)
-	}
-	m.Cancel(id)
-	m.diskMu.Lock()
-	err := remove(m.root, id)
-	m.diskMu.Unlock()
-	m.mu.Lock()
-	m.installed[id] = false
-	m.partial[id] = 0
-	delete(m.errs, id)
-	m.mu.Unlock()
-	m.note(true)
-	return err
 }
 
 // Close stops every download (what came is kept).
@@ -251,94 +312,36 @@ func (m *Manager) Close() {
 	}
 }
 
-func (m *Manager) run(ctx context.Context, id string, j *job, list []Model) {
+func (m *Manager) run(ctx context.Context, client *hfhub.Client, id string, j *job, list []Model) {
 	var err error
 	for _, mod := range list {
-		if err = m.installOne(ctx, j, mod); err != nil {
+		err = client.Download(ctx, mod.Entry(""), func(p hfhub.Progress) {
+			m.mu.Lock()
+			j.current, j.waiting = min(p.Bytes, mod.Size()), p.WaitingFor
+			m.mu.Unlock()
+			m.note(false)
+		})
+		if err != nil {
 			break
 		}
+		m.mu.Lock()
+		j.base, j.current, j.waiting = j.base+mod.Size(), 0, ""
+		m.mu.Unlock()
 	}
+	m.refresh() // before the job ends: never "not downloading" and "not installed" in between
 	m.mu.Lock()
 	for _, mod := range list {
-		delete(m.claimed, mod.ID)
-		if !m.installed[mod.ID] {
-			m.partial[mod.ID] = partialBytes(m.root, mod)
-		}
-	}
-	if err != nil && !errors.Is(err, context.Canceled) {
-		m.errs[id] = err
+		delete(m.busy, mod.ID)
 	}
 	delete(m.jobs, id)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		s := m.status[id]
+		s.Err = err
+		m.status[id] = s
+	}
 	m.mu.Unlock()
 	close(j.done)
 	m.note(true)
-}
-
-// installOne fetches mod's files (adopting those of the cache), then
-// moves them into place.
-func (m *Manager) installOne(ctx context.Context, j *job, mod Model) error {
-	staging := partialDir(m.root, mod)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var (
-		wg     sync.WaitGroup
-		mu     sync.Mutex
-		first  error
-		linked int
-	)
-	for _, f := range mod.Files {
-		dst := filepath.Join(staging, filepath.FromSlash(f.Path))
-		key := mod.ID + "/" + f.Path
-		progress := func(n int64) {
-			m.mu.Lock()
-			j.files[key] = n
-			m.mu.Unlock()
-			m.note(false)
-		}
-		if fi, err := os.Stat(dst); err == nil && fi.Size() == f.Size {
-			progress(f.Size) // verified by an earlier download
-			continue
-		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if m.opt.HFCache != "" {
-				if src := cachedFile(m.opt.HFCache, mod, f); src != "" && linkFile(src, dst) == nil {
-					mu.Lock()
-					linked++
-					mu.Unlock()
-					progress(f.Size)
-					return
-				}
-			}
-			if err := m.fetch.fetch(ctx, mod, f, dst, progress); err != nil {
-				mu.Lock()
-				if first == nil {
-					first = err
-				}
-				mu.Unlock()
-				cancel()
-			}
-		}()
-	}
-	wg.Wait()
-	if first != nil {
-		return first
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	m.diskMu.Lock()
-	err := install(m.root, mod, staging, linked)
-	m.diskMu.Unlock()
-	if err != nil {
-		return err
-	}
-	m.mu.Lock()
-	m.installed[mod.ID], m.partial[mod.ID] = true, 0
-	m.mu.Unlock()
-	m.note(true)
-	return nil
 }
 
 // note tells OnChange; a note that is not forced waits 200 ms after the
@@ -356,18 +359,4 @@ func (m *Manager) note(force bool) {
 	m.lastNote = now
 	m.mu.Unlock()
 	m.opt.OnChange()
-}
-
-// diskFree is the space free for the user on path's disk (path, or the
-// nearest folder above it that exists).
-func diskFree(path string) int64 {
-	var st syscall.Statfs_t
-	for p := path; ; p = filepath.Dir(p) {
-		if syscall.Statfs(p, &st) == nil {
-			return int64(st.Bavail) * int64(st.Bsize)
-		}
-		if p == filepath.Dir(p) {
-			return 0
-		}
-	}
 }

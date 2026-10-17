@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
+	fammodels "github.com/hehehai/actnowkit/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 )
@@ -33,7 +35,9 @@ type Openers struct {
 var ErrNoRuntime = errors.New("local: runtime not available")
 
 // Library is the local models of the app: those models.Manager installed,
-// opened by the Openers. Goroutine-safe.
+// opened by the Openers. A model a session opens is claimed for VoxtNew
+// first when it is not yet (another app installed it): the family then
+// keeps it while VoxtNew uses it. Goroutine-safe.
 type Library struct {
 	models *models.Manager
 	open   Openers
@@ -62,12 +66,13 @@ func (l *Library) Installed(kind Kind) []Model {
 }
 
 // Delete unloads model id from its runtime (Openers.Unload), then
-// deletes its files.
-func (l *Library) Delete(id string) error {
+// removes it from VoxtNew (models.Manager.Delete: its files go unless
+// another ActNow app uses them, or whoever does with scope AllApps).
+func (l *Library) Delete(ctx context.Context, id string, scope fammodels.Scope) ([]fammodels.Result, error) {
 	if l.open.Unload != nil {
 		l.open.Unload(id)
 	}
-	return l.models.Delete(id)
+	return l.models.Delete(ctx, id, scope)
 }
 
 // Dir is the folder of an installed model ("" when it is not), for the
@@ -82,6 +87,7 @@ func (l *Library) ASR(ctx context.Context, id string) (asr.Provider, Model, erro
 	if l.open.ASR == nil {
 		return nil, Model{}, fmt.Errorf("%w: speech recognition (%s)", ErrNoRuntime, m.ID)
 	}
+	l.claim(ctx, m.ID)
 	p, err := l.open.ASR(ctx, m.ID, l.models.Dir(m.ID))
 	if err != nil {
 		return nil, Model{}, err
@@ -97,9 +103,24 @@ func (l *Library) LLM(ctx context.Context, id string) (Chat, Model, error) {
 	if l.open.LLM == nil {
 		return nil, Model{}, fmt.Errorf("%w: language model (%s)", ErrNoRuntime, m.ID)
 	}
+	l.claim(ctx, m.ID)
 	c, err := l.open.LLM(ctx, m.ID, l.models.Dir(m.ID))
 	if err != nil {
 		return nil, Model{}, err
 	}
 	return c, m, nil
+}
+
+// claim makes sure VoxtNew claims model id (and the VAD a speech model
+// uses) before it opens; a failure is only logged: the session goes on.
+func (l *Library) claim(ctx context.Context, id string) {
+	ids := []string{id}
+	if m, ok := models.Lookup(id); ok {
+		ids = append(ids, m.Needs...)
+	}
+	for _, x := range ids {
+		if err := l.models.EnsureClaimed(ctx, x); err != nil {
+			log.Printf("local: claim %s: %v", x, err)
+		}
+	}
 }

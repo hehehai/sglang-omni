@@ -195,5 +195,8 @@ func (a *app) connectWindowLife() {
 		}
 	})
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { a.quitting = true })
-	mygo.App.OnDidBecomeActive(func() { a.post(a.recheckPermissions) })
+	mygo.App.OnDidBecomeActive(func() {
+		a.post(a.recheckPermissions)
+		a.post(a.familyActivated) // family.go: the family's files again (notifications are hints)
+	})
 }

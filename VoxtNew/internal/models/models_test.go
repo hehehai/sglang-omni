@@ -1,24 +1,15 @@
 package models
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"maps"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
+
+	"github.com/hehehai/actnowkit/hfhub"
+	fammodels "github.com/hehehai/actnowkit/models"
 )
 
 func TestCatalog(t *testing.T) {
@@ -33,17 +24,33 @@ func TestCatalog(t *testing.T) {
 		if m.Default {
 			defaults[m.Kind]++
 		}
-		if len(m.Revision) != 40 || m.Repo == "" || len(m.Files) == 0 || m.Size() <= 0 {
-			t.Errorf("%s: pin %q %q, %d files", m.ID, m.Repo, m.Revision, len(m.Files))
+		if !fammodels.IsCommit(m.Revision) || !fammodels.ValidRepo(m.Repo) || m.Size() <= 0 || m.Family == "" {
+			t.Errorf("%s: pin %q %q, family %q, %d bytes", m.ID, m.Repo, m.Revision, m.Family, m.Size())
 		}
+		if m.Borrowed != (len(m.Files) == 0) {
+			t.Errorf("%s: borrowed %v with %d files: VoxtNew's own models list their files", m.ID, m.Borrowed, len(m.Files))
+		}
+		if m.Borrowed && (m.Default || len(m.Needs) > 0) {
+			t.Errorf("%s: a borrowed model is never the default", m.ID)
+		}
+		weights := false
 		for _, f := range m.Files {
 			if !hexRE.MatchString(f.SHA256) || f.Size <= 0 || f.Path == "" {
 				t.Errorf("%s: file %+v", m.ID, f)
 			}
+			weights = weights || f.LFS && (strings.HasSuffix(f.Path, ".safetensors") || strings.HasSuffix(f.Path, ".gguf"))
+			if strings.HasPrefix(f.Path, "optiq/") {
+				t.Errorf("%s: %s (the vision tower and MTP head are not used)", m.ID, f.Path)
+			}
 		}
-		for _, n := range m.Needs {
-			if _, ok := Lookup(n); !ok {
-				t.Errorf("%s needs %s, not in the catalogue", m.ID, n)
+		if !m.Borrowed && !weights {
+			t.Errorf("%s: no weights file in LFS", m.ID)
+		}
+		for _, n := range append(slices.Clone(m.Needs), m.Alternatives...) {
+			if o, ok := Lookup(n); !ok || n == m.ID {
+				t.Errorf("%s names %s, not in the catalogue", m.ID, n)
+			} else if slices.Contains(m.Alternatives, n) && o.Kind != m.Kind {
+				t.Errorf("%s's alternative %s is a %s", m.ID, n, o.Kind)
 			}
 		}
 	}
@@ -52,7 +59,7 @@ func TestCatalog(t *testing.T) {
 			t.Errorf("%d defaults of %s", defaults[k], k)
 		}
 	}
-	for _, id := range []string{ASRAccurate, ASRFast, VADSilero, LLMBalanced, LLMFast, LLMTranslate} {
+	for _, id := range []string{ASRAccurate, ASRFast, VADSilero, LLMBalanced, LLMFast, LLMTranslate, LLMQwen3, LLMGemma4} {
 		if !seen[id] {
 			t.Errorf("%s missing", id)
 		}
@@ -62,6 +69,59 @@ func TestCatalog(t *testing.T) {
 	}
 	if _, ok := Lookup("nope"); ok {
 		t.Error("Lookup(nope)")
+	}
+}
+
+// TestFamilyPins: VoxtNew's models are the family pins table's rows of
+// voxtnew (same commit, family and quantisation, the files it lists); the
+// borrowed ones are rows of the apps that install them, and the language
+// models' alternatives are the family's Qwen3 and Gemma 4 E4B.
+func TestFamilyPins(t *testing.T) {
+	mine := map[string]fammodels.Pin{}
+	for _, p := range fammodels.PinsOfApp("voxtnew") {
+		mine[p.Repo] = p
+	}
+	for _, m := range Catalog() {
+		p, ok := fammodels.PinOf(m.Repo)
+		if !ok {
+			t.Errorf("%s: %s is not in the family pins table", m.ID, m.Repo)
+			continue
+		}
+		if p.Revision != m.Revision || p.Family != m.Family || p.Quant != m.Quant || p.Role != m.Kind.Role() {
+			t.Errorf("%s: pinned %s %s %s %s, the family %s %s %s %s", m.ID, m.Revision, m.Family, m.Quant, m.Kind.Role(), p.Revision, p.Family, p.Quant, p.Role)
+		}
+		if _, listed := mine[m.Repo]; listed == m.Borrowed {
+			t.Errorf("%s: borrowed %v, the pins table lists voxtnew %v", m.ID, m.Borrowed, listed)
+		}
+		if m.Borrowed && p.Bytes != m.Bytes {
+			t.Errorf("%s: %d bytes, the pin %d", m.ID, m.Bytes, p.Bytes)
+		}
+		if len(p.Files) > 0 {
+			var paths []string
+			for _, f := range m.Files {
+				paths = append(paths, f.Path)
+			}
+			if !slices.Equal(paths, p.Files) {
+				t.Errorf("%s: files %v, the pin %v", m.ID, paths, p.Files)
+			}
+		}
+		delete(mine, m.Repo)
+	}
+	delete(mine, "mlx-community/whisper-large-v3-turbo") // P1: not in the catalogue yet
+	for repo := range mine {
+		t.Errorf("the pins table has %s for voxtnew, the catalogue does not", repo)
+	}
+	family := func(f string) []string {
+		var out []string
+		for _, p := range fammodels.PinsOfFamily(f) {
+			out = append(out, p.Repo)
+		}
+		return out
+	}
+	q, _ := Lookup(LLMQwen3)
+	g, _ := Lookup(LLMGemma4)
+	if !slices.Contains(family("qwen3"), q.Repo) || !slices.Contains(family("gemma4"), g.Repo) || !strings.Contains(g.Repo, "e4b") {
+		t.Errorf("borrowed %s %s, the family's %v %v", q.Repo, g.Repo, family("qwen3"), family("gemma4"))
 	}
 }
 
@@ -96,413 +156,42 @@ func TestOmniPins(t *testing.T) {
 	}
 }
 
-// hub is a fake Hub: files by "<repo>/resolve/<rev>/<path>", with
-// ranges, and a log of the requests.
-type hub struct {
-	mu       sync.Mutex
-	files    map[string][]byte
-	requests []string // "path range"
-	// cut, when set, ends a response after so many bytes, once per path.
-	cut     int
-	cutDone map[string]bool
-	// hold, when set, makes responses wait for it after half a file.
-	hold     chan struct{}
-	held     chan string
-	inFlight atomic.Int32
-	maxIn    atomic.Int32
-}
-
-func (h *hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	n := h.inFlight.Add(1)
-	defer h.inFlight.Add(-1)
-	for {
-		m := h.maxIn.Load()
-		if n <= m || h.maxIn.CompareAndSwap(m, n) {
-			break
+// TestEntry: a model is downloaded as hfhub's entry of its pinned commit
+// with only the files it lists, the LFS ones carrying their SHA-256 (the
+// Hub names the others by git id: a SHA-256 there would fail the plan),
+// and claimed with its id, family, role and files.
+func TestEntry(t *testing.T) {
+	acc, _ := Lookup(ASRAccurate)
+	e := acc.Entry("")
+	if e.ID != ASRAccurate || e.Repo != acc.Repo || e.Revision != acc.Revision || e.Family != "qwen3-asr" || e.Role != fammodels.RoleASR || len(e.Files) != len(acc.Files) {
+		t.Fatalf("%+v", e)
+	}
+	for i, f := range e.Files {
+		want := ""
+		if acc.Files[i].LFS {
+			want = acc.Files[i].SHA256
+		}
+		if f.Path != acc.Files[i].Path || f.Size != acc.Files[i].Size || f.SHA256 != want {
+			t.Errorf("file %+v, catalogue %+v", f, acc.Files[i])
 		}
 	}
-	path := strings.TrimPrefix(r.URL.Path, "/")
-	h.mu.Lock()
-	h.requests = append(h.requests, path+" "+r.Header.Get("Range"))
-	b, ok := h.files[path]
-	hold := h.hold
-	cut := h.cut > 0 && !h.cutDone[path]
-	if cut {
-		h.cutDone[path] = true
+	tr, _ := Lookup(LLMTranslate)
+	if e := tr.Entry(""); len(e.Files) != 1 || e.Files[0].Path != "Hy-MT2-1.8B-Q4_K_M.gguf" || e.Files[0].SHA256 == "" {
+		t.Errorf("translate %+v", e)
 	}
-	h.mu.Unlock()
-	if !ok {
-		http.NotFound(w, r)
-		return
+	b, _ := Lookup(LLMBalanced)
+	if e := b.Entry("abc"); e.Revision != "abc" || slices.ContainsFunc(e.Files, func(f hfhub.File) bool { return strings.HasPrefix(f.Path, "optiq/") }) {
+		t.Errorf("balanced %+v", e)
 	}
-	// A first request (no range) of a cut or held file stops half-way;
-	// a resumed one is served by ServeContent.
-	if (cut || hold != nil) && r.Header.Get("Range") == "" {
-		{
-			w.Header().Set("Content-Length", strconv.Itoa(len(b)))
-			w.WriteHeader(http.StatusOK)
-			half := len(b) / 2
-			if cut {
-				half = min(h.cut, len(b))
-			}
-			w.Write(b[:half])
-			w.(http.Flusher).Flush()
-			if !cut {
-				h.held <- path
-				<-hold
-			}
-			panic(http.ErrAbortHandler)
-		}
+	c := tr.Claim("", fammodels.OriginReused)
+	if c.Repo != tr.Repo || c.Revision != tr.Revision || c.Model != LLMTranslate || c.Role != fammodels.RoleLLM ||
+		c.Family != "hy-mt2" || !slices.Equal(c.Files, []string{"Hy-MT2-1.8B-Q4_K_M.gguf"}) || c.Origin != fammodels.OriginReused {
+		t.Errorf("claim %+v", c)
 	}
-	http.ServeContent(w, r, path, time.Time{}, bytes.NewReader(b))
-}
-
-func (h *hub) log() []string {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return append([]string(nil), h.requests...)
-}
-
-// testModel is a model of the given files' contents.
-func testModel(id string, contents map[string]string, needs ...string) Model {
-	m := Model{ID: id, Kind: ASR, Runtime: Omni, Repo: "org/" + id, Revision: strings.Repeat("a", 40), Needs: needs}
-	for _, p := range slices.Sorted(maps.Keys(contents)) {
-		sum := sha256.Sum256([]byte(contents[p]))
-		m.Files = append(m.Files, File{Path: p, Size: int64(len(contents[p])), SHA256: hex.EncodeToString(sum[:])})
+	if q, _ := Lookup(LLMQwen3); q.Entry("").Files != nil || q.Claim("", "").Files != nil {
+		t.Error("a borrowed model is the whole snapshot")
 	}
-	return m
-}
-
-// testSetup replaces the catalogue with a speech model needing a VAD,
-// served by a fake Hub.
-func testSetup(t *testing.T) (*hub, *httptest.Server, map[string]map[string]string) {
-	t.Helper()
-	contents := map[string]map[string]string{
-		"vad": {"config.json": `{"vad":1}`, "model.safetensors": strings.Repeat("v", 3000)},
-		"asr": {"config.json": `{"asr":1}`, "model.safetensors": strings.Repeat("abcdefgh", 40000), "sub/vocab.json": `{"a":1}`},
-	}
-	vad := testModel("vad", contents["vad"])
-	vad.Kind = VAD
-	asr := testModel("asr", contents["asr"], "vad")
-	saved, savedDelay := catalog, retryDelay
-	catalog = []Model{asr, vad}
-	retryDelay = func(int) time.Duration { return time.Millisecond }
-	t.Cleanup(func() { catalog, retryDelay = saved, savedDelay })
-	h := &hub{files: map[string][]byte{}, cutDone: map[string]bool{}}
-	for _, m := range catalog {
-		for p := range contents[m.ID] {
-			h.files[m.Repo+"/resolve/"+m.Revision+"/"+p] = []byte(contents[m.ID][p])
-		}
-	}
-	srv := httptest.NewServer(h)
-	t.Cleanup(srv.Close)
-	return h, srv, contents
-}
-
-// wait waits until model id's download ended.
-func wait(t *testing.T, m *Manager, id string) Status {
-	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		if s := m.Status(id); !s.Downloading {
-			return s
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	t.Fatalf("%s still downloading", id)
-	return Status{}
-}
-
-func checkInstalled(t *testing.T, root, id string, contents map[string]string) {
-	t.Helper()
-	for p, want := range contents {
-		b, err := os.ReadFile(filepath.Join(root, id, p))
-		if err != nil || string(b) != want {
-			t.Errorf("%s/%s: %v (%d bytes)", id, p, err, len(b))
-		}
-	}
-	if _, err := os.Stat(filepath.Join(root, id, ManifestFile)); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestDownload(t *testing.T) {
-	h, srv, contents := testSetup(t)
-	root := t.TempDir()
-	var notes atomic.Int32
-	m := Open(root, Options{Endpoint: srv.URL, OnChange: func() { notes.Add(1) }})
-	if s := m.Status("asr"); s.Installed || s.Downloading || s.Total != catalog[0].Size() {
-		t.Fatalf("before: %+v", s)
-	}
-	if err := m.Download("asr"); err != nil {
-		t.Fatal(err)
-	}
-	s := wait(t, m, "asr")
-	if !s.Installed || s.Err != nil {
-		t.Fatalf("after: %+v", s)
-	}
-	if !m.Installed("vad") || m.Dir("asr") != filepath.Join(root, "asr") || m.Dir("nope") != "" {
-		t.Errorf("vad %v, dir %q", m.Installed("vad"), m.Dir("asr"))
-	}
-	checkInstalled(t, root, "asr", contents["asr"])
-	checkInstalled(t, root, "vad", contents["vad"])
-	if _, err := os.Stat(filepath.Join(root, ".partial", "asr")); !os.IsNotExist(err) {
-		t.Errorf("staging left: %v", err)
-	}
-	if notes.Load() == 0 {
-		t.Error("no OnChange")
-	}
-	if n := len(h.log()); n != 5 {
-		t.Errorf("%d requests: %v", n, h.log())
-	}
-	// A new Manager finds them.
-	if m2 := Open(root, Options{Endpoint: srv.URL}); !m2.Installed("asr") || !m2.Installed("vad") {
-		t.Error("not found again")
-	}
-	// Downloading what is installed does nothing.
-	m.Download("asr")
-	if n := len(h.log()); n != 5 {
-		t.Errorf("downloaded again: %d", n)
-	}
-	// A file gone: no longer installed.
-	os.Remove(filepath.Join(root, "asr", "sub", "vocab.json"))
-	if Open(root, Options{}).Installed("asr") {
-		t.Error("installed without a file")
-	}
-	if err := m.Download("nope"); !errors.Is(err, ErrUnknown) {
-		t.Errorf("unknown: %v", err)
-	}
-}
-
-func TestDownloadResumes(t *testing.T) {
-	h, srv, contents := testSetup(t)
-	h.cut = 1000 // each file's first response ends after 1000 bytes
-	root := t.TempDir()
-	m := Open(root, Options{Endpoint: srv.URL})
-	m.Download("asr")
-	if s := wait(t, m, "asr"); !s.Installed || s.Err != nil {
-		t.Fatalf("%+v", s)
-	}
-	checkInstalled(t, root, "asr", contents["asr"])
-	var resumed bool
-	for _, r := range h.log() {
-		if strings.HasSuffix(r, "model.safetensors bytes=1000-") {
-			resumed = true
-		}
-	}
-	if !resumed {
-		t.Errorf("not resumed: %v", h.log())
-	}
-}
-
-func TestCancelThenResume(t *testing.T) {
-	h, srv, contents := testSetup(t)
-	h.hold, h.held = make(chan struct{}), make(chan string, 10)
-	root := t.TempDir()
-	m := Open(root, Options{Endpoint: srv.URL, Parallel: 1})
-	m.Download("asr")
-	<-h.held // the VAD's first file is half there
-	for deadline := time.Now().Add(5 * time.Second); m.Status("asr").Done == 0 && time.Now().Before(deadline); {
-		time.Sleep(time.Millisecond)
-	}
-	if s := m.Status("asr"); !s.Downloading || s.Done == 0 || s.Done >= s.Total {
-		t.Errorf("while: %+v", s)
-	}
-	m.Cancel("asr")
-	h.mu.Lock()
-	close(h.hold)
-	h.hold = nil
-	h.mu.Unlock()
-	s := m.Status("asr")
-	if s.Downloading || s.Installed || s.Err != nil {
-		t.Fatalf("cancelled: %+v", s)
-	}
-	if m.Status("vad").Done == 0 {
-		t.Errorf("nothing kept: %+v", m.Status("vad"))
-	}
-	if Open(root, Options{}).Status("vad").Done == 0 {
-		t.Error("a new Manager does not see what was kept")
-	}
-	m.Download("asr")
-	if s := wait(t, m, "asr"); !s.Installed {
-		t.Fatalf("%+v", s)
-	}
-	checkInstalled(t, root, "vad", contents["vad"])
-	var ranged bool
-	for _, r := range h.log() {
-		ranged = ranged || strings.Contains(r, "bytes=")
-	}
-	if !ranged {
-		t.Errorf("no range request: %v", h.log())
-	}
-}
-
-func TestChecksumMismatch(t *testing.T) {
-	h, srv, _ := testSetup(t)
-	for p := range h.files {
-		if strings.HasSuffix(p, "vad/resolve/"+strings.Repeat("a", 40)+"/model.safetensors") {
-			h.files[p] = []byte(strings.Repeat("w", 3000))
-		}
-	}
-	root := t.TempDir()
-	m := Open(root, Options{Endpoint: srv.URL})
-	m.Download("asr")
-	s := wait(t, m, "asr")
-	if s.Installed || !errors.Is(s.Err, ErrChecksum) {
-		t.Fatalf("%+v", s)
-	}
-	if m.Installed("vad") {
-		t.Error("vad installed")
-	}
-	part := filepath.Join(partialDir(root, catalog[1]), "model.safetensors.part")
-	if _, err := os.Stat(part); !os.IsNotExist(err) {
-		t.Errorf("bad part kept: %v", err)
-	}
-}
-
-func TestHTTPErrorNotRetried(t *testing.T) {
-	h, srv, _ := testSetup(t)
-	for p := range h.files {
-		if strings.Contains(p, "config.json") {
-			delete(h.files, p)
-		}
-	}
-	m := Open(t.TempDir(), Options{Endpoint: srv.URL, Parallel: 1})
-	m.Download("asr")
-	s := wait(t, m, "asr")
-	var he *HTTPError
-	if !errors.As(s.Err, &he) || he.Status != 404 {
-		t.Fatalf("%+v", s)
-	}
-	n := 0
-	for _, r := range h.log() {
-		if strings.Contains(r, "config.json") {
-			n++
-		}
-	}
-	if n != 1 {
-		t.Errorf("config.json asked %d times", n)
-	}
-	// The next download clears the error.
-	m.Download("asr")
-	if s := m.Status("asr"); s.Err != nil && s.Downloading {
-		t.Errorf("error kept while downloading: %+v", s)
-	}
-	wait(t, m, "asr")
-}
-
-func TestNoSpace(t *testing.T) {
-	_, srv, _ := testSetup(t)
-	m := Open(t.TempDir(), Options{Endpoint: srv.URL, DiskFree: func(string) int64 { return 100 << 20 }})
-	err := m.Download("asr")
-	var ns *NoSpaceError
-	if !errors.As(err, &ns) || ns.Free != 100<<20 || ns.Need <= catalog[0].Size() {
-		t.Fatalf("%v", err)
-	}
-	if s := m.Status("asr"); s.Downloading || !errors.As(s.Err, &ns) {
-		t.Errorf("%+v", s)
-	}
-}
-
-func TestParallelBound(t *testing.T) {
-	h, srv, _ := testSetup(t)
-	m := Open(t.TempDir(), Options{Endpoint: srv.URL, Parallel: 2})
-	m.Download("asr")
-	wait(t, m, "asr")
-	if n := h.maxIn.Load(); n > 2 || n < 1 {
-		t.Errorf("%d at once", n)
-	}
-}
-
-func TestDelete(t *testing.T) {
-	_, srv, _ := testSetup(t)
-	root := t.TempDir()
-	m := Open(root, Options{Endpoint: srv.URL})
-	m.Download("asr")
-	wait(t, m, "asr")
-	if err := m.Delete("asr"); err != nil {
-		t.Fatal(err)
-	}
-	if m.Installed("asr") || !m.Installed("vad") {
-		t.Error("states")
-	}
-	if _, err := os.Stat(filepath.Join(root, "asr")); !os.IsNotExist(err) {
-		t.Errorf("folder: %v", err)
-	}
-	if ents, _ := os.ReadDir(root); len(ents) != 1 { // vad
-		t.Errorf("left: %v", ents)
-	}
-	if err := m.Delete("nope"); !errors.Is(err, ErrUnknown) {
-		t.Error(err)
-	}
-}
-
-// TestAdoptHFCache: the files of a Hugging Face cache are linked, not
-// downloaded; a file whose hash differs is downloaded; removing the model
-// leaves the cache alone.
-func TestAdoptHFCache(t *testing.T) {
-	h, srv, contents := testSetup(t)
-	cache := t.TempDir()
-	asr := catalog[0]
-	repo := filepath.Join(cache, "models--org--asr")
-	snap := filepath.Join(repo, "snapshots", "0123456789")
-	os.MkdirAll(filepath.Join(snap, "sub"), 0o755)
-	os.MkdirAll(filepath.Join(repo, "blobs"), 0o755)
-	for p, c := range contents["asr"] {
-		if p == "config.json" {
-			c = `{"asr":2}` // another revision's
-		}
-		blob := filepath.Join(repo, "blobs", strings.ReplaceAll(p, "/", "_"))
-		os.WriteFile(blob, []byte(c), 0o644)
-		rel, _ := filepath.Rel(filepath.Dir(filepath.Join(snap, p)), blob)
-		if err := os.Symlink(rel, filepath.Join(snap, p)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	root := t.TempDir()
-	m := Open(root, Options{Endpoint: srv.URL, HFCache: cache})
-	m.Download("asr")
-	if s := wait(t, m, "asr"); !s.Installed {
-		t.Fatalf("%+v", s)
-	}
-	checkInstalled(t, root, "asr", contents["asr"])
-	for _, r := range h.log() {
-		if strings.Contains(r, asr.Repo) && !strings.Contains(r, "config.json") {
-			t.Errorf("downloaded %s", r)
-		}
-	}
-	b, _ := os.ReadFile(filepath.Join(root, "asr", ManifestFile))
-	var man manifest
-	json.Unmarshal(b, &man)
-	if man.Linked != 2 {
-		t.Errorf("linked %d", man.Linked)
-	}
-	if err := m.Delete("asr"); err != nil {
-		t.Fatal(err)
-	}
-	if b, err := os.ReadFile(filepath.Join(snap, "model.safetensors")); err != nil || string(b) != contents["asr"]["model.safetensors"] {
-		t.Errorf("the cache lost its file: %v", err)
-	}
-}
-
-// TestMirrorFallback: a Hub that cannot be reached gives way to the next
-// endpoint, for every file after.
-func TestMirrorFallback(t *testing.T) {
-	h, srv, contents := testSetup(t)
-	saved := DefaultEndpoints
-	DefaultEndpoints = []string{"http://127.0.0.1:1", srv.URL}
-	t.Cleanup(func() { DefaultEndpoints = saved })
-	root := t.TempDir()
-	m := Open(root, Options{Parallel: 1})
-	m.Download("asr")
-	if s := wait(t, m, "asr"); !s.Installed {
-		t.Fatalf("%+v", s)
-	}
-	checkInstalled(t, root, "asr", contents["asr"])
-	if n := len(h.log()); n != 5 {
-		t.Errorf("%d requests to the mirror", n)
-	}
-	if m.fetch.current.Load() != 1 {
-		t.Error("not on the mirror")
+	if got, want := SnapshotDir("/h", acc, ""), "/h/models--mlx-community--Qwen3-ASR-1.7B-8bit/snapshots/"+acc.Revision; got != want {
+		t.Errorf("snapshot %s, want %s", got, want)
 	}
 }

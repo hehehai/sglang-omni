@@ -14,8 +14,10 @@ package main
 // (checkModels, shell_notices.go).
 
 import (
+	"context"
 	"fmt"
-	"path/filepath"
+
+	fammodels "github.com/hehehai/actnowkit/models"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
@@ -45,7 +47,7 @@ type modelsState struct {
 // then the sidebar's card.
 func (a *app) openModels() {
 	if a.models == nil {
-		a.models = models.Open(filepath.Join(a.dataDir(), "models"), managerOptions(func() { a.post(a.modelsChanged) }))
+		a.models = models.Open(a.managerOptions(func() { a.post(a.modelsChanged) }))
 	}
 	if a.local == nil {
 		a.local = a.withDevLLM(newLocalServices(a)) // llm_link.go: VOXTNEW_DEV_LLM
@@ -104,15 +106,16 @@ func (a *app) cancelModel(id string) {
 	a.async(func() { m.Cancel(id) })
 }
 
-// deleteModel removes model id from the disk, after its runtime let it
-// go (local.Library.Delete).
-func (a *app) deleteModel(id string) {
+// deleteModel removes model id from VoxtNew (scope: its files only when
+// no other ActNow app uses them, or for all apps), after its runtime let
+// it go (local.Library.Delete).
+func (a *app) deleteModel(id string, scope fammodels.Scope) {
 	del := a.models.Delete
 	if lib, ok := a.local.(*local.Library); ok {
 		del = lib.Delete
 	}
 	a.async(func() {
-		err := del(id)
+		_, err := del(context.Background(), id, scope)
 		a.post(func() {
 			if err != nil {
 				a.toast(i18n.T("Could not delete the model: %v", err))
@@ -190,7 +193,7 @@ func (a *app) modelsPage(c *ui.Context) {
 // modelCards are kind's models of the catalogue.
 func (a *app) modelCards(c *ui.Context, kind models.Kind) {
 	for _, m := range models.Catalog() {
-		if m.Kind == kind {
+		if m.Kind == kind && (!m.Borrowed || a.modelStatus[m.ID].OnDisk) { // another app's: only when it is on this Mac
 			a.modelCard(c, m)
 		}
 	}
@@ -296,7 +299,7 @@ func (a *app) modelActions(c *ui.Context, m models.Model, st models.Status) {
 		}
 	default:
 		if st.Done > 0 && ghostButton(c.Key("discard"), i18n.T("Delete")).Label(i18n.T("Delete what was downloaded of %s", name)).Clicked() {
-			a.deleteModel(m.ID)
+			a.deleteModel(m.ID, fammodels.ThisApp)
 		}
 		label := i18n.T("Download")
 		if st.Done > 0 {
@@ -323,7 +326,7 @@ func (a *app) modelDeleteDialog(c *ui.Context) {
 			}
 			if recordButton(c.Key("model-ask-ok"), i18n.T("Delete")).Label(i18n.T("Delete %s", uitext.ModelName(id))).Clicked() {
 				a.modelAsk = ""
-				a.deleteModel(id)
+				a.deleteModel(id, fammodels.ThisApp)
 			}
 		})
 	})

@@ -18,7 +18,7 @@ import (
 
 func TestProfiles(t *testing.T) {
 	ps := Profiles()
-	if len(ps) != 3 || ps[0].ID != Balanced || ps[1].ID != Fast || ps[2].ID != Translate {
+	if len(ps) != 5 || ps[0].ID != Balanced || ps[1].ID != Fast || ps[2].ID != Translate || ps[3].ID != Qwen3 || ps[4].ID != Gemma4 {
 		t.Fatalf("profiles %+v", ps)
 	}
 	for _, p := range ps {

@@ -44,6 +44,14 @@ var mygoOther = map[string]string{
 	"overlay/layout": "github.com/egoist/mygo",
 }
 
+// actnowKit is the ActNow family's shared module (actnowkit, the family
+// spec's reference implementation); actnowUsers are the internal packages
+// that use it: VoxtNew's part in the family, its model library, the words
+// of its errors. Its conformance package is for tests only.
+const actnowKit = "github.com/hehehai/actnowkit"
+
+var actnowUsers = []string{"actnow", "models", "models/**", "local", "uitext"}
+
 // forbidden are imports that break the layering, and why.
 var forbidden = []struct {
 	from, to []string
@@ -165,6 +173,16 @@ func TestImports(t *testing.T) {
 				if want, ok := mygoOther[from]; !ok || want != path {
 					failf("%s imports %s (%s): internal packages use MyGo's packages only as listed in mygoOther (internal/archtest/imports_test.go); "+
 						"add it there if this one should, in its own commit.", from, path, f.path)
+				}
+				continue
+			}
+			if path == actnowKit || strings.HasPrefix(path, actnowKit+"/") {
+				switch {
+				case strings.HasPrefix(path, actnowKit+"/conformance") || strings.HasPrefix(path, actnowKit+"/cmd"):
+					failf("%s imports %s (%s): actnowkit's conformance suite and commands are for tests and tools only.", from, path, f.path)
+				case from != "main" && !matchAny(actnowUsers, from):
+					failf("%s imports %s (%s): only %s use actnowkit (internal/archtest/imports_test.go: actnowUsers); "+
+						"add it there if this one should, in its own commit.", from, path, f.path, strings.Join(actnowUsers, ", "))
 				}
 				continue
 			}

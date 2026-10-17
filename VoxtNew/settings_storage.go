@@ -102,7 +102,7 @@ func (a *app) loadStorage() {
 	}
 	a.stLoading = true
 	data, logs, audio := a.dataDir(), a.logDir, a.lib.store.History().AudioDir()
-	modelsDir := a.models.Root()
+	modelsDir := a.models.Hub()
 	a.stLoc = datadir.ReadLocation(a.home())
 	a.async(func() {
 		ctx := context.Background()

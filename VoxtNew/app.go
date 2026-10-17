@@ -17,6 +17,7 @@ import (
 //	helperLink        helperlink.go   the Swift helper's supervisor and status
 //	trayState         tray.go         the menu bar icon
 //	permissionsState  permissions.go  Settings → Permissions
+//	familyState       family.go       the ActNow family (internal/actnow): the other apps, shared settings
 //	modelsState       models_page.go  the Local models page, the local models (internal/local)
 //	memoryState       models_memory.go  the loaded models' memory (the Local models page)
 //	omniState         models_omni.go  the speech models' runtime (internal/omni)
@@ -48,6 +49,7 @@ type app struct {
 	helperLink
 	trayState
 	permissionsState
+	familyState
 	modelsState
 	memoryState
 	omniState
@@ -71,6 +73,7 @@ func newApp(lib *library, h *helperHost) *app {
 	a.helperLink.host = h
 	a.openShell(lib)
 	a.openPermissions()
+	a.openFamily()         // family.go: before the models, whose library is the family's
 	a.openModels()         // models_page.go
 	a.openAppEnhancement() // appenhance.go
 	a.openAudio()          // settings_audio.go
@@ -116,6 +119,7 @@ func (a *app) quit() {
 	if a.models != nil {
 		a.models.Close() // a download stops; what came is kept
 	}
-	a.closeOmni() // models_omni.go: the speech models' servers
+	a.closeOmni()   // models_omni.go: the speech models' servers
+	a.closeFamily() // family.go: the runtime file goes
 	a.closeShell()
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	fammodels "github.com/hehehai/actnowkit/models"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,7 +66,7 @@ func TestSessionOmni(t *testing.T) {
 	}
 
 	// Deleting the model stops its server first.
-	if err := a.local.(*local.Library).Delete(models.ASRFast); err != nil {
+	if _, err := a.local.(*local.Library).Delete(context.Background(), models.ASRFast, fammodels.ThisApp); err != nil {
 		t.Fatal(err)
 	}
 	eventually(t, "the unload", func() bool { return len(omnitest.Of(omnitest.Records(log), "shutdown")) == 1 })
