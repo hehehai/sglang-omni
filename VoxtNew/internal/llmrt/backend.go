@@ -95,7 +95,10 @@ func (b *Backend) Chat(ctx context.Context, req llm.Request) (llm.Response, erro
 	pump.deliver(req.OnDelta)
 	if res.err != nil {
 		if stopped(ctx) {
-			b.rt.log(core.SeverityWarning, b.stoppedLine(req.Skill, pump.stats(), system))
+			stats := pump.stats()
+			now, nowErr := readSystemMemory()
+			b.rt.log(core.SeverityWarning, b.stoppedLine(req.Skill, stats, system, now, nowErr))
+			b.rt.notePace(stoppedPace(b.profile.ID, req.Skill, stats), now)
 		}
 		return llm.Response{}, b.chatErr(ctx, res.err)
 	}
@@ -105,10 +108,13 @@ func (b *Backend) Chat(ctx context.Context, req llm.Request) (llm.Response, erro
 	}
 	b.rt.noteModel(&b.model, out.Memory)
 	line := chatLine(b.profile.ID, req.Skill, out)
-	if slow(out) {
-		line += "; slow: " + systemLine(system, pump.stats().longestGap)
+	pace := resultPace(b.profile.ID, req.Skill, out)
+	now, nowErr := readSystemMemory()
+	if pace.Slow() {
+		line += "; slow: " + systemLine(system, now, nowErr, pump.stats().longestGap)
 	}
 	b.rt.log(core.SeverityInfo, line)
+	b.rt.notePace(pace, now)
 	finish := llm.FinishStop
 	if out.Finish == wire.FinishLength {
 		finish = llm.FinishLength

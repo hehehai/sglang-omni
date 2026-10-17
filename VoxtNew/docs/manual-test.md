@@ -459,6 +459,18 @@
 - **应看到**：已加载的模型的卡片显示它占用的内存，和活动监视器对得上（数量级）。mac-air 的参考：均衡语言模型常驻约 3.4 GB、峰值约 4.3 GB；快速语言模型约 1.2 GB；翻译专用模型约 1.2 GB；精准语音识别约 2.5 GB。没加载的模型不显示内存。
 - **不对时看**：截图卡片和活动监视器。
 
+**7.1a 内存不足的提示**
+- **做**：
+  1. 退出 VoxtNew，在终端里带着变量启动它：`VOXTNEW_DEV_SHORT_OF_MEMORY=1 /Applications/VoxtNew.app/Contents/MacOS/VoxtNew`（每次语言模型的请求都当作慢、swap 当作 95% 已用）。
+  2. 转录一次（转录页“用语言模型整理”打开），说两句话。
+  3. 再转录一次。
+  4. 用 ⌘Q 退出，按平常的方式打开 VoxtNew，再转录一次。
+- **应看到**：
+  - 第 2 步：文字照常插入，不比平时慢；随后浮窗出现一行警告（黄色三角）“内存不足，模型变慢：可退出不用的应用。”，一行放得下，5 秒后消失。日志面板（来源 session）一行 `the overlay said the Mac is short of memory: llm.balanced (VOXTNEW_DEV_SHORT_OF_MEMORY) transcribe_enhance first token …; memory pressure …, swap 19.0 of 20.0 GB used`。
+  - 第 3 步：不再出现（每次运行最多一次）。
+  - 第 4 步：不出现。没有变量时，只有请求真的慢（日志里那次请求的行带 `; slow:`）并且 swap 用了九成以上（`sysctl vm.swapusage`）才会出现。
+- **不对时看**：日志面板（来源 session、llm）。
+
 **7.2 删除正在用的模型**
 - **做**：
   1. 转录一次，确认 `qwen3_asr_server … asr.accurate` 和 `voxtnew-llm` 都在运行。

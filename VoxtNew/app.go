@@ -58,6 +58,7 @@ type app struct {
 	omniState
 	llmState
 	sessionState
+	shortMemoryState
 	overlayState
 	transcribeState
 	historyState

@@ -131,7 +131,7 @@ helper ──▶ core, helper/proto  helper/helpertest ──▶ helper/proto
 notify, logs ──▶ core
 asr ──▶ core                  llm ──▶ core                  local ──▶ asr, llm, models, vad     models/modelstest ──▶ models
 omni ──▶ asr, lang, resident, vad      eval ──▶ asr
-llmrt ──▶ asr, core, lang, llm, llmrt/wire, local, resident    llmrt/llmrttest ──▶ llmrt/wire
+llmrt ──▶ asr, core, lang, llm, llmrt/wire, local, macx, resident    llmrt/llmrttest ──▶ llmrt/wire
 session ──▶ appctx, asr, compose, core, deliver, dict, dsp, helper/proto, lang, llm, settings, store, vad
 dsp ──▶ vad
 compose ──▶ lang              deliver ──▶ helper/proto      hotkey ──▶ helper/proto, settings
@@ -217,7 +217,7 @@ Rewrite:   textio.selection while recording; the instruction (+ the selection) �
    history entry (+ audio/<id>.wav) ─▶ the end snapshot
 snapshots ─▶ a.post ─▶ sessionChanged ─▶ (events.go, in order) the setup guide, the start and stop sounds;
                                          hotkey.configure {active}; the menu bar (its menu and recording icon), the overlay;
-                                         at the end: Home, the card or a notice, then onHistory (Home, the menu bar, History)
+                                         at the end: Home, the card or a notice (then the memory notice), then onHistory (Home, the menu bar, History)
 ```
 
 While a session is live (or the answer card shows) the bindings go to the helper with `active`: a tap fires at once and Escape is reported. Without Accessibility the event tap is not installed; the bindings Carbon can express are registered with `mygo.GlobalShortcut` until it is.
@@ -247,7 +247,7 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | `uitext.TriggerText(trigger)` (its name; the setup guide's `uitext.TriggerHowText` says how to use it), `featurePath(feature)` | internal/uitext (keys.go), settings_shortcuts.go | Settings → Shortcuts |
 | `a.trayItems()`, `a.loadTrayRecent()` (the last three results), `trayicon.Icon(recording)` (Voxt's microphone, `internal/trayicon`), `a.copyText` (tests) | tray.go | `historyChanged`, the menu bar |
 | `a.helperStatus()`, `helperCall[T](a, method, params, timeout, then)`, `a.helperNotified(m)`, `a.restartHelper()`, `a.hotkeys` (hotkey.state), `a.front` (app.activated) | helperlink.go | the helper's card (shell_notices.go), Home, permissions, Diagnostics, sessions |
-| `a.mgr` (`*session.Manager`), `a.sess` (the newest snapshot), `a.startSession(req)`, `a.startTranscribe(target, hold, try)`, `a.sessionBlocker(kind)`, `a.stopSession()`, `a.cancelSession()`, `a.toggleTranscribe()`, `a.pasteLast(target)`, `a.answer` + `openAnswer` / `insertAnswer` / `copyAnswer` / `closeAnswer` / `retryAnswer(lang)` / `followUpAnswer(hold)`, `a.showNotice`, `sessionProblemText(p)`, `a.syncHotkeys()` | session_link.go (the snapshots, notices), session_control.go (start, stop, paste the last), session_answer.go (the card's actions), session_hotkeys.go | the overlay, the feature pages' Try areas, the menu bar, helperlink.go |
+| `a.mgr` (`*session.Manager`), `a.sess` (the newest snapshot), `a.startSession(req)`, `a.startTranscribe(target, hold, try)`, `a.sessionBlocker(kind)`, `a.stopSession()`, `a.cancelSession()`, `a.toggleTranscribe()`, `a.pasteLast(target)`, `a.answer` + `openAnswer` / `insertAnswer` / `copyAnswer` / `closeAnswer` / `retryAnswer(lang)` / `followUpAnswer(hold)`, `a.showNotice`, `sessionProblemText(p)`, `a.syncHotkeys()`; the short-of-memory notice (`a.onPace`, llmrt's `Config.OnPace`, → `a.chatPaced` → `a.memoryNoticeAfter`; `llmrt.ShortOfMemory` decides) | session_link.go (the snapshots, notices), memory_notice.go, session_control.go (start, stop, paste the last), session_answer.go (the card's actions), session_hotkeys.go | the overlay, the feature pages' Try areas, the menu bar, helperlink.go |
 | `a.overlaySync()`, `a.ov` (mode, size, visible), `a.later(d, fn)` (timers; `laterHook` in tests), `overlayView`, `waveform` / `layout.WaveBars`, `overlayLoader`, `uitext.WorkingText(s)`, `kindIcon`, `uitext.KindTitle`, `cardNow`, `uitext.TargetLanguageLabel`, `noticeActionLabel` | overlay.go (state, sync), overlay_size.go, overlay_face.go, overlay_wave.go, overlay_card.go; the texts in internal/uitext (session.go) and session_text.go | session_link.go; the feature pages and History reuse the texts |
 | `a.featurePage(c, feature)`, `a.fui(feature)` (each page's controls), `featureKind`, `uitext.HotkeyText`, `uitext.FeatureTitle` | feature_page.go; feature_keys.go, feature_models.go, feature_prompts.go; internal/uitext (keys.go: shortcuts' words) | pages.go (Transcribe, Translate, Rewrite) |
 | `a.historyChanged()` | history_page.go (history_detail.go: an entry's details; internal/uitext history.go: its words) | session_link.go, after an entry is kept or changed |

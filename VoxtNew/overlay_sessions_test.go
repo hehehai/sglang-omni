@@ -237,7 +237,7 @@ func TestOverlayCheckSteps(t *testing.T) {
 	a, _, _ := newTestApp(t)
 	ft := new(fakeTimers).install(a)
 	want := map[string]overlayMode{"pill": ovRecording, "live-short": ovRecording, "live-long": ovRecording, "working": ovWorking,
-		"inserted": ovHidden, "pill-again": ovRecording, "notice": ovNotice, "gone": ovHidden, "card-gone": ovHidden}
+		"inserted": ovHidden, "pill-again": ovRecording, "notice": ovNotice, "notice-memory": ovNotice, "gone": ovHidden, "card-gone": ovHidden}
 	for _, st := range cardCheckSteps("en") {
 		if st.name != "card-gone" {
 			want[st.name] = ovAnswer

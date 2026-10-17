@@ -114,6 +114,9 @@ type sessionNotice struct {
 	action     string
 	warn       bool // a warning (the session went on), not an error
 	seq        int  // which notice: its timer hides only itself
+	// then runs when its time is up (not when a click or the next
+	// session hides it): the notice that follows it.
+	then func()
 }
 
 // noticeTime is how long a notice shows.
@@ -264,6 +267,7 @@ func (a *app) sessionEnded(s session.Snapshot) {
 			a.showNotice(sessionNotice{text: text, more: more, action: action, warn: p.Degraded || p.Code == session.ProblemNoSpeech})
 		}
 	}
+	a.memoryNoticeAfter(s) // memory_notice.go
 	if s.State != session.Cancelled {
 		a.historyChanged()
 	}
@@ -278,7 +282,11 @@ func (a *app) showNotice(n sessionNotice) {
 	a.overlaySync()
 	a.later(noticeTime, func() {
 		if a.notice != nil && a.notice.seq == seq {
-			a.closeNotice()
+			if then := a.notice.then; then != nil {
+				then() // in its place, without hiding the overlay between
+			} else {
+				a.closeNotice()
+			}
 		}
 	})
 }

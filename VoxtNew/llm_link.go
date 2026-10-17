@@ -54,6 +54,7 @@ func (a *app) llmRuntime() *llmrt.Runtime {
 				}
 			},
 			OnModel: a.modelEvents(workerLLM), BeforeLoad: a.beforeLoad(), // family_runtime.go
+			OnPace: a.onPace(), // memory_notice.go
 		})
 	}
 	return a.llmrt

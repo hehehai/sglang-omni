@@ -71,7 +71,7 @@ type ovCheckStep struct {
 
 // ovCheckSteps are the states, in order: the pill, live text short and
 // long (scrolled), working, gone after an insert, the next session's pill,
-// a notice, gone.
+// a notice, the memory notice (a warning), gone.
 func ovCheckSteps(lang string) []ovCheckStep {
 	now := time.Now()
 	levels := previewSession().Levels
@@ -97,6 +97,7 @@ func ovCheckSteps(lang string) []ovCheckStep {
 			text, more, action := sessionProblemText(&session.Problem{Code: session.ProblemASR, Err: &asr.Error{Kind: asr.KindAuth}})
 			a.notice = &sessionNotice{text: text, more: more, action: action}
 		}, true},
+		{"notice-memory", func(a *app) { n := memoryNotice(); a.notice = &n }, true}, // memory_notice.go
 		{"gone", func(a *app) { a.notice = nil }, false},
 	}, cardCheckSteps(lang)...)
 }

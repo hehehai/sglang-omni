@@ -23,15 +23,70 @@ const (
 	slowMinTokens       = 20 // fewer tokens give no steady rate
 )
 
-// The Mac's memory and a process's, read for the log; tests replace them.
+// The Mac's memory and a process's, read for the log and Config.OnPace;
+// tests replace them.
 var (
 	readSystemMemory = macx.ReadSystemMemory
 	processMemory    = macx.Memory
 )
 
-func slow(r wire.ChatResult) bool {
-	first := time.Duration((r.Timings.FirstTokenMs - r.Timings.LoadMs) * float64(time.Millisecond))
-	return first > slowFirstToken || r.Usage.CompletionTokens >= slowMinTokens && r.Timings.TokensPerSecond < slowTokensPerSecond
+// shortSwapPercent: swap files this full (in percent of their size)
+// make a slow chat the Mac's want of memory (ShortOfMemory).
+const shortSwapPercent = 90
+
+// ChatPace is how fast a chat answered, or how far it got before a
+// deadline stopped it.
+type ChatPace struct {
+	Model string
+	Skill llm.Skill
+	// FirstToken is the wait for the first token, the model's load aside
+	// (stopped with nothing streamed: the whole chat).
+	FirstToken      time.Duration
+	TokensPerSecond float64 // 0 for a stopped chat
+	Tokens          int     // stopped: the pieces streamed
+	Stopped         bool    // a deadline stopped it
+}
+
+// Slow: the chat answered, slowly (its log line says how the Mac's
+// memory stood).
+func (p ChatPace) Slow() bool {
+	return !p.Stopped && (p.FirstToken > slowFirstToken || p.Tokens >= slowMinTokens && p.TokensPerSecond < slowTokensPerSecond)
+}
+
+// ShortOfMemory decides the overlay's notice that the Mac is short of
+// memory (behavior.md 5.32): a chat that was slow, or that a deadline
+// stopped, with the swap files over shortSwapPercent full, unless the
+// notice was shown before. macOS's pressure level is no guide: it stayed
+// "normal" with the swap nearly full and the model 2–2.5 times slower.
+func ShortOfMemory(pace ChatPace, memory macx.SystemMemory, shown bool) bool {
+	full := memory.SwapTotalBytes > 0 && memory.SwapUsedBytes*100 > memory.SwapTotalBytes*shortSwapPercent
+	return !shown && full && (pace.Stopped || pace.Slow())
+}
+
+// resultPace is an answered chat's pace.
+func resultPace(id string, skill llm.Skill, r wire.ChatResult) ChatPace {
+	return ChatPace{
+		Model: id, Skill: skill,
+		FirstToken:      time.Duration((r.Timings.FirstTokenMs - r.Timings.LoadMs) * float64(time.Millisecond)),
+		TokensPerSecond: r.Timings.TokensPerSecond,
+		Tokens:          r.Usage.CompletionTokens,
+	}
+}
+
+// stoppedPace is the pace of a chat a deadline stopped.
+func stoppedPace(id string, skill llm.Skill, s streamStats) ChatPace {
+	first := s.first
+	if s.deltas == 0 {
+		first = s.elapsed
+	}
+	return ChatPace{Model: id, Skill: skill, FirstToken: first, Tokens: s.deltas, Stopped: true}
+}
+
+// notePace tells Config.OnPace how a chat went.
+func (r *Runtime) notePace(pace ChatPace, memory macx.SystemMemory) {
+	if r.cfg.OnPace != nil {
+		r.cfg.OnPace(pace, memory)
+	}
 }
 
 // stopped: ctx ended a chat by a deadline (the attempt's, or a progress
@@ -42,7 +97,7 @@ func stopped(ctx context.Context) bool {
 
 // stoppedLine is the log's line of a chat a deadline stopped: how far it
 // got, and the memory of the Mac and of the process.
-func (b *Backend) stoppedLine(skill llm.Skill, s streamStats, before macx.SystemMemory) string {
+func (b *Backend) stoppedLine(skill llm.Skill, s streamStats, before, now macx.SystemMemory, nowErr error) string {
 	var line strings.Builder
 	fmt.Fprintf(&line, "%s %s stopped after %.1f s without an answer: ", b.profile.ID, skill, s.elapsed.Seconds())
 	if s.deltas == 0 {
@@ -50,7 +105,7 @@ func (b *Backend) stoppedLine(skill llm.Skill, s streamStats, before macx.System
 	} else {
 		fmt.Fprintf(&line, "%d pieces streamed, the first after %.1f s, the last %.1f s before the stop", s.deltas, s.first.Seconds(), (s.elapsed - s.last).Seconds())
 	}
-	line.WriteString("; " + systemLine(before, s.longestGap))
+	line.WriteString("; " + systemLine(before, now, nowErr, s.longestGap))
 	if pid := b.rt.Status().PID; pid > 0 {
 		if m, err := processMemory(pid); err == nil {
 			fmt.Fprintf(&line, "; voxtnew-llm footprint %d MB, resident %d MB", m.Footprint>>20, m.Resident>>20)
@@ -59,12 +114,11 @@ func (b *Backend) stoppedLine(skill llm.Skill, s streamStats, before macx.System
 	return line.String()
 }
 
-// systemLine is the Mac's memory now, and the pages swapped in since
-// before (the chat's start).
-func systemLine(before macx.SystemMemory, longestGap time.Duration) string {
-	now, err := readSystemMemory()
-	if err != nil {
-		return fmt.Sprintf("the longest wait between two pieces %.1f s; the Mac's memory unknown (%v)", longestGap.Seconds(), err)
+// systemLine is the Mac's memory now (at the chat's end), and the pages
+// swapped in since before (the chat's start).
+func systemLine(before, now macx.SystemMemory, nowErr error, longestGap time.Duration) string {
+	if nowErr != nil {
+		return fmt.Sprintf("the longest wait between two pieces %.1f s; the Mac's memory unknown (%v)", longestGap.Seconds(), nowErr)
 	}
 	line := fmt.Sprintf("the longest wait between two pieces %.1f s; %s", longestGap.Seconds(), now)
 	if before.Swapins > 0 && now.Swapins >= before.Swapins {

@@ -32,6 +32,7 @@ import (
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/wire"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/resident"
 )
 
@@ -93,6 +94,11 @@ type Config struct {
 	// unloaded (resident.go), in order, on a goroutine of the runtime's,
 	// under none of its locks. nil: nobody.
 	OnModel func(resident.Event)
+	// OnPace is told how each chat went, answered or stopped by a
+	// deadline, with the Mac's memory at its end (zero when unread), on
+	// the chat's goroutine: the overlay's memory notice (ShortOfMemory).
+	// It must not block. nil: nobody.
+	OnPace func(ChatPace, macx.SystemMemory)
 	// BeforeLoad runs before a call that makes the process load a model
 	// (the family's memory budget makes room); it may block a little.
 	BeforeLoad func(ctx context.Context, id string)
