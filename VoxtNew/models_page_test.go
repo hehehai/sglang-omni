@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -12,11 +14,14 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/hehehai/actnowkit/hfhub"
+	fammodels "github.com/hehehai/actnowkit/models"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/actnow"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models/modelstest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
 
 // seedModels installs the models ids (files of their sizes, no bytes)
@@ -109,6 +114,7 @@ func TestModelDownloadStates(t *testing.T) {
 			fakeModelInfo(w, repo)
 			return
 		}
+<<<<<<< HEAD
 		size := fakeFileSize(r.URL.Path)
 		if rg := r.Header.Get("Range"); rg != "" { // a range of a big file (hfhub's chunks)
 			var from, to int64
@@ -120,6 +126,26 @@ func TestModelDownloadStates(t *testing.T) {
 			w.Header().Set("Content-Length", fmt.Sprint(size))
 			w.WriteHeader(http.StatusOK)
 		}
+=======
+		if r.Header.Get("Range") != "" && !strings.HasPrefix(r.Header.Get("Range"), "bytes=0-") {
+			select { // the other parts never come either
+			case <-release:
+			case <-r.Context().Done():
+			}
+			return
+		}
+		size := fakeFileSize(r.URL.Path)
+		if rg := r.Header.Get("Range"); rg != "" { // the first part
+			var from, to int64
+			fmt.Sscanf(rg, "bytes=%d-%d", &from, &to)
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", from, to, size))
+			w.Header().Set("Content-Length", fmt.Sprint(to-from+1))
+			w.WriteHeader(http.StatusPartialContent)
+		} else {
+			w.Header().Set("Content-Length", fmt.Sprint(size))
+			w.WriteHeader(http.StatusOK)
+		}
+>>>>>>> be49a8d1 (VoxtNew: the Local models page and Storage in the ActNow family)
 		w.Write([]byte(strings.Repeat("x", 100))) // less than any file: the rest never comes
 		w.(http.Flusher).Flush()
 		select {
@@ -142,7 +168,11 @@ func TestModelDownloadStates(t *testing.T) {
 	mode.Store("hold")
 	click(t, tt, "Download Fast language model")
 	deadline := time.Now().Add(5 * time.Second)
+<<<<<<< HEAD
 	for (!has(tt, "Downloading: ") || a.models.Status(models.LLMFast).Done == 0) && time.Now().Before(deadline) { // some bytes came
+=======
+	for !(has(tt, "Downloading: ") && partialBytes(a, models.LLMFast) > 0) && time.Now().Before(deadline) { // bytes came: a cancel keeps them
+>>>>>>> be49a8d1 (VoxtNew: the Local models page and Storage in the ActNow family)
 		drain()
 	}
 	if !has(tt, "Cancel") || !a.modelStatus[models.LLMFast].Downloading {
@@ -172,6 +202,19 @@ func TestModelDownloadStates(t *testing.T) {
 	if st := a.modelStatus[models.LLMFast]; st.Done != 0 || has(tt, "Resume") {
 		t.Errorf("kept: %+v", st)
 	}
+}
+
+// partialBytes are the bytes of model id's unfinished downloads on disk.
+func partialBytes(a *app, id string) int64 {
+	m, _ := models.Lookup(id)
+	var n int64
+	incomplete, _ := filepath.Glob(filepath.Join(fammodels.RepoDir(a.models.Hub(), m.Repo), "blobs", "*.incomplete"))
+	for _, f := range incomplete {
+		if fi, err := os.Stat(f); err == nil {
+			n += fi.Size()
+		}
+	}
+	return n
 }
 
 // fakeModelInfo answers the Hub's model info for a catalogue repo, at
@@ -225,14 +268,25 @@ func fakeFileSize(p string) int64 {
 }
 
 // modelShots saves the Local models page with a model of each state
-// (TestSnapshots): installed, downloading, stopped, failed, and Settings →
-// Storage with the models' size.
+// (TestSnapshots): installed (one shared with another ActNow app),
+// downloading (waiting for a file another app downloads), stopped,
+// failed, another app's model VoxtNew can use; the family's states
+// (downloading elsewhere, deleted elsewhere); the delete dialog of a
+// shared model, the Network dialog; and Settings → Storage with the
+// model folder and Erase everything keeping a shared model.
 func modelShots(t *testing.T, a *app, tt *ui.Tester, save func(string)) {
 	seedModels(t, a, models.ASRAccurate, models.VADSilero, models.LLMTranslate)
+	qwen, _ := models.Lookup(models.LLMQwen3)
+	if err := modelstest.SeedModel(a.models.Hub(), qwen); err != nil {
+		t.Fatal(err)
+	}
+	useModels(t, a, models.ASRAccurate, models.VADSilero, models.LLMTranslate)
+	claimFor(t, a, audioSmithID, models.ASRAccurate, models.VADSilero)
+	claimFor(t, a, dictaID, models.LLMQwen3)
 	fast, _ := models.Lookup(models.ASRFast)
 	balanced, _ := models.Lookup(models.LLMBalanced)
 	a.modelStatus[models.ASRFast] = models.Status{Done: fast.Size() / 3, Total: fast.Size()}
-	a.modelStatus[models.LLMBalanced] = models.Status{Downloading: true, Done: balanced.Size() * 2 / 5, Total: balanced.Size()}
+	a.modelStatus[models.LLMBalanced] = models.Status{Downloading: true, Done: balanced.Size() * 2 / 5, Total: balanced.Size(), WaitingFor: dictaID}
 	a.modelStatus[models.LLMFast] = models.Status{Total: 1, Err: fmt.Errorf("needs 1.7 GB: %w", hfhub.ErrDiskSpace)}
 	a.navigate(modelsPath)
 	// Two of them loaded (models_memory.go), as a session leaves them.
@@ -240,10 +294,38 @@ func modelShots(t *testing.T, a *app, tt *ui.Tester, save func(string)) {
 	save("models-states")
 	scrollToText(tt, i18n.T("Language models"))
 	save("models-states-language")
+	// The family's states: another app downloads one, another deleted one.
+	a.modelStatus[models.ASRFast] = models.Status{Elsewhere: audioSmithID, Done: fast.Size() / 4}
+	a.modelStatus[models.LLMFast] = models.Status{DeletedBy: dictaID}
+	a.navigate("/home")
+	a.navigate(modelsPath)
+	save("models-family")
+	scrollToText(tt, i18n.T("Fast language model"))
+	save("models-family-language") // deleted elsewhere, another app's model to use
+	a.askDeleteModel(models.ASRAccurate)
+	save("models-delete-shared")
+	sd := *a.modelShared
+	sd.forAll = true
+	a.modelShared = &sd
+	save("models-delete-all")
+	a.modelShared = nil
+	a.updateSettings(func(s *settings.Settings) {
+		s.Family.Follow = map[string]bool{actnow.KeyProxy: false}
+		s.Family.Conflicts = []string{actnow.KeyProxy}
+		s.Network.Proxy = "http://127.0.0.1:7890"
+	})
+	a.openNetwork()
+	save("models-network")
+	a.netOpen = false
+	a.updateSettings(func(s *settings.Settings) { s.Family = settings.Family{}; s.Network = settings.Network{} })
 	a.stReport = nil // measured again
 	a.navigate("/settings/storage")
 	frames(tt)
 	pinStorage(a)
 	save("settings-storage-models")
+	a.askErase()
+	a.resetText = "DELETE"
+	save("settings-storage-erase")
+	a.resetAsk = ""
 	a.settingsOpen = false
 }

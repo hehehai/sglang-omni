@@ -122,8 +122,23 @@
   - 两节：“语音识别”和“语言模型”。推荐的两个带“默认”标签。每张卡片有名字、擅长什么、语言（地球图标）和大小：没装的是“需下载 x”，装好的是“已安装”和“占用 x”。
   - Silero（声音检测）不单独列出。
   - 删除前弹出确认：“删除快速语言模型？”“将释放 1.7 GB。之后可以重新下载。”取消什么都不删；确认后卡片回到“需下载 1.7 GB”，文件夹不见了。
-  - 设置 → 存储 里“本地模型”一行的大小和装的模型对得上。
+  - 设置 → 存储 的“模型文件夹”一行是 `~/.cache/huggingface/hub`，“由所有 ActNow app 共用”；下面“仅 VoxtNew”和“与其他 ActNow app 共享”两项加起来和装的模型对得上（没有别的 ActNow app 时全在“仅 VoxtNew”）。
 - **不对时看**：`ls -la ~/Library/Application\ Support/VoxtNew/models/`（装好的模型文件夹里有 `.voxtnew-model.json`）。
+
+**1.5b 与其他 ActNow app 共用模型**（需要装了 AudioSmith 或 Dicta；没有就跳过）
+- **做**：
+  1. 在 AudioSmith（或 Dicta）里装上“快速语音识别”用的同一个模型（Qwen3-ASR 0.6B），回到 VoxtNew。
+  2. 在 VoxtNew 的“快速语音识别”上点“删除”，先点“取消”；再点“删除”→“从 VoxtNew 移除”。
+  3. 再点“删除”→“为所有 app 删除…”→“删除”。回到 AudioSmith 看它的模型页。
+  4. 让 AudioSmith 开始下载一个 VoxtNew 也有的模型，同时看 VoxtNew 的本地模型页；下载时在 VoxtNew 里删除它。
+  5. 本地模型页右上角点“网络…”：选“自定义”，填 `ftp://x` 点“保存”；改成 `http://127.0.0.1:7897` 保存；再打开，点“仅为此 app 单独设置”，选“不使用代理”保存。终端里 `open voxtnew://models/network`。
+- **应看到**：
+  - 第 1 步后卡片写“与 AudioSmith 共用”。装了 Dicta 的 Qwen3 4B / Gemma 4 E4B 时，语言模型里多一张“由 Dicta 安装”的卡片，只有“使用它”，没有“下载”。
+  - 第 2 步弹“从 VoxtNew 移除“快速语音识别”？”“AudioSmith 也在使用这个模型，文件（712.8 MB）会保留在这台 Mac 上。”；移除后提示文件为 AudioSmith 保留，`ls ~/.cache/huggingface/hub/models--mlx-community--Qwen3-ASR-0.6B-4bit/snapshots/` 还在。
+  - 第 3 步再确认一次“AudioSmith 再次使用时需要重新下载（712.8 MB）。”；删除后文件夹不见了，AudioSmith 的模型页显示“已在 VoxtNew 中删除 · 重新下载”。
+  - 第 4 步卡片写“正在由 AudioSmith 下载…”，“下载”按钮是灰的，下完后自动变成“已安装”；下载时删除提示“AudioSmith 正在下载或使用这个模型，请稍后再试。”。
+  - 第 5 步：`ftp://x` 不保存，提示要以 http://、https:// 或 socks5:// 开头；保存后 AudioSmith 的代理设置也变了（跟随家族）；单独设置后行下写“此设置只用于 VoxtNew。”，AudioSmith 的不变；深链打开本地模型页和这个对话框。
+- **不对时看**：`cat ~/Library/Application\ Support/ActNow/models/claims/*.json`（谁声明了哪个模型）、`~/Library/Application\ Support/ActNow/models/removed.json`（墓碑）、`~/Library/Application\ Support/ActNow/settings.json`（家族的代理和下载源）。
 
 **1.6 引导的其余几步**
 - **做**：重新打开引导（首页右上角“设置引导”，或 设置 → 通用 →“打开设置引导”），翻到“试一试转录”。
@@ -613,7 +628,8 @@
 **9.7 设置 → 存储、隐私、诊断与关于**
 - **做**：看 设置 → 存储、隐私、诊断与关于；点“复制诊断信息”，粘到 TextEdit 里看一眼。
 - **应看到**：
-  - 存储：数据文件夹、所在磁盘的剩余空间、“本地模型”的大小。
+  - 存储：数据文件夹、所在磁盘的剩余空间；“模型文件夹”（`~/.cache/huggingface/hub`，由所有 ActNow app 共用）和“仅 VoxtNew”/“与其他 ActNow app 共享”的大小。
+  - 在“清除全部”一行点“清除…”（看完点“取消”，不要真的清除）：说明里写的是“没有其他 ActNow app 使用的本地模型”；有和其他 app 共用的模型时多一行“以下模型也被其他 ActNow app 使用，将被保留：…（x GB）”。
   - 隐私：说明语音识别和语言模型在本机运行、只在检查更新和下载模型时联网。
   - 诊断与关于：版本号、辅助进程的版本和协议、系统、芯片、内存；Beta 更新开关（当前是 beta 时默认打开）。诊断信息里没有说的话（除非打开了“记录说话内容”）。
 

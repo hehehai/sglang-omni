@@ -48,6 +48,16 @@ func ShortPath(p string) string {
 	return p
 }
 
+// Names joins names for a sentence: "AudioSmith", "AudioSmith and
+// Dicta", "A, B and C" ("A、B 和 C").
+func Names(names []string) string {
+	if len(names) <= 1 {
+		return strings.Join(names, "")
+	}
+	head := strings.Join(names[:len(names)-1], i18n.X("list", ", "))
+	return i18n.T("%s and %s", head, names[len(names)-1])
+}
+
 // OrDash shows "—" for an empty value.
 func OrDash(s string) string {
 	if s == "" {
