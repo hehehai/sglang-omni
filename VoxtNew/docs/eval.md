@@ -255,14 +255,16 @@ The user's 4m51s dictation failed after 30 s of recognition and lost everything 
 | | live, one Final | 2.9% | 25.8 s | 0.25 | 4.5 s |
 | | live, pieces (3) | 2.9% | **2.4 s** | | 16.4 s |
 | long-synth, 4m46s | whole | 3.2% | 43.8 s | 0.15 | – |
-| | live, one Final | 3.2% | 54.4 s | 0.19 | 18.2 s |
-| | live, pieces | {SYNTHROW} |
+| | live, one Final | 3.2% / 3.2% | 54.4 s / **32.3 s** ¹ | 0.19 / 0.11 | 18.2 / 6.3 s |
+| | live, pieces (10) ¹ | **2.7%** | **2.6 s** | | 5.1 s |
+
+¹ A later run, with less pressure (swap 2.6–4.7 of 4–6 GB used): the two lines to compare. Even there one Final over 4m46s took 32 s, over the old 30 s limit.
 
 - **The cause, confirmed.** One Final over 4m46s takes 44–54 s on this Mac: over the old 30 s limit. A piece of 24–36 s took 3.4–13.3 s (real-time factor up to 0.43) while the live preview shared the server.
 - **The new limit** is 60 s plus 1 s per second of recording (5m51s for 4m51s): about three times the slowest real-time factor seen. A model that stops answering is still caught by the stall watch (15 s without a byte).
 - **Quality.** The pieces are cut in Silero's pauses, so no word is cut. On `long-all` and the synthetic clip the error rate is the whole Final's; on `long-zh` one run of two was 0.8 points worse (a few characters), with the same cuts: noise between runs (the server's one worker interleaves the preview's decodes).
 - **The preview.** The server decodes one request at a time, so a piece holds the preview's next decode: under this memory pressure its longest gap went from 3–4.5 s to 6–16 s (the synthetic clip had 18 s gaps without pieces too). On a Mac with free memory a piece takes 1–3 s.
-- **Memory.** The pieces add no model: the server's footprint is the same (one 1.7B model, about 2.5 GB); a piece's request is under 40 s of audio.
+- **Memory.** The pieces add no model and little memory: the speech server's largest footprint over the synthetic clip was 9.9 GB with one Final and 10.2 GB with pieces. That footprint is large either way: MLX keeps the buffers of the live preview's decodes (segments of up to 30 s, every second) in its cache. Capping that cache is a change to the runtime (`sglang_omni_mlx/native`), not made here.
 
 ### Spoken Translate with Hy-MT2 (`llm.translate`)
 
