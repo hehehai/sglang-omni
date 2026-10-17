@@ -242,6 +242,28 @@ So a fixed 15 s cut answers that were coming steadily, and nothing in the stream
 
 Every slow request now logs the Mac's memory (behavior.md 5.5), so the next report shows the cause.
 
+### Long recordings on the speech model (10-17, `TestEvalLongASR`)
+
+The user's 4m51s dictation failed after 30 s of recognition and lost everything (behavior.md 5.5a). `TestEvalLongASR` (`eval_longasr_test.go`) takes the long clips and a synthetic one of 4m46s (the 20 clips, then the long ones' clips again, 0.8 s apart) on `asr.accurate`, three ways: one Final over the whole audio (`whole`, as after Stop before), a live session sent in real time with one Final after Finish (`live, one Final`), and a live session recognised in pieces while it records (`live, pieces`, behavior.md 3.7a). mac-air was swapping hard (swap 14–19 of 15–20 GB used, level "normal", load 18; the user's VoxtNew with its own speech model, browsers and other apps running), so the times are upper bounds.
+
+| clip | way | error | wait after Stop | real-time factor | preview: longest gap |
+|---|---|---|---|---|---|
+| long-zh, 95 s | whole | 1.6% | 13.0–13.7 s | 0.14 | – |
+| | live, one Final | 1.6% | 13.1 s | 0.14 | 3.3 s |
+| | live, pieces (2) | 1.6% / 2.4% (two runs) | **3.8 / 5.4 s** | | 6.0 / 8.2 s |
+| long-all, 104 s | whole | 2.9% | 14.4–15.5 s | 0.15 | – |
+| | live, one Final | 2.9% | 25.8 s | 0.25 | 4.5 s |
+| | live, pieces (3) | 2.9% | **2.4 s** | | 16.4 s |
+| long-synth, 4m46s | whole | 3.2% | 43.8 s | 0.15 | – |
+| | live, one Final | 3.2% | 54.4 s | 0.19 | 18.2 s |
+| | live, pieces | {SYNTHROW} |
+
+- **The cause, confirmed.** One Final over 4m46s takes 44–54 s on this Mac: over the old 30 s limit. A piece of 24–36 s took 3.4–13.3 s (real-time factor up to 0.43) while the live preview shared the server.
+- **The new limit** is 60 s plus 1 s per second of recording (5m51s for 4m51s): about three times the slowest real-time factor seen. A model that stops answering is still caught by the stall watch (15 s without a byte).
+- **Quality.** The pieces are cut in Silero's pauses, so no word is cut. On `long-all` and the synthetic clip the error rate is the whole Final's; on `long-zh` one run of two was 0.8 points worse (a few characters), with the same cuts: noise between runs (the server's one worker interleaves the preview's decodes).
+- **The preview.** The server decodes one request at a time, so a piece holds the preview's next decode: under this memory pressure its longest gap went from 3–4.5 s to 6–16 s (the synthetic clip had 18 s gaps without pieces too). On a Mac with free memory a piece takes 1–3 s.
+- **Memory.** The pieces add no model: the server's footprint is the same (one 1.7B model, about 2.5 GB); a piece's request is under 40 s of audio.
+
 ### Spoken Translate with Hy-MT2 (`llm.translate`)
 
 Hy-MT2 takes its own prompt and no clean-up rules (behavior.md 3.13). Raw speech, the same speech without its fillers, and `llm.balanced`'s clean-up first:
