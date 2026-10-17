@@ -93,16 +93,11 @@ func TestLongDictation(t *testing.T) {
 	}
 }
 
-// TestLongTranslate: long spoken Translate goes in pieces too, each with
-// its own hint for a translation model; a piece that comes back
-// untranslated is asked again, strictly, alone.
+// TestLongTranslate: long spoken Translate stays one request (its
+// target is one language; in pieces it was no better, docs/eval.md).
 func TestLongTranslate(t *testing.T) {
-	en := strings.Repeat("Um, let's ship the release on Friday, no wait, on Thursday morning. ", 7)
-	pieces := compose.Pieces(en)
-	if len(pieces) != 2 {
-		t.Fatalf("%d pieces", len(pieces))
-	}
-	model := &fakeLLM{texts: []string{"我们周四上午发布。", pieces[1].Text, "周四上午。"}}
+	en := strings.Repeat("Um, let's ship the release on Friday, no wait, on Thursday morning. 嗯，我们下周三开会。", 7)
+	model := &fakeLLM{text: "我们周四上午发布。"}
 	h := newHarness(t, &fakeFile{text: en}, model, func(c *Config, s *settings.Settings) { c.Select = &fakeSelector{} })
 	id, err := h.m.Start(StartRequest{Kind: store.KindTranslate, Target: slack})
 	if err != nil {
@@ -110,19 +105,8 @@ func TestLongTranslate(t *testing.T) {
 	}
 	h.speak(id, 5)
 	end := h.rec.wait(t)
-	if end.Result != "我们周四上午发布。周四上午。" || !end.Retried || end.Profile != "translate:cleanup+strict+glossary" {
-		t.Errorf("result %q, retried %v, profile %q", end.Result, end.Retried, end.Profile)
-	}
 	reqs := model.requests()
-	if len(reqs) != 3 {
-		t.Fatalf("%d requests", len(reqs))
-	}
-	for i, piece := range []int{0, 1, 1} {
-		req := reqs[i]
-		strict := strings.Contains(req.Messages[0].Content, "Strict")
-		if req.Messages[len(req.Messages)-1].Content != compose.UserMessage(pieces[piece].Text) ||
-			req.Translate == nil || req.Translate.Text != compose.StripFillers(pieces[piece].Text) || strict != (i == 2) {
-			t.Errorf("request %d: %+v", i, req)
-		}
+	if end.Result != "我们周四上午发布。" || len(reqs) != 1 || reqs[0].Messages[len(reqs[0].Messages)-1].Content != compose.UserMessage(strings.TrimSpace(en)) {
+		t.Errorf("result %q, %d requests", end.Result, len(reqs))
 	}
 }

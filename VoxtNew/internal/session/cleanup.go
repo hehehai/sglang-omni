@@ -112,13 +112,12 @@ func llmMessages(out compose.Output) []llm.Message {
 	return msgs
 }
 
-// drafter streams the answer of a request into the snapshot's Draft,
+// drafter streams the clean-up of a part into the snapshot's Draft,
 // after the answers of the parts before it, every draftEvery at most.
 type drafter struct {
 	r       *run
 	parts   []compose.Part
 	answers []string
-	json    bool // a JSON answer {title, content} (compose.PartialAnswer)
 	buf     strings.Builder
 	last    time.Time
 }
@@ -137,14 +136,8 @@ func (d *drafter) add(delta string) {
 
 // publish puts the draft so far in the snapshot.
 func (d *drafter) publish() {
-	var a compose.Answer
-	if d.json {
-		a = compose.PartialAnswer(d.buf.String())
-	} else {
-		a.Content = d.buf.String()
-	}
-	draft := compose.JoinParts(d.parts, append(d.answers, a.Content))
-	d.r.m.update(d.r, func(s *Snapshot) { s.Draft, s.Title = draft, a.Title })
+	draft := compose.JoinParts(d.parts, append(d.answers, d.buf.String()))
+	d.r.m.update(d.r, func(s *Snapshot) { s.Draft = draft })
 }
 
 // done puts the answers of the parts so far in the snapshot.

@@ -448,7 +448,7 @@ func TestRender(t *testing.T) {
 func TestGlossary(t *testing.T) {
 	terms := []Term{{Term: "Zeta"}, {Term: "VoxtNew", Aliases: []string{"aura link", "voxtnew"}}, {Term: " "}, {Term: "zeta"}}
 	got := Glossary(terms, "the Aura-Link app", English)
-	if got != "- VoxtNew (heard as: aura link)\n- Zeta" {
+	if got != "- Zeta\n- VoxtNew (heard as: aura link)" {
 		t.Errorf("glossary %q", got)
 	}
 	if Glossary(nil, "x", English) != "" {
@@ -470,8 +470,10 @@ func TestGlossary(t *testing.T) {
 	if g := Glossary(manyTerms, "nothing", English); g != "" {
 		t.Errorf("large dictionary, no match %q", g)
 	}
-	// A small one: all of it, the found ones first.
-	if g := Glossary(manyTerms[:GlossaryAllUpTo], "term029", English); !strings.HasPrefix(g, "- term029\n- term000") || len(strings.Split(g, "\n")) != GlossaryAllUpTo {
+	// A small one: all of it, in its order, whatever the text says (the
+	// system prompt stays the same).
+	if g := Glossary(manyTerms[:GlossaryAllUpTo], "term029", English); g != Glossary(manyTerms[:GlossaryAllUpTo], "", English) ||
+		!strings.HasPrefix(g, "- term000\n- term001") || len(strings.Split(g, "\n")) != GlossaryAllUpTo {
 		t.Errorf("small dictionary %q", g)
 	}
 	long := []Term{{Term: strings.Repeat("a", 1500)}, {Term: strings.Repeat("b", 1500)}}

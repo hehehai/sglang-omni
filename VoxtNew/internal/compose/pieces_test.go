@@ -110,9 +110,9 @@ func TestLanguagePieces(t *testing.T) {
 	}
 }
 
-// TestBuildParts: long speech gets a part per piece, every one with the
-// same system prompt and example turn; a selection, Rewrite and short
-// speech get one.
+// TestBuildParts: Transcribe of long or mixed speech gets a part per
+// piece, every one with the same system prompt and example turn;
+// Translate, Rewrite and short speech get one.
 func TestBuildParts(t *testing.T) {
 	zh := "嗯，那个，我们下周二，呃不对，下周三下午三点开个会，讨论一下预算。"
 	long := strings.Repeat(zh, 14) + "Auralink 的发布计划。"
@@ -136,6 +136,8 @@ func TestBuildParts(t *testing.T) {
 		}
 	}
 	for _, in := range []Input{
+		{Task: Translate, Cleanup: true, TargetLanguage: "en", Text: long},
+		{Task: Translate, Cleanup: true, TargetLanguage: "en", Text: "So um, update the docs. 嗯，我们下周三开会。"},
 		{Task: Translate, Selected: true, TargetLanguage: "en", Text: long},
 		{Task: Rewrite, Instruction: "shorter", Text: long},
 		{Task: Transcribe, Text: zh},
@@ -145,17 +147,8 @@ func TestBuildParts(t *testing.T) {
 			t.Errorf("%s: %d parts, %v", in.Task, len(parts), err)
 		}
 	}
-	if parts, _ := BuildParts(Input{Task: Translate, Cleanup: true, TargetLanguage: "en", Text: long}); len(parts) != 2 {
-		t.Errorf("spoken Translate: %d parts", len(parts))
-	}
-	// Transcribe cuts where the language changes; Translate, into one
-	// language, only by length.
-	mixed := "So um, update the docs. 嗯，我们下周三开会。"
-	if parts, _ := BuildParts(Input{Task: Transcribe, Text: mixed}); len(parts) != 2 {
+	if parts, _ := BuildParts(Input{Task: Transcribe, Text: "So um, update the docs. 嗯，我们下周三开会。"}); len(parts) != 2 {
 		t.Errorf("mixed Transcribe: %d parts", len(parts))
-	}
-	if parts, _ := BuildParts(Input{Task: Translate, TargetLanguage: "en", Text: mixed}); len(parts) != 1 {
-		t.Errorf("mixed Translate: %d parts", len(parts))
 	}
 }
 

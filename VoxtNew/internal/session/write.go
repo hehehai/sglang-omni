@@ -94,8 +94,22 @@ func (r *run) write(raw, selection string) {
 		}
 	}
 
+	source := in.Text
+	if kind == store.KindRewrite {
+		source = selection
+	}
 	llmStart := r.now()
-	res, profile, err := r.answer(in)
+	res, profile, err := r.ask(in)
+	if err == nil && kind == store.KindTranslate && compose.Untranslated(source, res.Content, in.TargetLanguage) && r.ctx.Err() == nil {
+		r.logf("warning", "the translation looks untranslated: asking again, strictly")
+		r.m.update(r, func(s *Snapshot) { s.Retried, s.Draft = true, "" })
+		in.Strict = true
+		if again, p, err2 := r.ask(in); err2 == nil {
+			res, profile = again, p
+		} else if r.ctx.Err() == nil {
+			r.logf("warning", "the strict retry failed, keeping the first answer: %v", err2)
+		}
+	}
 	llmTime := r.now().Sub(llmStart)
 	if r.cancelled.Load() {
 		r.endCancelled(nil)
@@ -103,7 +117,7 @@ func (r *run) write(raw, selection string) {
 	}
 	r.m.update(r, func(s *Snapshot) { s.Profile, s.Timings.LLM = profile, llmTime })
 	if err != nil {
-		r.logf("warning", "language model %s (%s) failed after %v: %v", r.svc.LLMInfo.ID, r.svc.LLMInfo.Model, llmTime.Round(time.Millisecond), err)
+		r.logf("warning", "language model %s (model %s) failed after %v: %v", r.svc.LLMInfo.ID, r.svc.LLMInfo.Model, llmTime.Round(time.Millisecond), err)
 		r.endWriteFailed(&Problem{Code: ProblemLLM, Err: err}, true)
 		return
 	}
@@ -120,73 +134,53 @@ func (r *run) write(raw, selection string) {
 	r.finish(Done, nil, res.Content, o)
 }
 
-// answer asks the model for in's answer, part by part (compose.BuildParts:
-// long speech in pieces), each streaming into the snapshot's Draft after
-// the parts before it. A Translate part that came back untranslated
-// (compose.Untranslated) is asked again with the Strict layer. It
-// returns the answer (Content only, but for a JSON answer), the
-// composition's profile and the first failure, which fails the whole.
-func (r *run) answer(in compose.Input) (compose.Answer, string, error) {
-	parts, err := compose.BuildParts(in)
+// ask sends one request and streams its answer into the snapshot. It
+// returns the answer (Content only, but for a JSON answer) and the
+// composition's profile.
+func (r *run) ask(in compose.Input) (compose.Answer, string, error) {
+	cfg := r.m.cfg
+	out, err := compose.Build(in)
 	if err != nil {
 		return compose.Answer{}, "", err
 	}
-	if len(parts) > 1 {
-		r.logf("info", "%s of %d characters in %d pieces", in.Task, len([]rune(in.Text)), len(parts))
+	msgs := make([]llm.Message, 0, len(out.History)+2)
+	for _, m := range out.Messages() {
+		msgs = append(msgs, llm.Message{Role: llm.Role(m.Role), Content: m.Content})
 	}
-	profile := parts[0].Profile()
-	var strict []compose.Part
-	var answers []string
-	var title string
-	for i, p := range parts {
-		a, err := r.ask(in, parts[:i+1], answers)
-		if err != nil {
-			return compose.Answer{}, profile, err
-		}
-		if in.Task == compose.Translate && compose.Untranslated(p.Text, a.Content, in.TargetLanguage) && r.ctx.Err() == nil {
-			r.logf("warning", "the translation looks untranslated: asking again, strictly")
-			draft := compose.JoinParts(parts, answers)
-			r.m.update(r, func(s *Snapshot) { s.Retried, s.Draft = true, draft })
-			if strict == nil {
-				in.Strict = true
-				strict, err = compose.BuildParts(in)
-				in.Strict = false
-			}
-			var again compose.Answer
-			if err == nil {
-				again, err = r.ask(in, strict[:i+1], answers)
-			}
-			if err == nil {
-				a, profile = again, strict[i].Profile()
-			} else if r.ctx.Err() == nil {
-				r.logf("warning", "the strict retry failed, keeping the first answer: %v", err)
-			}
-		}
-		answers = append(answers, a.Content)
-		title = a.Title
-	}
-	return compose.Answer{Title: title, Content: compose.JoinParts(parts, answers)}, profile, nil
-}
-
-// ask sends the last of parts and streams its answer into the snapshot,
-// after the answers of the parts before it.
-func (r *run) ask(in compose.Input, parts []compose.Part, answers []string) (compose.Answer, error) {
-	cfg := r.m.cfg
-	p := parts[len(parts)-1]
 	skill := llm.SkillTranslateText
 	if in.Task == compose.Rewrite {
 		skill = llm.SkillRewrite
 	}
-	draft := newDrafter(r, parts, answers)
-	draft.json = in.Answer
-	req := llm.Request{Messages: llmMessages(p.Output), Skill: skill, Timeout: cfg.WriteTimeout, OnDelta: draft.add}
+	var buf strings.Builder
+	var last time.Time
+	publish := func(force bool) {
+		now := time.Now()
+		if !force && now.Sub(last) < draftEvery {
+			return
+		}
+		last = now
+		var a compose.Answer
+		if in.Answer {
+			a = compose.PartialAnswer(buf.String())
+		} else {
+			a.Content = strings.TrimSpace(buf.String())
+		}
+		r.m.update(r, func(s *Snapshot) { s.Draft, s.Title = a.Content, a.Title })
+	}
+	req := llm.Request{
+		Messages: msgs, Skill: skill, Timeout: cfg.WriteTimeout,
+		OnDelta: func(d string) {
+			buf.WriteString(d)
+			publish(false)
+		},
+	}
 	if in.Answer {
 		req.Format, req.Schema = llm.FormatJSON, answerSchema
 	}
 	if in.Task == compose.Translate {
 		// For a model that builds its own prompt and takes no clean-up
 		// rules (Hy-MT2): speech without its fillers (docs/eval.md).
-		text := p.Text
+		text := in.Text
 		if !in.Selected {
 			text = compose.StripFillers(text)
 		}
@@ -199,19 +193,20 @@ func (r *run) ask(in compose.Input, parts []compose.Part, answers []string) (com
 		if ctx.Err() == context.DeadlineExceeded && r.ctx.Err() == nil {
 			err = fmt.Errorf("no answer within %v: %w", cfg.WriteTimeout, err)
 		}
-		return compose.Answer{}, err
+		return compose.Answer{}, out.Profile(), err
 	}
-	if draft.buf.Len() > 0 {
-		draft.publish()
+	if buf.Len() > 0 {
+		publish(true)
 	}
 	if in.Answer {
 		if a, ok := compose.ParseAnswer(resp.Text); ok {
-			return a, nil
+			return a, out.Profile(), nil
 		}
 		r.logf("warning", "the answer is not the JSON asked for: taking it as text")
-		return compose.Answer{Content: compose.Clean(strings.TrimSpace(strings.Trim(strings.TrimSpace(resp.Text), "`")), in.Instruction)}, nil
+		return compose.Answer{Content: compose.Clean(strings.TrimSpace(strings.Trim(strings.TrimSpace(resp.Text), "`")), in.Instruction)}, out.Profile(), nil
 	}
-	return compose.Answer{Content: compose.Clean(resp.Text, p.Text)}, nil
+	input := in.Text
+	return compose.Answer{Content: compose.Clean(resp.Text, input)}, out.Profile(), nil
 }
 
 // endWriteFailed ends a Translate or Rewrite session failed. With card,

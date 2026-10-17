@@ -99,7 +99,8 @@ type Input struct {
 	// Scene is the matched app enhancement group; nil for none.
 	Scene *Scene
 	// Glossary are the dictionary's enabled terms (Build keeps the ones
-	// that fit, those found in Text first).
+	// that fit: all of a small dictionary, of a large one those found in
+	// Text).
 	Glossary []Term
 	// MainLanguage and OtherLanguages are lang codes ("zh", "en"):
 	// settings.General's, with "" resolved by the caller. TargetLanguage
@@ -193,9 +194,8 @@ func TemplateSet(mainLanguage string) string {
 }
 
 // Limits of the glossary. A dictionary of up to GlossaryAllUpTo terms
-// goes in whole (those found in the text first); a larger one only with
-// the terms found in the text: unrelated terms would only cost tokens and
-// distract the model.
+// goes in whole, in its order; a larger one only with the terms found in
+// the text: unrelated terms would only cost tokens and distract the model.
 const (
 	MaxGlossaryTerms = 60
 	MaxGlossaryChars = 2000
@@ -422,10 +422,11 @@ func Render(tpl string, vars, extra map[string]string) string {
 }
 
 // Glossary lists the terms that fit the limits, one per line ("- Term
-// (heard as: alias, alias)"): terms found in text first (their spelling
-// or an alias, ignoring case and spaces), then, for a dictionary of at
-// most GlossaryAllUpTo terms, the others in their order. "" when there
-// are none.
+// (heard as: alias, alias)"): a dictionary of at most GlossaryAllUpTo
+// terms whole, in its order, whatever text says (the system prompt stays
+// the same from one dictation to the next, which the model's prompt cache
+// keeps); a larger one only with the terms found in text (their spelling
+// or an alias, ignoring case and spaces). "" when there are none.
 func Glossary(terms []Term, text, set string) string {
 	norm := func(s string) string {
 		return strings.Map(func(r rune) rune {
@@ -447,7 +448,7 @@ func Glossary(terms []Term, text, set string) string {
 		}
 		return false
 	}
-	var first, rest []Term
+	var all, mentioned []Term
 	seen := map[string]bool{}
 	for _, t := range terms {
 		t.Term = strings.TrimSpace(t.Term)
@@ -455,10 +456,9 @@ func Glossary(terms []Term, text, set string) string {
 			continue
 		}
 		seen[strings.ToLower(t.Term)] = true
+		all = append(all, t)
 		if found(t) {
-			first = append(first, t)
-		} else {
-			rest = append(rest, t)
+			mentioned = append(mentioned, t)
 		}
 	}
 	heard := "heard as"
@@ -466,12 +466,12 @@ func Glossary(terms []Term, text, set string) string {
 	if set == Chinese {
 		heard, sep = "可能被听成", "、"
 	}
-	if len(first)+len(rest) > GlossaryAllUpTo {
-		rest = nil
+	if len(all) > GlossaryAllUpTo {
+		all = mentioned
 	}
 	var lines []string
 	size := 0
-	for _, t := range append(first, rest...) {
+	for _, t := range all {
 		line := "- " + t.Term
 		var aliases []string
 		for _, a := range t.Aliases {

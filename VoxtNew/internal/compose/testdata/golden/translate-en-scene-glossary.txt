@@ -28,8 +28,8 @@ Casual chat in Slack.
 Use the scene to choose wording and form only; do not add facts that were not said.
 
 Glossary: write these terms exactly as below, also when the recognizer heard them differently.
-- VoxtNew (heard as: aura link, 奥拉链接)
 - Kubernetes
+- VoxtNew (heard as: aura link, 奥拉链接)
 - DeepSeek (heard as: deep seek)
 
 Output: only the translation, without quotes, labels, notes, the source text or <input> tags. If there is nothing to translate, return an empty string.

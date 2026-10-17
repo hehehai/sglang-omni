@@ -32,10 +32,11 @@ type Part struct {
 	Piece
 }
 
-// BuildParts composes in as one request or, for speech, one per piece:
-// Transcribe's where the language changes or over LongChars characters
-// (LanguagePieces), spoken Translate's over LongChars (Pieces; its target
-// is one language).
+// BuildParts composes in as one request or, for Transcribe, one per
+// piece of the speech (LanguagePieces: where the language changes, and
+// over LongChars characters). Translate and Rewrite are one request: a
+// translation has one target language, and in pieces it was no better
+// and slower (docs/eval.md).
 // Every part has the whole input's system prompt (the glossary picked
 // from the whole text) and example turn, and its piece as the user
 // message: the parts share their prefix, which the model's prompt cache
@@ -45,13 +46,10 @@ func BuildParts(in Input) ([]Part, error) {
 	if err != nil {
 		return nil, err
 	}
-	if in.Task == Rewrite || in.Selected {
+	if in.Task != Transcribe {
 		return []Part{{Output: out, Piece: Piece{Text: in.Text}}}, nil
 	}
-	pieces := Pieces(in.Text)
-	if in.Task == Transcribe {
-		pieces = LanguagePieces(in.Text)
-	}
+	pieces := LanguagePieces(in.Text)
 	parts := make([]Part, len(pieces))
 	for i, p := range pieces {
 		o := out
@@ -159,7 +157,9 @@ func cjkWords(text string) (cjk, words bool) {
 	return n > 0 && part >= 0.5, n > 0
 }
 
-func isCJK(r rune) bool { return unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul) }
+func isCJK(r rune) bool {
+	return unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul)
+}
 
 // pack cuts text at the boundaries of level and below.
 func pack(text string, level int) []Piece {
