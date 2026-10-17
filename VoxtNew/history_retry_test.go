@@ -184,3 +184,25 @@ func TestRetryNotice(t *testing.T) {
 		t.Errorf("entry %+v", got)
 	}
 }
+
+// snapshotHistoryRetry saves History with a failed entry that kept its
+// recording (Retry on its row) above one that did not (Failed), and its
+// details; then the entry goes, so that the later snapshots are as before.
+func snapshotHistoryRetry(a *app, save func(string)) {
+	hs := a.lib.store.History()
+	e := store.Entry{
+		ID: histRetry, Kind: store.KindTranscribe, CreatedAt: time.Now().Add(-2 * time.Minute), Status: store.StatusFailed,
+		AppBundle: "com.apple.Notes", AppName: "Notes", Error: "asr : timeout: no result within 5m51s (4m51s of audio)",
+		ASRProvider: "asr.accurate", ASRModel: "asr.accurate", AudioMS: 291500, ASRMS: 351000, TotalMS: 352000,
+		Audio: histRetry + ".wav", AudioUntil: time.Date(2026, 10, 24, 20, 54, 0, 0, time.Local),
+	}
+	_ = hs.Put(context.Background(), e)
+	a.loadHistory()
+	save("history-retry")
+	a.hist.sel = histRetry
+	save("history-retry-detail")
+	a.hist.sel = ""
+	_ = hs.Delete(context.Background(), histRetry)
+	a.historyChanged()
+	a.loadHistory()
+}

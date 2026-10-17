@@ -141,6 +141,7 @@ func snapshotHistoryDetail(a *app, save func(string)) {
 	}
 	a.hist.tab, a.hist.sel = 0, ""
 	a.loadHistory()
+	snapshotHistoryRetry(a, save) // history_retry_test.go
 }
 
 func TestHistoryTranslateAndRewrite(t *testing.T) {
