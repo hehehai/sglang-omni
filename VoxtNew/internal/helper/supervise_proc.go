@@ -167,6 +167,18 @@ func (s *supervisor) handshake(p *proc) {
 	switch {
 	case p.isClosed():
 		return // exited: exited reports it
+	case errors.Is(err, ErrExited):
+		// The hello's write found the pipe closed: the helper is exiting
+		// (one that dies at start), which exited reports as a crash, not
+		// as a failed handshake. One that closed its input and still runs
+		// is killed when the hello's time is up.
+		select {
+		case <-p.exited:
+			return
+		case <-ctx.Done():
+		}
+		p.killFor(FailHandshake, "helper.hello failed: "+err.Error(), false)
+		return
 	case errors.Is(err, context.DeadlineExceeded):
 		p.killFor(FailHandshake, fmt.Sprintf("the helper did not answer helper.hello within %s", s.cfg.HelloTimeout), false)
 		return
