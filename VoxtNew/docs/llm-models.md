@@ -57,7 +57,7 @@ Translation and rewriting come out right with both Qwen3.5 models, and the JSON 
 - **Warm-up.** While the user speaks, the session sends its own prompt with an empty text as a prefill chat (`maxTokens: 0`, `llm.Prefiller`, `session/run_listen.go` `warmLLM`): Transcribe's clean-up and Translate of speech; not Rewrite, whose prompt depends on the selection being read meanwhile. When the prefix is kept already the prefill costs a template render (a few ms); otherwise it is evaluated while the user speaks, and the chat after the recording is a hit.
 - llama.cpp (Hy-MT2) makes a context per chat, and its prompts are 30–40 tokens with no system prompt (first token 0.06–0.11 s): nothing to gain, nothing done.
 
-Measurements (mac-air, 2026-10-17, medians; resident meanwhile: the user's Dicta and AudioSmith engines, swap 12.3 of 13.3 GB used, 71 % memory free; generation at the M2 rates, so no GPU contention). First token, from the request to the first piece of text:
+Measurements (mac-air, 2026-10-17, medians of `TestLLMMeasure` ×3, `TestLLMRealPromptCache` ×2 and the regression's run; resident meanwhile: the user's Dicta and AudioSmith engines, swap 12.3 of 13.3 GB used, 71 % memory free; generation at the M2 rates, so no GPU contention). First token, from the request to the first piece of text:
 
 | | cold (miss) | hit | prefill (warm-up) |
 |---|---|---|---|
@@ -65,6 +65,10 @@ Measurements (mac-air, 2026-10-17, medians; resident meanwhile: the user's Dicta
 | `llm.balanced`, translating a selection (260 tokens) | 1.0 s | 0.27–0.28 s | – |
 | `llm.fast`, clean-up and spoken translation | 0.66–0.81 s | 0.12–0.14 s (0.07–0.15) | 0.7 s |
 | `llm.fast`, translating a selection | 0.39 s | 0.12–0.14 s | – |
+| `llm.balanced`, rewriting (330–390 tokens; no warm-up) | 1.2–1.4 s | 0.16–0.27 s | – |
+| `llm.fast`, rewriting | 0.48–0.56 s | 0.14 s | – |
+
+A prompt that starts from a glossary's branch point (256 of 547 tokens) evaluates the other 290: under contention (another thread's eval running) `llm.fast` took 0.76 s against 1.3–1.4 s cold, `llm.balanced` about the same share. Rewrite has no warm-up, but its second request with the same system prompt is a hit like the others.
 
 TestEvalLLM in quick mode (5 clean-ups, 2 spoken translations per model, one process, the cache on vs off): clean-up's median first token 2311 → 165 ms on `llm.balanced` and 965 → 100 ms on `llm.fast`, totals 2956 → 815 ms and 1191 → 324 ms; every MLX answer identical.
 

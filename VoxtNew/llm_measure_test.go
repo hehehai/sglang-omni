@@ -185,6 +185,7 @@ var cacheTexts = map[string]string{
 	"transcribe en":            "okay so uh first we book the room second we send the invites and um third we order lunch",
 	"translate en→zh":          "Thanks for the quick fix. Please tag the build tonight so QA can start in the morning.",
 	"translate zh→en (speech)": "嗯明天早上九点出发别忘了带护照和充电器",
+	"rewrite selection":        "can u check the numbers again, they look off and the client is asking",
 }
 
 // TestLLMRealPromptCache: with the prompt cache, greedy answers are the
@@ -218,7 +219,8 @@ func TestLLMRealPromptCache(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				req := llm.Request{Skill: c.skill, Timeout: 60 * time.Second}
+				seed := int64(7) // Rewrite samples: the same draws with the cache and without
+				req := llm.Request{Skill: c.skill, Timeout: 60 * time.Second, Seed: &seed}
 				for _, msg := range out.Messages() {
 					req.Messages = append(req.Messages, llm.Message{Role: llm.Role(msg.Role), Content: msg.Content})
 				}
