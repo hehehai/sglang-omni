@@ -142,8 +142,19 @@ smoke() {
   env -u VOXTNEW_HELPER -u VOXTNEW_OMNI_RUNTIME -u VOXTNEW_LLM \
     ACTNOW_FAMILY_DIR="$dir/ActNow" VOXTNEW_SMOKE_MODELS=asr.fast,llm.fast \
     "$ROOT/build/darwin-arm64/VoxtNew.app/Contents/MacOS/VoxtNew" --smoke "$dir" &
-  local pid=$! t=0
-  while kill -0 $pid 2>/dev/null && ((t < 300)); do sleep 1; t=$((t + 1)); done
+  local pid=$! t=0 rt="$dir/ActNow/runtime" most=0
+  # The family's runtime file (spec §11.1) while it runs: the models it
+  # holds; it must be gone after quit.
+  while kill -0 $pid 2>/dev/null && ((t < 600)); do
+    for f in "$rt"/*.json; do
+      [[ -f "$f" ]] || continue
+      local n
+      n="$(grep -c '"repo"' "$f" || true)"
+      if ((n > most)); then most=$n; cp "$f" "$OUT/runtime-file.json"; fi
+    done
+    sleep 0.5
+    t=$((t + 1))
+  done
   if kill -0 $pid 2>/dev/null; then
     echo "smoke: FAIL still running after 300 s"
     kill $pid
@@ -157,6 +168,15 @@ smoke() {
     echo "smoke: FAIL left running after quit: $left"
     return 1
   fi
+  if ((most == 0)); then
+    echo "smoke: FAIL no runtime file listed a loaded model"
+    return 1
+  fi
+  if compgen -G "$rt/*.json" >/dev/null; then
+    echo "smoke: FAIL the runtime file is left after quit: $(ls "$rt")"
+    return 1
+  fi
+  echo "smoke: runtime file listed $most models ($OUT/runtime-file.json), removed at quit"
   echo "smoke: nothing left running"
 }
 step app-build '^built' app_build
