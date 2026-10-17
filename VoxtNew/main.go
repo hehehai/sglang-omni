@@ -43,6 +43,12 @@ func main() {
 		runOverlayCheck(dir)
 		return
 	}
+	// The logs' screenshots of -tags logscheck builds (logs_check.go): a
+	// window of their own over a temporary library, no lock, no helper.
+	if dir := argAfter("--logs-check"); dir != "" && logsCheck != nil {
+		logsCheck(dir)
+		return
+	}
 	// The packaged app's smoke run (smoke.go, scripts/mac-regress.sh): its
 	// own data, no window, no lock.
 	if dir := argAfter("--smoke"); dir != "" {

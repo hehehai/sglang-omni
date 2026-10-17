@@ -126,6 +126,7 @@ func (a *app) logRows(c *ui.Context, lines []core.LogEntry, view ui.Rect, st *ui
 	col.HandleInput(a.logsInput(c.Services(), lines))
 	a.logsKeys(c, col, lines)
 	origin := col.Bounds()
+	s.origin = origin
 	pressing := s.m.Pressed()
 	s.spans = s.spans[:0]
 	col.Children(func() {

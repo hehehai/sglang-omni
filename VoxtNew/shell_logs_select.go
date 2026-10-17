@@ -25,8 +25,10 @@ type logSelection struct {
 	// events are the rows column's pointer events since the last build,
 	// in its box's coordinates.
 	events []logPointer
-	// spans are where the rows were in the column, as built last.
-	spans []logSpan
+	// spans are where the rows were in the column, as built last, and
+	// origin where the column was in the window.
+	spans  []logSpan
+	origin ui.Rect
 	// scroll is the page's and the panel's scroll, which a drag near
 	// their edges moves.
 	scroll [2]ui.ScrollState
@@ -258,3 +260,7 @@ func (a *app) logRowMenu(c *ui.Context, row ui.Element, e core.LogEntry, lines [
 		}
 	})
 }
+
+// logsCheck is the logs' screenshot run of -tags logscheck builds
+// (logs_check.go, scripts/mac-logs-shots.sh); nil in the others.
+var logsCheck func(dir string)
