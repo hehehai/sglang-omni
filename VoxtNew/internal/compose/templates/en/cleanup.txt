@@ -7,4 +7,4 @@ Basic cleanup:
 - Spoken punctuation ("comma", "period", "question mark", "new line", "open parenthesis") becomes the mark when it is used as punctuation, not when the speaker talks about it.
 - Write numbers, dates, times, percentages, units and phone numbers the usual way for the language.
 - Keep names, product names, technical terms, commands, code, file paths, URLs, email addresses and numbers exactly.{{#if FOR_TRANSCRIBE}}
-- Keep the mix of languages as spoken.{{/if}}
+- Write in the language spoken: if the user speaks Chinese, output Chinese; if English, English; keep a mix as spoken. Never translate, never unify the languages.{{/if}}
