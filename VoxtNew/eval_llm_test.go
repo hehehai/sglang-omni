@@ -56,14 +56,17 @@ func TestEvalLLM(t *testing.T) {
 	terms := evalTerms(e)
 	var cases []llmCase
 	cleaned := map[string]string{} // llm.balanced's clean-up of each clip, for Hy-MT2
-	for _, id := range []string{llmrt.Balanced, llmrt.Fast, llmrt.Translate} {
+	mem := table{head: []string{"model", "load", "footprint", "peak footprint", "MLX peak"}}
+	for _, id := range e.llms(t, false) {
 		b, err := llmrt.NewModel(rt, id, e.dir(t, id))
 		if err != nil {
 			t.Fatal(err)
 		}
+		t0 := time.Now()
 		if err := b.Warm(ctx); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
+		load := time.Since(t0)
 		client := &llm.Client{Backend: b}
 		run := func(task, variant string, c eval.Clip, req llm.Request, check func(out string) eval.Verdict) llmCase {
 			var first time.Time
@@ -95,6 +98,8 @@ func TestEvalLLM(t *testing.T) {
 					})
 				}
 			}
+			mem.add(evalMemory(ctx, rt, id, load)...)
+			rt.Unload()
 			continue
 		}
 		for _, c := range clips {
@@ -125,9 +130,10 @@ func TestEvalLLM(t *testing.T) {
 				})
 			}
 		}
+		mem.add(evalMemory(ctx, rt, id, load)...)
 		rt.Unload()
 	}
-	e.report(t, "llm.md", llmReport(cases, e.quick))
+	e.report(t, "llm.md", llmReport(cases, e.quick)+"\nMemory after the model's chats:\n\n"+mem.String())
 	if e.quick {
 		ok, n := 0, 0
 		for _, c := range cases {
@@ -138,7 +144,7 @@ func TestEvalLLM(t *testing.T) {
 				}
 			}
 		}
-		if n == 0 || float64(ok)/float64(n) < evalLLMFloor {
+		if n > 0 && float64(ok)/float64(n) < evalLLMFloor { // n 0: VOXTNEW_EVAL_LLM left llm.balanced out
 			t.Errorf("llm.balanced: %d of %d clean-ups without a fault, under the quick floor %.0f%%", ok, n, 100*evalLLMFloor)
 		}
 	}
@@ -158,6 +164,17 @@ func evalLLMRuntime(t *testing.T, log func(core.LogEntry)) *llmrt.Runtime {
 	rt := llmrt.New(llmrt.Config{Bin: bin, AppVersion: "eval", LogDir: t.TempDir(), IdleTimeout: -1, Log: log})
 	t.Cleanup(rt.Stop)
 	return rt
+}
+
+// evalMemory is a memory table's row: the process's footprint (the
+// runtime's memory call) after model id's chats, and its load time.
+func evalMemory(ctx context.Context, rt *llmrt.Runtime, id string, load time.Duration) []any {
+	res, err := rt.Memory(ctx)
+	if err != nil {
+		return []any{id, ms(load), err, "", ""}
+	}
+	m := res.Memory
+	return []any{id, ms(load), fmt.Sprintf("%d MB", m.FootprintBytes>>20), fmt.Sprintf("%d MB", m.PeakFootprintBytes>>20), fmt.Sprintf("%d MB", m.MLXPeakBytes>>20)}
 }
 
 func exampleName(on bool) string {

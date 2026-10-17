@@ -255,27 +255,52 @@ func repairPrompt(problems []string) string {
 	return b.String()
 }
 
-// StripThinking removes a leading <think>…</think> block (reasoning
-// models, such as the Qwen models voxtnew-llm runs).
+// thinkTags are the reasoning blocks a model may open its answer with:
+// Qwen's <think>…</think>, and Gemma 4's thought channel
+// (<|channel>thought…<channel|>; it comes with thinking on, which
+// VoxtNew never asks for, and its card says a model may still send an
+// empty one).
+var thinkTags = [][2]string{{"<think>", "</think>"}, {"<|channel>", "<channel|>"}}
+
+// thinkOpen is the tag pair whose opening t starts with (nil for none);
+// undecided when t could still become one.
+func thinkOpen(t string) (tag *[2]string, undecided bool) {
+	for i := range thinkTags {
+		open := thinkTags[i][0]
+		if strings.HasPrefix(t, open) {
+			return &thinkTags[i], false
+		}
+		if len(t) < len(open) && strings.HasPrefix(open, t) {
+			undecided = true
+		}
+	}
+	return nil, undecided
+}
+
+// StripThinking removes a leading reasoning block (thinkTags: reasoning
+// models, such as the Qwen and Gemma models voxtnew-llm runs).
 func StripThinking(s string) string {
 	t := strings.TrimLeft(s, " \t\r\n")
-	if !strings.HasPrefix(t, "<think>") {
+	tag, _ := thinkOpen(t)
+	if tag == nil {
 		return s
 	}
-	if i := strings.Index(t, "</think>"); i >= 0 {
-		return strings.TrimLeft(t[i+len("</think>"):], " \t\r\n")
+	if i := strings.Index(t, tag[1]); i >= 0 {
+		return strings.TrimLeft(t[i+len(tag[1]):], " \t\r\n")
 	}
 	return "" // still thinking when cut off
 }
 
-// thinkFilter hides a leading <think>…</think> block from stream deltas.
+// thinkFilter hides a leading reasoning block (thinkTags) from stream
+// deltas.
 type thinkFilter struct {
 	emit  func(string)
 	buf   strings.Builder
+	tag   *[2]string
 	state int // 0 deciding, 1 inside think, 2 passing through, 3 after think (trim leading space)
 }
 
-func (f *thinkFilter) reset() { f.buf.Reset(); f.state = 0 }
+func (f *thinkFilter) reset() { f.buf.Reset(); f.state, f.tag = 0, nil }
 
 func (f *thinkFilter) write(s string) {
 	switch f.state {
@@ -293,12 +318,12 @@ func (f *thinkFilter) write(s string) {
 	f.buf.WriteString(s)
 	b := f.buf.String()
 	if f.state == 0 {
-		t := strings.TrimLeft(b, " \t\r\n")
+		tag, undecided := thinkOpen(strings.TrimLeft(b, " \t\r\n"))
 		switch {
-		case strings.HasPrefix(t, "<think>"):
-			f.state = 1
-		case len(t) < len("<think>") && strings.HasPrefix("<think>", t):
-			return // undecided
+		case tag != nil:
+			f.state, f.tag = 1, tag
+		case undecided:
+			return
 		default:
 			f.state = 2
 			f.buf.Reset()
@@ -306,8 +331,8 @@ func (f *thinkFilter) write(s string) {
 			return
 		}
 	}
-	if i := strings.Index(b, "</think>"); i >= 0 {
-		rest := b[i+len("</think>"):]
+	if i := strings.Index(b, f.tag[1]); i >= 0 {
+		rest := b[i+len(f.tag[1]):]
 		f.buf.Reset()
 		f.state = 3
 		f.write(rest)

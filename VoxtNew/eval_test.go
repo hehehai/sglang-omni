@@ -12,7 +12,8 @@ package main
 // VOXTNEW_EVAL_QUICK=1 runs a clip of each kind and checks the scores
 // against floors (scripts/mac-regress.sh); VOXTNEW_EVAL_OUT=DIR writes the
 // tables as Markdown (asr.md, llm.md); VOXTNEW_EVAL_ONLY=ID,… runs those
-// clips only. The tests log whether another
+// clips only; VOXTNEW_EVAL_LLM=ID,… (or all) the language models
+// (evalRun.llms; VoxtNew's own three by default). The tests log whether another
 // voxtnew-llm or qwen3_asr_server was running, since it skews the times.
 
 import (
@@ -66,6 +67,37 @@ func (e *evalRun) dir(t *testing.T, id string) string {
 		t.Fatalf("%s is not installed in %s (download it in VoxtNew, or internal/models' TestRealMoveToHub)", id, e.hub)
 	}
 	return d
+}
+
+// llms are the language models to evaluate, in the catalogue's order:
+// VOXTNEW_EVAL_LLM's ids, "all" for every catalogue language model in
+// the model library (the borrowed ones when another ActNow app installed
+// them), else VoxtNew's own three. general leaves out the
+// translation-only model.
+func (e *evalRun) llms(t *testing.T, general bool) []string {
+	t.Helper()
+	env := strings.TrimSpace(os.Getenv("VOXTNEW_EVAL_LLM"))
+	var out []string
+	for _, m := range models.Catalog() {
+		if m.Kind != models.LLM || general && len(m.Features) == 1 && m.Features[0] == "translate" {
+			continue
+		}
+		switch {
+		case env == "all":
+			if m.Borrowed && models.Installed(e.hub, m) == "" {
+				t.Logf("%s is not in %s: left out", m.ID, e.hub)
+				continue
+			}
+		case env != "":
+			if !slices.Contains(strings.Split(env, ","), m.ID) {
+				continue
+			}
+		case m.Borrowed:
+			continue
+		}
+		out = append(out, m.ID)
+	}
+	return out
 }
 
 // clips are the clips to run: all of them and the long ones, or in quick

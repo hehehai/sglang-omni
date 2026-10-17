@@ -145,6 +145,7 @@ var profiles = []Profile{
 		ID: Gemma4, Format: wire.FormatMLX, Repo: "mlx-community/gemma-4-e4b-it-4bit",
 		Sampling: map[llm.Skill]wire.Sampling{llm.SkillRewrite: {Temperature: 1.0, TopP: 0.95, TopK: 64, RepetitionPenalty: 1}},
 		Default:  wire.Sampling{Temperature: 0, TopP: 1, RepetitionPenalty: 1},
+		Template: qwenNoThink,
 	},
 }
 

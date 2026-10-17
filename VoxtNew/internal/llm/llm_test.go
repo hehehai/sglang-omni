@@ -221,6 +221,28 @@ func TestThinkingStripped(t *testing.T) {
 	if out.String() != "<b>bold" {
 		t.Fatalf("%q", out.String())
 	}
+	// Gemma 4's thought channel, empty or not, split anywhere.
+	if got := StripThinking("<|channel>thought\n<channel|>Answer"); got != "Answer" {
+		t.Fatal(got)
+	}
+	out.Reset()
+	f.reset()
+	for _, d := range []string{"<|", "channel>thought\nhm", "m<chan", "nel|>", "Hi", " <think>"} {
+		f.write(d)
+	}
+	f.flush()
+	if out.String() != "Hi <think>" {
+		t.Fatalf("%q", out.String())
+	}
+	out.Reset()
+	f.reset()
+	for _, d := range []string{"<", "|x"} {
+		f.write(d)
+	}
+	f.flush()
+	if out.String() != "<|x" {
+		t.Fatalf("%q", out.String())
+	}
 }
 
 func TestExtractJSONAndSchema(t *testing.T) {

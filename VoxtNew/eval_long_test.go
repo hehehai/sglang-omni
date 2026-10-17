@@ -59,7 +59,7 @@ func TestEvalLong(t *testing.T) {
 	ctx := context.Background()
 	terms := evalTerms(e)
 	var cases []longCase
-	for _, id := range []string{llmrt.Balanced, llmrt.Fast, llmrt.Translate} {
+	for _, id := range e.llms(t, false) {
 		b, err := llmrt.NewModel(rt, id, e.dir(t, id))
 		if err != nil {
 			t.Fatal(err)

@@ -42,7 +42,7 @@ func TestEvalGlossary(t *testing.T) {
 	}
 	tb := table{head: []string{"model", "input", "terms written", "terms put in unsaid", "median total"}}
 	answers := table{head: []string{"model", "input", "clip", "heard", "answer"}}
-	for _, id := range []string{llmrt.Balanced, llmrt.Fast} {
+	for _, id := range e.llms(t, true) {
 		b, err := llmrt.NewModel(rt, id, e.dir(t, id))
 		if err != nil {
 			t.Fatal(err)
