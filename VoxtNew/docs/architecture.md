@@ -203,15 +203,15 @@ hotkey.event (helper) ─▶ helperNotified ─▶ hotkeyFired ─▶ hotkey.Rou
          (internal/vad: a stream gets nothing before the speech, an upload no silence around it; no speech: nothing is sent)
          (the recording kept in the history is the original)
    dict.Replace: the dictionary's aliases ─▶ their terms (the history keeps the text as recognised)
-   compose.BuildParts (+ the Scene layer, the glossary): one request, or one per piece where the language changes or over 400 characters
-      ─▶ a chat per part (15 s each), streaming into the draft ─▶ compose.Clean, compose.JoinParts
+   compose.BuildParts (+ the Scene layer, the glossary): one request, or one per piece where the language changes or over 300 characters
+      ─▶ a chat per part (progress deadlines: first token 15 s, 5 s between tokens, a cap growing with the piece; behavior.md 5.5), streaming into the draft ─▶ compose.Clean, compose.JoinParts
          (a part fails: its text as recognised, a warning)
    deliver.Insert: textio.focus ─▶ textio.paste {targetPid, press: the group's auto key}   (or the answer card)
 Translate: textio.selection {allowCopy: session.AllowCopy(app)} first ─ text ─▶ compose (no recording)
            ─ none ─▶ record and recognise as above ─▶ compose
 Rewrite:   textio.selection while recording; the instruction (+ the selection) ─▶ compose
    deliver.Check ─ would not insert ─▶ the answer streams into the card
-   one streaming chat (60 s; Rewrite without a selection: JSON {title, content}) ─▶ Draft
+   one streaming chat (the same progress deadlines, a cap of at least 60 s; Rewrite without a selection: JSON {title, content}) ─▶ Draft
    Translate: compose.Untranslated? ─▶ once more with the Strict layer
    fails ─▶ failed, in the card with Try again (retryAnswer: StartRequest.Text)
    history entry (+ audio/<id>.wav) ─▶ the end snapshot

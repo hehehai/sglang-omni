@@ -182,7 +182,7 @@ The trigger is sentences that switch language, not length: Chinese with English 
 | 300-character pieces, the English template (main language "en") | 3 | translated, fillers kept | 42.0% |
 | **where whole sentences change language (and at most 300 characters)** | 10 | one self-correction at a sentence's end kept (周五…不对，周四, as on the short clip) | **6.3–7.7%** |
 
-**Decision: Transcribe's clean-up is cut where the language changes, at any length, and by length over 400 characters** (`compose.LanguagePieces`, `BuildParts`; behavior.md 5.31).
+**Decision: Transcribe's clean-up is cut where the language changes, at any length, and by length over 400 characters** (`compose.LanguagePieces`, `BuildParts`; behavior.md 5.31). Since 10-17 the length cut starts at 300 characters (below, "Long clean-ups under memory pressure").
 - A sentence counts as Chinese when most of its words are Chinese characters, so "我们的服务用 Kubernetes 部署" stays with the Chinese.
 - A dictation in one language under 400 characters is one request, the same as before: all 20 short clips, as said and as heard, are one piece.
 - On `long-zh` (one language, 441 characters: two pieces) `llm.balanced` scores the same whole and in pieces: no fault, 7.3%.
@@ -196,7 +196,7 @@ The trigger is sentences that switch language, not length: Chinese with English 
 
 - **Without the cache** (`voxtnew-llm` before M2b, under load), the 10 pieces took 63 s against 12.8 s whole: the cache is what makes the language cuts affordable.
 - **The overlay shows the cleaned pieces as they come** (the session's Draft), so the first words appear after 1.6 s instead of 11 s.
-- **Each request has its own timeout** (15 s, behavior.md 5.5). A whole clean-up of 12.8 s no longer risks the session's timeout: M3's 8 s would have inserted the raw text.
+- **Each request has its own timeout** (15 s then, behavior.md 5.5). A whole clean-up of 12.8 s no longer risks the session's timeout: M3's 8 s would have inserted the raw text. Since 10-17 the deadlines follow the answer's progress (below).
 - `llm.fast` in pieces: `long-all` 4.8 s (whole 3.7 s); `long-zh` 4.1 s, with fewer fillers left than whole (6.4% against 16.4% error), still not clean.
 
 **Spoken Translate stays one request.** Into English, in 300-character pieces against whole:
@@ -210,6 +210,37 @@ The trigger is sentences that switch language, not length: Chinese with English 
 The translation's target is one language, so it has no language to lose. A whole translation was as good or better, and faster.
 
 **`llm.fast` does not clean up long text.** It keeps nearly every filler on Chinese from about 100 characters up (3 short clips joined), whole or in pieces. Pieces do not help it. It cleans one short dictation well (16 of 20, above), so the 300-character pieces are no fix for it. Users who dictate long texts need `llm.balanced`.
+
+### Long clean-ups under memory pressure (10-17, `TestEvalLong`)
+
+On 10-17 the user's clean-ups timed out twice on mac-air (a 366-character dictation as one request, and the first of two pieces of a 502-character one), and the text went in as recognised. The Mac's swap was 17.1 of 18.4 GB used, with macOS's memory-pressure level still "normal"; `voxtnew-llm` had 80–97 MB resident of a 3.4 GB footprint: the model's weights were swapped out and read back while it wrote. It wrote 10–14 tokens a second instead of 19–26, its first token after 2 s instead of 0.2–0.5 s, so a 366-character answer took 20 s or more against the fixed 15 s.
+
+`TestEvalLong` now also reports each run's slowest request, its longest wait for a first token and its longest wait between two tokens (`long.md`). On mac-air with the same kind of pressure (swap 15.3–15.9 of 16.4–17.4 GB used, level "normal"; the user's VoxtNew with its speech model, Dicta's engine and the browsers running), `llm.balanced`:
+
+| | whole requests | in pieces |
+|---|---|---|
+| rate | 5.7–15.6 tokens/s (13 normally, 6–10 in bad moments) | 4.8–12.8 |
+| longest first token | 2.7 s | 3.2 s |
+| longest wait between two tokens | **0.52 s** | 0.33 s |
+| slowest request | **27.5 s** (`long-zh[:12]`, 410 characters, 5.7 tokens/s); 11 whole requests, all of 410 characters or more (two of them Translate's), took 15.1–27.5 s | 14.2 s |
+
+So a fixed 15 s cut answers that were coming steadily, and nothing in the stream ever paused for more than half a second. **Decision: the deadlines follow progress** (behavior.md 5.5): the first token within 15 s (plus 5 ms a character of input), at most 5 s between two tokens, and the request in all within the first token's deadline plus 100 ms a character (at least 20 s for a piece, 60 s for Translate and Rewrite). Every request above passes them: the stall and first-token deadlines are ten times the longest waits measured, and the cap allows about 8 tokens a second (a 410-character piece: 15 + 2 + 41 = 58 s against 27.5 s).
+
+**Pieces from 300 characters instead of 400** (one language). The same Chinese text, its first 9 to 12 clips, whole and in pieces (greedy sampling, so the answers were the same in three runs; the times are the three runs'):
+
+| `long-zh` first clips | characters | whole | 2 pieces | first piece's text in the overlay | total, whole / pieces |
+|---|---|---|---|---|---|
+| [:9] | 292 | no fault, 10.8% | (one piece) | – | 9.8–12.9 s |
+| [:10] | 336 | no fault, 9.6% | 周五…不对，周四 kept, 13.8% | 6.2–8.9 s | 11.4–13.4 / 11.2–15.3 s |
+| [:11] | 362 | no fault, 8.4% | 周五 kept, 12.1% | 5.5–8.0 s | 10.9–11.7 / 11.8–15.6 s |
+| [:12] | 410 | 周五 kept, 15.6% | no fault, 7.8% | 9.1–14.2 s | 13.7–27.5 / 17.0–25.0 s |
+
+- The only fault either way is the self-correction at a sentence's end that the model also misses on its short clip: it moves with where the text is cut, and is kept twice in pieces and once whole.
+- The first cleaned text reaches the overlay in about half the time; the whole clean-up takes 0.5–3.5 s longer (the second request's first token).
+- A piece that fails keeps half as much text as recognised.
+- `long-zh` (441 characters, two pieces at either threshold) and the language-cut runs of `long-all` are unchanged: no fault and 6.3% (`long-all` in 10 pieces). `TestEvalLLM` quick (short clips, one piece) is unchanged.
+
+Every slow request now logs the Mac's memory (behavior.md 5.5), so the next report shows the cause.
 
 ### Spoken Translate with Hy-MT2 (`llm.translate`)
 
