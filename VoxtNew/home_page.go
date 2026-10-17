@@ -166,6 +166,7 @@ func (a *app) homePage(c *ui.Context) {
 			a.homeRecentList(c)
 		})
 	})
+	a.historyDeleteDialog(c) // the recent results' Delete (history_menu.go)
 }
 
 // ---- The slogan ----
@@ -270,7 +271,8 @@ func (a *app) homeToday(c *ui.Context) {
 	})
 }
 
-// homeRecentList is the last results: each copies, or opens in History.
+// homeRecentList is the last results: each copies, or opens in History;
+// its context menu copies, opens or deletes it.
 func (a *app) homeRecentList(c *ui.Context) {
 	t := c.Theme()
 	k := tok(t)
@@ -316,6 +318,7 @@ func (a *app) homeRecentList(c *ui.Context) {
 			if row.Clicked() {
 				a.openHistoryEntry(e)
 			}
+			a.entryMenu(c, row, e, false, func() { a.openHistoryEntry(e) }) // history_menu.go
 		}
 	})
 }

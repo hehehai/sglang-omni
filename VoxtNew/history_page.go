@@ -5,7 +5,8 @@ package main
 // full-text index), and the details of one in a side panel beside the
 // list, or over it when the window is narrow: its texts to copy, where it
 // went, the models, the time of each stage, why it failed,
-// its recording in Finder, and Delete.
+// its recording in Finder, and Delete. An entry's context menu has the
+// same (history_menu.go).
 //
 // The page keeps the entries of its tab and search in memory, read in the
 // background when it shows, when the tab or the search changes, and when a
@@ -260,7 +261,8 @@ func (a *app) historyEmpty(c *ui.Context) {
 
 // historyRow is an entry in the list: the first line of its result (why
 // it failed, when it did), its marks, and when, in which app and how long
-// it was spoken. A click shows its details, or hides them.
+// it was spoken. A click shows its details, or hides them; its context
+// menu copies, shows or deletes it.
 func (a *app) historyRow(c *ui.Context, e store.Entry) {
 	t := c.Theme()
 	k := tok(t)
@@ -281,6 +283,7 @@ func (a *app) historyRow(c *ui.Context, e store.Entry) {
 			h.sel = e.ID
 		}
 	}
+	a.entryMenu(c, row, e, true, func() { h.sel = e.ID }) // history_menu.go
 	row.Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(px(t, 3)).Children(func() {
 			ui.Row(c).Gap(px(t, sp2)).AlignItems(ui.Center).Children(func() {

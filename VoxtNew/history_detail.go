@@ -53,7 +53,7 @@ func (a *app) historyDetail(c *ui.Context, e store.Entry) {
 				revealInFinder(filepath.Join(a.lib.store.History().AudioDir(), e.Audio))
 			}
 			if iconButton(c.Key("hist-delete"), icons.TrashBinMinimalistic, i18n.T("Delete the entry…")).Clicked() {
-				h.delAsk, h.delID = true, e.ID
+				a.askDeleteEntry(e.ID)
 			}
 			if iconButton(c.Key("panel-close"), icons.Close, i18n.T("Close")).Clicked() {
 				h.sel = ""
@@ -137,7 +137,8 @@ func (a *app) historyDetail(c *ui.Context, e store.Entry) {
 	})
 }
 
-// historyDeleteDialog confirms Delete.
+// historyDeleteDialog confirms Delete (askDeleteEntry), on History and
+// Home.
 func (a *app) historyDeleteDialog(c *ui.Context) {
 	h := &a.hist
 	if !h.delAsk {
@@ -158,7 +159,8 @@ func (a *app) historyDeleteDialog(c *ui.Context) {
 }
 
 // deleteHistoryEntry deletes an entry and its recording, in the
-// background, then reads the list again.
+// background, then tells the history's observers (History, Home, the
+// menu bar).
 func (a *app) deleteHistoryEntry(id string) {
 	if id == "" {
 		return
@@ -177,8 +179,7 @@ func (a *app) deleteHistoryEntry(id string) {
 				a.hist.sel = ""
 			}
 			a.toast(i18n.T("Entry deleted"))
-			a.loadHistory()
-			a.loadTrayRecent() // tray.go
+			a.historyChanged()
 		})
 	})
 }
