@@ -17,7 +17,7 @@ import (
 // recording.
 const vadSpeechTimeout = 5 * time.Second
 
-// gate is the gate a streaming service's audio goes through (the
+// gate is the gate a streaming speech model's audio goes through (the
 // leading silence held back), nil when the detection is off; with the
 // model's stream detector when there is one (close it at the end).
 func (r *run) gate() (*vad.Gate, func()) {

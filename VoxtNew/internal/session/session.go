@@ -1,5 +1,5 @@
-// Package session is the one owner of a voice session (plan §1.1, §4.2):
-// a state machine that takes a shortcut's press to a delivered result.
+// Package session is the one owner of a voice session: a state machine
+// that takes a shortcut's press to a delivered result.
 //
 //	idle ─Start─▶ recording ─Stop─▶ recognizing ─▶ composing ─▶ delivering ─▶ done
 //	                  │                  │             │             │
@@ -13,13 +13,13 @@
 // from the answer card, another target language) starts in composing.
 //
 // Every session has an id; its callbacks (audio frames, the speech
-// service's partials, timers) carry it, and anything that arrives for a
+// model's partials, timers) carry it, and anything that arrives for a
 // session that is not the current one, or after it ended, is dropped. A
 // session ends once: done, cancelled or failed, with one history entry
 // (when the settings keep history).
 //
-// While it records, the PCM goes to a streaming speech service as it
-// comes (partial text for the overlay), or is kept for a file service,
+// While it records, the PCM goes to a streaming speech model as it comes
+// (partial text for the overlay), or is kept for a file transcriber,
 // which gets it on Stop; either way the recording is kept in memory as
 // the WAV a history entry may keep. After recognition one language-model
 // request (internal/compose) cleans the text up, unless the feature has
@@ -28,7 +28,7 @@
 //
 // Everything platform is behind an interface: the microphone and the
 // text I/O (the helper; helperio.go adapts the supervisor), the speech and
-// language services (Resolver), the history and the dictionary (store),
+// language models (Resolver), the history and the dictionary (store),
 // the clock. Tests drive the whole machine on Linux with fakes.
 //
 // Imports: appctx, asr, compose, core, deliver, dict, llm, settings, store,
@@ -84,7 +84,7 @@ func (s State) Ended() bool { return s == Done || s == Cancelled || s == Failed 
 
 // Problem codes.
 const (
-	// ProblemNoASR: no speech service is ready (Local models).
+	// ProblemNoASR: no speech model is ready (Local models).
 	ProblemNoASR = "noASR"
 	// ProblemMicrophone: macOS refused the microphone.
 	ProblemMicrophone = "microphone"
@@ -92,7 +92,7 @@ const (
 	ProblemDevice = "device"
 	// ProblemHelper: the helper is not running (or died).
 	ProblemHelper = "helper"
-	// ProblemASR: the speech service failed (Err is an *asr.Error).
+	// ProblemASR: the speech model failed (Err is an *asr.Error).
 	ProblemASR = "asr"
 	// ProblemLLM: the language model failed or timed out. Transcribe: the
 	// raw text went on (Degraded); Translate and Rewrite: the answer card
@@ -123,13 +123,13 @@ type Problem struct {
 	Degraded bool
 }
 
-// Model names a service a session used.
+// Model names a model a session used.
 type Model struct {
 	ID, Name, Model string
 }
 
 // Timings are a session's stage times. Sent is how much of the
-// recording (Audio) the speech service got: less without the silence the
+// recording (Audio) the speech model got: less without the silence the
 // local voice activity detection left out (0 when it got none, or
 // before recognition).
 type Timings struct {
@@ -163,7 +163,7 @@ type Snapshot struct {
 	// first choice.
 	Device   string
 	FellBack bool
-	// Partial is a streaming service's text so far; Raw the final
+	// Partial is a streaming speech model's text so far; Raw the final
 	// recognised text (Rewrite's spoken instruction); Result what is
 	// delivered.
 	Partial, Raw, Result string
@@ -192,7 +192,7 @@ type Snapshot struct {
 	Profile  string
 	ASR, LLM Model
 	Timings  Timings
-	// DSP is the sound processing the speech service's copy went through
+	// DSP is the sound processing the speech model's copy went through
 	// ("highpass+level"; "" for none), GainDB the gain it gave the speech
 	// (a stream: at its end), to 0.1 dB.
 	DSP     string
@@ -234,14 +234,14 @@ type AudioEvent struct {
 	Restarted *proto.RestartedParams
 }
 
-// LLM is a language model (llm.Client, llm.Router's skill).
+// LLM is a language model (an llm.Client over a local model).
 type LLM interface {
 	Chat(ctx context.Context, req llm.Request) (llm.Response, error)
 }
 
-// Services are the speech and language services of one session.
+// Services are the speech and language models of one session.
 type Services struct {
-	// ASR is nil when no speech service is ready (the session fails with
+	// ASR is nil when no speech model is ready (the session fails with
 	// ProblemNoASR when it needs one).
 	ASR     asr.Provider
 	ASRInfo Model
@@ -254,12 +254,12 @@ type Services struct {
 	VAD vad.Model
 }
 
-// Resolver builds the services a session of kind uses with settings s,
-// reading their keys; it may block. A service that is not ready is nil
+// Resolver opens the models a session of kind uses with settings s; it
+// may block (it may start a runtime). A model that is not ready is nil
 // in Services (an error wrapping ErrNoASR works too).
 type Resolver func(ctx context.Context, kind Kind, s settings.Settings) (Services, error)
 
-// ErrNoASR: no speech service is ready.
+// ErrNoASR: no speech model is ready.
 var ErrNoASR = errors.New("session: no speech model is ready")
 
 // ErrBusy: a session is live already.

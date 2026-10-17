@@ -1,13 +1,13 @@
 package session
 
-// App enhancement in a session (M5, plan §2.2): which group of
-// internal/appctx the session falls in, decided from the app in front
-// when the shortcut was pressed (StartRequest.Target) and, for a
-// browser, the address of its front tab, read in the background from the
-// start (the helper's browser.url, Accessibility only) so that it is
-// there when the composition needs it. The matched group gives the
-// composer's Scene layer, the key pressed after the insert, and the
-// history's rule; the snapshot carries it for the overlay's label.
+// App enhancement in a session: which group of internal/appctx the
+// session falls in, decided from the app in front when the shortcut was
+// pressed (StartRequest.Target) and, for a browser, the address of its
+// front tab, read in the background from the start (the helper's
+// browser.url, Accessibility only) so that it is there when the
+// composition needs it. The matched group gives the composer's Scene
+// layer, the key pressed after the insert, and the history's rule; the
+// snapshot carries it for the overlay's label.
 
 import (
 	"context"

@@ -80,7 +80,7 @@ func (h HelperText) Paste(ctx context.Context, p proto.PasteParams) (proto.Paste
 	return call[proto.PasteResult](ctx, h.H, proto.MethodTextPaste, p)
 }
 
-// Selection reads the selected text (Translate and Rewrite, M4).
+// Selection reads the selected text (Translate and Rewrite).
 func (h HelperText) Selection(ctx context.Context, p proto.SelectionParams) (proto.SelectionResult, error) {
 	return call[proto.SelectionResult](ctx, h.H, proto.MethodTextSelection, p)
 }

@@ -266,7 +266,7 @@ func (s *fakeStream) Close() {
 
 func (s *fakeStream) Events() <-chan asr.Event { return s.events }
 
-// fakeFile uploads.
+// fakeFile transcribes whole recordings.
 type fakeFile struct {
 	text string
 	err  error
@@ -275,8 +275,8 @@ type fakeFile struct {
 	mu    sync.Mutex
 	calls int
 	bytes int
-	audio []byte // the last upload
-	lang  string // the last upload's language hint
+	audio []byte // the last request's audio
+	lang  string // the last request's language hint
 }
 
 func (f *fakeFile) Caps() asr.Caps { return asr.Caps{File: true, Prompt: true} }

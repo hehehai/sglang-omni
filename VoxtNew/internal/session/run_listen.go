@@ -41,7 +41,7 @@ func (r *run) useServices(s svcResult) {
 }
 
 // needs reports what the services lack for the session: a speech
-// service, or the language model Translate and Rewrite need.
+// model, or the language model Translate and Rewrite need.
 func (r *run) lacks() *Problem {
 	if r.svc.ASR == nil {
 		return ProblemOf(fmt.Errorf("%s: %w", r.req.Kind, ErrNoASR))

@@ -262,7 +262,7 @@ func (r *run) endCancelled(stream asr.Stream) {
 	r.m.end(r, Cancelled, nil, nil)
 }
 
-// asrProblem classifies a speech service's error.
+// asrProblem classifies a speech model's error.
 func (r *run) asrProblem(err error) *Problem {
 	if r.cancelled.Load() {
 		return &Problem{Code: ProblemInternal, Err: context.Canceled}

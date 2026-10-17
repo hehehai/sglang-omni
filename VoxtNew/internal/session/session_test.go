@@ -115,7 +115,7 @@ func statesString(ss []State) string {
 	return strings.Join(b, " ")
 }
 
-// TestPipeline runs whole sessions: both kinds of speech service, the
+// TestPipeline runs whole sessions: both kinds of speech model, the
 // language model on, off, failing and timing out, and a target that takes
 // no text.
 func TestPipeline(t *testing.T) {

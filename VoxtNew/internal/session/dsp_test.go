@@ -18,10 +18,11 @@ var quietVoice = tone(asr.BytesPerSecond/10, 220, 0.014)
 // quietSpeech: the quiet voice from 0.5 s to 2.5 s of a 3 s recording.
 func quietSpeech(n int) bool { return n >= 5 && n < 25 }
 
-// TestSoundProcessing: a quiet voice reaches a file service and a stream
-// raised by the most (+12 dB) and filtered; the snapshot and the history
-// say so; the recording kept is the original. With the processing off,
-// the service gets the recording as it came (trimmed, as before).
+// TestSoundProcessing: a quiet voice reaches a file transcriber and a
+// stream raised by the most (+12 dB) and filtered; the snapshot and the
+// history say so; the recording kept is the original. With the processing
+// off, the speech model gets the recording as it came (trimmed, as
+// before).
 func TestSoundProcessing(t *testing.T) {
 	for _, off := range []bool{false, true} {
 		t.Run("file", func(t *testing.T) {
@@ -50,7 +51,7 @@ func TestSoundProcessing(t *testing.T) {
 				}
 				return
 			}
-			// The upload is the kept recording processed and trimmed, byte
+			// What it got is the kept recording processed and trimmed, byte
 			// for byte, whatever its length; its speech (the recording's
 			// 0.5 s to 2.5 s) 12 dB louder.
 			f := dsp.ProcessFile(pcm, asr.SampleRate, dsp.Params{}, vad.Params{})

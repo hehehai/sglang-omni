@@ -12,13 +12,13 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/vad"
 )
 
-// streamer is the session's speech service as a streamer, when it streams.
+// streamer is the session's speech model as a streamer, when it streams.
 func (r *run) streamer() (asr.Streamer, bool) {
 	st, ok := r.svc.ASR.(asr.Streamer)
 	return st, ok && r.svc.ASR.Caps().Stream
 }
 
-// hints are the dictionary's terms for the speech service (dict.Hints:
+// hints are the dictionary's terms for the speech model (dict.Hints:
 // the enabled ones, the most recently changed first).
 func (r *run) hints() []string {
 	if !r.settings.Dictionary.Enabled || !r.settings.Dictionary.ASRHints {
@@ -27,7 +27,7 @@ func (r *run) hints() []string {
 	return dict.Hints(r.terms)
 }
 
-// speechLang is the language hint of the speech service: the user's
+// speechLang is the language hint of the speech model: the user's
 // main language (General.MainLanguage, else the UI's), also when they
 // speak other languages (Voxt's policy, measured in docs/eval.md: the
 // hint "zh" cost nothing on English speech, while without a hint Qwen3-ASR
@@ -206,7 +206,7 @@ func (r *run) dspParams() (dsp.Params, bool) {
 	}.Resolved(), true
 }
 
-// prepare is what a file service gets of the recording pcm: processed
+// prepare is what a file transcriber gets of the recording pcm: processed
 // (internal/dsp: the high-pass filter, one gain from the speech, the
 // limiter) and without its leading and trailing silence, long pauses
 // shortened (internal/vad), each when the settings have it on; false when
@@ -270,9 +270,9 @@ func (r *run) noteDSP(rep dsp.Report) {
 	r.m.update(r, func(s *Snapshot) { s.DSP, s.GainDB = desc, gain })
 }
 
-// streamDSP are the stages a streaming service's audio goes through: the
-// high-pass filter before the gate, the level stage after it; nil when
-// the settings turn them off.
+// streamDSP are the stages a streaming speech model's audio goes through:
+// the high-pass filter before the gate, the level stage after it; nil
+// when the settings turn them off.
 func (r *run) streamDSP() (*dsp.HighPass, *dsp.Leveler) {
 	dp, ok := r.dspParams()
 	if !ok {

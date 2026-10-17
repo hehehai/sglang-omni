@@ -15,9 +15,9 @@ func speech(n int) bool { return n >= 20 && n < 30 || n >= 50 && n < 55 }
 
 const speechFrames = 75
 
-// TestNoSpeechNotSent: a recording without speech goes to no service (a
-// file service gets no request, a stream no audio and no Finish) and ends
-// as "nothing was heard", which the overlay says.
+// TestNoSpeechNotSent: a recording without speech goes to no speech model
+// (a file transcriber gets no request, a stream no audio and no Finish)
+// and ends as "nothing was heard", which the overlay says.
 func TestNoSpeechNotSent(t *testing.T) {
 	t.Run("file", func(t *testing.T) {
 		file := &fakeFile{text: "never"}
@@ -64,7 +64,7 @@ func TestNoSpeechNotSent(t *testing.T) {
 	})
 }
 
-// TestTrimmedUpload: a file service gets the speech without the silence
+// TestTrimmedUpload: a file transcriber gets the speech without the silence
 // around it and with the long pause shortened; the history keeps how much
 // went. With the detection off, it gets the whole recording.
 func TestTrimmedUpload(t *testing.T) {
@@ -98,7 +98,7 @@ func TestTrimmedUpload(t *testing.T) {
 	}
 }
 
-// TestStreamHeldUntilSpeech: a streaming service gets nothing of the
+// TestStreamHeldUntilSpeech: a streaming speech model gets nothing of the
 // leading silence but the 300 ms before the speech, then everything,
 // the pause included.
 func TestStreamHeldUntilSpeech(t *testing.T) {

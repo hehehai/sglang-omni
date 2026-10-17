@@ -101,8 +101,8 @@ func (s *fakeVADStream) Close() {
 // first, which energy takes for speech, is noise to it).
 func laterSpeech(n int) bool { return n >= 50 && n < 55 }
 
-// TestModelTrimsUpload: with a model, a file service gets the speech the
-// model heard (0.3 s before it, 0.5 s, 0.3 s after); without one, or
+// TestModelTrimsUpload: with a model, a file transcriber gets the speech
+// the model heard (0.3 s before it, 0.5 s, 0.3 s after); without one, or
 // when it fails, the energy detector's (about 2.5 s).
 func TestModelTrimsUpload(t *testing.T) {
 	for _, c := range []struct {
@@ -194,7 +194,7 @@ func TestModelGatesStream(t *testing.T) {
 	}
 }
 
-// TestSpeechLang: the speech service gets the main language as its hint
+// TestSpeechLang: the speech model gets the main language as its hint
 // (the settings', else the UI's), also when the user speaks other
 // languages: without a hint Qwen3-ASR may take a mixed dictation that
 // starts in English for English and translate the rest (docs/eval.md).
