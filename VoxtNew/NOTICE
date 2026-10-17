@@ -162,11 +162,11 @@ Go modules compiled into VoxtNew
   - github.com/coder/websocket v1.8.15, Copyright (c) 2025 Coder, ISC
   - github.com/ebitengine/purego v0.11.1, Copyright the Ebitengine
     authors, Apache License 2.0 (LICENSES/Apache-2.0.txt)
-  - github.com/hehehai/actnowkit v0.2.1, Copyright 2026 ActNow
+  - github.com/hehehai/actnowkit v0.3.0, Copyright 2026 ActNow
     (https://actnow.dev), Apache License 2.0 (LICENSES/Apache-2.0.txt):
     the ActNow family's shared code (the family directory, model
-    library, claims and locks, settings, shortcuts, runtime files) and its
-    Hugging Face downloader. Its NOTICE reads: "Package hfhub derives from
+    library, claims and locks, settings, shortcuts, runtime files, the
+    logs' line selection) and its Hugging Face downloader. Its NOTICE reads: "Package hfhub derives from
     Dicta's internal/hub, which was ported from AudioSmith's internal/hub
     at version 0.3.0 (commit f171c86), when AudioSmith was released under
     the Apache License 2.0 (as it was up to and including version

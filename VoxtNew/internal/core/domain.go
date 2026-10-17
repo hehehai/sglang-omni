@@ -34,6 +34,9 @@ type LogEntry struct {
 	Level   Severity  `json:"level"`
 	Source  string    `json:"source"` // "app", "helper"…
 	Message string    `json:"message"`
+	// Seq numbers the lines a log appended, from 1: a line's identity in
+	// the logs view (its selection) while lines come and go.
+	Seq uint64 `json:"-"`
 }
 
 // NotificationService is the notification centre. Post never blocks.
