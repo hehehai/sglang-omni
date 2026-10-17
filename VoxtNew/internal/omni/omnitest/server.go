@@ -27,6 +27,18 @@ const speechRMS = 0.02
 func Main() {
 	o := opts()
 	args := os.Args[1:]
+	// The flag checks come first and record nothing, as the real server's
+	// argument parsing fails before it serves (Runtime's probe).
+	if limit := arg(args, "--cache-limit-mb"); limit != "" {
+		if mb, err := strconv.Atoi(limit); o.Older || err != nil || mb < -1 {
+			if o.Older {
+				fmt.Fprintln(os.Stderr, "unknown argument --cache-limit-mb")
+			} else {
+				fmt.Fprintln(os.Stderr, "--cache-limit-mb must be 0 to 1073741824, or -1 for MLX's limit")
+			}
+			os.Exit(2)
+		}
+	}
 	record(o, Record{Event: "launch", Args: args})
 	emit := func(v map[string]any) {
 		b, _ := json.Marshal(v)

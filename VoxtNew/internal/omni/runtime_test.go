@@ -126,7 +126,7 @@ func TestFinal(t *testing.T) {
 		t.Fatalf("%d launches", len(launches))
 	}
 	args := strings.Join(launches[0].Args, " ")
-	for _, want := range []string{"--supervised", "--host 127.0.0.1 --port 0", "--model-directory " + f.model(ASRAccurate), "--model-kind qwen3_asr", "--first-decode-ms 100", "--decode-interval-ms 1000"} {
+	for _, want := range []string{"--supervised", "--host 127.0.0.1 --port 0", "--model-directory " + f.model(ASRAccurate), "--model-kind qwen3_asr", "--first-decode-ms 100", "--decode-interval-ms 1000", "--cache-limit-mb 512"} {
 		if !strings.Contains(args, want) {
 			t.Errorf("launch %q lacks %q", args, want)
 		}
@@ -158,6 +158,24 @@ func TestFinal(t *testing.T) {
 	}
 	if _, ok := finals[0].Fields["language"]; !ok {
 		t.Error("no language")
+	}
+}
+
+// TestOlderServer: a runtime from before --cache-limit-mb (the user's
+// installed bundle, an older release) still starts, without the flag,
+// and the log says so; Silero's server never gets the flag.
+func TestOlderServer(t *testing.T) {
+	f := newFake(t, omnitest.Opts{Older: true}, nil)
+	a := f.asr(t, ASRAccurate)
+	if _, err := a.Transcribe(context.Background(), asr.FileRequest{Audio: tone(2*time.Second, 0.3), Format: "pcm"}); err != nil {
+		t.Fatal(err)
+	}
+	launches := f.records("launch")
+	if len(launches) != 1 || slices.Contains(launches[0].Args, "--cache-limit-mb") {
+		t.Fatalf("launches %+v", launches)
+	}
+	if !f.logged("does not know --cache-limit-mb") {
+		t.Error("the older runtime is not logged")
 	}
 }
 

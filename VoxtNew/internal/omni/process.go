@@ -2,6 +2,7 @@ package omni
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,13 +51,14 @@ type readyEvent struct {
 
 // spawn starts the server for spec's model in dir; the channel gets its
 // first event (or closes when stdout ends without one).
-func spawn(cfg Config, spec Spec, dir string) (*process, <-chan readyEvent, error) {
+// cacheLimit: pass spec's --cache-limit-mb (the binary knows it).
+func spawn(cfg Config, spec Spec, dir string, cacheLimit bool) (*process, <-chan readyEvent, error) {
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
 		return nil, nil, fmt.Errorf("no model directory %s", dir)
 	}
 	args := []string{"--supervised", "--host", "127.0.0.1", "--port", "0",
 		"--model-directory", dir, "--startup-timeout-s", ftoa(cfg.StartTimeout.Seconds())}
-	cmd := exec.Command(cfg.Binary, append(args, spec.launchArgs()...)...)
+	cmd := exec.Command(cfg.Binary, append(args, spec.launchArgs(cacheLimit)...)...)
 	cmd.Env = append(serverEnv(os.Environ()), cfg.Env...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -207,6 +209,21 @@ func serverEnv(env []string) []string {
 		out = append(out, kv)
 	}
 	return out
+}
+
+// knowsCacheLimit runs cfg.Binary with an invalid --cache-limit-mb: a
+// server that knows the flag refuses its value ("--cache-limit-mb must
+// …"), an older one the flag itself ("unknown argument"), both before
+// loading anything. Anything else (no answer in 10 s, a binary that does
+// not run) counts as not knowing it: the launch says what is wrong.
+func knowsCacheLimit(cfg Config) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, cfg.Binary, "--model-kind", kindQwen3ASR,
+		"--model-directory", os.DevNull, "--cache-limit-mb", "-2")
+	cmd.Env = append(serverEnv(os.Environ()), cfg.Env...)
+	out, _ := cmd.CombinedOutput()
+	return strings.Contains(string(out), "--cache-limit-mb must")
 }
 
 // tail keeps the last lines a process wrote on stderr, to say why it

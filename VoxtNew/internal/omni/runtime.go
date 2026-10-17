@@ -111,6 +111,9 @@ type Runtime struct {
 	// stopped: the next speech model starts after them.
 	draining []*server
 	closed   bool
+
+	cacheLimitOnce  sync.Once
+	cacheLimitKnown bool // the binary knows --cache-limit-mb (knowsCacheLimit)
 }
 
 // NewRuntime is a runtime that starts no server until one is used.
@@ -130,6 +133,21 @@ func NewRuntime(cfg Config) *Runtime {
 	rt := &Runtime{cfg: cfg, events: resident.NewQueue(cfg.OnModel), servers: map[string]*server{}}
 	rt.idle.Store(int64(cfg.IdleTimeout))
 	return rt
+}
+
+// cacheLimit reports whether spec's server gets --cache-limit-mb: the
+// binary is asked once, as the app may run an older runtime without it.
+func (rt *Runtime) cacheLimit(spec Spec) bool {
+	if spec.ASR == nil || spec.ASR.CacheMB <= 0 {
+		return false
+	}
+	rt.cacheLimitOnce.Do(func() {
+		rt.cacheLimitKnown = knowsCacheLimit(rt.cfg)
+		if !rt.cacheLimitKnown {
+			rt.logf("warning", "%s does not know --cache-limit-mb (an older runtime): MLX's cache stays unbounded", rt.cfg.Binary)
+		}
+	})
+	return rt.cacheLimitKnown
 }
 
 // IdleTimeout is how long an unused server stays (< 0: until Close).

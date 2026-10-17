@@ -31,10 +31,13 @@ func TestModels(t *testing.T) {
 	if fresh, _ := Lookup(ASRFast); fresh.ASR.MaxTokens != 8192 || fresh.Languages[0] != "zh" {
 		t.Error("Lookup returned the table itself")
 	}
-	if args := strings.Join(again(ASRAccurate).launchArgs(), " "); args != "--model-kind qwen3_asr --first-decode-ms 100 --decode-interval-ms 1000 --max-segment-seconds 30" {
+	if args := strings.Join(again(ASRAccurate).launchArgs(true), " "); args != "--model-kind qwen3_asr --first-decode-ms 100 --decode-interval-ms 1000 --max-segment-seconds 30 --cache-limit-mb 512" {
 		t.Errorf("launch args %q", args)
 	}
-	if args := strings.Join(again(VADSilero).launchArgs(), " "); args != "--model-kind silero_vad" {
+	if args := strings.Join(again(ASRAccurate).launchArgs(false), " "); strings.Contains(args, "--cache-limit-mb") {
+		t.Errorf("launch args for an older server %q", args)
+	}
+	if args := strings.Join(again(VADSilero).launchArgs(true), " "); args != "--model-kind silero_vad" {
 		t.Errorf("launch args %q", args)
 	}
 }

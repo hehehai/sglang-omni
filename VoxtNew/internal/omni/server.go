@@ -114,7 +114,7 @@ func (s *server) launch(op *startOp) {
 		cancel()
 	}
 	started := time.Now()
-	p, ready, err := spawn(s.rt.cfg, s.spec, s.dir)
+	p, ready, err := spawn(s.rt.cfg, s.spec, s.dir, s.rt.cacheLimit(s.spec))
 	if err == nil {
 		s.mu.Lock()
 		s.spawned = p

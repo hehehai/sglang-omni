@@ -76,6 +76,11 @@ type ASRTuning struct {
 	PieceSeconds time.Duration
 	PieceMax     time.Duration
 	PauseMin     time.Duration
+	// CacheMB bounds MLX's cache of freed buffers in the server
+	// (--cache-limit-mb): without it one long Final kept up to 6 GB beside
+	// the weights (eval.md "Speech server memory"). 0: MLX's own limit,
+	// as with an older server that lacks the flag.
+	CacheMB int
 }
 
 // VADTuning is Silero's: Threshold is the speech probability that counts
@@ -108,6 +113,7 @@ func qwenTuning() *ASRTuning {
 		FirstDecode: 100 * time.Millisecond, DecodeInterval: time.Second, MaxSegment: 30 * time.Second,
 		PiecesAfter: 60 * time.Second, PieceMin: 20 * time.Second, PieceSeconds: 30 * time.Second, PieceMax: 45 * time.Second,
 		PauseMin: 300 * time.Millisecond,
+		CacheMB:  512,
 	}
 }
 
@@ -172,14 +178,18 @@ func (s Spec) clone() Spec {
 	return s
 }
 
-// launchArgs are the server's flags for the model, after the common ones.
-func (s Spec) launchArgs() []string {
+// launchArgs are the server's flags for the model, after the common ones;
+// cacheLimit: the server knows --cache-limit-mb (Runtime.cacheLimitKnown).
+func (s Spec) launchArgs(cacheLimit bool) []string {
 	args := []string{"--model-kind", s.Kind}
 	if a := s.ASR; a != nil {
 		args = append(args,
 			"--first-decode-ms", itoa(int(a.FirstDecode/time.Millisecond)),
 			"--decode-interval-ms", itoa(int(a.DecodeInterval/time.Millisecond)),
 			"--max-segment-seconds", ftoa(a.MaxSegment.Seconds()))
+		if cacheLimit && a.CacheMB > 0 {
+			args = append(args, "--cache-limit-mb", itoa(a.CacheMB))
+		}
 	}
 	return args
 }
