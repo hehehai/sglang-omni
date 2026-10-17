@@ -258,5 +258,6 @@ mac-air（M4 / 24 GB，macOS 26.7），10-16，运行时用 `~/voxtnew-runtime`�
 
 - **ad hoc**（`scripts/release.sh --runtimes ~/voxtnew-runtime`，约 3 分钟，大半是辅助进程的 `swift build`）：`VoxtNew.app` 280 MB，dmg 45 MB；`release-verify.sh ad-hoc` 全部通过：8 段代码（app、辅助进程、qwen3_asr_server、libmlx、libjaccl、voxtnew-llm、llama.framework、MyGo 的 libmygo-sqlite3）都签好，Omni 服务和 voxtnew-llm 能从 app 里启动。
 - **签名**（`scripts/mac-sign-e2e.sh`：临时自签的代码签名身份代替 Developer ID）：8 段代码都带 hardened runtime 和 Apple 的时间戳，`codesign --verify --deep --strict` 通过；Gatekeeper 拒绝（自签，预期）。Omni 服务和 voxtnew-llm 从 app 里**启动不了**：`libmlx.dylib … not valid for use in process: mapping process and mapped file (non-platform) have different Team IDs`。这是库验证在比较 Team ID，自签证书没有 Team；Developer ID 签的进程和库是同一个 Team（779M533DL5），应该能加载，要在 §8 第 2 条用真证书确认。
+- **启动**（10-17，合并后的 ad hoc 发布式构建）：`VoxtNew.app/Contents/MacOS/VoxtNew --smoke <dir>`（自己的数据目录，链接快速语音模型、VAD 和快速语言模型）：辅助进程就绪，asr.fast 0.8 s 回答，llm.fast 6.8 s（冷启动，机器上同时有其他线程的模型进程）回答“OK”，退出后没有留下 `qwen3_asr_server`、`voxtnew-llm`、`voxtnew-helper`。`open -g` 正常启动：窗口“VoxtNew”出现、辅助进程就绪；`quit` 后同样一个进程都不剩。
 - **Developer ID**：在 ssh 里签不了（`errSecInternalComponent`，钥匙串锁着，§1.1），要在 Mac 的终端里做。
 - **公证**：mac-air 上没有 notarytool 的配置（§1.2），没有提交过。
