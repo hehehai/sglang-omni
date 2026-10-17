@@ -54,10 +54,10 @@ Voxt menu bar icon
   menubar-recording.png.
 
 VoxtNew app icon
-  resources/icon.png is drawn by scripts/icon/make_icon.py (its SVG source
-  beside it) from the microphone mascot of Voxt's logo, taken from Voxt
-  (Voxt/logo.svg), Copyright the Voxt authors, licensed under the Apache
-  License 2.0, on an orange tile of VoxtNew's own.
+  resources/icon.png is Voxt's app icon, taken unchanged from Voxt
+  (Voxt/Assets.xcassets/VoxtIcon.appiconset/icon_512x512@2x.png) and only
+  scaled onto the 1024 px canvas with macOS's standard margin, Copyright the
+  Voxt authors, licensed under the Apache License 2.0.
 
 Solar icon set
   by 480 Design — https://www.figma.com/community/file/1166831539721848736

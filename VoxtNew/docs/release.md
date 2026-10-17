@@ -94,14 +94,14 @@ scripts/mac.sh 'scripts/mac-gui.sh scripts/release.sh --runtimes $HOME/voxtnew-r
 
 ### 1.2 公证凭据（notarytool）
 
-公证用 Apple ID **york@actnow.dev**、**Team RY2TQTYSKQ** 和一个 **App 专用密码**（用户 10-17 决定），存进登录钥匙串的 notarytool 配置 `voxtnew-notary`。**mac-air 上还没有**任何 notarytool 配置（10-17 查过：`voxtnew-notary`、`auralink-notary`、`notary`、`AC_PASSWORD` 都没有）。
+公证用 **Xiaofeng Cao 的 Apple ID**（Team **RY2TQTYSKQ** 的账号持有人，用户 10-17 决定；不用 york@actnow.dev）和一个 **App 专用密码**，存进登录钥匙串的 notarytool 配置 `voxtnew-notary`。下文的 `<xiaofeng-apple-id>` 换成这个 Apple ID 的邮箱。**mac-air 上还没有**任何 notarytool 配置（10-17 查过：`voxtnew-notary`、`auralink-notary`、`notary`、`AC_PASSWORD` 都没有）。
 
-**前提**：york@actnow.dev 必须是 **RY2TQTYSKQ（Xiaofeng Cao）团队的成员**（developer.apple.com → Membership / Users and Access）。它现在是 779M533DL5（wei guan）团队的账号；如果只在 779M533DL5 里，下面第 2 步会被 notarytool 拒绝（凭据验证失败，或提示这个 Apple ID 不属于该 Team），要先由 RY2TQTYSKQ 的账号持有人把 york@actnow.dev 加进团队（角色 Developer 或以上），接受邀请后再做。
+**前提**：这个 Apple ID 就是 RY2TQTYSKQ 团队的账号持有人，不需要另外加入团队；它要开启双重认证（App 专用密码需要）。也可以改用 RY2TQTYSKQ 的 App Store Connect API key（`store-credentials --key … --key-id … --issuer …`）。
 
-1. 打开 [account.apple.com](https://account.apple.com)，用 york@actnow.dev 登录 → **登录与安全** → **App 专用密码** → 生成，名称写 `VoxtNew notarization`；复制显示的密码（只显示一次），存进密码管理器。
+1. 打开 [account.apple.com](https://account.apple.com)，用 Xiaofeng Cao 的 Apple ID 登录 → **登录与安全** → **App 专用密码** → 生成，名称写 `VoxtNew notarization`；复制显示的密码（只显示一次），存进密码管理器。
 2. 在 Mac 的终端里存成配置（不加 `--password`，notarytool 会提示输入，密码不进 shell 历史）：
    ```sh
-   xcrun notarytool store-credentials voxtnew-notary --apple-id york@actnow.dev --team-id RY2TQTYSKQ
+   xcrun notarytool store-credentials voxtnew-notary --apple-id <xiaofeng-apple-id> --team-id RY2TQTYSKQ
    ```
    成功会显示 “Validating your credentials… Success”。检查（不提交任何东西）：`xcrun notarytool history --keychain-profile voxtnew-notary`（ssh 里经 `scripts/mac-gui.sh`）。
 3. 以后改了 Apple ID 的密码，App 专用密码全部失效，重新生成，再执行一次第 2 步。
@@ -227,7 +227,7 @@ git diff scripts/actnow-publish.sh        # 看改了什么，再提交
 | `MYGO_UPDATER_PRIVATE_KEY` | `mygo-update.key` 的内容（§1.3） |
 | `APPLE_TEAM_ID` | `RY2TQTYSKQ` |
 | Developer ID 证书 | RY2TQTYSKQ 的 .p12 和它的密码：自托管 runner 上也可以直接用机器的钥匙串 |
-| 公证凭据 | york@actnow.dev 的 App 专用密码（或 RY2TQTYSKQ 的 App Store Connect API key） |
+| 公证凭据 | Xiaofeng Cao 的 Apple ID 的 App 专用密码（或 RY2TQTYSKQ 的 App Store Connect API key） |
 
 ```yaml
       - name: Build, sign, notarize, check (no -upload)
