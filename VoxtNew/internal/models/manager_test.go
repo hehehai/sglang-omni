@@ -132,15 +132,15 @@ func TestDownloadClaims(t *testing.T) {
 }
 
 // TestReuseWithoutDownload (scenario 1): a model AudioSmith installed is
-// installed for VoxtNew at once, shared with it; "Use them" claims it
-// with origin reused and downloads nothing.
+// on disk for VoxtNew at once, shared with it, and VoxtNew's when "Use
+// them" claims it (origin reused), downloading nothing.
 func TestReuseWithoutDownload(t *testing.T) {
 	e := newEnv(t, testCatalog(), Options{})
 	e.fx.Install(repoLLM)
 	e.claim(t, audiosmith, repoLLM)
 	e.m.Refresh()
 	s := e.m.Status("llm")
-	if !s.Installed || s.Mine || !slices.Equal(s.Users, []string{"AudioSmith"}) {
+	if !s.OnDisk || s.Installed || s.Mine || !slices.Equal(s.Users, []string{"AudioSmith"}) {
 		t.Fatalf("%+v", s)
 	}
 	found := e.m.Survey("asr", "llm")
@@ -151,7 +151,7 @@ func TestReuseWithoutDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, ok := e.fx.Claims(voxtnew).Find(repoLLM.Ref)
-	if !ok || c.Origin != fammodels.OriginReused || c.Model != "llm" || !e.m.Status("llm").Mine {
+	if !ok || c.Origin != fammodels.OriginReused || c.Model != "llm" || !e.m.Status("llm").Mine || !e.m.Installed("llm") {
 		t.Errorf("claim %+v %v", c, ok)
 	}
 	if e.hub.Served() != 0 {
@@ -181,8 +181,8 @@ func TestDelete(t *testing.T) {
 	if err != nil || len(res) != 1 || res[0].Deleted || !e.fx.Installed(repoLLM.Ref) || e.fx.Claimed(voxtnew, repoLLM.Ref) {
 		t.Fatalf("remove from VoxtNew: %+v %v", res, err)
 	}
-	if s := e.m.Status("llm"); !s.Installed || s.Mine {
-		t.Errorf("after removing: %+v (another app's model on disk stays installed)", s)
+	if s := e.m.Status("llm"); s.Installed || !s.OnDisk || s.Mine {
+		t.Errorf("after removing: %+v (another app's model: on disk, not VoxtNew's)", s)
 	}
 	if err := e.m.Use(ctxT(t), "llm"); err != nil {
 		t.Fatal(err)
@@ -319,12 +319,16 @@ func TestBorrowed(t *testing.T) {
 	}
 }
 
-// TestMigrate: the first start claims what of the catalogue is on disk,
-// origin migrated, reading the disk only.
+// TestMigrate: the first start claims what of the catalogue is on disk
+// and no other app claims, origin migrated, reading the disk only;
+// another app's model waits for "Use them".
 func TestMigrate(t *testing.T) {
 	e := newEnv(t, testCatalog(), Options{})
 	e.fx.Install(repoSpeech)
 	e.fx.Install(repoVAD)
+	e.fx.Install(repoLLM)
+	e.claim(t, dicta, repoLLM)
+	e.m.Refresh()
 	for range 2 { // idempotent
 		if err := e.m.Migrate(ctxT(t)); err != nil {
 			t.Fatal(err)

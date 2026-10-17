@@ -50,9 +50,10 @@ type Network struct {
 
 // Status is a model's state.
 type Status struct {
-	// Installed: on disk at a commit VoxtNew runs, and VoxtNew's to use
-	// (a borrowed model: once VoxtNew claims it). OnDisk: on disk, whether
-	// or not (a borrowed model VoxtNew may use).
+	// Installed: on disk at a commit VoxtNew runs, and VoxtNew's to use:
+	// VoxtNew claims it, or it is one of VoxtNew's own models no other app
+	// claims. OnDisk: on disk, whether or not (another app's model VoxtNew
+	// may use: "Use them", family spec §7.10.1).
 	Installed, OnDisk bool
 	// Revision is the commit on disk ("" when none is).
 	Revision    string
@@ -219,7 +220,10 @@ func (m *Manager) refresh() {
 		if rev != "" {
 			s.OnDisk, s.Revision, s.Users = true, rev, survey[ref]
 			_, s.Mine = all.Find(ref)
-			s.Installed = !mod.Borrowed || s.Mine
+			// VoxtNew's to use: claimed by it, or one of its own models no
+			// other app claims (a borrowed model, or one another app
+			// installed, is VoxtNew's once the user chose to use it).
+			s.Installed = s.Mine || !mod.Borrowed && len(s.Users) == 0
 		} else if !mod.Borrowed {
 			if l, err := hfhub.Status(m.store.Hub, mod.Entry("")); err == nil && l.State == hfhub.Partial {
 				s.Done = l.Bytes

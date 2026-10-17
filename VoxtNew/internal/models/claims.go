@@ -58,12 +58,14 @@ func (m *Manager) Use(ctx context.Context, ids ...string) error {
 }
 
 // Migrate claims, with origin "migrated", the catalogue's models that are
-// on disk (not the borrowed ones): the first start with the family's
-// protocol (spec §15.2 step 3). Disk only, no network; idempotent.
+// on disk and no other app claims (not the borrowed ones): the first
+// start with the family's protocol (spec §15.2 step 3). Another app's
+// models are VoxtNew's when the user uses them (the setup guide's reuse
+// card). Disk only, no network; idempotent.
 func (m *Manager) Migrate(ctx context.Context) error {
 	var ids []string
 	for _, mod := range m.catalog {
-		if !mod.Borrowed {
+		if s := m.Status(mod.ID); !mod.Borrowed && len(s.Users) == 0 {
 			ids = append(ids, mod.ID)
 		}
 	}
