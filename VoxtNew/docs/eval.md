@@ -44,20 +44,26 @@ On mac-air, from the persistent models and runtimes:
 | `~/voxtnew-runtime/{omni,llm}/` | `scripts/build-omni.sh --out` and `scripts/build-llm.sh --out` from `voxtnew/dev` | its `README.md` |
 
 ```sh
-# the whole eval, about 35 minutes; tables in build/eval (asr.md, llm.md, glossary.md, long.md)
+# the whole eval, about 37 minutes; tables in build/eval (asr.md, llm.md, glossary.md, long.md, rewrite.md)
 MAC_DIR=code/VoxtNew-xyz scripts/mac.sh 'VOXTNEW_EVAL=1 VOXTNEW_OMNI_RUNTIME=$HOME/voxtnew-runtime/omni \
   VOXTNEW_LLM=$HOME/voxtnew-runtime/llm/voxtnew-llm VOXTNEW_EVAL_OUT=build/eval go test -count=1 -timeout 2h -run TestEval -v .'
 # quick: a clip of each kind, checked against floors (part of scripts/mac-regress.sh)
 … VOXTNEW_EVAL_QUICK=1 …
 # some clips only
 … VOXTNEW_EVAL_ONLY=dict-1,dict-5 …
+# other language models: a list, or all = every catalogue language model in $HUB (the borrowed
+# llm.qwen3, llm.gemma4 when another ActNow app installed them); default VoxtNew's own three
+… VOXTNEW_EVAL_LLM=all …   … VOXTNEW_EVAL_LLM=llm.qwen3,llm.gemma4 …
 ```
 
 The tests are:
 - `TestEvalASR`: `eval_asr_test.go`;
 - `TestEvalLLM` and `TestEvalGlossary`: `eval_llm_test.go` and `eval_glossary_test.go`;
 - `TestEvalLong` (the long clips: Transcribe whole and in pieces, the prompt cache's hits, long spoken Translate; the full eval only): `eval_long_test.go`;
+- `TestEvalRewrite` (Rewrite on 8 cases, F1): `eval_rewrite_test.go`;
 - `TestEvalAppEnhancement` and `TestEvalDictionary`: `eval_e2e_test.go`.
+
+The language-model tests also write the process's memory after each model's chats (`llm.md`: load time, footprint and its peak, MLX's peak).
 
 They log a `CONTENTION` line when another `voxtnew-llm` or `qwen3_asr_server` was running before they started, since that skews the times. The numbers below come from runs without one at their start. mac-air is shared, though: other apps' engines (AudioSmith, Dicta) and another thread's runs were seen during the day, with swap in use. Read the times as upper bounds, and compare them only with runs on the same machine. `scripts/mac-regress.sh` (manual-test.md §10.6) runs the quick eval with the other Mac tests.
 
@@ -237,6 +243,88 @@ Each dictionary clip's transcript as a speech model wrote it without the diction
 - **The dictionary's order costs one term.** On `dict-5`, "Voxnu" stays "Voxnu" when Auralink, the term the text mentions, is no longer listed first (greedy decoding: the same every run); the other nine answers are the same. The 20 short clips' clean-ups and translations score the same with either order (the tables above are from M3b's run).
 - `llm.fast` mostly ignores the glossary, as M2 saw.
 
+### Rewrite (`TestEvalRewrite`, F1)
+
+Eight Rewrite requests as the session builds them (compose, Cleanup on), each sampled with two seeds (one in quick mode): six selections with a spoken instruction (polite and shorter, fix the grammar, a bulleted list, formal, shorter, friendlier; three English, three Chinese, one of them with an English instruction) and two messages written from an instruction alone (the answer card's JSON, English and Chinese). An answer has a fault when it loses a fact the text gave, keeps what the instruction asked to fix ("ridiculous", "buyed"), changes the language, is not shorter when asked, is no list when asked, opens with a preamble ("Sure, here is…"), or, from an instruction alone, is not the JSON answer with a title. Tone and wording are not scored: `rewrite.md` lists every answer. Quick mode checks `llm.balanced` against a floor of 60%.
+
+| model | no fault | selections | answers (JSON) | first token (median) | total (median) |
+|---|---|---|---|---|---|
+| `llm.balanced` | 15 of 16 | 11 of 12 | 4 of 4 | 0.72 s | 2.5 s |
+| `llm.fast` | 14 of 16 | 10 of 12 | 4 of 4 | 0.19 s | 0.76 s |
+| `llm.qwen3` | 15 of 16 | 11 of 12 | 4 of 4 | 0.51 s | 1.3 s |
+| `llm.gemma4` | **16 of 16** | 12 of 12 | 4 of 4 | 0.45–0.53 s | 1.7–1.8 s |
+
+- The faults: "not shorter" on the polite-and-shorter case (`llm.balanced`, `llm.qwen3`, `llm.fast`, one seed each; they added a sentence of politeness; `llm.qwen3` the same in two runs), "ridiculous" kept once by `llm.fast`, and `llm.fast` dropping "bought" when fixing the grammar.
+- Every JSON answer parsed. Written from an instruction alone, every model sometimes adds a reason nobody gave ("由于时间安排冲突") and signs off "[Your Name]".
+- The first token is the miss's: Rewrite has no warm-up, and each case's two seeds share one prompt (the second is a hit).
+
+### The borrowed models (F1)
+
+`llm.qwen3` (Qwen3-4B-Instruct-2507, AudioSmith's and Dicta's) and `llm.gemma4` (Gemma 4 E4B, Dicta's) ran the same eval beside VoxtNew's own models (`VOXTNEW_EVAL_LLM=all`, 2026-10-17, Dicta and AudioSmith resident). This first table is with compose's wording before F1; the one after "Compose's wording" below is with the new one. Their profiles and times are in [llm-models.md](llm-models.md#borrowed-models-family-f1).
+
+| | `llm.balanced` | `llm.fast` | `llm.qwen3` | `llm.gemma4` |
+|---|---|---|---|---|
+| Transcribe, 20 clips, no fault: example / rules only | 18 / 18 | 15 / 14 | 17 / 18 | **20** / 17 |
+| error vs expected (example) | 5.6% | 12.6% | **4.6%** | 5.3% |
+| spoken Translate, 6 clips, no fault: example / rules only | 6 / 4 | 6 / 2 | 6 / 5 | 5 / 4 |
+| glossary, terms written: as heard / aliases replaced | 8 / 9 of 10 | 5 / 6 | 8 / 8 | **10 / 10** |
+| median total, Transcribe (prompt cache hit) | 0.79 s | 0.36 s | 0.59 s | 0.71 s |
+| footprint / peak | 3.8 / 4.8 GB | 1.4 / 2.1 GB | 3.1 / 3.8 GB | 4.5 / 5.0 GB |
+
+- `llm.qwen3`'s faults: 那个报告周五之前发给我就行，不对，是周四之前 kept both days (as `llm.balanced` does); "VoxtNew" written "Voxt New" in `dict-4`; "9 a.m." counted as two invented tokens (a false alarm).
+- `llm.gemma4` with the example has none. Its translation fault is the same late correction, kept ("before Friday. Wait, before Thursday."). Without the example it leaves 呃 and 就是说 and one English correction, as the others do: the example turn helps it too.
+- Neither ever changed the language or copied the example.
+
+**Long dictation** (`TestEvalLong`, the same clips as M3b's; compare with `llm.balanced`'s tables above):
+
+| | `llm.qwen3` | `llm.gemma4` |
+|---|---|---|
+| `long-zh` whole (441 characters) | "schedule1" and "voxt" invented, 9.6%; 5.7 s | **no fault, 2.3%**; 7.0 s |
+| `long-zh` in pieces (2) | "VoxtNew 里" came out "Voント", 6.8%; 6.2 s | lost a phrase, 13.2%; 7.1 s |
+| `long-all` whole (742 characters, alternating sentences) | **translated into Chinese**, 54% | **no fault, 2.9%**; 9.6 s |
+| `long-all` in pieces (10, cut where the language changes) | **every English piece translated into Chinese**, 48%; 6.8 s, the first piece after 0.5 s | "um" and one correction kept, 4.8%; 10.4 s, the first piece after 1.2 s |
+| `long-all`, first 3…13 clips whole | translated into Chinese at every length (192–716 characters) | no fault but "um" kept twice (0.6–7.6%) |
+| spoken Translate whole | kept "Friday" / "Shanghai", 6.5–6.8 s | kept 3–5 replaced phrases, 8.7–10.1 s |
+
+- **Gemma 4 keeps the languages of a mixed dictation**, whole, where `llm.balanced` turns it into English (58.5%) and needs the language cuts. With the cuts (the session's way) it is as good.
+- **Qwen3-4B-Instruct-2507 translates English into Chinese** when the main language is Chinese: the whole English sentences of `long-all`, and each English piece alone. The short eval's English clips ran with English as the main language, so the next check runs them with Chinese.
+
+**English dictation with Chinese as the main language.** TestEvalLLM now also cleans up the English clips (`en-1`…`en-5`, `dict-3`, `dict-5`) with `MainLanguage: zh` (the Chinese template set: a Chinese user dictating an English sentence; variant "example, main zh"). The first run, the five `en` clips, with compose's wording then:
+
+| | `llm.balanced` | `llm.fast` | `llm.qwen3` | `llm.gemma4` |
+|---|---|---|---|---|
+| no fault | **5 of 5** | 1 of 5 | **0 of 5** | 3 of 5 |
+| translated into Chinese | 0 | 2 | **5** | 0 |
+| other faults | – | fillers kept ("um", "you know"), 1 correction | – | "um" kept once, 1 correction |
+
+All 20 short clips with Chinese as the main language (the English clips and the English `dict` clips included): `llm.balanced` 17, `llm.fast` 11, `llm.qwen3` 11, `llm.gemma4` 18 of 20. `llm.qwen3` translated every English clip; `llm.fast` translated two.
+
+**Compose's wording: "write in the language spoken"** (F1). compose already said 保持说话时的语言混合 (keep the mix of languages) and that the main language 不是翻译的目标语言 (is not a language to translate into). Four wordings were tried on all 20 short clips, under each main language (scratch runs, greedy, the example on; no fault of 20):
+
+| wording | `llm.balanced` zh / en | `llm.fast` | `llm.qwen3` | `llm.gemma4` |
+|---|---|---|---|---|
+| as it was | 17 / 17 | 11 / **7** | **11** / 15 | 18 / 18 |
+| A: the clean-up's mix line says English stays English, Chinese stays Chinese | 18 / – | 16 / – | 14 / – | 18 / – |
+| C: the same, as "write in the language spoken" | 18 / 17 | 14 / 11 | 15 / 16 | 18 / 18 |
+| D: the main-language line adds "when the user speaks English, write English; Chinese, Chinese" (Transcribe only) | 18 / 17 | 12 / 8 | 18 / 15 | 18 / 18 |
+| **C and D** | **18 / 17** | **15 / 11** | **18 / 16** | **18 / 18** |
+
+- With English as the main language, `llm.fast` translated six Chinese clips into English (7 of 20); this is not the borrowed models' problem, but the same one.
+- **Decision (proposed to the parent, F1): C and D are in** (`internal/compose/templates/*/cleanup.txt`, `input-speech.txt`: D only under `FOR_TRANSCRIBE`, so Translate's prompts are unchanged; the Transcribe goldens changed). The eval with them, every model:
+
+| | `llm.balanced` | `llm.fast` | `llm.qwen3` | `llm.gemma4` |
+|---|---|---|---|---|
+| Transcribe, 20 clips, no fault (example) | 18 (was 18) | **17** (15) | 17 (17) | 20 (20) |
+| error vs expected | 6.0% (5.6%) | **8.6%** (12.6%) | 4.6% (4.6%) | 5.3% (5.3%) |
+| English clips with Chinese as the main language, no fault | 7 of 7 | 4 of 7 (one still translated) | **7 of 7** (0 of 5) | 5 of 7 |
+| glossary, terms written: as heard / aliases replaced | 8 / 9 | 6 / 7 (5 / 6) | 9 / 9 (8 / 8) | 10 / 10 |
+| spoken Translate | unchanged (its prompt is) | | | |
+
+Long dictation with the new wording (`TestEvalLong`, the four models): in pieces, as the session sends them, `llm.qwen3` now keeps every English piece in English: `long-all` 6.3% with one late correction kept, the same as `llm.balanced` (6.3%), 8.3 s against 10.7 s. Whole, it now turns `long-all` into English (60%), as `llm.balanced` does (58.5%): the language cuts are what keeps a mixed dictation's languages, for both. `llm.gemma4` in pieces is unchanged (4.8%); whole it now leaves a few "um" and "uh" (5.8%, was 2.9%). `llm.balanced` and `llm.fast` are as M3b measured them (`long-all` in pieces 6.3% and 10.1%).
+
+
+**Decision: both are usable for clean-up, Translate and Rewrite** as alternatives of `llm.balanced` and `llm.fast`, with compose's new wording; their `Features` stay unrestricted. Without the wording, `llm.qwen3` would not be usable for Transcribe by anyone who dictates English with Chinese as the main language.
+
 ## App enhancement and the dictionary, whole sessions on the real models
 
 These are `eval_e2e_test.go`.
@@ -264,6 +352,6 @@ These sessions are sensitive to load. While two other threads ran their models o
 - Noise, real voices and accents.
 - Recordings from a microphone.
 - Sessions that run through the helper's real capture.
-- Rewrite's quality.
+- Rewrite's tone and wording (`TestEvalRewrite` checks facts, language, length and form; the answers are read by hand).
 - Translation into languages other than English.
 - `TestMacE2EOmni` covers the live path with the real helper on the speech sample; scripts/mac-regress.sh runs it.

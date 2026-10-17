@@ -726,7 +726,7 @@ MAC_DIR=code/VoxtNew-xyz scripts/mac.sh scripts/mac-regress.sh          # 快速
 MAC_DIR=code/VoxtNew-xyz scripts/mac.sh scripts/mac-regress.sh --full   # 完整评测（多约 20 分钟），表格在 build/regress/eval
 ```
 
-依次：编译辅助进程，`swift test`；`TestMacE2EOmni`（真实辅助进程读语音样本文件，两个语音模型和 Silero）；`TestLLM*`（`VOXTNEW_LLM_REAL`，三个语言模型）；评测快速版（`TestEval*`：每类一段，对照下限；应用增强和词典各一个完整会话，见 [eval.md](eval.md)）；把运行时放进 app 编译（`go tool mygo build`，签名检查），再以 `VoxtNew.app/Contents/MacOS/VoxtNew --smoke <dir>` 启动：自己的数据目录、不开窗口、没有快捷键（不装事件 tap），启动打包的辅助进程，经 app 自己的 Library 让语音模型和语言模型各回答一次，然后按 app 的方式退出。每一步之后、以及最后，检查没有残留的 `qwen3_asr_server`、`voxtnew-llm`、`voxtnew-helper`。最后打印一张汇总表，退出码是失败的步骤数。不用麦克风和扬声器，不碰剪贴板和前台 App。另一个线程的 `voxtnew-llm` 或 `qwen3_asr_server` 在运行时会提示“时间不准”。
+依次：编译辅助进程，`swift test`；`TestMacE2EOmni`（真实辅助进程读语音样本文件，两个语音模型和 Silero）；`TestLLM*`（`VOXTNEW_LLM_REAL`，三个语言模型）；评测快速版（`TestEval*`：每类一段，转写 8 例，对照下限；应用增强和词典各一个完整会话，见 [eval.md](eval.md)；`VOXTNEW_EVAL_LLM=all` 时也评借用的语言模型）；把运行时放进 app 编译（`go tool mygo build`，签名检查），再以 `VoxtNew.app/Contents/MacOS/VoxtNew --smoke <dir>` 启动：自己的数据目录、不开窗口、没有快捷键（不装事件 tap），启动打包的辅助进程，经 app 自己的 Library 让语音模型和语言模型各回答一次，然后按 app 的方式退出。每一步之后、以及最后，检查没有残留的 `qwen3_asr_server`、`voxtnew-llm`、`voxtnew-helper`。最后打印一张汇总表，退出码是失败的步骤数。不用麦克风和扬声器，不碰剪贴板和前台 App。另一个线程的 `voxtnew-llm` 或 `qwen3_asr_server` 在运行时会提示“时间不准”。
 
 2026-10-17 第一次（mac-air，另有 AudioSmith、Dicta 和 M2b 的进程，swap 约 12 GB）：7 步里 6 步通过；`llm-real` 里 `TestLLMOpenerThroughLibrary` 因为脚本导出的 `VOXTNEW_DEV_LLM` 用上了真实模型而失败，测试已改为自己清掉这两个变量。smoke：辅助进程就绪，asr.fast 826 ms、llm.fast 2.8 s 回答，退出后没有残留进程；app 280 MB。修好后第二次：7 步全部通过，共约 4.5 分钟（omni-e2e 29 s、llm-real 65 s、评测快速版 160 s、app 编译 14 s、smoke 5 s）。
 

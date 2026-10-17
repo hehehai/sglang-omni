@@ -131,17 +131,19 @@ var profiles = []Profile{
 		MaxTokensCap: 2048,
 	},
 	{
-		// Qwen3-4B-Instruct-2507 has no thinking mode; its card
-		// recommends 0.7, top-p 0.8, top-k 20 (rewriting), greedy for
-		// the exact skills as the other Qwens.
+		// Qwen3-4B-Instruct-2507 has no thinking mode (no template
+		// variable); its card recommends 0.7, top-p 0.8, top-k 20
+		// (rewriting), greedy for the exact skills as the other Qwens
+		// (docs/llm-models.md, "Borrowed models": the eval).
 		ID: Qwen3, Format: wire.FormatMLX, Repo: "mlx-community/Qwen3-4B-Instruct-2507-4bit",
 		Sampling: map[llm.Skill]wire.Sampling{llm.SkillRewrite: qwenRewrite},
 		Default:  qwenExact,
 	},
 	{
-		// Gemma 4's card: temperature 1.0, top-p 0.95, top-k 64; greedy
-		// for the exact skills, no repetition penalty (Gemma's own
-		// sampling has none).
+		// Gemma 4's card: temperature 1.0, top-p 0.95, top-k 64
+		// (rewriting); greedy for the exact skills, no repetition penalty
+		// (Gemma's own sampling has none, and no answer looped). Its
+		// template thinks only when enable_thinking is set: off.
 		ID: Gemma4, Format: wire.FormatMLX, Repo: "mlx-community/gemma-4-e4b-it-4bit",
 		Sampling: map[llm.Skill]wire.Sampling{llm.SkillRewrite: {Temperature: 1.0, TopP: 0.95, TopK: 64, RepetitionPenalty: 1}},
 		Default:  wire.Sampling{Temperature: 0, TopP: 1, RepetitionPenalty: 1},
