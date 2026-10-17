@@ -164,10 +164,25 @@ func (r *historyRepo) DeleteAll(ctx context.Context, kind store.Kind) (int, erro
 }
 
 func (r *historyRepo) ExpireAudio(ctx context.Context, now time.Time) (int, error) {
-	rows, err := r.db.Query(ctx, `UPDATE history SET audio = '', audio_until = 0
-WHERE audio != '' AND audio_until > 0 AND audio_until <= ? RETURNING audio`, now.UnixMilli())
-	if err != nil {
-		return 0, wrap("history", err)
+	// RETURNING gives the new values: the names first, then one guarded
+	// update a row (a recording retried meanwhile stays).
+	rows, err := r.db.Query(ctx, `SELECT seq, audio FROM history WHERE audio != '' AND audio_until > 0 AND audio_until <= ?`, now.UnixMilli())
+	if err != nil || len(rows.Values) == 0 {
+		return 0, wrap("history audio", err)
 	}
-	return len(rows.Values), r.removeAudios(rows.Values)
+	stmts := make([]sqlite.Statement, 0, len(rows.Values))
+	for _, row := range rows.Values {
+		stmts = append(stmts, sqlite.Statement{SQL: `UPDATE history SET audio = '', audio_until = 0 WHERE seq = ? AND audio = ? AND audio_until > 0`, Args: []any{row[0], row[1]}})
+	}
+	res, err := r.db.Transaction(ctx, stmts)
+	if err != nil {
+		return 0, wrap("history audio", err)
+	}
+	var gone [][]any
+	for i, x := range res {
+		if x.Changes > 0 {
+			gone = append(gone, []any{rows.Values[i][1]})
+		}
+	}
+	return len(gone), r.removeAudios(gone)
 }
