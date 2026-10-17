@@ -10,6 +10,12 @@ package main
 //	2 the local models        6 App enhancement and the dictionary
 //	3 try Transcribe
 //
+// The models step offers the models other ActNow apps already put on
+// this Mac first (onboarding_models.go); the steps that show a shortcut
+// say when another ActNow app uses it too, and the one-time prompt of a
+// shortcut conflict waits until the guide closes
+// (settings_shortcuts_family.go).
+//
 // The tries are real sessions (the microphone, the speech model, the
 // language model; nothing is inserted or kept: session.StartRequest.Try),
 // started with Start or the feature's own shortcut while VoxtNew is in
@@ -24,6 +30,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -55,6 +62,10 @@ type onboardingState struct {
 		// shortcut was pressed.
 		block *sessionNotice
 		hint  string
+		// found are the recommended models (and their alternatives) on
+		// this Mac, as the models step's survey found them
+		// (onboarding_models.go).
+		found []models.Found
 	}
 }
 
@@ -83,6 +94,7 @@ func (a *app) openOnboarding() {
 	a.ob.open, a.ob.step = true, obWelcome
 	a.ob.tries, a.ob.passed = map[int]string{}, map[int]bool{}
 	a.ob.block, a.ob.hint = nil, ""
+	a.ob.found = nil
 	a.recheckPermissions()
 }
 
@@ -171,6 +183,7 @@ func (a *app) closeOnboarding() {
 	if !a.prefs.Setup.Done {
 		a.updateSettings(func(s *settings.Settings) { s.Setup.Done = true })
 	}
+	a.shortcutPrompt() // settings_shortcuts_family.go: it waited for the guide
 }
 
 // obGo moves to a step (Back, Continue, Skip).
@@ -180,8 +193,11 @@ func (a *app) obGo(step int) {
 	}
 	a.ob.step = min(max(step, 0), obSteps-1)
 	a.ob.block, a.ob.hint = nil, ""
-	if a.ob.step == obPermissions {
+	switch a.ob.step {
+	case obPermissions:
 		a.recheckPermissions()
+	case obModels:
+		a.obSurvey() // onboarding_models.go
 	}
 }
 

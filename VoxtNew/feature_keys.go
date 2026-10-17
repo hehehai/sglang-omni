@@ -2,7 +2,8 @@ package main
 
 // A feature page's Shortcuts section (feature_page.go): its rows of
 // shortcuts with their triggers, choosing or typing a chord, and Transcribe's
-// paste-the-last-result row.
+// paste-the-last-result row. Keys another ActNow app uses too say so
+// under the row, as they are chosen or typed; saving stays allowed.
 
 import (
 	"fmt"
@@ -276,7 +277,19 @@ func (a *app) keyRowView(c *ui.Context, feature string, i int, h settings.Hotkey
 			})
 		}
 		problemLines(c, problems)
+		a.usedByView(c, recordedKeys(*r, h.Keys)) // settings_shortcuts_family.go: another app's keys
 	})
+}
+
+// recordedKeys are the keys a shortcut's controls show: the typed ones
+// while they parse, else saved.
+func recordedKeys(r keyRow, saved string) string {
+	if r.custom && r.edited {
+		if ch, err := hotkey.Parse(r.text); err == nil {
+			return ch.String()
+		}
+	}
+	return saved
 }
 
 // chooseKeys applies a choice of a feature's i-th shortcut select.
@@ -376,6 +389,7 @@ func (a *app) trPasteRow(c *ui.Context) {
 			a.customKeys(c, r, i18n.T("Custom keys to paste the last result"), a.setPasteLast)
 		}
 		problemLines(c, problems)
+		a.usedByView(c, recordedKeys(*r, cur))
 	})
 }
 

@@ -197,6 +197,7 @@ func snapshotsMain(t *testing.T, out string) {
 		modelShots(t, a, tt, save) // models_page_test.go
 		onboardingShots(a, tt, save)
 		homeShots(a, tt, save)
+		familyShots(t, a, tt, save) // family_ui_test.go: other ActNow apps' shortcuts
 	}
 }
 

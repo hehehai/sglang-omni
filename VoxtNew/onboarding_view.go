@@ -184,7 +184,9 @@ func (a *app) obTitle(c *ui.Context) {
 
 // obFooter is Back, Skip and Continue (Start using VoxtNew on the last
 // step). A try step's Continue waits for its try to pass; Skip moves on
-// without it. Nothing moves while the step's try runs.
+// without it. Nothing moves while the step's try runs. Continue is a
+// secondary button while the models step's reuse card shows its Use
+// them.
 func (a *app) obFooter(c *ui.Context) {
 	t := c.Theme()
 	busy := a.obBusy()
@@ -216,6 +218,10 @@ func (a *app) obFooter(c *ui.Context) {
 				a.obGo(a.ob.step + 1)
 			}
 			primaryButton(c.Key("ob-next"), i18n.T("Continue")).Disabled(true).Tooltip(i18n.T("A try that gives a result unlocks Continue"))
+		case a.obReuseShown(): // the reuse card's Use them is the step's primary button
+			if ui.Button(c.Key("ob-next"), i18n.T("Continue")).Clicked() {
+				a.obGo(a.ob.step + 1)
+			}
 		default:
 			if primaryButton(c.Key("ob-next"), i18n.T("Continue")).Disabled(busy).Clicked() {
 				a.obGo(a.ob.step + 1)

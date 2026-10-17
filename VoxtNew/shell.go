@@ -260,8 +260,9 @@ func (a *app) view(c *ui.Context) {
 			}
 		})
 	})
-	a.settingsDialog(c) // shell_settings.go
-	a.onboarding(c)     // onboarding_view.go
+	a.settingsDialog(c)       // shell_settings.go
+	a.onboarding(c)           // onboarding_view.go
+	a.shortcutPromptDialog(c) // settings_shortcuts_family.go
 	a.palette(c)
 	a.shortcutSheet(c)
 	a.toastsView(c) // last: over dialogs too

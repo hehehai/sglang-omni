@@ -30,6 +30,7 @@ import (
 //	dictionaryState   dictionary_page.go  the Dictionary page
 //	homeState         home_page.go    Home: readiness, today, recent results
 //	onboardingState   onboarding.go   the setup guide
+//	scPromptState     settings_shortcuts_family.go  a shortcut another ActNow app uses too: the prompt
 //	audioState        settings_audio.go   Settings → Audio, the recording's sounds
 //	updateState       updates.go      the updater, an update installed while running
 //
@@ -63,6 +64,7 @@ type app struct {
 	dictionaryState
 	homeState
 	onboardingState
+	scPromptState
 	audioState
 	updateState
 }

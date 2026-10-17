@@ -188,6 +188,7 @@ func (a *app) familySettingsChanged(old, new settings.Settings) {
 			}
 		})
 		a.famConflicts = fam.Conflicts(next)
+		a.conflictsSeen(old) // settings_shortcuts_family.go: the recorder showed them
 	}
 }
 

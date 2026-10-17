@@ -4,9 +4,11 @@ package main
 // in one table (Transcribe's, Translate's and Rewrite's, and Paste the
 // last result), with their trigger and what hotkey.Check finds wrong:
 // clashes, keys macOS uses, keys that need Accessibility while the event
-// tap is missing. A row opens its feature's page, where it changes.
+// tap is missing, keys another ActNow app uses too. A row opens its
+// feature's page, where it changes.
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -62,7 +64,9 @@ func (a *app) shortcutsSettings(c *ui.Context) {
 				continue
 			}
 			for i := range hs {
-				a.shortcutRow(c, feat, i, &hs[i], problems[i], keysW)
+				// The other ActNow apps on the same keys (settings_shortcuts_family.go).
+				lines := append(slices.Clone(problems[i]), a.conflictLines(feat, i)...)
+				a.shortcutRow(c, feat, i, &hs[i], lines, keysW)
 			}
 		}
 	})

@@ -1,15 +1,13 @@
 package main
 
-// The setup guide's steps (onboarding.go): welcome, the models, a try,
-// and what else there is.
+// The setup guide's steps (onboarding.go): welcome, a try, and what
+// else there is; the models' step is onboarding_models.go.
 
 import (
 	"github.com/egoist/mygo/ui"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/local"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
@@ -40,88 +38,6 @@ func (a *app) obWelcomeStep(c *ui.Context) {
 		i18n.T("With App enhancement, the address of the tab in front chooses a group of rules; the language model never sees it."))
 }
 
-// obModelsStep recommends the models to start with, a kind each: the
-// default speech model (the VAD comes with it) and language model, with
-// one button that downloads both. A kind with a model installed shows it.
-func (a *app) obModelsStep(c *ui.Context) {
-	t := c.Theme()
-	var want []string
-	var size int64
-	busy := false
-	for _, kind := range []local.Kind{local.ASR, local.LLM} {
-		if list := a.installed(kind); len(list) > 0 {
-			a.obModelRow(c, kind, list[0].Name, models.Model{}, models.Status{Installed: true})
-			continue
-		}
-		id := models.ASRAccurate
-		if kind == local.LLM {
-			id = models.LLMBalanced
-		}
-		m, _ := models.Lookup(id)
-		st := a.modelStatus[id]
-		if !st.Downloading {
-			want = append(want, id)
-			size += m.Size() - st.Done
-		}
-		busy = busy || st.Downloading
-		a.obModelRow(c, kind, uitext.ModelName(id), m, st)
-	}
-	if len(want) > 0 {
-		label := i18n.T("Download (%s)", uitext.HumanBytes(size))
-		if len(want) > 1 {
-			label = i18n.T("Download both (%s)", uitext.HumanBytes(size))
-		}
-		ui.Row(c).Margin(px(t, sp2), 0, 0, 0).Children(func() {
-			if secondaryIconButton(c.Key("ob-download"), icons.DownloadMinimalistic, label).Clicked() {
-				for _, id := range want {
-					a.downloadModel(id)
-				}
-			}
-		})
-	}
-	if busy {
-		caption(c, i18n.T("The models download in the background: continue, and they are ready when the bar fills."))
-	}
-}
-
-// obModelRow is the guide's line of a kind's model: the one installed
-// (st.Installed), or the one recommended, its size and download.
-func (a *app) obModelRow(c *ui.Context, kind local.Kind, name string, m models.Model, st models.Status) {
-	t := c.Theme()
-	k := tok(t)
-	title := i18n.T("Speech recognition")
-	if kind == local.LLM {
-		title = i18n.T("Language model")
-	}
-	ui.Column(c.Key("ob-models-"+string(kind))).Gap(px(t, sp1)).Margin(px(t, sp2), 0, 0, 0).Children(func() {
-		ui.Row(c).Gap(px(t, sp2)).AlignItems(ui.Center).Wrap().Children(func() {
-			sectionTitleText(c, title)
-			switch {
-			case st.Installed:
-				statusMark(c, icons.CheckCircle, k.Success, i18n.T("Ready: %s", name))
-			default:
-				ui.Text(c, name).FontWeight(600)
-				tagChip(c, uitext.HumanBytes(m.Size()))
-			}
-		})
-		if st.Installed {
-			return
-		}
-		caption(c, uitext.ModelAbout(m.ID))
-		if st.Downloading {
-			frac := 0.0
-			if st.Total > 0 {
-				frac = float64(st.Done) / float64(st.Total)
-			}
-			ui.Progress(c, frac).Label(i18n.T("Downloading %s", name))
-		}
-		if st.Err != nil && !st.Downloading {
-			msg, more := uitext.DownloadErrorText(st.Err)
-			notice(c, "ob-model-err", noticeError, msg, more, nil, nil)
-		}
-	})
-}
-
 // obTryStep is a try step: the shortcut, a sample, the Try area, and
 // the result once it passed.
 func (a *app) obTryStep(c *ui.Context) {
@@ -145,6 +61,7 @@ func (a *app) obTryStep(c *ui.Context) {
 			warnLine(c, i18n.T("This shortcut works once VoxtNew may use Accessibility; Start works now."))
 		}
 	})
+	problemLines(c, a.conflictLines(feature, 0)) // another ActNow app's keys too
 	if a.ob.passed[step] {
 		notice(c, "ob-passed", noticeOK, i18n.T("It works. Continue, or try again."), "", nil, nil)
 	}
@@ -216,18 +133,19 @@ func (a *app) obMoreStep(c *ui.Context) {
 		i18n.T("Open Dictionary"), "/dictionary")
 	sectionTitle(c, i18n.T("Your shortcuts"))
 	ui.Column(c.Key("ob-keys")).Gap(px(t, sp1)).Children(func() {
-		row := func(title, keys string) {
+		row := func(feature, keys string) {
 			ui.Row(c).Gap(px(t, sp2)).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, title).Grow(1).MinWidth(0)
+				ui.Text(c, uitext.FeatureTitle(feature)).Grow(1).MinWidth(0)
 				if keys == "" {
 					keys = i18n.T("None")
 				}
 				ui.Text(c, keys).FontSize(px(t, fsCaption)).Font("monospace").TextColor(k.Text2)
 			})
+			problemLines(c, a.conflictLines(feature, 0)) // another ActNow app's keys too
 		}
 		for _, f := range hotkey.Features {
-			row(uitext.FeatureTitle(f), a.featureKeys(f))
+			row(f, a.featureKeys(f))
 		}
-		row(uitext.FeatureTitle(hotkey.PasteLast), uitext.HotkeyText(a.prefs.Features.PasteLast.Keys))
+		row(hotkey.PasteLast, uitext.HotkeyText(a.prefs.Features.PasteLast.Keys))
 	})
 }

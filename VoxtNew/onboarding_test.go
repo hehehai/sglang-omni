@@ -219,6 +219,9 @@ func onboardingShots(a *app, tt *ui.Tester, save func(string)) {
 		}
 		save("onboarding-" + itoa(step+1) + "-" + name)
 	}
+	// Last, as they change the models' statuses (the page behind scrolls).
+	a.ob.step = obModels
+	obFamilyShots(a, save) // family_ui_test.go
 	a.ob.open = false
 }
 
