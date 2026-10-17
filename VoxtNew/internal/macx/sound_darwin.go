@@ -7,9 +7,12 @@ import (
 	"path/filepath"
 )
 
+// afplay is the player; a test swaps in a silent stand-in.
+var afplay = "/usr/bin/afplay"
+
 func soundCmd(s Sound) *exec.Cmd {
 	path := filepath.Join("/System/Library/Sounds", filepath.Base(string(s))+".aiff")
-	return exec.Command("/usr/bin/afplay", "-v", soundVolume, path)
+	return exec.Command(afplay, "-v", soundVolume, path)
 }
 
 // start: afplay exits when the sound ended; killing it stops the sound.
