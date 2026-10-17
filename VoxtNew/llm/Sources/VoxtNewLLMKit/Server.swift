@@ -154,7 +154,7 @@ public final class Server: @unchecked Sendable {
     }
 
     private func startChat(_ id: String, _ p: ChatParams) {
-        if p.messages.isEmpty || p.maxTokens <= 0 {
+        if p.messages.isEmpty || p.maxTokens < 0 {
             return out.fail(id, RPCError(Code.badRequest, "A chat needs messages and maxTokens"))
         }
         let work = queue.run { [engine, out] in
@@ -173,7 +173,7 @@ public final class Server: @unchecked Sendable {
             let total = monotonicMs() - started
             let first = o.firstTokenMs + (loadMs ?? 0)
             return ChatResult(text: o.text, finish: o.finish, usage: o.usage,
-                              timings: Timings(loadMs: loadMs, promptMs: o.promptMs, firstTokenMs: first, totalMs: total, tokensPerSecond: o.tokensPerSecond),
+                              timings: Timings(loadMs: loadMs, promptMs: o.promptMs, firstTokenMs: first, totalMs: total, tokensPerSecond: o.tokensPerSecond, cache: o.cache),
                               memory: engine.memory())
         }
         // Made under the lock, so that a chat ending at once cannot

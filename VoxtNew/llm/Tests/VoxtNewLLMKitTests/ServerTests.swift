@@ -34,12 +34,16 @@ final class FakeEngine: Engine, @unchecked Sendable {
                 try await Task.sleep(nanoseconds: 1_000_000)
             }
         }
+        if p.maxTokens == 0 {
+            return ChatOutcome(text: "", finish: Finish.length, usage: Usage(promptTokens: 9, completionTokens: 0),
+                               promptMs: 1, firstTokenMs: 1, tokensPerSecond: 0, cache: CacheUse(hit: false, prefixTokens: 7))
+        }
         var c = TextCollector()
         for w in words where c.add(w) {
             onDelta(w)
         }
         return ChatOutcome(text: c.text, finish: Finish.stop, usage: Usage(promptTokens: 9, completionTokens: words.count),
-                           promptMs: 1, firstTokenMs: 2, tokensPerSecond: 50)
+                           promptMs: 1, firstTokenMs: 2, tokensPerSecond: 50, cache: CacheUse(hit: true, prefixTokens: 7))
     }
 
     func memory() -> Memory { Memory(footprintBytes: 100, peakFootprintBytes: 200, residentBytes: 150) }
@@ -111,6 +115,7 @@ final class ServerTests: XCTestCase {
         XCTAssertEqual(a.text, "The meeting is at three.")
         XCTAssertEqual(a.timings.loadMs, 12)
         XCTAssertEqual(a.timings.firstTokenMs, 14)
+        XCTAssertEqual(a.timings.cache, CacheUse(hit: true, prefixTokens: 7))
         let deltas = lines.messages.filter { $0.method == Method.chatDelta }.map { try! $0.decodeParams(DeltaParams.self) }
         XCTAssertEqual(deltas.map(\.text).joined(), a.text)
         XCTAssertTrue(deltas.allSatisfy { $0.job == "a" })
@@ -125,6 +130,20 @@ final class ServerTests: XCTestCase {
         XCTAssertEqual(try lines.wait(for: "e").error?.code, Code.badRequest)
         send(s, #"{"id":"f","method":"chat","params":{"model":\#(model),"messages":[],"maxTokens":16,"sampling":{"temperature":0}}}"#)
         XCTAssertEqual(try lines.wait(for: "f").error?.code, Code.badRequest)
+        send(s, #"{"id":"g","method":"chat","params":{"model":\#(model),"messages":[{"role":"user","content":"hi"}],"maxTokens":-1,"sampling":{"temperature":0}}}"#)
+        XCTAssertEqual(try lines.wait(for: "g").error?.code, Code.badRequest)
+    }
+
+    /// maxTokens 0 only evaluates the prompt's shared prefix: no deltas.
+    func testPrefill() throws {
+        let (s, lines) = makeServer()
+        try hello(s, lines)
+        send(s, #"{"id":"p","method":"chat","params":{"model":\#(model),"messages":[{"role":"system","content":"Clean up."},{"role":"user","content":""}],"maxTokens":0,"sampling":{"temperature":0}}}"#)
+        let p = try lines.wait(for: "p").decodeResult(ChatResult.self)
+        XCTAssertEqual(p.text, "")
+        XCTAssertEqual(p.usage.completionTokens, 0)
+        XCTAssertEqual(p.timings.cache, CacheUse(hit: false, prefixTokens: 7))
+        XCTAssertFalse(lines.messages.contains { $0.method == Method.chatDelta })
     }
 
     /// job.cancel ends a running chat, which answers cancelled first.

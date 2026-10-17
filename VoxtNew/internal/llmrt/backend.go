@@ -40,6 +40,32 @@ func (b *Backend) Warm(ctx context.Context) error {
 	return err
 }
 
+// Prefill evaluates the shared part of req's prompt (its messages before
+// the last: compose's system prompt) into the process's prompt cache,
+// without an answer, so that a chat with the same start skips it. The
+// last message's text does not matter. A GGUF model has nothing to warm.
+func (b *Backend) Prefill(ctx context.Context, req llm.Request) error {
+	if b.profile.Format != wire.FormatMLX {
+		return nil
+	}
+	params, err := b.params(req)
+	if err != nil {
+		return err
+	}
+	params.MaxTokens = 0
+	raw, err := b.rt.Call(ctx, wire.MethodChat, params, nil)
+	if err != nil {
+		return b.chatErr(ctx, err)
+	}
+	var out wire.ChatResult
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return &llm.Error{Code: llm.CodeBadResponse, Params: map[string]string{"provider": b.profile.ID, "detail": err.Error()}, Err: err}
+	}
+	b.rt.noteModel(&b.model, out.Memory)
+	b.rt.log(core.SeverityInfo, chatLine(b.profile.ID, req.Skill+" prefill", out))
+	return nil
+}
+
 // Chat runs req as one chat. Its OnDelta is called on this goroutine.
 func (b *Backend) Chat(ctx context.Context, req llm.Request) (llm.Response, error) {
 	params, err := b.params(req)
@@ -171,8 +197,19 @@ func chatLine(id string, skill llm.Skill, r wire.ChatResult) string {
 	if r.Timings.LoadMs > 0 {
 		load = fmt.Sprintf(", load %.0f ms", r.Timings.LoadMs)
 	}
-	return fmt.Sprintf("%s %s: %d+%d tokens, first token %.0f ms%s, %.1f tokens/s, %.0f ms in all, %s; footprint %d MB (peak %d MB), resident %d MB",
-		id, skill, r.Usage.PromptTokens, r.Usage.CompletionTokens, r.Timings.FirstTokenMs, load, r.Timings.TokensPerSecond,
+	cache := ""
+	if c := r.Timings.Cache; c != nil {
+		switch {
+		case c.Hit:
+			cache = fmt.Sprintf(", prompt cache hit (%d tokens)", c.PrefixTokens)
+		case c.PrefixTokens > 0:
+			cache = fmt.Sprintf(", prompt cache miss (%d tokens kept)", c.PrefixTokens)
+		default:
+			cache = ", prompt cache unused"
+		}
+	}
+	return fmt.Sprintf("%s %s: %d+%d tokens, first token %.0f ms%s%s, %.1f tokens/s, %.0f ms in all, %s; footprint %d MB (peak %d MB), resident %d MB",
+		id, skill, r.Usage.PromptTokens, r.Usage.CompletionTokens, r.Timings.FirstTokenMs, load, cache, r.Timings.TokensPerSecond,
 		r.Timings.TotalMs, r.Finish, r.Memory.FootprintBytes>>20, r.Memory.PeakFootprintBytes>>20, r.Memory.ResidentBytes>>20)
 }
 

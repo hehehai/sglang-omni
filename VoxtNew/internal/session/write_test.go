@@ -3,7 +3,9 @@ package session
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -413,5 +415,73 @@ func TestAllowCopy(t *testing.T) {
 		if got := AllowCopy(id); got != want {
 			t.Errorf("AllowCopy(%q) = %v", id, got)
 		}
+	}
+}
+
+// prefillLLM is a fakeLLM with a prompt cache (llm.Prefiller).
+type prefillLLM struct {
+	*fakeLLM
+	mu       sync.Mutex
+	prefills []llm.Request
+}
+
+func (p *prefillLLM) Prefill(_ context.Context, req llm.Request) error {
+	p.mu.Lock()
+	p.prefills = append(p.prefills, req)
+	p.mu.Unlock()
+	return nil
+}
+
+// TestWarmLLM: while the user speaks, the session warms a model with a
+// prompt cache up with the prompt it will send, but for the text:
+// Transcribe's clean-up and Translate of speech, not Rewrite (its prompt
+// depends on the selection) or a Transcribe without the language model.
+func TestWarmLLM(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		kind    Kind
+		enhance bool
+		warm    bool
+	}{
+		{"transcribe", store.KindTranscribe, true, true},
+		{"transcribe, no clean-up", store.KindTranscribe, false, false},
+		{"translate speech", store.KindTranslate, true, true},
+		{"rewrite", store.KindRewrite, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			model := &prefillLLM{fakeLLM: &fakeLLM{text: `{"title":"Hi","content":"Hello."}`}}
+			h := newHarness(t, &fakeFile{text: "hello aura link"}, model, func(c *Config, s *settings.Settings) {
+				s.Features.Transcribe.Enhance = tc.enhance
+			})
+			id, err := h.m.Start(StartRequest{Kind: tc.kind, Target: slack})
+			if err != nil {
+				t.Fatal(err)
+			}
+			h.rec.waitFor(t, "recording", func(s Snapshot) bool { return s.State == Recording })
+			h.speak(id, 3)
+			h.rec.wait(t)
+			var prefills []llm.Request
+			for deadline := time.Now().Add(time.Second); ; time.Sleep(time.Millisecond) {
+				model.mu.Lock()
+				prefills = model.prefills
+				model.mu.Unlock()
+				if len(prefills) > 0 || time.Now().After(deadline) {
+					break
+				}
+			}
+			if len(prefills) != map[bool]int{true: 1, false: 0}[tc.warm] {
+				t.Fatalf("%d prefills", len(prefills))
+			}
+			if !tc.warm {
+				return
+			}
+			chat := model.reqs[0]
+			p := prefills[0]
+			n := len(chat.Messages)
+			if p.Skill != chat.Skill || len(p.Messages) != n || n < 2 || !reflect.DeepEqual(p.Messages[:n-1], chat.Messages[:n-1]) ||
+				p.Messages[n-1].Content == chat.Messages[n-1].Content {
+				t.Errorf("prefill %+v\nchat %+v", p, chat)
+			}
+		})
 	}
 }

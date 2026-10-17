@@ -136,6 +136,7 @@ func (r *run) listen() (string, bool) {
 				return "", false
 			}
 			r.useServices(s)
+			r.warmLLM()
 			if p := r.lacks(); p != nil {
 				r.fail(p)
 				return "", false
@@ -331,16 +332,62 @@ func isCancelled(err error, stopped bool) bool {
 	return stopped && errors.As(err, &pe) && pe.Code == proto.CodeCancelled
 }
 
-// compose runs the language model over raw.
-func (r *run) compose(raw string) (string, string, error) {
+// warmLLM sends the language model the shared part of the prompt this
+// session will send (the system prompt and the example turn) while the
+// user speaks, when the model keeps a prompt cache (llm.Prefiller): the
+// chat after the recording then evaluates little more than the
+// transcript. Transcribe's clean-up and Translate of speech only:
+// Rewrite's prompt depends on the selection, read meanwhile.
+func (r *run) warmLLM() {
+	p, ok := r.svc.LLM.(llm.Prefiller)
+	if !ok {
+		return
+	}
+	var in compose.Input
+	var skill llm.Skill
+	switch r.req.Kind {
+	case store.KindTranscribe:
+		if !r.settings.Features.Transcribe.Enhance {
+			return
+		}
+		in, skill = r.transcribeInput(""), llm.SkillTranscribeEnhance
+	case store.KindTranslate:
+		in, skill = r.writeInput("", ""), llm.SkillTranslateText
+	default:
+		return
+	}
+	out, err := compose.Build(in)
+	if err != nil {
+		return
+	}
+	req := llm.Request{Skill: skill}
+	for _, m := range out.Messages() {
+		req.Messages = append(req.Messages, llm.Message{Role: llm.Role(m.Role), Content: m.Content})
+	}
+	go func() {
+		start := r.now()
+		if err := p.Prefill(r.ctx, req); err != nil && r.ctx.Err() == nil {
+			r.logf("info", "warming the language model up: %v", err)
+			return
+		}
+		r.logf("debug", "warmed the language model up in %v", r.now().Sub(start).Round(time.Millisecond))
+	}()
+}
+
+// transcribeInput is Transcribe's request to compose for raw.
+func (r *run) transcribeInput(raw string) compose.Input {
 	f := r.settings.Features.Transcribe
-	in := compose.Input{
+	return compose.Input{
 		Task: compose.Transcribe, Cleanup: f.Cleanup, Structure: f.Structure, TaskPrompt: f.Prompt,
 		MainLanguage: MainLanguage(r.settings, r.m.cfg.Locale()), OtherLanguages: r.settings.General.OtherLanguages, Text: raw,
 		Glossary: r.glossary(),
 		Scene:    r.composeScene(),
 	}
-	out, err := compose.Build(in)
+}
+
+// compose runs the language model over raw.
+func (r *run) compose(raw string) (string, string, error) {
+	out, err := compose.Build(r.transcribeInput(raw))
 	if err != nil {
 		return "", "", err
 	}

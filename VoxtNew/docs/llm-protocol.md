@@ -60,7 +60,7 @@ Errors are `{"code": "…", "message": "…", "data"?: {…}}`:
 | `model.load` | `{model{id, format, path}, cacheLimitMB?}` → `{model, cached?, loadMs, memory}` |
 | `model.unload` | → `{unloaded, memory}` |
 | `model.status` | → `{model?, memory}` |
-| `chat` (job) | `{model, messages[{role, content}], maxTokens, sampling{temperature, topP?, topK?, minP?, repetitionPenalty?, repetitionContextSize?, seed?}, prefillStepSize?, template?}` → `{text, finish, usage{promptTokens, completionTokens}, timings{loadMs?, promptMs, firstTokenMs, totalMs, tokensPerSecond}, memory}` |
+| `chat` (job) | `{model, messages[{role, content}], maxTokens, sampling{temperature, topP?, topK?, minP?, repetitionPenalty?, repetitionContextSize?, seed?}, prefillStepSize?, template?}` → `{text, finish, usage{promptTokens, completionTokens}, timings{loadMs?, promptMs, firstTokenMs, totalMs, tokensPerSecond, cache?{hit, prefixTokens}}, memory}` |
 | `chat.delta` (notification) | `{job, text}`: the next piece of the answer, in order |
 | `log` (notification) | `{level, message, job?}` |
 
@@ -70,9 +70,22 @@ Errors are `{"code": "…", "message": "…", "data"?: {…}}`:
 - `finish` is `stop` (the model ended, or the repetition guard cut a loop) or `length` (`maxTokens` reached). `text` is the deltas joined, but when the repetition guard (Voxt's: a phrase repeated six times or more) cut a loop: then it keeps one copy and is shorter than the deltas.
 - `memory` is `{footprintBytes, peakFootprintBytes, residentBytes, mlxActiveBytes?, mlxCacheBytes?, mlxPeakBytes?}`: the process's physical footprint now and at its peak (which counts Metal buffers, so an MLX model's weights), its resident size (which counts mapped files, so a GGUF model's weights, which llama.cpp maps from the file and the footprint leaves out), and MLX's own counters for an MLX model.
 - `cacheLimitMB` bounds MLX's buffer cache (0: MLX's default).
-- `timings`: `loadMs` when the chat loaded its model, `promptMs` the prompt's evaluation, `firstTokenMs` from the request to the first piece of text, `totalMs` the whole chat, `tokensPerSecond` the generation's rate after the first token.
+- `timings`: `loadMs` when the chat loaded its model, `promptMs` the prompt's evaluation, `firstTokenMs` from the request to the first piece of text, `totalMs` the whole chat, `tokensPerSecond` the generation's rate after the first token, `cache` the prompt cache's use (below; MLX models only).
+- `maxTokens` 0 is a **prefill**: the process evaluates the prompt's shared prefix into its prompt cache and answers `text` "", `finish` `length`, no deltas. The last message's text does not matter (a GGUF model does nothing).
 
 Policy is Go's: which model, its sampling, its token budget, its prompt shape (a translation model's own prompt, internal/llmrt) and when to unload. The process keeps no settings.
+
+### The prompt cache
+
+An MLX model keeps its caches (attention KV and Qwen3.5's linear-attention state) after the **shared prefix** of a prompt: the tokens before the last message's text, which for compose's prompts is the system prompt and the clean-up's example turn (≈ 520–580 tokens, the same for one feature, scene, language and dictionary). A later chat whose prompt starts with all of a kept prefix's tokens evaluates only the rest, and its first token comes sooner. It is the process's own business: nothing in the requests changes, and the answers are the same (greedy: token for token).
+
+- The shared prefix is found by rendering the chat template a second time with the last message's text replaced: where the two token lists part. With compose's prompts it is the system prompt and the example turn.
+- A snapshot is reused whole, never trimmed (linear-attention state cannot be rewound): it serves a prompt that has all of its tokens and at least one more.
+- The shared prefix is evaluated in chunks ending at every multiple of 256 tokens and at its end, whatever `prefillStepSize` says and whatever the cache holds (the cache off too); snapshots are kept and reused only at those points. A prompt's evaluation is then the same chunks cold or from a snapshot, and a greedy answer does not depend on the cache, token for token. (A prompt evaluated in one piece, as before M2b, can differ in its last bits, which flips near ties: 感谢 / 谢谢.)
+- A prompt that parts from a kept one inside its shared prefix (a glossary that lists the text's terms first, a scene) also keeps a **branch point**: the last multiple of 256 before they part, which the next such prompt starts from. A point under 64 tokens is not kept.
+- At most 6 snapshots and 512 MB are kept, the least recently used dropped first; all go with the model (`model.unload`, another model's load, the process's exit).
+- `timings.cache` says what a chat did: `hit` when it started from a snapshot; `prefixTokens` the tokens it reused (a hit) or kept (a miss), 0 when it did neither (no shared prefix, or a short one). It is absent for a GGUF model, and when `VOXTNEW_LLM_PROMPT_CACHE=0` in the process's environment turns the cache off (tests compare answers with and without it).
+- Go warms it up: while the user speaks, a session sends its prompt with an empty text as a prefill (`maxTokens` 0, `llmrt.Backend.Prefill`), so that the chat after the recording is a hit ([llm-models.md](llm-models.md#prompt-cache-m2b)).
 
 ## 5. Fixtures
 

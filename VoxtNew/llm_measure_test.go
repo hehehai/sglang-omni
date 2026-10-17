@@ -9,12 +9,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt"
 )
@@ -154,6 +157,148 @@ func TestLLMRealCancel(t *testing.T) {
 			if st := l.rt.Status(); st.Starts != 1 {
 				t.Errorf("the process was restarted: %+v", st)
 			}
+		})
+	}
+}
+
+// realSetup is a runtime over the real voxtnew-llm with env added to its
+// environment, logging into an llmSetup.
+func realSetup(t *testing.T, env ...string) *llmSetup {
+	l := &llmSetup{real: true}
+	bin := os.Getenv("VOXTNEW_LLM")
+	if bin == "" {
+		bin, _ = filepath.Abs(filepath.Join("resources", "darwin-arm64", "llm", llmrt.BinName))
+	}
+	l.rt = llmrt.New(llmrt.Config{Bin: bin, AppVersion: "test", LogDir: t.TempDir(), IdleTimeout: -1, Env: env, Log: func(e core.LogEntry) {
+		l.mu.Lock()
+		l.logs = append(l.logs, e.Message)
+		l.mu.Unlock()
+	}})
+	t.Cleanup(l.rt.Stop)
+	return l
+}
+
+// cacheTexts are a second input per measure case: the same system
+// prompt with another user message, the prompt cache's usual hit.
+var cacheTexts = map[string]string{
+	"transcribe zh-en":         "呃那个明天上午十点我们先过一下 m l x 的测试结果然后再定 voxt new 的发布时间",
+	"transcribe en":            "okay so uh first we book the room second we send the invites and um third we order lunch",
+	"translate en→zh":          "Thanks for the quick fix. Please tag the build tonight so QA can start in the morning.",
+	"translate zh→en (speech)": "嗯明天早上九点出发别忘了带护照和充电器",
+	"rewrite selection":        "can u check the numbers again, they look off and the client is asking",
+}
+
+// TestLLMRealPromptCache: with the prompt cache, greedy answers are the
+// ones without it (VOXTNEW_LLM_PROMPT_CACHE=0: nothing kept, the prompt
+// split at the same place), on a miss, on a hit with another input and on
+// a hit with the same input; and a prefill (Go's
+// warm-up) makes the next chat a hit. It logs the first tokens and the
+// cache's memory (VOXTNEW_LLM_REAL=1, VOXTNEW_DEV_LLM with MLX models).
+func TestLLMRealPromptCache(t *testing.T) {
+	if os.Getenv("VOXTNEW_LLM_REAL") != "1" {
+		t.Skip("VOXTNEW_LLM_REAL=1 on a Mac, with VOXTNEW_DEV_LLM")
+	}
+	ms, _ := llmrt.ParseDev(os.Getenv(llmrt.DevEnv))
+	for _, m := range ms {
+		if p, _ := llmrt.Lookup(m.ID); p.TranslateOnly() {
+			continue
+		}
+		t.Run(m.ID, func(t *testing.T) {
+			off, on := realSetup(t, "VOXTNEW_LLM_PROMPT_CACHE=0"), realSetup(t)
+			offModel, _ := llmrt.NewModel(off.rt, m.ID, m.Dir)
+			onModel, _ := llmrt.NewModel(on.rt, m.ID, m.Dir)
+			for _, b := range []*llmrt.Backend{offModel, onModel} {
+				if err := b.Warm(context.Background()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			chat := func(l *llmSetup, b *llmrt.Backend, c measureCase, text string) (string, string) {
+				in := c.in
+				in.Text = text
+				out, err := compose.Build(in)
+				if err != nil {
+					t.Fatal(err)
+				}
+				seed := int64(7) // Rewrite samples: the same draws with the cache and without
+				req := llm.Request{Skill: c.skill, Timeout: 60 * time.Second, Seed: &seed}
+				for _, msg := range out.Messages() {
+					req.Messages = append(req.Messages, llm.Message{Role: llm.Role(msg.Role), Content: msg.Content})
+				}
+				before := len(l.lines(m.ID + " "))
+				resp, err := b.Chat(context.Background(), req)
+				if err != nil {
+					t.Fatalf("%s: %v", c.name, err)
+				}
+				ls := l.lines(m.ID + " ")
+				if len(ls) <= before {
+					t.Fatalf("%s: no log line", c.name)
+				}
+				return resp.Text, ls[len(ls)-1]
+			}
+			// A glossary lists the terms the text mentions first: the system
+			// prompt changes at the glossary from one input to the next.
+			glossary := measureCase{"transcribe en, glossary", llm.SkillTranscribeEnhance, compose.Input{Task: compose.Transcribe, Cleanup: true, MainLanguage: "en",
+				Glossary: []compose.Term{{Term: "VoxtNew"}, {Term: "MLX"}, {Term: "Qwen"}, {Term: "SGLang"}},
+				Text:     "um so the qwen model runs on m l x now"}, false}
+			cases := append([]measureCase{glossary}, measureCases...)
+			texts := map[string]string{glossary.name: "uh we should ask the s g lang team about it tomorrow"}
+			maps.Copy(texts, cacheTexts)
+			for _, c := range cases {
+				second, ok := texts[c.name]
+				if !ok {
+					continue
+				}
+				// The first chat may start from another kind's branch point;
+				// another input with the same system prompt is a hit, and so
+				// is the first input again. The glossary's second input
+				// parts at the glossary (a miss that keeps the branch point),
+				// its third starts from that point.
+				list := []string{c.in.Text, second, c.in.Text}
+				if c.name == glossary.name {
+					list = append(list, "and voxt new should load it at start up")
+				}
+				for i, text := range list {
+					want, offLine := chat(off, offModel, c, text)
+					got, onLine := chat(on, onModel, c, text)
+					hit := strings.Contains(onLine, "prompt cache hit")
+					wantHit := i >= 2 || i == 1 && c.name != glossary.name
+					if i > 0 && hit != wantHit || got != want {
+						t.Errorf("%s #%d: hit %v\n    without: %q\n    with:    %q", c.name, i+1, hit, want, got)
+					}
+					t.Logf("%s #%d:\n    off: %s\n    on:  %s", c.name, i+1, offLine, onLine)
+				}
+			}
+			for _, l := range []*llmSetup{off, on} {
+				if res, err := l.rt.Memory(context.Background()); err == nil {
+					t.Logf("memory: footprint %d MB, peak %d MB, MLX active %d MB, peak %d MB", res.Memory.FootprintBytes>>20,
+						res.Memory.PeakFootprintBytes>>20, res.Memory.MLXActiveBytes>>20, res.Memory.MLXPeakBytes>>20)
+				}
+			}
+			t.Logf("%s", strings.Join(on.lines("prompt cache: kept"), "\n"))
+
+			// Go's warm-up: the system prompt alone, then the chat.
+			warm := realSetup(t)
+			b, _ := llmrt.NewModel(warm.rt, m.ID, m.Dir)
+			if err := b.Warm(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			c := measureCases[0]
+			out, _ := compose.Build(c.in)
+			req := llm.Request{Skill: c.skill}
+			for _, msg := range out.Messages() {
+				req.Messages = append(req.Messages, llm.Message{Role: llm.Role(msg.Role), Content: msg.Content})
+			}
+			t0 := time.Now()
+			if err := b.Prefill(context.Background(), req); err != nil {
+				t.Fatal(err)
+			}
+			took := time.Since(t0)
+			_, line := chat(warm, b, c, cacheTexts[c.name])
+			_, again := chat(warm, b, c, c.in.Text)
+			if !strings.Contains(line, "prompt cache hit") || !strings.Contains(again, "prompt cache hit") {
+				t.Errorf("after a prefill: %s\n%s", line, again)
+			}
+			t.Logf("prefill %v (%s)\n    then: %s\n    and:  %s", took.Round(time.Millisecond), strings.Join(warm.lines("prefill:"), ""), line, again)
 		})
 	}
 }

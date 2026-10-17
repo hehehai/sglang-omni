@@ -144,10 +144,12 @@ type Sampling struct {
 
 // ChatParams is one completion.
 type ChatParams struct {
-	Model     Model         `json:"model"`
-	Messages  []ChatMessage `json:"messages"`
-	MaxTokens int           `json:"maxTokens"`
-	Sampling  Sampling      `json:"sampling"`
+	Model    Model         `json:"model"`
+	Messages []ChatMessage `json:"messages"`
+	// MaxTokens 0 evaluates the prompt's shared prefix into the prompt
+	// cache and answers nothing (a warm-up).
+	MaxTokens int      `json:"maxTokens"`
+	Sampling  Sampling `json:"sampling"`
 	// PrefillStepSize is MLX's prompt chunk (0: the engine's).
 	PrefillStepSize int `json:"prefillStepSize,omitempty"`
 	// Template are the chat template's variables (MLX only), such as
@@ -177,6 +179,16 @@ type Timings struct {
 	FirstTokenMs    float64 `json:"firstTokenMs"`
 	TotalMs         float64 `json:"totalMs"`
 	TokensPerSecond float64 `json:"tokensPerSecond"`
+	// Cache is what the chat did with the prompt cache (MLX models).
+	Cache *CacheUse `json:"cache,omitempty"`
+}
+
+// CacheUse is a chat's use of the prompt cache: Hit when it started from
+// a snapshot of a prompt prefix it had seen; PrefixTokens the shared
+// prefix it reused (a hit) or evaluated and kept (a miss), 0 when neither.
+type CacheUse struct {
+	Hit          bool `json:"hit"`
+	PrefixTokens int  `json:"prefixTokens"`
 }
 
 // DeltaParams is the next piece of a chat's answer.

@@ -188,7 +188,7 @@ func checkParams(t *testing.T, where string, p any) {
 		if v.Model.Format == FormatMLX || v.Model.Format == FormatGGUF {
 			checkModel(t, where, v.Model)
 		}
-		if len(v.Messages) == 0 || v.MaxTokens <= 0 || v.Sampling.Temperature < 0 {
+		if len(v.Messages) == 0 || v.MaxTokens < 0 || v.Sampling.Temperature < 0 {
 			t.Fatalf("%s: chat %+v", where, v)
 		}
 		for _, m := range v.Messages {
