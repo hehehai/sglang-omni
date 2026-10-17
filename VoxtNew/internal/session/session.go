@@ -308,10 +308,19 @@ type Config struct {
 	MaxRecording time.Duration // DefaultMaxRecording
 	MinRecording time.Duration // DefaultMinRecording
 	ASRTimeout   time.Duration // after Stop; DefaultASRTimeout
-	LLMTimeout   time.Duration // a request (a piece) of Transcribe's clean-up; DefaultLLMTimeout
-	WriteTimeout time.Duration // Translate's and Rewrite's answer; DefaultWriteTimeout
-	ReadTimeout  time.Duration // reading the selection; DefaultReadTimeout
-	DeliverTime  time.Duration // DefaultDeliverTimeout
+	// A language model's request ends when it makes no progress
+	// (behavior.md 5.5, llmDeadlines): no first token within
+	// LLMFirstToken (plus llmPrefillPerChar per character of its input),
+	// no next one within LLMStall; and in all after LLMPerChar per
+	// character, at least LLMTimeout for a piece of Transcribe's clean-up
+	// and WriteTimeout for Translate's and Rewrite's answer.
+	LLMFirstToken time.Duration // DefaultLLMFirstToken
+	LLMStall      time.Duration // DefaultLLMStall
+	LLMPerChar    time.Duration // DefaultLLMPerChar
+	LLMTimeout    time.Duration // DefaultLLMTimeout
+	WriteTimeout  time.Duration // DefaultWriteTimeout
+	ReadTimeout   time.Duration // reading the selection; DefaultReadTimeout
+	DeliverTime   time.Duration // DefaultDeliverTimeout
 	// StopGrace is how long Stop waits for the recording to end before
 	// discarding the capture job (a capture.stop that raced its start);
 	// DefaultStopGrace.
@@ -323,7 +332,10 @@ const (
 	DefaultMaxRecording   = 10 * time.Minute
 	DefaultMinRecording   = 300 * time.Millisecond
 	DefaultASRTimeout     = 30 * time.Second
-	DefaultLLMTimeout     = 15 * time.Second // a request, or a piece of a long one: local models slow down under memory pressure
+	DefaultLLMFirstToken  = 15 * time.Second
+	DefaultLLMStall       = 5 * time.Second
+	DefaultLLMPerChar     = 100 * time.Millisecond
+	DefaultLLMTimeout     = 20 * time.Second
 	DefaultWriteTimeout   = 60 * time.Second
 	DefaultReadTimeout    = 1500 * time.Millisecond
 	DefaultDeliverTimeout = 5 * time.Second

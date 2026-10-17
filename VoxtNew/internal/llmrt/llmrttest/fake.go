@@ -18,6 +18,9 @@
 //	(empty)          speak the protocol: a chat answers "Fake answer." in pieces
 //	reply=TEXT       a chat answers TEXT (pieces of up to 4 runes)
 //	piece-ms=N       wait N ms before each piece (default 1)
+//	first-ms=N       wait N ms before the first piece of the process's first chat (a slow prefill)
+//	stall-at=K       wait stall-ms before piece K+1 (a model that stalls after K pieces)
+//	stall-ms=N       that wait, in ms (default 10000)
 //	load-ms=N        a load takes N ms (default 5)
 //	mismatch         answer llm.hello with protocol 9
 //	silent           never answer llm.hello
@@ -66,6 +69,8 @@ func Main() {
 type options struct {
 	reply                 string
 	pieceMs, loadMs       int
+	firstMs               int
+	stallAt, stallMs      int
 	mismatch, silent      bool
 	crashChat, hangCancel bool
 	loadFail              bool
@@ -73,7 +78,7 @@ type options struct {
 }
 
 func parse(s string) options {
-	o := options{reply: "Fake answer.", pieceMs: 1, loadMs: 5}
+	o := options{reply: "Fake answer.", pieceMs: 1, loadMs: 5, stallMs: 10000}
 	for _, kv := range strings.Split(s, ",") {
 		k, v, _ := strings.Cut(kv, "=")
 		v, _ = url.QueryUnescape(v)
@@ -85,6 +90,12 @@ func parse(s string) options {
 			o.pieceMs = n
 		case "load-ms":
 			o.loadMs = n
+		case "first-ms":
+			o.firstMs = n
+		case "stall-at":
+			o.stallAt = n
+		case "stall-ms":
+			o.stallMs = n
 		case "mismatch":
 			o.mismatch = true
 		case "silent":
@@ -119,6 +130,7 @@ type fake struct {
 	jobs    map[string]chan struct{} // a chat's cancel
 	queue   sync.Mutex               // loads and chats one at a time
 	started time.Time
+	chats   int // chats started (guarded by queue)
 	// prefixes are the MLX prompt prefixes "kept" (guarded by queue).
 	prefixes map[string]bool
 }
@@ -282,7 +294,9 @@ func (f *fake) chat(id string, p wire.ChatParams, cancel chan struct{}) {
 		return
 	}
 	cache := f.promptCache(p)
+	f.chats++
 	rs := []rune(f.o.reply)
+	var first time.Duration
 	var text strings.Builder
 	tokens := 0
 	finish := wire.FinishStop
@@ -291,11 +305,18 @@ func (f *fake) chat(id string, p wire.ChatParams, cancel chan struct{}) {
 			finish = wire.FinishLength
 			break
 		}
+		wait := f.o.pieceMs
+		switch {
+		case tokens == 0 && f.chats == 1 && f.o.firstMs > 0:
+			wait = f.o.firstMs
+		case f.o.stallAt > 0 && tokens == f.o.stallAt:
+			wait = f.o.stallMs
+		}
 		select {
 		case <-cancel:
 			f.fail(id, wire.CodeCancelled, "The chat was cancelled")
 			return
-		case <-time.After(time.Duration(f.o.pieceMs) * time.Millisecond):
+		case <-time.After(time.Duration(wait) * time.Millisecond):
 		}
 		if f.o.crashChat {
 			os.Exit(3)
@@ -303,14 +324,22 @@ func (f *fake) chat(id string, p wire.ChatParams, cancel chan struct{}) {
 		piece := string(rs[i:min(i+4, len(rs))])
 		text.WriteString(piece)
 		tokens++
+		if tokens == 1 {
+			first = time.Since(start)
+		}
 		f.notify(wire.MethodChatDelta, wire.DeltaParams{Job: id, Text: piece})
 	}
-	total := float64(time.Since(start).Microseconds()) / 1000
+	elapsed := time.Since(start)
+	rate := 0.0
+	if tokens > 1 {
+		rate = float64(tokens-1) / (elapsed - first).Seconds()
+	}
 	f.result(id, wire.ChatResult{
 		Text: text.String(), Finish: finish,
-		Usage:   wire.Usage{PromptTokens: 40, CompletionTokens: tokens},
-		Timings: wire.Timings{LoadMs: loadMs, PromptMs: 1, FirstTokenMs: loadMs + 2, TotalMs: total, TokensPerSecond: 500, Cache: cache},
-		Memory:  f.memory(),
+		Usage: wire.Usage{PromptTokens: 40, CompletionTokens: tokens},
+		Timings: wire.Timings{LoadMs: loadMs, PromptMs: 1, FirstTokenMs: float64(first.Microseconds()) / 1000,
+			TotalMs: float64(elapsed.Microseconds()) / 1000, TokensPerSecond: rate, Cache: cache},
+		Memory: f.memory(),
 	})
 }
 

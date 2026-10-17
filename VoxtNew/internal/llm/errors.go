@@ -24,7 +24,7 @@ const (
 	CodeModelNotFound = "llm.model_not_found"  // provider, model
 	CodeContextLength = "llm.context_length"   // provider, model: prompt too long
 	CodeFiltered      = "llm.content_filter"   // provider: refused by a safety filter
-	CodeTimeout       = "llm.timeout"          // provider, seconds
+	CodeTimeout       = "llm.timeout"          // provider, seconds; without progress also wait (WaitFirstToken, WaitStall), deltas, elapsed
 	CodeCancelled     = "llm.cancelled"        //
 	CodeNetwork       = "llm.network"          // provider, detail (connection refused, reset)
 	CodeBadResponse   = "llm.bad_response"     // provider, detail: unparseable body / stream

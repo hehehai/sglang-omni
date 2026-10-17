@@ -70,6 +70,14 @@ type Request struct {
 
 	// Timeout bounds one attempt (0: the Client's default).
 	Timeout time.Duration
+	// FirstTokenTimeout and StallTimeout end an attempt that makes no
+	// progress (0: no bound): no delta within FirstTokenTimeout of its
+	// start, or none for StallTimeout after the one before. Every delta
+	// counts, a reasoning block's too; the request streams for them
+	// (OnDelta or not). Such a timeout is not retried: a model that is
+	// slow would be slow again.
+	FirstTokenTimeout time.Duration
+	StallTimeout      time.Duration
 
 	// Skill tags the call for usage accounting and its default
 	// temperature (DefaultTemperature).
