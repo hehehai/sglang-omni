@@ -35,12 +35,19 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   │                     runtimes' ASROpener and LLMOpener; ErrNoRuntime without one), Choose,
 │   │                     ForFeature, ErrNotInstalled; NotInstalled; VoiceActivity (a speech
 │   │                     provider that brings its VAD model)
-│   ├── models/           the model catalogue (six curated models, pinned revisions and SHA-256),
-│   │   │                 the models on disk (<data>/models/<id>/), downloads (resumable, verified,
-│   │   │                 bounded, cancellable, a mirror when the Hub is unreachable; through
-│   │   │                 the environment's proxy, else the system's: SystemProxy), adopting
-│   │   │                 a Hugging Face cache; Manager                                       (leaf)
-│   │   └── modelstest/   Seed: installed models of sparse files, for tests
+│   ├── models/           the model catalogue (six curated models pinned to the family's commits,
+│   │   │                 every file's SHA-256; two borrowed family LLMs), the models in the
+│   │   │                 ActNow family's library ($HUB, the Hugging Face cache) through
+│   │   │                 actnowkit's hfhub (downloads: mirrors raced, ranges, resume, the
+│   │   │                 family's locks and claims) and models (claims, deletion decisions,
+│   │   │                 tombstones, reuse survey, migration); the downloads' proxy
+│   │   │                 (SystemProxy, ProxyFor); Manager                    (actnowkit only)
+│   │   └── modelstest/   Seed: installed models of sparse blobs in a $HUB layout, for tests
+│   ├── actnow/           VoxtNew in the ActNow family (spec v1.0.3, actnowkit): the family
+│   │                     directory, the manifest, discovery of the other apps, shared settings
+│   │                     (language, proxy, Hub endpoints, model folder: follow, migrate, mirror),
+│   │                     shortcuts declared and their conflicts, the runtime file (loaded models,
+│   │                     budget, memory requests, the paste flag)
 │   ├── omni/             the Omni native MLX servers (M1): Runtime (one qwen3_asr_server per model,
 │   │                     ready line, start timeout, idle unload, Unload, restart after death,
 │   │                     stall kill, Close), ASR (asr.FileTranscriber + asr.Streamer: Voxt's
@@ -122,7 +129,9 @@ dsp ──▶ vad
 compose ──▶ lang              deliver ──▶ helper/proto      hotkey ──▶ helper/proto, settings
 appctx ──▶ helper/proto, hotkey, settings                    dict ──▶ store
 appicons ──▶ helper/proto
+actnow ──▶ settings
 core, settings, helper/proto, llmrt/wire, i18n, lang, permission, macx, vad, appbundle, models ──▶ (nothing internal)
+actnow, models, local, uitext ──▶ github.com/hehehai/actnowkit (archtest: actnowUsers; its conformance package only in tests)
 icons ──▶ mygo/ui
 ```
 
@@ -253,7 +262,8 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | What | Where |
 |---|---|
 | Database: history (+ `history_fts`; `rule_source` since migration 2), dictionary terms, documents (`settings:app`, `appctx:rules`, `notifications`) | `~/Library/Application Support/VoxtNew/voxtnew.db` (WAL; `voxtnew.db.bak-<v>` before each migration) |
-| Local models | `…/VoxtNew/models/<id>/` (+ `.voxtnew-model.json` once verified); `models/.partial/<id>/<rev>/` a download (resumed at the next); `models/.trash/` while removing |
+| Local models | the ActNow family's model library `$HUB` (family spec §7.1: the family's `models.root`, else `$HF_HUB_CACHE`, `$HF_HOME/hub`, `~/.cache/huggingface/hub`), the Hugging Face layout `models--<owner>--<name>/{blobs,snapshots/<commit>,refs}`, shared with the other ActNow apps (and huggingface_hub); the runtimes load `snapshots/<commit>` (`models.Manager.Dir`); locks in `$HUB/.locks/models--…/` |
+| The ActNow family | `~/Library/Application Support/ActNow/` (`$ACTNOW_FAMILY_DIR`): `family.json`, `apps/dev.hehehai.voxtnew.json` (the manifest: version, path, capabilities, shortcuts, links, `models.root`), `models/claims/dev.hehehai.voxtnew.json` (the models VoxtNew uses), `models/removed.json` (deleted for all apps), `runtime/dev.hehehai.voxtnew.json` (while it runs: loaded models, the paste flag), `settings.json` (shared settings; VoxtNew's follow flags are in its own `settings:app`, `family`) |
 | Recordings kept with history entries | `…/VoxtNew/audio/<id>.wav` (only with Settings → Privacy → Keep the recordings) |
 | Data folder location | `…/VoxtNew/location.json` when the user moved it (Settings → Storage); `move.json`, `reset.json` while a move or an erase waits for the next start |
 | Apps' icons (App enhancement's lists) | `~/Library/Caches/VoxtNew/icons/<bundle id>-64.png`, drawn by the helper (`app.icons`), redrawn after a week (`internal/appicons`) |
@@ -312,8 +322,9 @@ Not taken: jobs, hub (downloads), catalog, licence, engine's MLX side, services,
 | Omni on a Mac | `scripts/mac.sh 'scripts/build-omni.sh --out build/omni-stage'`, then `TestMacE2EOmni` with `VOXTNEW_MAC_E2E=1`, `VOXTNEW_HELPER`, `VOXTNEW_OMNI_RUNTIME`, `VOXTNEW_OMNI_MODELS` (mac_e2e_omni_test.go's header) | the real models: a Final cold and warm, a live session with the helper playing the sample, Silero's speech; it logs the times (`MEASURE` lines) |
 | Loaded models' memory on a Mac | `VOXTNEW_MAC_E2E=1 VOXTNEW_OMNI_RUNTIME=… VOXTNEW_LLM=… go test -run TestMacModelMemory -v .` (mac_e2e_memory_test.go's header); `go test -run TestMemory -v ./internal/macx` | asr.fast, llm.fast and llm.translate loaded from `~/voxtnew-models`, measured by pid as the Local models page does, against voxtnew-llm's own report (`MEASURE` lines) |
 | Language models | `go test ./internal/llmrt/...`; `go test -run TestLLM .` | the protocol's fixtures (`llm/Fixtures`, as the Swift tests); the runtime against the fake process (`llmrttest`: lazy start, streaming on the caller's goroutine, the profiles' parameters, idle stop, a crash retried, cancel, a cancel that hangs, mismatch, silence, no binary, a model that does not load, Stop, warm-up, Unload); Translate and Rewrite sessions and the opener through the Library over it (`llm_e2e_test.go`) |
+| The ActNow family | `go test ./internal/actnow ./internal/models` | actnowkit's conformance scenarios (spec §16.1: reuse without downloading, deletion protection by claims, locks and loaded models, deleting for all apps, concurrent and resumed downloads against another app, settings that follow the family, shortcut conflicts, uninstalled apps, forward compatibility) through VoxtNew's Manager and Family; the catalogue as hfhub entries and family pins (`TestFamilyPins`, `TestEntry`); the manifest. Every test uses temporary `$FAMILY`/`$HUB` (`conformance.New`; the app's tests put both in each test app's data folder, `testutil_test.go` `runIsolated`). On a Mac: `go run github.com/hehehai/actnowkit/cmd/actnow-conformance check|discover|claims|watch|lock` |
 | Language models on a Mac | `scripts/mac.sh 'scripts/build-llm.sh && scripts/build-llm.sh --test'`, then `VOXTNEW_LLM_REAL=1 VOXTNEW_DEV_LLM=<id>=<dir>,… go test -run TestLLM -v .` | the Swift Kit's tests (fixtures, server, repetition guard, UTF-8); the real process and models: the sessions of llm_e2e_test.go, `TestLLMMeasure` (VoxtNew's prompts, each twice: first token, rate, memory, answers) and `TestLLMRealCancel`; [llm-models.md](llm-models.md) has the numbers |
-| Eval on a Mac | `VOXTNEW_EVAL=1 … go test -run TestEval -v .` (eval_test.go's header; `VOXTNEW_EVAL_QUICK=1`, `VOXTNEW_EVAL_ONLY`, `VOXTNEW_EVAL_OUT`) | the eval set through the real runtimes and `~/voxtnew-models`: both speech models under three language hints, with and without the dictionary, live (`TestEvalASR`); the clean-up with and without compose's example, spoken Translate, Hy-MT2 (`TestEvalLLM`); app enhancement and the dictionary in whole sessions (`TestEvalAppEnhancement`, `TestEvalDictionary`); [eval.md](eval.md) has the numbers |
+| Eval on a Mac | `VOXTNEW_EVAL=1 … go test -run TestEval -v .` (eval_test.go's header; `VOXTNEW_EVAL_QUICK=1`, `VOXTNEW_EVAL_ONLY`, `VOXTNEW_EVAL_OUT`) | the eval set through the real runtimes and the catalogue's models in `$HUB`: both speech models under three language hints, with and without the dictionary, live (`TestEvalASR`); the clean-up with and without compose's example, spoken Translate, Hy-MT2 (`TestEvalLLM`); app enhancement and the dictionary in whole sessions (`TestEvalAppEnhancement`, `TestEvalDictionary`); [eval.md](eval.md) has the numbers |
 | Mac regression | `MAC_DIR=code/VoxtNew-xyz scripts/mac.sh scripts/mac-regress.sh [--full]` | the helper's Swift tests, `TestMacE2EOmni`, `TestLLM*` (real), the eval (quick: floors), the app built with the runtimes, started with `--smoke` (smoke.go: its own data, no window, no shortcuts; each runtime answers once) and quit with nothing left running; a summary table |
 | By hand on a Mac | [manual-test.md](manual-test.md) | what needs permissions, a GUI and the real models, in order |
 | Text fit | `VOXTNEW_TEXTFIT_PROBE=1` / `VOXTNEW_TEXTFIT_AUDIT=1 go test -run 'TestTextFits|TestTranslationsFit' .` | meaningful on macOS (Core Text) |

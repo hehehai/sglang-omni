@@ -40,7 +40,7 @@ On mac-air, from the persistent models and runtimes:
 
 | path | what | refresh |
 |---|---|---|
-| `~/voxtnew-models/<id>/` | the six catalogue models, about 9 GB, installed by VoxtNew's models package (`TestRealInstall`, adopting the HF cache) | its `README.md` |
+| `~/.cache/huggingface/hub` (`$HUB`) | the six catalogue models' snapshots at their pinned commits, about 9 GB, in the ActNow family's model library (shared with the user's AudioSmith and Dicta; claimed as `dev.hehehai.voxtnew`); the tests find them through the catalogue (`models.Installed`) | download in VoxtNew, or `internal/models` `TestRealMoveToHub` from per-model folders; never delete them by hand |
 | `~/voxtnew-runtime/{omni,llm}/` | `scripts/build-omni.sh --out` and `scripts/build-llm.sh --out` from `voxtnew/dev` | its `README.md` |
 
 ```sh
@@ -242,7 +242,7 @@ Each dictionary clip's transcript as a speech model wrote it without the diction
 These are `eval_e2e_test.go`.
 
 **Setup:**
-- the app's own Library and runtimes, with `asr.accurate`, Silero and `llm.balanced` linked from `~/voxtnew-models`;
+- the app's own Library and runtimes over the real `$HUB` (`asr.accurate`, Silero and `llm.balanced`; the app's family directory is a temporary one);
 - the fake helper plays an eval clip as the recording, with an app in front;
 - each session runs in an app of its own, quit before the next one.
 
