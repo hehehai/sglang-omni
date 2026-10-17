@@ -31,7 +31,10 @@
 // dies (or hangs: a Final whose stream stops for StallTimeout) is replaced
 // at the next use. Close stops them all: {"command":"shutdown"} on stdin,
 // then SIGTERM, then SIGKILL; a server whose stdin closes (VoxtNew
-// crashed) stops by itself.
+// crashed) stops by itself. Config.OnModel hears each model loaded,
+// busy, idle and unloaded (internal/resident: the family's runtime file),
+// and Config.BeforeLoad runs before a server loads its model (the
+// family's memory budget).
 //
 // # Recognition (Voxt's Qwen3-ASR policy)
 //
@@ -63,5 +66,5 @@
 // Everything here is goroutine-safe and blocks: call it off the main
 // thread. Errors are *asr.Error values (provider "omni").
 //
-// Imports: asr, lang, vad.
+// Imports: asr, lang, resident, vad.
 package omni

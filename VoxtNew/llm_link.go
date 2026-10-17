@@ -52,6 +52,7 @@ func (a *app) llmRuntime() *llmrt.Runtime {
 					logs.Append(e)
 				}
 			},
+			OnModel: a.modelEvents(workerLLM), BeforeLoad: a.beforeLoad(), // family_runtime.go
 		})
 	}
 	return a.llmrt

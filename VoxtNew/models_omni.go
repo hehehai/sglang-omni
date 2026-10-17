@@ -53,7 +53,8 @@ func (a *app) omniRuntime() (*omni.Runtime, error) {
 		a.omniLog("error", err.Error())
 		return nil, a.omniErr
 	}
-	a.omniRT = omni.NewRuntime(omni.Config{Binary: bin, Log: a.omniLog})
+	a.omniRT = omni.NewRuntime(omni.Config{Binary: bin, Log: a.omniLog,
+		OnModel: a.modelEvents(workerOmni), BeforeLoad: a.beforeLoad()}) // family_runtime.go
 	return a.omniRT, nil
 }
 

@@ -53,7 +53,7 @@ func (b *Backend) Prefill(ctx context.Context, req llm.Request) error {
 		return err
 	}
 	params.MaxTokens = 0
-	raw, err := b.rt.Call(ctx, wire.MethodChat, params, nil)
+	raw, err := b.rt.modelCall(ctx, b.model, wire.MethodChat, params, nil)
 	if err != nil {
 		return b.chatErr(ctx, err)
 	}
@@ -84,7 +84,7 @@ func (b *Backend) Chat(ctx context.Context, req llm.Request) (llm.Response, erro
 	}
 	done := make(chan result, 1)
 	go func() {
-		raw, err := b.rt.Call(ctx, wire.MethodChat, params, notify)
+		raw, err := b.rt.modelCall(ctx, b.model, wire.MethodChat, params, notify)
 		done <- result{raw, err}
 	}()
 	var res result

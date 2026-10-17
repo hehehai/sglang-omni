@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/resident"
 )
 
 // server is one model's server over its life: started on first use,
@@ -25,6 +26,10 @@ type server struct {
 	idle    *time.Timer
 	retired bool
 	stopped chan struct{} // closed once retired and no process is left
+	// loaded is the process that said it is ready, until it exited
+	// (Config.OnModel's view: tracker).
+	loaded  *process
+	tracker resident.Tracker
 }
 
 type startOp struct {
@@ -75,6 +80,7 @@ func (s *server) acquire(ctx context.Context) (*lease, error) {
 				s.idle.Stop()
 				s.idle = nil
 			}
+			s.report()
 			s.mu.Unlock()
 			return &lease{s: s, p: p}, nil
 		}
@@ -102,6 +108,11 @@ func (s *server) acquire(ctx context.Context) (*lease, error) {
 // which the idle timer stops.
 func (s *server) launch(op *startOp) {
 	s.waitDrained()
+	if fn := s.rt.cfg.BeforeLoad; fn != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), beforeLoadTimeout)
+		fn(ctx, s.spec.ID)
+		cancel()
+	}
 	started := time.Now()
 	p, ready, err := spawn(s.rt.cfg, s.spec, s.dir)
 	if err == nil {
@@ -123,10 +134,11 @@ func (s *server) launch(op *startOp) {
 		op.err = &asr.Error{Kind: asr.KindServer, Provider: Provider, Detail: "the speech model was switched", Err: errRetired}
 		go p.stop()
 	default:
-		s.proc = p
+		s.proc, s.loaded = p, p
 		if s.leases == 0 {
 			s.armIdle(p)
 		}
+		s.report()
 	}
 	s.mu.Unlock()
 	if err != nil {
@@ -146,6 +158,10 @@ func (s *server) launch(op *startOp) {
 func (s *server) watch(p *process) {
 	<-p.exited
 	s.mu.Lock()
+	if s.loaded == p {
+		s.loaded = nil
+		s.report()
+	}
 	unexpected := s.proc == p && !p.stopping()
 	if s.proc == p {
 		s.proc = nil
@@ -165,6 +181,7 @@ func (s *server) unlease(p *process) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.leases = max(s.leases-1, 0)
+	s.report()
 	if s.leases > 0 || s.proc != p {
 		return
 	}
@@ -244,6 +261,16 @@ func (s *server) shutdown() {
 	s.markStopped()
 }
 
+// report tells Config.OnModel what changed (s.mu held): the process that
+// said it is ready holds the model until it exits, busy while leased.
+func (s *server) report() {
+	pid := 0
+	if s.loaded != nil {
+		pid = s.loaded.pidOf()
+	}
+	s.tracker.Set(s.rt.events, s.spec.ID, pid, s.leases > 0, 0)
+}
+
 func (s *server) stopAndMark(p *process) {
 	p.stop()
 	s.markStopped()
@@ -275,10 +302,10 @@ func (s *server) running() bool {
 func (s *server) pid() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.proc == nil || !s.proc.alive() || s.proc.cmd.Process == nil {
+	if s.proc == nil || !s.proc.alive() {
 		return 0
 	}
-	return s.proc.cmd.Process.Pid
+	return s.proc.pidOf()
 }
 
 // waitDrained waits, at most a start's timeout, for the speech models'

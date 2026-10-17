@@ -6,7 +6,9 @@
 //     (llm.hello), its calls routed by id, its stderr written to the log,
 //     started again on the next call after a crash, stopped after
 //     Config.IdleTimeout unused (the one sure way to give a model's memory
-//     back) and on quit (Stop).
+//     back) and on quit (Stop). Config.OnModel hears the model it holds
+//     loaded, busy, idle and unloaded (resident.go: the family's runtime
+//     file); UnloadIdle lets an idle model go when another app asks.
 //   - Open gives a model as a session uses it (local.Chat): an llm.Client
 //     (retries, JSON repair, thinking stripped) over a backend that builds
 //     each chat from the model's Profile (models.go: sampling, token
@@ -17,10 +19,11 @@
 // to unload. The catalogue, the downloads and local.Services are M1b's;
 // dev.go's VOXTNEW_DEV_LLM is a hook for trying a model without them.
 //
-// Imports: core, lang, llm, llmrt/wire, local.
+// Imports: core, lang, llm, llmrt/wire, local, resident.
 package llmrt
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -29,6 +32,7 @@ import (
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/wire"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/resident"
 )
 
 // BinName is the process's executable, in the app's resources under llm/
@@ -82,6 +86,13 @@ type Config struct {
 	// CacheLimitMB bounds MLX's buffer cache, sent with each load (0:
 	// MLX's default).
 	CacheLimitMB int
+	// OnModel is told when the process's model is loaded, busy, idle and
+	// unloaded (resident.go), in order, on a goroutine of the runtime's,
+	// under none of its locks. nil: nobody.
+	OnModel func(resident.Event)
+	// BeforeLoad runs before a call that makes the process load a model
+	// (the family's memory budget makes room); it may block a little.
+	BeforeLoad func(ctx context.Context, id string)
 }
 
 func (c *Config) defaults() {

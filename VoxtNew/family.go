@@ -53,6 +53,7 @@ var familyConfig = func(a *app) actnow.Config {
 func (a *app) openFamily() {
 	if a.fam == nil {
 		a.fam = actnow.Open(familyConfig(a), a.prefs)
+		a.connectFamilyRuntime() // family_runtime.go
 	}
 }
 

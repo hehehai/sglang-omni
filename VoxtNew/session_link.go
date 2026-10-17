@@ -129,7 +129,7 @@ func (a *app) openSessions() {
 	st := a.settings
 	a.mgr = session.New(session.Config{
 		Audio:   session.HelperAudio{H: sup},
-		Text:    session.HelperText{H: sup},
+		Text:    a.textIO(), // family_runtime.go: the family's paste rule
 		Select:  session.HelperText{H: sup},
 		Resolve: resolver(lm),
 		History: lib.store.History(),

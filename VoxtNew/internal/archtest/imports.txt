@@ -75,3 +75,5 @@ local models
 models/modelstest models
 uitext models
 eval asr
+omni resident
+llmrt resident

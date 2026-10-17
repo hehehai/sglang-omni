@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/resident"
 )
 
 // Provider is the name errors carry (asr.Error.Provider).
@@ -51,7 +52,20 @@ type Config struct {
 	// Log gets a line about the servers ("info", "warning", "error"); their
 	// stderr goes there too (they never write audio or text). nil: none.
 	Log func(level, msg string)
+	// OnModel is told when a server's model is loaded (the server said it
+	// is ready), busy (its first lease), idle (its last lease ended) and
+	// unloaded (its process exited: idle stop, switch, Unload, Close or a
+	// crash), Silero's too; in order, on a goroutine of the runtime's,
+	// under none of its locks. nil: nobody.
+	OnModel func(resident.Event)
+	// BeforeLoad runs before a server starts loading its model (the
+	// family's memory budget makes room); it may block a little. nil:
+	// nothing.
+	BeforeLoad func(ctx context.Context, id string)
 }
+
+// beforeLoadTimeout bounds Config.BeforeLoad.
+const beforeLoadTimeout = 5 * time.Second
 
 // Locate finds the runtime: $VOXTNEW_OMNI_RUNTIME (a directory with
 // bin/qwen3_asr_server, or the binary itself), else the app bundle's
@@ -85,7 +99,8 @@ func Locate(exe string) (string, error) {
 // Runtime supervises the servers: one per model, one speech model at a
 // time, and Silero's beside it. Goroutine-safe.
 type Runtime struct {
-	cfg Config
+	cfg    Config
+	events *resident.Queue // Config.OnModel's
 
 	mu      sync.Mutex
 	servers map[string]*server // by model id and directory
@@ -109,7 +124,7 @@ func NewRuntime(cfg Config) *Runtime {
 	if cfg.Log == nil {
 		cfg.Log = func(string, string) {}
 	}
-	return &Runtime{cfg: cfg, servers: map[string]*server{}}
+	return &Runtime{cfg: cfg, events: resident.NewQueue(cfg.OnModel), servers: map[string]*server{}}
 }
 
 func (rt *Runtime) logf(level, format string, args ...any) {

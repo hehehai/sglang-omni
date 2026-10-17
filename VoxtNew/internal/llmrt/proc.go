@@ -192,11 +192,6 @@ func (p *proc) end(waitErr error) {
 	p.pending = map[string]*call{}
 	reason := p.killReason
 	p.mu.Unlock()
-	close(p.exited)
-	for _, c := range calls {
-		c.err = ErrExited
-		close(c.done)
-	}
 	msg := "voxtnew-llm exited"
 	switch {
 	case reason != "":
@@ -204,7 +199,14 @@ func (p *proc) end(waitErr error) {
 	case waitErr != nil:
 		msg += ": " + waitErr.Error()
 	}
+	close(p.exited)
+	// The runtime first, so that a failed call finds it without the
+	// process (its status, the model unloaded).
 	p.rt.exited(p, msg)
+	for _, c := range calls {
+		c.err = ErrExited
+		close(c.done)
+	}
 }
 
 func (p *proc) kill(reason string) {

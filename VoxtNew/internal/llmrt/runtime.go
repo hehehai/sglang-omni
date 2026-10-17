@@ -10,12 +10,14 @@ import (
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/wire"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/resident"
 )
 
 // Runtime supervises voxtnew-llm. Nothing runs until the first call;
 // goroutine-safe.
 type Runtime struct {
-	cfg Config
+	cfg    Config
+	events *resident.Queue // Config.OnModel's
 
 	mu       sync.Mutex // guards the fields below
 	status   Status
@@ -27,12 +29,18 @@ type Runtime struct {
 	// mismatch: the process speaks another protocol; it is not started
 	// again (rebuild it).
 	mismatch string
+	// held is the model the process holds (resident.go), heldBytes the
+	// memory it reported then; work counts the calls using a model.
+	held      string
+	heldBytes int64
+	work      int
+	tracker   resident.Tracker
 }
 
 // New returns a Runtime for cfg.
 func New(cfg Config) *Runtime {
 	cfg.defaults()
-	return &Runtime{cfg: cfg, status: Status{State: Stopped, Since: time.Now()}}
+	return &Runtime{cfg: cfg, events: newEvents(cfg), status: Status{State: Stopped, Since: time.Now()}}
 }
 
 // Status returns a snapshot (memory only).
@@ -206,7 +214,7 @@ func (r *Runtime) exited(p *proc, msg string) {
 		r.mu.Unlock()
 		return
 	}
-	r.proc = nil
+	r.gone(p)
 	if r.idle != nil {
 		r.idle.Stop()
 	}
@@ -239,9 +247,7 @@ func (r *Runtime) shutdown(p *proc, state State, msg string) {
 		<-p.exited
 	}
 	r.mu.Lock()
-	if r.proc == p {
-		r.proc = nil
-	}
+	r.gone(p)
 	r.status.State, r.status.Err, r.status.PID, r.status.Since = state, msg, 0, time.Now()
 	r.status.Hello, r.status.Model = nil, nil
 	r.mu.Unlock()
@@ -278,7 +284,7 @@ func (r *Runtime) Unload() {
 
 // Load loads m ahead of its first chat (a warm-up).
 func (r *Runtime) Load(ctx context.Context, m wire.Model) (wire.LoadResult, error) {
-	raw, err := r.Call(ctx, wire.MethodLoad, wire.LoadParams{Model: m, CacheLimitMB: r.cfg.CacheLimitMB}, nil)
+	raw, err := r.modelCall(ctx, m, wire.MethodLoad, wire.LoadParams{Model: m, CacheLimitMB: r.cfg.CacheLimitMB}, nil)
 	var res wire.LoadResult
 	if err == nil {
 		err = json.Unmarshal(raw, &res)

@@ -141,6 +141,14 @@ func (p *process) waitReady(ready <-chan readyEvent, timeout time.Duration) erro
 	}
 }
 
+// pidOf is its process id.
+func (p *process) pidOf() int {
+	if p.cmd.Process == nil {
+		return 0
+	}
+	return p.cmd.Process.Pid
+}
+
 func (p *process) alive() bool {
 	select {
 	case <-p.exited:

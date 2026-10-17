@@ -144,7 +144,7 @@ func (a *app) pasteLast(target proto.App) {
 		a.showNotice(sessionNotice{text: i18n.T("Nothing to paste yet.")})
 		return
 	}
-	io := session.HelperText{H: a.host.sup}
+	io := a.textIO() // family_runtime.go: the family's paste rule
 	a.async(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

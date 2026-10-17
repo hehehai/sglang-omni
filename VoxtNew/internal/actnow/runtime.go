@@ -8,6 +8,7 @@ package actnow
 // on each change and removed when VoxtNew quits.
 
 import (
+	"cmp"
 	"context"
 	"maps"
 	"slices"
@@ -22,17 +23,27 @@ import (
 type Runtime struct {
 	f *Family
 
+	// wmu orders the writes: each writes the state of its time, the last
+	// one the latest.
+	wmu     sync.Mutex
 	mu      sync.Mutex
 	loaded  map[string]famruntime.Loaded // by model id
 	pasting bool
+	closed  bool // removed: VoxtNew quits, nothing is written any more
 	// unload lets a runtime go of an idle model on a memory request
 	// (OnUnload), by model id.
 	unload func(id string)
 	now    func() time.Time
+	// physical is the Mac's memory (tests set it).
+	physical func() uint64
+	// ownWait is how long Reserve waits for VoxtNew's own idle models to
+	// leave, othersWait how long it gives the other apps.
+	ownWait, othersWait time.Duration
 }
 
 func newRuntime(f *Family) *Runtime {
-	return &Runtime{f: f, loaded: map[string]famruntime.Loaded{}, now: time.Now}
+	return &Runtime{f: f, loaded: map[string]famruntime.Loaded{}, now: time.Now,
+		physical: famruntime.PhysicalMemory, ownWait: 3 * time.Second, othersWait: time.Second}
 }
 
 // OnUnload sets what lets go of model id when another app asks for
@@ -109,27 +120,66 @@ func (r *Runtime) LoadedBytes() int64 {
 // share of the physical memory less what the other running apps hold
 // (VoxtNew sets no limit of its own).
 func (r *Runtime) Budget() int64 {
-	return famruntime.Budget(0, famruntime.FamilyCap(famruntime.PhysicalMemory()), famruntime.OthersLoadedBytes(r.f.dir, r.f.bundleID))
+	return famruntime.Budget(0, famruntime.FamilyCap(r.physical()), famruntime.OthersLoadedBytes(r.f.dir, r.f.bundleID))
 }
 
-// Reserve makes room before a runtime loads a model of bytes (spec
+// Reserve makes room before a runtime loads model id of bytes (spec
 // §11.1): when it does not fit the budget, VoxtNew's own idle models go
-// first, then the other apps are asked to unload theirs and are given a
+// first (the largest first, until it fits; Reserve waits for them to
+// leave), then the other apps are asked to unload theirs and are given a
 // moment; the model loads anyway afterwards (it never blocks the user).
+// Idle is the family's: for famruntime.UnloadIdleAfter, so that a
+// session's models (the speech model idle between its live stream and
+// its Final, the language model warming up meanwhile) never unload each
+// other.
 func (r *Runtime) Reserve(ctx context.Context, id string, bytes int64) {
-	if r.Budget()-r.othersOf(id) >= bytes {
+	need := bytes - (r.Budget() - r.othersOf(id))
+	if need <= 0 {
 		return
 	}
-	r.unloadIdle(0, id)
-	if r.Budget()-r.othersOf(id) >= bytes || r.f.readOnly {
+	r.mu.Lock()
+	unload := r.unload
+	r.mu.Unlock()
+	if unload != nil {
+		idle := r.idle(famruntime.UnloadIdleAfter, id)
+		slices.SortStableFunc(idle, func(a, b idleModel) int { return cmp.Compare(b.bytes, a.bytes) })
+		var gone []string
+		for _, m := range idle {
+			if need <= 0 {
+				break
+			}
+			r.f.logf("family: unloading %s (idle) to load %s", m.id, id)
+			unload(m.id)
+			gone = append(gone, m.id)
+			need -= m.bytes
+		}
+		r.waitGone(ctx, gone)
+	}
+	if need <= 0 || r.f.readOnly {
 		return
 	}
+	r.f.logf("family: asking the other apps for memory to load %s", id)
 	if err := famruntime.RequestMemory(r.f.dir); err != nil {
 		r.f.logf("family: memory request: %v", err)
 	}
 	select {
 	case <-ctx.Done():
-	case <-time.After(time.Second):
+	case <-time.After(r.othersWait):
+	}
+}
+
+// waitGone waits, at most ownWait, until models ids left the file (their
+// runtimes said Unloaded).
+func (r *Runtime) waitGone(ctx context.Context, ids []string) {
+	deadline := time.Now().Add(r.ownWait)
+	for len(ids) > 0 && time.Now().Before(deadline) && ctx.Err() == nil {
+		r.mu.Lock()
+		left := slices.ContainsFunc(ids, func(id string) bool { _, ok := r.loaded[id]; return ok })
+		r.mu.Unlock()
+		if !left {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 
@@ -147,30 +197,40 @@ func (r *Runtime) othersOf(id string) int64 {
 }
 
 // OnMemory answers another app's memory request (family.TopicMemory):
-// the models idle for famruntime.UnloadIdleAfter go.
-func (r *Runtime) OnMemory() { r.unloadIdle(famruntime.UnloadIdleAfter, "") }
-
-// unloadIdle lets go of the models idle for at least after (0: any idle
-// one), but keep.
-func (r *Runtime) unloadIdle(after time.Duration, keep string) {
+// the models idle for famruntime.UnloadIdleAfter go; a model in use
+// stays.
+func (r *Runtime) OnMemory() {
 	r.mu.Lock()
 	unload := r.unload
-	now := r.now()
-	var ids []string
-	for id, l := range r.loaded {
-		if id != keep && l.IdleSince != nil && now.Sub(*l.IdleSince) >= after && (after == 0 || famruntime.Idle(l, now)) {
-			ids = append(ids, id)
-		}
-	}
 	r.mu.Unlock()
 	if unload == nil {
 		return
 	}
-	slices.Sort(ids)
-	for _, id := range ids {
-		r.f.logf("family: unloading %s (idle) for memory", id)
-		unload(id)
+	for _, m := range r.idle(famruntime.UnloadIdleAfter, "") {
+		r.f.logf("family: unloading %s (idle) for another app", m.id)
+		unload(m.id)
 	}
+}
+
+// idleModel is a model idle long enough to go.
+type idleModel struct {
+	id    string
+	bytes int64
+}
+
+// idle lists the models idle for at least after, but keep, by id.
+func (r *Runtime) idle(after time.Duration, keep string) []idleModel {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	now := r.now()
+	var out []idleModel
+	for _, id := range slices.Sorted(maps.Keys(r.loaded)) {
+		l := r.loaded[id]
+		if id != keep && l.IdleSince != nil && now.Sub(*l.IdleSince) >= after {
+			out = append(out, idleModel{id, l.Bytes})
+		}
+	}
+	return out
 }
 
 // Paste runs fn, a paste through the clipboard (write it, ⌘V, restore
@@ -197,7 +257,13 @@ func (r *Runtime) write() {
 	if r.f.readOnly {
 		return
 	}
+	r.wmu.Lock()
+	defer r.wmu.Unlock()
 	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		return
+	}
 	ids := slices.Sorted(maps.Keys(r.loaded))
 	loaded := make([]famruntime.Loaded, 0, len(ids))
 	for _, id := range ids {
@@ -213,6 +279,11 @@ func (r *Runtime) write() {
 
 // remove deletes the runtime file (VoxtNew quits).
 func (r *Runtime) remove() {
+	r.wmu.Lock()
+	defer r.wmu.Unlock()
+	r.mu.Lock()
+	r.closed = true
+	r.mu.Unlock()
 	if r.f.readOnly {
 		return
 	}

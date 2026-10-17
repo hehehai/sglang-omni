@@ -205,7 +205,7 @@ func (a *app) insertAnswer() {
 	}
 	a.answer.inserting, a.answer.msg = true, ""
 	a.overlaySync()
-	text := session.HelperText{H: a.host.sup}
+	text := a.textIO() // family_runtime.go: the family's paste rule
 	a.async(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
