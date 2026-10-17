@@ -3,7 +3,8 @@ package main
 // TestEvalLLM: the language models' clean-up on the eval set's short
 // clips (eval_test.go; the long ones: TestEvalLong), from each clip's
 // reference text (what was said, word for word): Transcribe's clean-up
-// with compose's example turn and without it, spoken Translate into
+// with compose's example turn and without it (and the English clips with
+// Chinese as the main language), spoken Translate into
 // English likewise, and Hy-MT2 (llm.translate) given the raw speech, the
 // speech without its fillers (compose.StripFillers) or llm.balanced's
 // clean-up. Every answer is checked (internal/eval: fillers,
@@ -116,6 +117,17 @@ func TestEvalLLM(t *testing.T) {
 				if id == llmrt.Balanced && example {
 					cleaned[c.ID] = lc.out
 				}
+			}
+			if c.Lang == "en" {
+				// An English sentence from a user whose main language is
+				// Chinese: the Chinese template set, which must not
+				// translate it.
+				zh := in
+				zh.MainLanguage, zh.OtherLanguages = "zh", []string{"en"}
+				run("transcribe", "example, main zh", c, chatRequest(t, zh, true, llm.SkillTranscribeEnhance), func(out string) eval.Verdict {
+					_, answer, _ := compose.Example(zh)
+					return eval.CheckClean(c, c.Text, out, answer)
+				})
 			}
 		}
 		for _, c := range spoken {
