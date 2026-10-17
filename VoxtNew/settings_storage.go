@@ -21,6 +21,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/datadir"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/recordings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store/sqlitestore"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/uitext"
@@ -116,7 +117,8 @@ func (a *app) loadStorage() {
 		return
 	}
 	a.stLoading = true
-	data, logs, audio := a.dataDir(), a.logDir, a.lib.store.History().AudioDir()
+	hist := a.lib.store.History()
+	data, logs, audio := a.dataDir(), a.logDir, hist.AudioDir()
 	m := a.models
 	family := a.fam.Dir().Root
 	a.stLoc = datadir.ReadLocation(a.home())
@@ -127,6 +129,11 @@ func (a *app) loadStorage() {
 			r.modelsMine, r.modelsShared = u.Mine, u.Shared
 		}
 		rec, _ := datadir.TreeSize(ctx, audio, nil)
+		if audio != hist.DefaultAudioDir() {
+			// A folder the user chose may hold other files: only the
+			// recordings count (internal/recordings).
+			_, rec, _ = recordings.Usage(ctx, hist)
+		}
 		r.cats = append(r.cats, storageCat{id: "audio", title: i18n.T("Recordings kept with the history"), bytes: rec, dir: audio})
 		var db int64
 		if ents, err := os.ReadDir(data); err == nil {
@@ -140,7 +147,11 @@ func (a *app) loadStorage() {
 		}
 		r.cats = append(r.cats, storageCat{id: "database", title: i18n.T("Library database"), bytes: db})
 		r.data, _ = datadir.TreeSize(ctx, data, outside(data, r.models, family))
-		r.cats = append(r.cats, storageCat{id: "other", title: i18n.T("Other"), bytes: max(r.data-rec-db, 0), dir: data})
+		inData := rec // the recordings, when they are in the data folder
+		if rel, err := filepath.Rel(data, audio); err != nil || strings.HasPrefix(rel, "..") {
+			inData = 0
+		}
+		r.cats = append(r.cats, storageCat{id: "other", title: i18n.T("Other"), bytes: max(r.data-inData-db, 0), dir: data})
 		if logs != "" {
 			lb, _ := datadir.TreeSize(ctx, logs, nil)
 			r.cats = append(r.cats, storageCat{id: "logs", title: i18n.T("Logs"), bytes: lb, dir: logs})
@@ -290,6 +301,14 @@ func (a *app) storageSettings(c *ui.Context) {
 			chooseMoveDir(a, a.startMove)
 		}
 	})
+	if dir := a.prefs.History.AudioDir; dir != "" {
+		// Recordings kept elsewhere (history_settings.go).
+		settingRowNote(c, "st-audio", i18n.T("Recordings folder"), uitext.ShortPath(dir), func() {
+			if ui.Button(c.Key("st-audio-settings"), i18n.T("History settings…")).Clicked() {
+				a.showHistorySettings()
+			}
+		})
+	}
 	if l := a.stLoc; l.Previous != "" {
 		settingRowNote(c, "st-prev", i18n.T("The previous data folder is still there"), uitext.ShortPath(l.Previous), func() {
 			if ui.Button(c.Key("st-prev-rm"), i18n.T("Remove it")).Clicked() {

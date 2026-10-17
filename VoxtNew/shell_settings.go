@@ -155,6 +155,7 @@ func (a *app) settingsChanged(old, new settings.Settings) {
 	if old.Models != new.Models {
 		a.applyKeepLoaded(new.Models) // models_keep.go
 	}
+	a.historySettingsChanged(old, new) // history_settings_ops.go
 	// The problems' cards: the language of their text may have changed
 	// (shell_notices.go).
 	a.checkModels()

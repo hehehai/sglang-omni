@@ -105,8 +105,16 @@ func (a *app) eraseAll() {
 		del = lib.Delete // the runtimes let the models go first
 	}
 	a.resetAsk, a.erasing = "", true
+	h := a.lib.store.History()
 	a.async(func() {
 		eraseFamily(fam, del, ids)
+		if h.AudioDir() != h.DefaultAudioDir() {
+			// Recordings outside the data folder (history_settings.go):
+			// the start's erase does not reach them.
+			if _, err := h.DeleteAudio(context.Background()); err != nil {
+				log.Printf("erase: recordings: %v", err)
+			}
+		}
 		err := datadir.WriteJSON(filepath.Join(home, datadir.ResetFile), datadir.PendingReset{Everything: true, Also: []string{logs}})
 		a.post(func() {
 			a.erasing = false

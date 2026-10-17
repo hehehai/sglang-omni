@@ -15,7 +15,7 @@ package main
 //	onSessionEnd  a session that ended, before its card or notice: Home
 //	onHistory     the history changed (an entry kept, changed, deleted, a
 //	              try ended): Home, the menu bar's recent results, the
-//	              History page
+//	              History page, the automatic clean-up
 
 import (
 	"strings"
@@ -55,5 +55,6 @@ func (a *app) connectEvents() {
 		a.homeChanged,    // home_page.go: today's numbers, the recent results
 		a.loadTrayRecent, // tray.go: the menu bar's recent results
 		a.historyReload,  // history_page.go: the page, now or when it shows next
+		a.pruneHistory,   // history_settings_ops.go: the automatic clean-up
 	)
 }

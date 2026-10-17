@@ -80,10 +80,11 @@ func newApp(lib *library, h *helperHost) *app {
 	a.helperLink.host = h
 	a.openShell(lib)
 	a.openPermissions()
-	a.openFamily()         // family.go: before the models, whose library is the family's
-	a.openModels()         // models_page.go
-	a.openAppEnhancement() // appenhance.go
-	a.openAudio()          // settings_audio.go
+	a.openFamily()          // family.go: before the models, whose library is the family's
+	a.openModels()          // models_page.go
+	a.openAppEnhancement()  // appenhance.go
+	a.openAudio()           // settings_audio.go
+	a.openHistorySettings() // history_settings_ops.go: the recordings folder, the clean-up
 	return a
 }
 

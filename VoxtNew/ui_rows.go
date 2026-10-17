@@ -18,10 +18,23 @@ func settingRow(c *ui.Context, key, title, desc string, control func()) {
 // settingRowNote is a setting whose description is a state to read at
 // once (a path, what is missing, a version): it shows under the name.
 func settingRowNote(c *ui.Context, key, title, note string, control func()) {
+	settingRowNoteTip(c, key, title, "", note, control)
+}
+
+// settingRowNoteTip is settingRowNote with a ⓘ beside the name telling
+// what the setting does (tip, "" for none).
+func settingRowNoteTip(c *ui.Context, key, title, tip, note string, control func()) {
 	t := c.Theme()
 	ui.Row(c.Key(key)).Wrap().GapX(px(t, sp4)).GapY(px(t, 6)).AlignItems(ui.Center).MinHeight(px(t, 32)).Children(func() {
 		ui.Column(c).Grow(1).Basis(px(t, 200)).MinWidth(px(t, 140)).Gap(px(t, 2)).Children(func() {
-			ui.Text(c, title)
+			if tip == "" {
+				ui.Text(c, title)
+			} else {
+				ui.Row(c).Gap(px(t, 6)).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, title).MinWidth(0)
+					infoTip(c, tip)
+				})
+			}
 			if note != "" {
 				caption(c, note).Selectable()
 			}

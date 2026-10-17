@@ -3,6 +3,8 @@ package main
 // Settings → Privacy: nothing leaves this Mac (the models run here; the
 // network is for update checks and model downloads only), and what
 // VoxtNew keeps here: the history, its recordings, the text in the logs.
+// Where the recordings go and how long the history keeps entries are in
+// the History settings dialog (history_settings.go), which a row opens.
 
 import (
 	"context"
@@ -42,6 +44,11 @@ func (a *app) privacySettings(c *ui.Context) {
 		if ui.Switch(c.Key("priv-audio"), &a.settingsForm.keepAudio).Label(i18n.T("Save each recording")).Disabled(!a.prefs.Privacy.KeepHistory).Changed() {
 			on := a.settingsForm.keepAudio
 			a.updateSettings(func(s *settings.Settings) { s.Privacy.KeepAudio = on })
+		}
+	})
+	settingRow(c, "priv-hist-settings", i18n.T("History settings"), i18n.T("Where the recordings are kept, exporting them, and the automatic clean-up of old entries."), func() {
+		if ui.Button(c.Key("priv-hist-settings"), i18n.T("Open…")).Clicked() {
+			a.showHistorySettings()
 		}
 	})
 	settingRow(c, "priv-clear", i18n.T("Clear the history"), i18n.T("Deletes every entry and its recording. Your dictionary and settings stay."), func() {
