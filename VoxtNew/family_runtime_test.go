@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/llmrttest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/omni/omnitest"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/resident"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
@@ -52,8 +54,11 @@ func (a *app) loadedModel(t *testing.T, id string) (famruntime.Loaded, bool) {
 // repos, commits, sizes, worker "omni"), the speech model busy while it
 // records, both idle after; the paste waits for another app's; an
 // unload for another app takes the model out; quitting removes the file.
+// The fake servers cannot be measured (procMemory: on a Mac the test's
+// own process would be, a few MB), so their sizes are written.
 func TestFamilyRuntimeOmni(t *testing.T) {
 	fakeOmni(t, omnitest.Opts{Text: "hello from omni"})
+	(&fakeProcMemory{mem: map[int]int64{}}).install(t)
 	ev := script(t, hotkeyLine(0, "transcribe/0", proto.PhaseTrigger), hotkeyLine(2500, "transcribe/0", proto.PhaseTrigger))
 	a := newSessionApp(t, ev, func(s *settings.Settings) {
 		s.Features.Transcribe.Enhance = false
@@ -108,10 +113,12 @@ func TestFamilyRuntimeOmni(t *testing.T) {
 }
 
 // TestFamilyRuntimeLLM: the language model in the runtime file: loaded
-// with the memory the process reported (worker "llm"), idle after its
-// chat, and gone when another app's request unloads it.
+// with the memory the process reported (worker "llm"; the fake process
+// cannot be measured, as in TestFamilyRuntimeOmni), idle after its chat,
+// and gone when another app's request unloads it.
 func TestFamilyRuntimeLLM(t *testing.T) {
 	t.Setenv(llmrt.DevEnv, "")
+	(&fakeProcMemory{mem: map[int]int64{}}).install(t)
 	a, _, _ := newTestApp(t)
 	seedModels(t, a, models.LLMFast)
 	self, _ := os.Executable()
@@ -134,6 +141,41 @@ func TestFamilyRuntimeLLM(t *testing.T) {
 	eventually(t, "the unload", func() bool { f, _ := a.runtimeFile(t); return len(f.Loaded) == 0 })
 	if st := a.llmrt.Status(); st.State != llmrt.Stopped {
 		t.Errorf("the process %+v", st)
+	}
+}
+
+// TestModelBytes: a loaded model's memory in the runtime file is its
+// process's measure, else what the runtime reported, else its files'
+// size.
+func TestModelBytes(t *testing.T) {
+	pm := (&fakeProcMemory{mem: map[int]int64{}}).install(t)
+	m, _ := models.Lookup(models.LLMFast)
+	loaded := func(pid int, reported int64) int64 {
+		return modelBytes(resident.Event{Kind: resident.Loaded, ID: m.ID, PID: pid, Bytes: reported}, m)
+	}
+	pm.set(41, 3<<30)
+	pm.set(42, 0)
+	for _, c := range []struct {
+		name     string
+		pid      int
+		reported int64
+		want     int64
+	}{
+		{"measured", 41, 2 << 30, 3 << 30},
+		{"measured zero: the report", 42, 2 << 30, 2 << 30},
+		{"not measured: the report", 43, 2 << 30, 2 << 30},
+		{"no process: the report", 0, 2 << 30, 2 << 30},
+		{"nothing: the size", 43, 0, m.Size()},
+	} {
+		if got := loaded(c.pid, c.reported); got != c.want {
+			t.Errorf("%s: %d, want %d", c.name, got, c.want)
+		}
+	}
+	if m.Size() <= 0 {
+		t.Errorf("%s has no size", m.ID)
+	}
+	if slices.Contains(pm.asked, 0) {
+		t.Errorf("pid 0 measured: %v", pm.asked)
 	}
 }
 
