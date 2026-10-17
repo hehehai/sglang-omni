@@ -116,10 +116,11 @@ func TestKeepLoadedLive(t *testing.T) {
 	})
 	a.updateSettings(func(s *settings.Settings) { s.Models.KeepLoaded = settings.KeepUntilQuit })
 	eventually(t, "until VoxtNew quits", func() bool { return a.omniRT.IdleTimeout() == -1 && a.llmrt.IdleTimeout() == -1 })
+	// Still loaded, and idle: eventually, as a warm's lease may come
+	// after its server's launch said it idle (omni's Warm: the launch
+	// reports before the warm leases and lets go).
 	for _, id := range []string{models.ASRFast, models.VADSilero, models.LLMFast} {
-		if l, ok := a.loadedModel(t, id); !ok || l.IdleSince == nil {
-			t.Errorf("%s after the changes: %+v %v", id, l, ok)
-		}
+		eventually(t, id+" idle after the changes", func() bool { l, ok := a.loadedModel(t, id); return ok && l.IdleSince != nil })
 	}
 
 	// The family's memory request wins over the setting.
