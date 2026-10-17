@@ -106,6 +106,7 @@ func main() {
 		a.openTray()          // tray.go: the menu bar icon, close to the menu bar
 		a.connectWindowLife() // tray.go
 		a.watchBundle()       // updates.go: an update installed while it runs
+		a.expireRecordings()  // history_retry.go: recordings kept for a retry, past their time
 		mygo.App.OnSecondInstance(func([]string, string) { a.post(a.showMainWindow) })
 	})
 	mygo.App.OnQuit(func() {

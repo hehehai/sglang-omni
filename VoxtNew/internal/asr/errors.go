@@ -39,6 +39,9 @@ const (
 	KindAudio Kind = "audio"
 	// KindCancelled: the caller cancelled.
 	KindCancelled Kind = "cancelled"
+	// KindTimeout: the model gave no result within the caller's limit,
+	// though it had not stopped answering (Detail says the limit).
+	KindTimeout Kind = "timeout"
 )
 
 // Error is every error this package and the speech models return.

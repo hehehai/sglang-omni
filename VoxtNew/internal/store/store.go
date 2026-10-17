@@ -115,6 +115,11 @@ type Entry struct {
 	// Audio is the recording kept with the entry, a file name in
 	// History.AudioDir(); "" when none was kept.
 	Audio string
+	// AudioUntil: the recording is kept only until then (zero: as long as
+	// the entry): recognition failed or found no text while the settings
+	// keep no recordings, so it stays for a retry (session.Retry,
+	// behavior.md 5.23a). ExpireAudio deletes it after.
+	AudioUntil time.Time
 }
 
 // HistoryQuery selects history entries: the zero value is every entry,
@@ -172,6 +177,10 @@ type History interface {
 	// the other folder was missing), else where it would be in AudioDir.
 	// It reads the disk.
 	AudioPath(name string) string
+	// ExpireAudio deletes the recordings kept until now or before
+	// (Entry.AudioUntil) and clears them from their entries; it reports
+	// how many went.
+	ExpireAudio(ctx context.Context, now time.Time) (int, error)
 }
 
 // Term is an entry of the user's dictionary: a name or a word of jargon

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -55,8 +56,12 @@ type Opts struct {
 	Mode string
 	// Log is a file the fake appends its records to (JSON lines).
 	Log string
-	// Text is a Final's text (default "fake transcript").
+	// Text is a Final's text (default "fake transcript"); "{n}" in it is
+	// the request's number (1 for the server's first Final).
 	Text string
+	// FailFrom: the Finals from this one on (1 = the first) answer an
+	// error event, as ModeError does; 0: none.
+	FailFrom int
 	// Delay is how long a Final takes (default 50 ms).
 	Delay time.Duration
 	// Load is how long the model "loads" before ready.
@@ -71,6 +76,7 @@ func Env(o Opts) []string {
 	v.Set("text", o.Text)
 	v.Set("delay", o.Delay.String())
 	v.Set("load", o.Load.String())
+	v.Set("failfrom", strconv.Itoa(o.FailFrom))
 	return []string{EnvFake + "=" + v.Encode()}
 }
 
@@ -82,6 +88,7 @@ func opts() Opts {
 	o := Opts{Mode: v.Get("mode"), Log: v.Get("log"), Text: v.Get("text")}
 	o.Delay, _ = time.ParseDuration(v.Get("delay"))
 	o.Load, _ = time.ParseDuration(v.Get("load"))
+	o.FailFrom, _ = strconv.Atoi(v.Get("failfrom"))
 	if o.Text == "" {
 		o.Text = "fake transcript"
 	}

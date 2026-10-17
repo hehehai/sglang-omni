@@ -88,7 +88,7 @@ func (r *historyRepo) DeleteAudio(ctx context.Context) (int, error) {
 	}
 	stmts := make([]sqlite.Statement, 0, len(rows.Values))
 	for _, row := range rows.Values {
-		stmts = append(stmts, sqlite.Statement{SQL: `UPDATE history SET audio = '' WHERE seq = ? AND audio = ?`, Args: []any{row[0], row[1]}})
+		stmts = append(stmts, sqlite.Statement{SQL: `UPDATE history SET audio = '', audio_until = 0 WHERE seq = ? AND audio = ?`, Args: []any{row[0], row[1]}})
 	}
 	res, err := r.db.Transaction(ctx, stmts)
 	if err != nil {

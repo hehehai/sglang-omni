@@ -64,6 +64,7 @@ type historyView struct {
 	// The Delete dialog: open, and the entry it deletes.
 	delAsk bool
 	delID  string
+	retry  entryRetry // the entry made again from its recording (history_retry.go)
 }
 
 // revealInFinder shows a file in Finder; tests replace it.
@@ -298,7 +299,7 @@ func (a *app) historyRow(c *ui.Context, e store.Entry) {
 				if failed {
 					tx.TextColor(k.Text2)
 				}
-				entryMarks(c, e)
+				a.entryStatus(c, e) // history_retry.go
 			})
 			ui.Text(c, uitext.EntryMeta(e)).FontSize(px(t, fsCaption)).TextColor(k.Text3).SingleLine().Ellipsis("…").MinWidth(0)
 		})
@@ -311,7 +312,7 @@ func entryMarks(c *ui.Context, e store.Entry) {
 	k := tok(c.Theme())
 	switch e.Status {
 	case store.StatusFailed:
-		tagChip(c, i18n.T("Failed")).TextColor(k.Danger)
+		tagChip(c, i18n.T("Failed")).TextColor(k.Danger).Tooltip(i18n.T("No recording was kept, so it cannot be retried"))
 		return
 	case store.StatusCancelled:
 		tagChip(c, i18n.T("Cancelled"))

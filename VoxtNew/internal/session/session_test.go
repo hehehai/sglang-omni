@@ -320,9 +320,9 @@ func TestFailures(t *testing.T) {
 		}, false, ProblemHelper, true},
 		{"stream refused", &fakeStreamer{openErr: &asr.Error{Kind: asr.KindAuth, Detail: "401"}}, nil, false, ProblemASR, false},
 		{"stream breaks while recording", &fakeStreamer{errAfter: 3}, nil, false, ProblemASR, true},
-		{"stream fails at the end", &fakeStreamer{finalErr: &asr.Error{Kind: asr.KindServer, Detail: "500"}}, nil, true, ProblemASR, true},
-		{"stream times out", &fakeStreamer{hang: true}, func(h *harness) { h.m.cfg.ASRTimeout = 100 * time.Millisecond }, true, ProblemASR, true},
-		{"upload times out", &fakeFile{hang: true}, func(h *harness) { h.m.cfg.ASRTimeout = 100 * time.Millisecond }, true, ProblemASR, true},
+		{"stream fails at the end", &fakeStreamer{silent: true, finalErr: &asr.Error{Kind: asr.KindServer, Detail: "500"}}, nil, true, ProblemASR, true},
+		{"stream times out", &fakeStreamer{silent: true, hang: true}, func(h *harness) { h.m.cfg.ASRTimeout, h.m.cfg.ASRPerSecond = 100*time.Millisecond, time.Nanosecond }, true, ProblemASR, true},
+		{"upload times out", &fakeFile{hang: true}, func(h *harness) { h.m.cfg.ASRTimeout, h.m.cfg.ASRPerSecond = 100*time.Millisecond, time.Nanosecond }, true, ProblemASR, true},
 		{"upload refused", &fakeFile{err: &asr.Error{Kind: asr.KindQuota, Detail: "429"}}, nil, true, ProblemASR, true},
 		{"nothing said", &fakeFile{text: "  "}, nil, true, ProblemNoSpeech, true},
 	} {

@@ -217,21 +217,25 @@ func (r *run) listen() (string, bool) {
 	}
 
 	// Recognition.
-	actx, acancel := context.WithTimeout(r.ctx, cfg.ASRTimeout)
+	r.asrLimit = cfg.asrLimit(audioLen)
+	actx, acancel := context.WithTimeout(r.ctx, r.asrLimit)
 	defer acancel()
 	var res asr.Result
 	var err error
+	salvaged := ""
 	if _, ok := r.streamer(); ok {
 		if openDone != nil {
 			select {
 			case o := <-openDone:
 				if o.err != nil {
+					r.recognitionFailed = true
 					r.endFailed(r.asrProblem(o.err), nil)
 					return "", false
 				}
 				stream = o.st
 				finals = r.feed(stream)
 			case <-actx.Done():
+				r.recognitionFailed = true
 				r.endFailed(r.timeoutProblem(actx), nil)
 				return "", false
 			}
@@ -248,10 +252,14 @@ func (r *run) listen() (string, bool) {
 				err = r.ctxErr(actx)
 			}
 		}
+		if err != nil {
+			salvaged = r.salvage(stream)
+		}
 		stream.Close()
 		if silent {
 			// The gate held the whole recording: no speech, nothing sent.
 			r.logf("info", "no speech in %v: nothing sent to %s", audioLen.Round(time.Millisecond), r.svc.ASRInfo.ID)
+			r.recognitionFailed = true
 			r.m.update(r, func(s *Snapshot) { s.Timings.Sent = 0 })
 			r.finish(Done, &Problem{Code: ProblemNoSpeech}, "", finishOpts{})
 			return "", false
@@ -260,6 +268,7 @@ func (r *run) listen() (string, bool) {
 		upload, speech := r.prepare(pcm)
 		if !speech {
 			r.logf("info", "no speech in %v: not sent to %s", audioLen.Round(time.Millisecond), r.svc.ASRInfo.ID)
+			r.recognitionFailed = true
 			r.m.update(r, func(s *Snapshot) { s.Timings.Sent = 0 })
 			r.finish(Done, &Problem{Code: ProblemNoSpeech}, "", finishOpts{})
 			return "", false
@@ -279,19 +288,38 @@ func (r *run) listen() (string, bool) {
 	}
 	asrTime := r.now().Sub(asrStart)
 	if err != nil {
-		// The error itself follows in endFailed's line.
-		r.logf("warning", "speech model %s (%s) failed after %v", r.svc.ASRInfo.ID, r.svc.ASRInfo.Model, asrTime.Round(time.Millisecond))
-		r.endFailed(r.asrProblem(err), nil, func(s *Snapshot) { s.Timings.ASR = asrTime })
-		return "", false
+		r.recognitionFailed = true
+		// The error itself follows in endFailed's line (or the notice's).
+		r.logf("warning", "speech model %s (%s) failed after %v (limit %v)", r.svc.ASRInfo.ID, r.svc.ASRInfo.Model, asrTime.Round(time.Millisecond), r.asrLimit.Round(time.Second))
+		if salvaged == "" {
+			r.endFailed(r.asrProblem(err), nil, func(s *Snapshot) { s.Timings.ASR = asrTime })
+			return "", false
+		}
+		// The text the stream had, rather than nothing (behavior.md 5.5a).
+		r.asrDegraded = &Problem{Code: ProblemASR, Err: err, Degraded: true}
+		r.logf("warning", "going on with the text the live session had: %v", err)
+		res = asr.Result{Text: salvaged}
 	}
 	raw := strings.TrimSpace(res.Text)
 	r.logf("info", "recognised %s in %v", r.logText(raw), asrTime.Round(time.Millisecond))
 	r.m.update(r, func(s *Snapshot) { s.Raw, s.Partial, s.Timings.ASR = raw, raw, asrTime })
 	if raw == "" {
+		r.recognitionFailed = true
 		r.finish(Done, &Problem{Code: ProblemNoSpeech}, "", finishOpts{})
 		return "", false
 	}
 	return raw, true
+}
+
+// salvage is the text a stream whose Final failed had (asr.Salvager:
+// its pieces or its preview), else the preview the snapshot shows.
+func (r *run) salvage(st asr.Stream) string {
+	if sv, ok := st.(asr.Salvager); ok {
+		if text := strings.TrimSpace(sv.Salvage()); text != "" {
+			return text
+		}
+	}
+	return strings.TrimSpace(r.m.Current().Partial)
 }
 
 // isCancelled reports whether a capture error is the end of a job that

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llm"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
@@ -29,6 +30,12 @@ func sessionProblemText(p *session.Problem) (text, more, action string) {
 		return i18n.T("The helper stopped: try again in a moment."), errText(p.Err), actionHelper
 	case session.ProblemASR:
 		msg, more := uitext.ModelErrorText(p.Err)
+		if p.Degraded {
+			if asr.KindOf(p.Err) == asr.KindTimeout {
+				return i18n.T("Used the live text: full recognition took too long."), more, actionNone
+			}
+			return i18n.T("Used the live text: full recognition failed."), more, actionNone
+		}
 		return i18n.T("Speech recognition failed: %s", msg), more, actionModels
 	case session.ProblemNoLLM:
 		return i18n.T("No language model is installed."), "", actionModels
@@ -71,6 +78,8 @@ func noticeActionLabel(action string) string {
 		return i18n.T("Open Permissions")
 	case actionHelper:
 		return i18n.T("Restart the helper")
+	case actionRetry:
+		return i18n.T("Retry")
 	}
 	return ""
 }

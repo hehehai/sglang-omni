@@ -58,6 +58,9 @@ func (a *app) entryMenu(c *ui.Context, row ui.Element, e store.Entry, keys bool,
 		if e.Audio != "" && m.Item(i18n.T("Show the recording in Finder")).Chosen() {
 			revealInFinder(filepath.Join(a.lib.store.History().AudioDir(), e.Audio))
 		}
+		if e.Audio != "" && m.Item(retryLabel(e)).Disabled(a.hist.retry.id != "").Chosen() {
+			a.retryEntry(e) // history_retry.go
+		}
 		m.Separator()
 		del := m.Item(i18n.T("Delete"))
 		if keys {

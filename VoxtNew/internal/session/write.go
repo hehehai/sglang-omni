@@ -33,7 +33,7 @@ func (r *run) writeInput(raw, selection string) compose.Input {
 	switch r.req.Kind {
 	case store.KindTranslate:
 		f := r.settings.Features.Translate
-		in.Task, in.TaskPrompt, in.TargetLanguage = compose.Translate, f.Prompt, r.m.Current().TargetLanguage
+		in.Task, in.TaskPrompt, in.TargetLanguage = compose.Translate, f.Prompt, r.target
 		if selection != "" {
 			in.Text, in.Selected = selection, true
 		} else {

@@ -105,9 +105,6 @@ func (t *ASRTuning) splitChunks(pcm []byte) []chunk {
 	search := int(t.CutSearch.Seconds() * sampleRate)
 	window := max(int(t.CutWindow.Seconds()*sampleRate), 1)
 	pastEnd := t.ChunkSeconds+t.CutSearch.Seconds() <= 1200
-	sample := func(i int) float64 {
-		return float64(int16(binary.LittleEndian.Uint16(pcm[i*2:]))) / 32768
-	}
 	var out []chunk
 	for start := 0; start < total; {
 		end := min(start+maxSamples, total)
@@ -122,25 +119,34 @@ func (t *ASRTuning) splitChunks(pcm []byte) []chunk {
 		}
 		cut := end
 		if to-from > window {
-			var sum float64
-			for i := from; i < from+window; i++ {
-				sum += sample(i) * sample(i)
-			}
-			best, bestAt := sum, 0
-			for off := 1; off <= to-from-window; off++ {
-				leaving, entering := sample(from+off-1), sample(from+off+window-1)
-				sum += entering*entering - leaving*leaving
-				if sum < best {
-					best, bestAt = sum, off
-				}
-			}
-			cut = from + bestAt + window/2
+			cut = quietest(pcm, from, to, window)
 		}
 		cut = max(cut, start+sampleRate)
 		out = append(out, chunk{pcm: padded(start, min(cut, total)), offset: at(start)})
 		start = cut
 	}
 	return out
+}
+
+// quietest is the middle of the quietest window samples of PCM16 pcm
+// between samples from and to (a range longer than the window).
+func quietest(pcm []byte, from, to, window int) int {
+	sample := func(i int) float64 {
+		return float64(int16(binary.LittleEndian.Uint16(pcm[i*2:]))) / 32768
+	}
+	var sum float64
+	for i := from; i < from+window; i++ {
+		sum += sample(i) * sample(i)
+	}
+	best, bestAt := sum, 0
+	for off := 1; off <= to-from-window; off++ {
+		leaving, entering := sample(from+off-1), sample(from+off+window-1)
+		sum += entering*entering - leaving*leaving
+		if sum < best {
+			best, bestAt = sum, off
+		}
+	}
+	return from + bestAt + window/2
 }
 
 // unspaced are the scripts written without spaces between words (the

@@ -117,6 +117,14 @@ type Stream interface {
 	Events() <-chan Event
 }
 
+// Salvager is a Stream that can give the text it has when its final
+// result failed or took too long (its live preview's, or the parts of
+// the recording it recognised already): what the session inserts
+// rather than nothing. "" for none.
+type Salvager interface {
+	Salvage() string
+}
+
 // EventKind is what an Event says.
 type EventKind uint8
 

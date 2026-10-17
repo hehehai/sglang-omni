@@ -104,6 +104,7 @@ const (
 	actionModels      = "models"
 	actionPermissions = "permissions"
 	actionHelper      = "helper"
+	actionRetry       = "retry" // the session's entry, in History (history_retry.go)
 )
 
 // sessionNotice is a one-line message in the overlay, where
@@ -112,8 +113,9 @@ const (
 type sessionNotice struct {
 	text, more string
 	action     string
-	warn       bool // a warning (the session went on), not an error
-	seq        int  // which notice: its timer hides only itself
+	entry      string // actionRetry's history entry
+	warn       bool   // a warning (the session went on), not an error
+	seq        int    // which notice: its timer hides only itself
 	// then runs when its time is up (not when a click or the next
 	// session hides it): the notice that follows it.
 	then func()
@@ -264,7 +266,11 @@ func (a *app) sessionEnded(s session.Snapshot) {
 		text, more, action := sessionProblemText(p)
 		if text != "" {
 			// Nothing heard is not a failure: a warning.
-			a.showNotice(sessionNotice{text: text, more: more, action: action, warn: p.Degraded || p.Code == session.ProblemNoSpeech})
+			n := sessionNotice{text: text, more: more, action: action, warn: p.Degraded || p.Code == session.ProblemNoSpeech}
+			if p.Code == session.ProblemASR && s.Recording {
+				n.action, n.entry = actionRetry, s.ID // the entry kept the recording: Retry
+			}
+			a.showNotice(n)
 		}
 	}
 	a.memoryNoticeAfter(s) // memory_notice.go
@@ -299,8 +305,14 @@ func (a *app) closeNotice() {
 
 // noticeAction runs a notice's button.
 func (a *app) noticeAction(action string) {
+	entry := ""
+	if a.notice != nil {
+		entry = a.notice.entry
+	}
 	a.closeNotice()
 	switch action {
+	case actionRetry:
+		a.retryFromNotice(entry)
 	case actionModels:
 		a.showMainWindow()
 		a.navigate(modelsPath)

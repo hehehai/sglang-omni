@@ -66,6 +66,16 @@ type ASRTuning struct {
 	FirstDecode    time.Duration
 	DecodeInterval time.Duration
 	MaxSegment     time.Duration
+	// A live session longer than PiecesAfter is recognised in pieces while
+	// it records (pieces.go), so that Stop leaves only the tail: a piece
+	// is cut in a pause of at least PauseMin, PieceMin to PieceSeconds
+	// into the audio not yet recognised (the longest pause wins), or, with
+	// no pause by PieceMax, at its quietest CutWindow. 0: never.
+	PiecesAfter  time.Duration
+	PieceMin     time.Duration
+	PieceSeconds time.Duration
+	PieceMax     time.Duration
+	PauseMin     time.Duration
 }
 
 // VADTuning is Silero's: Threshold is the speech probability that counts
@@ -96,6 +106,8 @@ func qwenTuning() *ASRTuning {
 		ContextTerms: 500, ContextChars: 8000,
 		AudioLayout: "voxt_swift",
 		FirstDecode: 100 * time.Millisecond, DecodeInterval: time.Second, MaxSegment: 30 * time.Second,
+		PiecesAfter: 60 * time.Second, PieceMin: 20 * time.Second, PieceSeconds: 30 * time.Second, PieceMax: 45 * time.Second,
+		PauseMin: 300 * time.Millisecond,
 	}
 }
 

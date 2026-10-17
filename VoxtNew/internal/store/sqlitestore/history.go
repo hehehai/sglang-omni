@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/egoist/mygo/plugins/sqlite"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
@@ -14,8 +15,8 @@ import (
 )
 
 // historyRepo stores finished sessions (the history table: migration 001,
-// rule_source 002, sent_ms 003, dsp and gain_db 004); its recordings
-// folder and clean-up are in history_retention.go.
+// rule_source 002, sent_ms 003, dsp and gain_db 004, audio_until 005);
+// its recordings folder and clean-up are in history_retention.go.
 type historyRepo struct {
 	db  *sqlite.DB
 	dir string // the store's audio directory (DefaultAudioDir)
@@ -27,7 +28,7 @@ type historyRepo struct {
 // historyColumns are the columns an Entry has, in scanEntry's order.
 const historyColumns = `id, kind, created_at, status, error, app_bundle, app_name, url_host, rule_id, rule_name,
 raw_text, source_text, prompt_text, result, target_lang, delivery, asr_provider, asr_model, llm_provider, llm_model,
-audio_ms, asr_ms, llm_ms, total_ms, audio, rule_source, sent_ms, dsp, gain_db`
+audio_ms, asr_ms, llm_ms, total_ms, audio, rule_source, sent_ms, dsp, gain_db, audio_until`
 
 var historyUpsert = func() string {
 	cols := strings.Split(strings.ReplaceAll(historyColumns, "\n", " "), ",")
@@ -58,7 +59,7 @@ func (r *historyRepo) Put(ctx context.Context, e store.Entry) error {
 	_, err := r.db.Execute(ctx, historyUpsert,
 		e.ID, string(e.Kind), e.CreatedAt.UnixMilli(), string(e.Status), e.Error, e.AppBundle, e.AppName, e.URLHost, e.RuleID, e.RuleName,
 		e.RawText, e.SourceText, e.PromptText, e.Result, e.TargetLang, e.Delivery, e.ASRProvider, e.ASRModel, e.LLMProvider, e.LLMModel,
-		e.AudioMS, e.ASRMS, e.LLMMS, e.TotalMS, e.Audio, e.RuleSource, e.SentMS, e.DSP, e.GainDB)
+		e.AudioMS, e.ASRMS, e.LLMMS, e.TotalMS, e.Audio, e.RuleSource, e.SentMS, e.DSP, e.GainDB, untilMS(e.AudioUntil))
 	return wrap("history "+e.ID, err)
 }
 
@@ -71,7 +72,24 @@ func scanEntry(row []any) store.Entry {
 		ASRProvider: str(16), ASRModel: str(17), LLMProvider: str(18), LLMModel: str(19),
 		AudioMS: asInt(row[20]), ASRMS: asInt(row[21]), LLMMS: asInt(row[22]), TotalMS: asInt(row[23]), Audio: str(24),
 		RuleSource: str(25), SentMS: asInt(row[26]), DSP: str(27), GainDB: asFloat(row[28]),
+		AudioUntil: untilTime(row[29]),
 	}
+}
+
+// untilMS is AudioUntil as stored: Unix ms, 0 for none.
+func untilMS(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.UnixMilli()
+}
+
+// untilTime is untilMS's inverse.
+func untilTime(v any) time.Time {
+	if ms := asInt(v); ms > 0 {
+		return time.UnixMilli(ms)
+	}
+	return time.Time{}
 }
 
 func (r *historyRepo) Get(ctx context.Context, id string) (store.Entry, error) {
@@ -139,6 +157,15 @@ func (r *historyRepo) DeleteAll(ctx context.Context, kind store.Kind) (int, erro
 		sql, args = `DELETE FROM history WHERE kind = ? RETURNING audio`, []any{string(kind)}
 	}
 	rows, err := r.db.Query(ctx, sql, args...)
+	if err != nil {
+		return 0, wrap("history", err)
+	}
+	return len(rows.Values), r.removeAudios(rows.Values)
+}
+
+func (r *historyRepo) ExpireAudio(ctx context.Context, now time.Time) (int, error) {
+	rows, err := r.db.Query(ctx, `UPDATE history SET audio = '', audio_until = 0
+WHERE audio != '' AND audio_until > 0 AND audio_until <= ? RETURNING audio`, now.UnixMilli())
 	if err != nil {
 		return 0, wrap("history", err)
 	}

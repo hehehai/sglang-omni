@@ -267,6 +267,7 @@ func (r *run) noteDSP(rep dsp.Report) {
 	r.logf("info", "sound: %s, %s over a floor of %.0f dBFS, gain %+.1f dB%s, %d samples limited, %d clipped by the filter",
 		desc, speech, rep.FloorDB, rep.GainDB, extra, rep.Limited, rep.Clipped)
 	gain := math.Round(rep.GainDB*10) / 10
+	r.dsp, r.gainDB = desc, gain
 	r.m.update(r, func(s *Snapshot) { s.DSP, s.GainDB = desc, gain })
 }
 

@@ -92,7 +92,9 @@ const (
 	ProblemDevice = "device"
 	// ProblemHelper: the helper is not running (or died).
 	ProblemHelper = "helper"
-	// ProblemASR: the speech model failed (Err is an *asr.Error).
+	// ProblemASR: the speech model failed (Err is an *asr.Error). Degraded:
+	// its Final failed, and the session went on with the text it had (the
+	// live preview's, or the pieces it recognised while it recorded).
 	ProblemASR = "asr"
 	// ProblemLLM: the language model failed or timed out. Transcribe: the
 	// raw text went on (Degraded); Translate and Rewrite: the answer card
@@ -198,6 +200,9 @@ type Snapshot struct {
 	DSP     string
 	GainDB  float64
 	Problem *Problem
+	// Recording: the session's history entry keeps its recording (the
+	// settings', or for a while because recognition failed: Retry).
+	Recording bool
 }
 
 // Elapsed is how long the recording has run (from the first audio), at
@@ -307,7 +312,17 @@ type Config struct {
 	// Limits (0: the defaults).
 	MaxRecording time.Duration // DefaultMaxRecording
 	MinRecording time.Duration // DefaultMinRecording
-	ASRTimeout   time.Duration // after Stop; DefaultASRTimeout
+	// Recognition after Stop gets ASRTimeout plus ASRPerSecond per second
+	// of the recording (asrLimit): a local model that stopped answering is
+	// the runtime's to notice (internal/omni's stall watch), so the limit
+	// only ends one that runs away, never a long recording recognised
+	// slowly (behavior.md 5.5a).
+	ASRTimeout   time.Duration // DefaultASRTimeout
+	ASRPerSecond time.Duration // DefaultASRPerSecond
+	// AudioRetention is how long the history keeps a recording whose
+	// recognition failed (or found no text) when the settings keep no
+	// recordings: for Retry (DefaultAudioRetention).
+	AudioRetention time.Duration
 	// A language model's request ends when it makes no progress
 	// (behavior.md 5.5, llmDeadlines): no first token within
 	// LLMFirstToken (plus llmPrefillPerChar per character of its input),
@@ -331,7 +346,9 @@ type Config struct {
 const (
 	DefaultMaxRecording   = 10 * time.Minute
 	DefaultMinRecording   = 300 * time.Millisecond
-	DefaultASRTimeout     = 30 * time.Second
+	DefaultASRTimeout     = 60 * time.Second
+	DefaultASRPerSecond   = time.Second
+	DefaultAudioRetention = 7 * 24 * time.Hour
 	DefaultLLMFirstToken  = 15 * time.Second
 	DefaultLLMStall       = 5 * time.Second
 	DefaultLLMPerChar     = 100 * time.Millisecond

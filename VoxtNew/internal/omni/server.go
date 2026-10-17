@@ -62,7 +62,7 @@ func (l *lease) release() {
 // broken says the process hung (a stalled Final): it is killed, and the
 // next use starts another.
 func (l *lease) broken(why string) {
-	l.s.rt.logf("warning", "%s stalled (%s): killing it", l.s.spec.ID, why)
+	l.s.rt.logf("warning", "%s stalled (%s): killing it; %s", l.s.spec.ID, why, memoryNote())
 	l.p.kill()
 }
 

@@ -30,6 +30,8 @@ func ModelErrorText(err error) (msg, more string) {
 		switch ae.Kind {
 		case asr.KindNetwork, asr.KindServer:
 			return i18n.T("The speech model stopped or did not answer. Try again in a moment."), more
+		case asr.KindTimeout:
+			return i18n.T("The speech model took too long."), more
 		case asr.KindAudio:
 			return i18n.T("The speech model did not accept the audio."), more
 		case asr.KindCancelled:

@@ -66,6 +66,10 @@ func (a *app) historyDetail(c *ui.Context, e store.Entry) {
 			}
 			notice(c, "hist-detail-err", kind, text, e.Error, nil, nil)
 		}
+		a.entryRetryButton(c, e) // history_retry.go
+		if s := recordingKeptText(e); s != "" {
+			caption(c, s)
+		}
 		// The texts there are, each with Copy.
 		textBlock := func(key, title, copyLabel, text string) {
 			text = strings.TrimSpace(text)

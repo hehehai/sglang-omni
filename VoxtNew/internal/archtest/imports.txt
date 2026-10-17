@@ -36,6 +36,7 @@ logs core
 notify core
 omni asr
 omni lang
+omni macx
 omni vad
 outmute helper/proto
 overlay/ink overlay/layout

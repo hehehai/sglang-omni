@@ -12,7 +12,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -75,9 +77,13 @@ func Main() {
 	os.Exit(0) // stdin closed: the owner is gone
 }
 
+// finals counts the Finals this server answered.
+var finals atomic.Int32
+
 // final answers a transcription: heartbeats while it "decodes", then the
 // done event with the generation metadata.
 func final(o Opts, w http.ResponseWriter, r *http.Request) {
+	n := int(finals.Add(1))
 	if err := r.ParseMultipartForm(64 << 20); err != nil {
 		http.Error(w, `{"detail":"bad form"}`, http.StatusBadRequest)
 		return
@@ -112,7 +118,7 @@ func final(o Opts, w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, ":\n\n")
 		flush()
 	}
-	if o.Mode == ModeError {
+	if o.Mode == ModeError || o.FailFrom > 0 && n >= o.FailFrom {
 		_, _ = io.WriteString(w, `data: {"type":"error","error":{"type":"server_error","code":"transcription_failed","message":"Transcription failed."}}`+"\n\n")
 		_, _ = io.WriteString(w, "data: [DONE]\n\n")
 		return
@@ -121,7 +127,7 @@ func final(o Opts, w http.ResponseWriter, r *http.Request) {
 	if language == "" {
 		language = "Chinese"
 	}
-	done, _ := json.Marshal(map[string]any{"type": "transcript.text.done", "text": o.Text,
+	done, _ := json.Marshal(map[string]any{"type": "transcript.text.done", "text": strings.ReplaceAll(o.Text, "{n}", strconv.Itoa(n)),
 		"generation_metadata": map[string]any{"generated_token_count": 10, "language": language, "finish_reason": "stop"}})
 	fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", done)
 	flush()

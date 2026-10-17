@@ -173,6 +173,8 @@ type fakeStreamer struct {
 	errAfter int           // the stream fails after this many sends
 	hang     bool          // no final after Finish
 	openWait time.Duration // Open takes this long
+	silent   bool          // no partials
+	salvage  string        // the text its streams salvage (asr.Salvager), "" for none
 
 	mu      sync.Mutex
 	streams []*fakeStream
@@ -238,9 +240,13 @@ func (s *fakeStream) Send(pcm []byte) error {
 		s.emit(asr.Event{Kind: asr.EventError, Err: &asr.Error{Kind: asr.KindNetwork, Detail: "connection reset"}})
 		return nil
 	}
-	s.emit(asr.Event{Kind: asr.EventPartial, Text: "partial"})
+	if !s.f.silent {
+		s.emit(asr.Event{Kind: asr.EventPartial, Text: "partial"})
+	}
 	return nil
 }
+
+func (s *fakeStream) Salvage() string { return s.f.salvage }
 
 func (s *fakeStream) Finish() error {
 	switch {
@@ -397,9 +403,10 @@ func (h *memHistory) Get(context.Context, string) (store.Entry, error) {
 func (h *memHistory) List(context.Context, store.HistoryQuery) ([]store.Entry, error) {
 	return nil, nil
 }
-func (h *memHistory) Delete(context.Context, string) error               { return nil }
-func (h *memHistory) DeleteAll(context.Context, store.Kind) (int, error) { return 0, nil }
-func (h *memHistory) AudioDir() string                                   { return h.dir }
+func (h *memHistory) Delete(context.Context, string) error                { return nil }
+func (h *memHistory) DeleteAll(context.Context, store.Kind) (int, error)  { return 0, nil }
+func (h *memHistory) AudioDir() string                                    { return h.dir }
+func (h *memHistory) ExpireAudio(context.Context, time.Time) (int, error) { return 0, nil }
 
 func (h *memHistory) all() []store.Entry {
 	h.mu.Lock()

@@ -42,6 +42,20 @@ type run struct {
 	svcDone  chan svcResult
 	resolved bool
 	sc       sceneState // app enhancement (scene.go)
+	// target is Translate's target language (a code).
+	target string
+	// asrLimit is recognition's limit after Stop (Config.asrLimit).
+	asrLimit time.Duration
+	// recognitionFailed: the Final failed or found no text; the history
+	// entry keeps the recording for a while (keep), for Retry.
+	recognitionFailed bool
+	// asrDegraded: the Final failed and the session goes on with the
+	// text the stream had (listen); its notice wins over a clean-up's.
+	asrDegraded *Problem
+	// dsp and gainDB are what the sound processing did (noteDSP), for a
+	// retry's entry.
+	dsp    string
+	gainDB float64
 }
 
 type capResult struct {
@@ -211,10 +225,14 @@ func (r *run) finish(st State, problem *Problem, result string, o finishOpts) {
 		}
 		r.logf("info", "inserted %v (%s) in %v", dres.Inserted, dres.Reason, dres.Elapsed.Round(time.Millisecond))
 	}
+	if r.asrDegraded != nil && (problem == nil || problem.Degraded) {
+		problem = r.asrDegraded
+	}
 	snap := r.m.Current()
 	total := r.now().Sub(snap.StartedAt)
 	r.m.end(r, st, func(s *Snapshot) {
 		s.Result, s.Problem = result, problem
+		s.Recording = r.keepsRecording()
 		s.Inserted = dres.Inserted
 		s.Card = result != "" && !r.req.Try && !dres.Inserted
 		s.Delivery = dres.Reason
@@ -243,6 +261,7 @@ func (r *run) endFailed(p *Problem, stream asr.Stream, more ...func(*Snapshot)) 
 		s.Problem = p
 		s.Timings.Total = total
 		s.Timings.Audio = audio
+		s.Recording = audio >= r.m.cfg.MinRecording && r.keepsRecording()
 		for _, fn := range more {
 			fn(s)
 		}
@@ -272,7 +291,7 @@ func (r *run) asrProblem(err error) *Problem {
 
 func (r *run) ctxErr(ctx context.Context) error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return &asr.Error{Kind: asr.KindNetwork, Detail: fmt.Sprintf("no result within %v", r.m.cfg.ASRTimeout), Retryable: true}
+		return &asr.Error{Kind: asr.KindTimeout, Detail: fmt.Sprintf("no result within %v (%v of audio)", r.asrLimit, asr.Duration(r.pcm.bytes(), asr.SampleRate).Round(time.Second)), Retryable: true}
 	}
 	return &asr.Error{Kind: asr.KindCancelled, Detail: "cancelled"}
 }
@@ -320,16 +339,18 @@ func (r *run) keep(s Snapshot, status store.Status) {
 	if s.Problem != nil && s.Problem.Err != nil {
 		e.Error = s.Problem.Err.Error()
 	}
-	if r.settings.Privacy.KeepAudio {
-		if pcm := r.pcm.bytes(); len(pcm) > 0 {
-			name := r.id + ".wav"
-			dir := cfg.History.AudioDir()
-			if err := os.MkdirAll(dir, 0o755); err == nil {
-				if err := os.WriteFile(filepath.Join(dir, name), asr.WAV(pcm, asr.SampleRate), 0o644); err == nil {
-					e.Audio = name
-				} else {
-					r.logf("warning", "keeping the recording: %v", err)
+	if s.Recording {
+		name := r.id + ".wav"
+		dir := cfg.History.AudioDir()
+		if err := os.MkdirAll(dir, 0o755); err == nil {
+			if err := os.WriteFile(filepath.Join(dir, name), asr.WAV(r.pcm.bytes(), asr.SampleRate), 0o644); err == nil {
+				e.Audio = name
+				if !r.settings.Privacy.KeepAudio {
+					e.AudioUntil = r.now().Add(cfg.AudioRetention)
+					r.logf("info", "recognition failed: the recording is kept until %s, for Retry", e.AudioUntil.Format(time.DateTime))
 				}
+			} else {
+				r.logf("warning", "keeping the recording: %v", err)
 			}
 		}
 	}
@@ -338,6 +359,17 @@ func (r *run) keep(s Snapshot, status store.Status) {
 	if err := cfg.History.Put(ctx, e); err != nil {
 		r.logf("error", "history: %v", err)
 	}
+}
+
+// keepsRecording reports whether the session's history entry keeps the
+// recording: the settings keep recordings, or recognition failed (for
+// a while: Config.AudioRetention). Not for tries.
+func (r *run) keepsRecording() bool {
+	cfg := r.m.cfg
+	if r.req.Try || r.req.Text != nil || cfg.History == nil || !r.settings.Privacy.KeepHistory || len(r.pcm.bytes()) == 0 {
+		return false
+	}
+	return r.settings.Privacy.KeepAudio || r.recognitionFailed
 }
 
 func isHelperErr(err error) bool { return errors.Is(err, core.ErrHelper) }

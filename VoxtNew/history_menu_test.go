@@ -75,7 +75,7 @@ func TestEntryMenuItems(t *testing.T) {
 	}{
 		// Done, the recognised text differs from the result, a recording.
 		{"Let's move the design review to Thursday afternoon.",
-			[]string{"Copy", "Copy the recognised text", "Show details", "Show the recording in Finder", "-", "Delete"}},
+			[]string{"Copy", "Copy the recognised text", "Show details", "Show the recording in Finder", "Transcribe again", "-", "Delete"}},
 		// Done, the result is the recognised text: one Copy.
 		{"Buy milk and eggs.", []string{"Copy", "Show details", "-", "Delete"}},
 		// Failed after recognition: Copy copies the recognised text.
@@ -180,7 +180,7 @@ func TestHomeRecentMenu(t *testing.T) {
 	frames(tt)
 	e := a.hm.recent[0]
 	title, _ := uitext.EntryTitle(e)
-	want := []string{"Copy", "Copy the recognised text", "Show details", "Show the recording in Finder", "-", "Delete"}
+	want := []string{"Copy", "Copy the recognised text", "Show details", "Show the recording in Finder", "Transcribe again", "-", "Delete"}
 	if got := openMenu(t, tt, title); !slices.Equal(got, want) {
 		t.Errorf("menu %q, want %q", got, want)
 	}

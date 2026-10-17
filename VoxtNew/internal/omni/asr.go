@@ -55,6 +55,34 @@ func (a *ASR) WithVAD(v *VAD) *ASR {
 	return &c
 }
 
+// Pieces is the incremental Final's policy (ASRTuning's PiecesAfter,
+// PieceMin, PieceSeconds and PieceMax): After 0 never cuts.
+type Pieces struct {
+	After, Min, Target, Max time.Duration
+}
+
+// WithPieces is a copy of a whose live sessions are recognised in pieces
+// as p says (zero fields keep the model's), the eval's and tests' switch;
+// p.After < 0: never.
+func (a *ASR) WithPieces(p Pieces) *ASR {
+	c := *a
+	c.spec = a.spec.clone()
+	t := c.spec.ASR
+	set := func(d *time.Duration, v time.Duration) {
+		if v != 0 {
+			*d = v
+		}
+	}
+	set(&t.PiecesAfter, p.After)
+	set(&t.PieceMin, p.Min)
+	set(&t.PieceSeconds, p.Target)
+	set(&t.PieceMax, p.Max)
+	if t.PiecesAfter < 0 {
+		t.PiecesAfter = 0
+	}
+	return &c
+}
+
 // VAD is the voice activity model that comes with it, nil for none.
 func (a *ASR) VAD() vad.Model {
 	if a.vad == nil {
@@ -88,7 +116,7 @@ func (a *ASR) Transcribe(ctx context.Context, req asr.FileRequest) (asr.Result, 
 	}
 	defer l.release()
 	start := time.Now()
-	text, language, err := a.final(ctx, l, pcm, req.Lang, req.Hints, req.Prompt)
+	text, language, err := a.final(ctx, l, pcm, a.spec.languageHint(req.Lang), a.spec.ASR.contextBias(req.Hints, req.Prompt))
 	if err != nil {
 		return asr.Result{}, err
 	}
@@ -116,14 +144,13 @@ func filePCM(req asr.FileRequest) ([]byte, error) {
 	return nil, &asr.Error{Kind: asr.KindAudio, Provider: Provider, Detail: "unknown audio format " + req.Format}
 }
 
-// final is Voxt's Qwen3-ASR Final (transcribeQwenFinal): the chunks share
-// one token budget, and the first chunk's detected language is forced on
-// the rest. It returns the text and the language.
-func (a *ASR) final(ctx context.Context, l *lease, pcm []byte, code string, hints []string, prompt string) (string, string, error) {
+// final is Voxt's Qwen3-ASR Final (transcribeQwenFinal) with language,
+// the model's ("" detects), and the context bias: the chunks share one
+// token budget, and the first chunk's detected language is forced on the
+// rest. It returns the text and the language.
+func (a *ASR) final(ctx context.Context, l *lease, pcm []byte, language, bias string) (string, string, error) {
 	t := a.spec.ASR
 	budget := t.tokenBudget(asr.Duration(pcm, sampleRate))
-	language := a.spec.languageHint(code)
-	bias := t.contextBias(hints, prompt)
 	var text strings.Builder
 	for _, c := range t.splitChunks(pcm) {
 		if budget <= 0 {

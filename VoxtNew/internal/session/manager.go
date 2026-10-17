@@ -51,6 +51,8 @@ func New(cfg Config) *Manager {
 	def(&cfg.MaxRecording, DefaultMaxRecording)
 	def(&cfg.MinRecording, DefaultMinRecording)
 	def(&cfg.ASRTimeout, DefaultASRTimeout)
+	def(&cfg.ASRPerSecond, DefaultASRPerSecond)
+	def(&cfg.AudioRetention, DefaultAudioRetention)
 	def(&cfg.LLMFirstToken, DefaultLLMFirstToken)
 	def(&cfg.LLMStall, DefaultLLMStall)
 	def(&cfg.LLMPerChar, DefaultLLMPerChar)
@@ -123,7 +125,8 @@ func (m *Manager) Start(req StartRequest) (string, error) {
 		Target: req.Target, StartedAt: at,
 	}
 	if req.Kind == store.KindTranslate {
-		m.snap.TargetLanguage = TranslateTarget(r.settings, m.cfg.Locale(), req.TargetLanguage)
+		r.target = TranslateTarget(r.settings, m.cfg.Locale(), req.TargetLanguage)
+		m.snap.TargetLanguage = r.target
 	}
 	if t := req.Text; t != nil {
 		m.snap.Raw, m.snap.Selection = strings.TrimSpace(t.Raw), t.Selection

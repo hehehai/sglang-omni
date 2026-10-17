@@ -43,3 +43,10 @@ func (r *run) llmChat(req llm.Request) (llm.Response, error) {
 	}
 	return resp, err
 }
+
+// asrLimit is how long recognition may take after Stop for a recording
+// of audio: ASRTimeout plus ASRPerSecond per second of it (behavior.md
+// 5.5a).
+func (cfg *Config) asrLimit(audio time.Duration) time.Duration {
+	return cfg.ASRTimeout + time.Duration(audio.Seconds()*float64(cfg.ASRPerSecond))
+}
