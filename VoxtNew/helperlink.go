@@ -66,6 +66,7 @@ func (a *app) connectHelper() {
 	}
 	a.hstatus = h.sup.Status()
 	a.openSessions() // session_link.go
+	a.openMute()     // mute_link.go
 }
 
 // startHelper starts the helper; it runs when the window opens.
@@ -95,6 +96,7 @@ func (a *app) helperStatus() helper.Status { return a.hstatus }
 func (a *app) helperChanged(st helper.Status) {
 	was := a.hstatus.State
 	a.hstatus = st
+	a.muteHelperChanged(was, st) // mute_link.go: a new helper undoes an earlier one's mutes first
 	if st.State == helper.Ready && was != helper.Ready {
 		a.recheckPermissions() // permissions.go
 		a.hotkeysSent = ""     // a new helper has no shortcuts yet
@@ -141,6 +143,8 @@ func (a *app) helperNotified(m proto.Message) {
 		}
 		a.hotkeys = st
 		a.syncCarbon(a.hotkeyPlan()) // the Carbon fallback while the tap is missing
+	case proto.MethodOutputChanged, proto.MethodOutputReleased:
+		a.muteNotified(m) // mute_link.go
 	case proto.MethodAppActivated:
 		var front proto.App
 		if m.DecodeParams(&front) == nil {

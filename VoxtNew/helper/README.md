@@ -7,7 +7,8 @@ The small Swift process VoxtNew runs beside its window, for what MyGo cannot do 
 - **text in and out**: what is focused in the app in front, its selected text (Accessibility, else ⌘C when the app allows), and pasting through the clipboard with keys after it and the clipboard put back (`textio.*`);
 - **the app in front**: kept from NSWorkspace and told to the app (`app.frontmost`, `app.activated`, and `front` in each `hotkey.event`);
 - **browser URLs**: the front tab's URL from the Accessibility tree only, with no Automation consent to ask (`browser.url`), and the apps to pick from for app enhancement (`app.list`) with their icons (`app.icons`);
-- **permissions**: the Microphone and Accessibility as the helper sees them, and macOS's prompts (`permissions.*`).
+- **permissions**: the Microphone and Accessibility as the helper sees them, and macOS's prompts (`permissions.*`);
+- **the output's mute**: the default output device's mute while VoxtNew records (`output.*`), the mutes it made kept in a journal and undone when the app goes away, before sleep, or by the next helper.
 
 It speaks [helper protocol 1](../docs/helper-protocol.md) over stdin and stdout; `internal/helper` supervises it (handshake, restarts, stderr to `~/Library/Logs/VoxtNew/helper.log`, call timings). The helper keeps no settings: Go decides (which device, when ⌘C may run, the delays, the keys) and passes it in the params. Its shapes come from the M0 spikes on a Mac (the project's `research/spikes.md`).
 
@@ -25,6 +26,7 @@ helper/
     CaptureSource.swift           downmix and resampling; the test-only file input
     Apps.swift                    app.list's merge; app.icons' sizes; the web area around the focus
     ManualAccessibility.swift     which apps get AXManualAccessibility, once per process
+    OutputMute.swift              the output's claims and their journal (MuteClaims), the watch's changes
   Sources/VoxtNewHelper/    the executable:
     main.swift, Server.swift      stdin/stdout, hello, routing, the capture job, slow-request lines
     Capture.swift                 AVAudioEngine, devices, watchdog
@@ -34,7 +36,8 @@ helper/
     Browser.swift                 browser URLs (AX), app.list
     AppIcons.swift                app.icons: apps' icons as PNGs
     Permissions.swift             Microphone, Accessibility
-  Tests/VoxtNewHelperKitTests/  FixtureTests (helper/Fixtures), the recognizer, the framer, the file input, ManualAccessibility
+    Output.swift                  Core Audio's output devices, their listeners, undoing on exit and sleep
+  Tests/VoxtNewHelperKitTests/  FixtureTests (helper/Fixtures), the recognizer, the framer, the file input, ManualAccessibility, OutputMute
   Fixtures/                  golden transcripts, shared with Go; audio/ for the file input's tests
   Support/                   Info.plist (linked into the binary), helper.entitlements
 ```

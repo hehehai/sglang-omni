@@ -57,8 +57,8 @@ func PresetFor(id string) Preset {
 // measured on the files of macOS 26.7 (Auralink's port). The files go on
 // in silence for longer (Pop is 1.63 s long, of which 0.22 s are heard),
 // which afplay plays to the end. Settings → Audio's Try button shows the
-// accent for this long; Voxt also waits for it before muting the output,
-// which VoxtNew does not do yet (Audio.MuteOutput, P1).
+// accent for this long, and the output's mute waits for the start cue's
+// (Voxt's rule; mute_link.go's startCueWait).
 var audible = map[Sound]time.Duration{
 	"Pop":       215 * time.Millisecond,
 	"Tink":      45 * time.Millisecond,
@@ -107,4 +107,16 @@ func Start(s Sound) (*Playing, error) { return start(s) }
 func Play(s Sound) error {
 	_, err := start(s)
 	return err
+}
+
+// PlayWait plays s and returns when it ended (the start cue plays before
+// the system's output is muted: mute_link.go waits for its audible part
+// only). Off macOS it returns at once.
+func PlayWait(s Sound) error {
+	p, err := start(s)
+	if err != nil {
+		return err
+	}
+	<-p.done
+	return nil
 }

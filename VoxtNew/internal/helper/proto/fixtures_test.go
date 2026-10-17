@@ -158,6 +158,14 @@ func TestFixtures(t *testing.T) {
 						if v.PID <= 0 {
 							t.Fatalf("%s: app %+v", where, v)
 						}
+					case *OutputState:
+						if !validOutput(*v) {
+							t.Fatalf("%s: output %+v", where, v)
+						}
+					case *OutputReleasedParams:
+						if v.Reason != OutputReasonSleep {
+							t.Fatalf("%s: released %+v", where, v)
+						}
 					case *LogParams:
 						job = v.Job
 						if !slices.Contains([]string{"debug", "info", "warning", "error"}, v.Level) {
@@ -195,6 +203,16 @@ func TestFixtures(t *testing.T) {
 						t.Fatalf("%s: result for %s, which has none", where, method)
 					}
 					strict(t, where+" result", m.Result, r)
+					switch o := r.(type) {
+					case *OutputState:
+						if !validOutput(*o) {
+							t.Fatalf("%s: output %+v", where, o)
+						}
+					case *OutputMuteResult:
+						if !validOutput(o.State) || o.State.Device == nil || (o.Took && !o.State.IsMuted()) {
+							t.Fatalf("%s: mute %+v", where, o)
+						}
+					}
 					if c, ok := r.(*CaptureResult); ok {
 						if c.Frames != nextSeq[m.ID] || c.Samples != nextOffset[m.ID] || !slices.Contains([]string{CaptureStopped, CaptureMaxSeconds, CaptureDeviceLost, CaptureNoCallback}, c.Reason) {
 							t.Fatalf("%s: capture result %+v after %d frames, %d samples", where, c, nextSeq[m.ID], nextOffset[m.ID])
@@ -227,6 +245,15 @@ func validBinding(b HotkeyBinding) bool {
 		}
 	}
 	return true
+}
+
+// validOutput: a device with a UID; a settable mute that can be read; no
+// mute without a device.
+func validOutput(s OutputState) bool {
+	if s.Device == nil {
+		return s.Muted == nil && !s.Settable
+	}
+	return s.Device.UID != "" && (!s.Settable || s.Muted != nil)
 }
 
 // validEvent: a phase that fits the behaviour.

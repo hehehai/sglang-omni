@@ -118,6 +118,10 @@ func clone(s Settings) Settings {
 	s.Appearance.ClosedSections = slices.Clone(s.Appearance.ClosedSections)
 	s.Audio.Devices = slices.Clone(s.Audio.Devices)
 	s.Audio.DeviceNames = maps.Clone(s.Audio.DeviceNames)
+	if p := s.Audio.MuteOutput; p != nil {
+		on := *p
+		s.Audio.MuteOutput = &on
+	}
 	f := &s.Features
 	f.Transcribe.Hotkeys = slices.Clone(f.Transcribe.Hotkeys)
 	f.Translate.Hotkeys = slices.Clone(f.Translate.Hotkeys)

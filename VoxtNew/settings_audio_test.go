@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
@@ -116,8 +117,11 @@ func TestRecordingCues(t *testing.T) {
 
 func TestSessionSounds(t *testing.T) {
 	a, _, _ := newTestApp(t)
+	var mu sync.Mutex
 	var cues []macx.Sound
-	a.playSound = func(s macx.Sound) { cues = append(cues, s) }
+	// The stop cue plays once the output is back (mute_link.go), from
+	// the mute's goroutine: a.mute.Wait() before reading.
+	a.playSound = func(s macx.Sound) { mu.Lock(); cues = append(cues, s); mu.Unlock() }
 	rev := a.sess.Rev
 	feed := func(id string, st session.State) {
 		rev++
@@ -126,8 +130,12 @@ func TestSessionSounds(t *testing.T) {
 	feed("s1", session.Recording)
 	feed("s1", session.Recognizing)
 	feed("s1", session.Done)
+	a.mute.Wait() // the stop cue comes from the mute's goroutine: before the next start
 	feed("s2", session.Recording)
 	feed("s2", session.Cancelled)
+	a.mute.Wait()
+	mu.Lock()
+	defer mu.Unlock()
 	if want := []macx.Sound{macx.SoundStart, macx.SoundStop, macx.SoundStart}; !slices.Equal(cues, want) {
 		t.Fatalf("cues %q, want %q", cues, want)
 	}
@@ -138,8 +146,11 @@ func TestSessionSounds(t *testing.T) {
 	}{{"frog", []macx.Sound{"Frog", "Frog"}}, {"hero", []macx.Sound{"Hero", "Hero"}}} {
 		a.updateSettings(func(s *settings.Settings) { s.Audio.SoundPreset = tc.preset })
 		cues = nil
+		mu.Unlock()
 		feed("s-"+tc.preset, session.Recording)
 		feed("s-"+tc.preset, session.Done)
+		a.mute.Wait()
+		mu.Lock()
 		if !slices.Equal(cues, tc.want) {
 			t.Fatalf("%s: cues %q", tc.preset, cues)
 		}
@@ -148,8 +159,11 @@ func TestSessionSounds(t *testing.T) {
 	a.navigate("/settings/audio")
 	a.updateSettings(func(s *settings.Settings) { s.Audio.Sounds = false })
 	cues = nil
+	mu.Unlock()
 	feed("s3", session.Recording)
 	feed("s3", session.Recognizing)
+	a.mute.Wait()
+	mu.Lock()
 	if len(cues) != 0 {
 		t.Errorf("sounds off: %q", cues)
 	}

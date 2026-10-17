@@ -21,7 +21,8 @@
 // textio.* read a scripted selection and log what they paste (paste-log=);
 // browser.url answers from Browsers, app.list from Apps and Installed,
 // app.icons with Icon for those and Browsers;
-// app.configure keeps its list (no-tree=).
+// app.configure keeps its list (no-tree=); output.* mute pretend speakers
+// and AirPods (output.go).
 // (From AudioSmith's engine/enginetest, with the helper's methods.)
 package helpertest
 
@@ -57,6 +58,14 @@ package helpertest
 //	no-tree=BUNDLE   browser.url reads BUNDLE's URL only once app.configure listed
 //	                 it (Chromium builds no tree without AXManualAccessibility)
 //	replay=PATH      replay a fixture transcript (helper/Fixtures/*.jsonl)
+//	out=PATH         the output devices (output.*, output.go) kept in PATH, outliving
+//	                 the process: speakers (the default) and AirPods at first
+//	out-default=X    the default output starts muted (the user's), fixed (a mute that
+//	                 cannot be set), none (no mute) or empty (no output device)
+//	out-switch=MS    MS ms after a mute, AirPods become the default output
+//	out-unmute=MS    MS ms after a mute, the user unmutes the device
+//	crash-mute       exit 3 right after a mute (its claim stays in the journal)
+//	no-output        an older helper: no output.* in hello, method_not_found
 //
 // A capture.start whose first device is "crash" exits 3 after its first
 // frame; one whose first device is "gone" fails with device_unavailable;
@@ -101,6 +110,11 @@ func Main() {
 
 // Methods is what the fake implements (hello.methods): every request.
 func Methods() []string { return slices.Clone(proto.Requests) }
+
+// oldMethods are an older helper's (no-output): without output.*.
+func oldMethods() []string {
+	return slices.DeleteFunc(Methods(), func(m string) bool { return strings.HasPrefix(m, "output.") })
+}
 
 // Devices are the fake's audio inputs.
 func Devices() []proto.CaptureDevice {
@@ -163,6 +177,7 @@ type fake struct {
 	cancel    map[string]bool          // asked to stop by job.cancel
 	stop      map[string]chan struct{} // closed by capture.stop
 	finished  map[string]chan struct{}
+	outSim    *OutputHelper // output.* (output.go)
 }
 
 // Run serves the protocol on stdin and stdout with opts (see the top of
@@ -217,6 +232,7 @@ func Run(optString string) {
 		f.cancel[id] = true
 	}
 	f.mu.Unlock()
+	f.outputExit() // the app went away: its mutes are undone
 }
 
 func (f *fake) has(opt string) bool { _, ok := f.opts[opt]; return ok }
@@ -301,6 +317,7 @@ func (f *fake) serve(m proto.Message) {
 	}
 	switch m.Method {
 	case proto.MethodShutdown:
+		f.outputExit()
 		f.result(m.ID, nil)
 		os.Exit(0)
 	case proto.MethodJobCancel:
@@ -414,6 +431,12 @@ func (f *fake) serve(m proto.Message) {
 			res.Icons = append(res.Icons, icon)
 		}
 		f.result(m.ID, res)
+	case proto.MethodOutputWatch, proto.MethodOutputMute, proto.MethodOutputRelease, proto.MethodOutputRecover:
+		if f.has("no-output") {
+			f.fail(m.ID, proto.CodeMethodNotFound, "Unknown method %s", m.Method)
+			return
+		}
+		f.output(m)
 	default:
 		f.fail(m.ID, proto.CodeMethodNotFound, "Unknown method %s", m.Method)
 	}
@@ -437,6 +460,9 @@ func (f *fake) handleHello(m proto.Message) {
 	}
 	res := proto.HelloResult{Protocol: proto.Version, Version: "fake", PID: os.Getpid(), Methods: Methods(),
 		Device: proto.Device{Name: "Fake Mac", OS: "test"}}
+	if f.has("no-output") {
+		res.Methods = oldMethods()
+	}
 	if f.has("mismatch") {
 		res.Protocol = 9
 	}

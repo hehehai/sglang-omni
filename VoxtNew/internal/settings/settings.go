@@ -99,13 +99,17 @@ type Audio struct {
 	// ones that are not connected.
 	Devices     []string          `json:"devices,omitempty"`
 	DeviceNames map[string]string `json:"deviceNames,omitempty"`
-	// MuteOutput lowers the system's output while recording, restoring
-	// only what VoxtNew changed (P1). Sounds plays a cue when recording
-	// starts and another when it stops; SoundPreset is the pair it plays,
-	// by Voxt's preset IDs (macx.Presets: "soft", "glass", …). Empty, or
-	// an ID VoxtNew does not know, is "soft" (Pop, then Tink), so older
-	// documents need no migration (10-17).
-	MuteOutput  bool   `json:"muteOutput,omitempty"`
+	// MuteOutput mutes the default output device while recording (after
+	// the start cue, until the recording stops), unmuting only what
+	// VoxtNew muted (internal/outmute, Auralink's, 10-17). Nil until the
+	// user chooses: on (MuteOn), for older documents too, without a
+	// migration (no version wrote it: the P1 placeholder's false was
+	// omitted). Sounds plays a cue when recording starts and another when
+	// it stops; SoundPreset is the pair it plays, by Voxt's preset IDs
+	// (macx.Presets: "soft", "glass", …). Empty, or an ID VoxtNew does not
+	// know, is "soft" (Pop, then Tink), so older documents need no
+	// migration (10-17).
+	MuteOutput  *bool  `json:"muteOutput,omitempty"`
 	Sounds      bool   `json:"sounds"`
 	SoundPreset string `json:"soundPreset,omitempty"`
 	// VAD is the local voice activity detection a recording goes
@@ -115,6 +119,10 @@ type Audio struct {
 	// of a recording (10-16).
 	Clean Clean `json:"clean,omitzero"`
 }
+
+// MuteOn reports whether recordings mute the system's output: the user's
+// choice, else on.
+func (a Audio) MuteOn() bool { return a.MuteOutput == nil || *a.MuteOutput }
 
 // Clean tunes the sound processing of what a speech model gets of a
 // recording (internal/dsp, pure DSP, no model): a high-pass filter (80

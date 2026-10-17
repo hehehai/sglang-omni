@@ -41,6 +41,9 @@ func TestPlay(t *testing.T) {
 		if err := Play(SoundStart); err != nil {
 			t.Fatal(err)
 		}
+		if err := PlayWait(SoundStart); err != nil {
+			t.Fatal(err)
+		}
 		p, err := Start(SoundStart)
 		if err != nil {
 			t.Fatal(err)

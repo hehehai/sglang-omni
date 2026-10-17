@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// TestStartStop: a sound's Done closes when the player exits, and Stop
-// ends it at once. A silent stand-in plays (a script that waits), so the
+// TestStartStop: a sound's Done closes when the player exits (PlayWait
+// waits for it), and Stop ends it at once. A silent stand-in plays (a script that waits), so the
 // test needs no output device and makes no sound.
 func TestStartStop(t *testing.T) {
 	fake := filepath.Join(t.TempDir(), "afplay")
@@ -35,6 +35,12 @@ func TestStartStop(t *testing.T) {
 		t.Fatal("did not end")
 	}
 	p.Stop() // ended already: nothing
+
+	// PlayWait returns when the player exits.
+	t0 = time.Now()
+	if err := PlayWait(SoundStart); err != nil || time.Since(t0) < 250*time.Millisecond {
+		t.Errorf("PlayWait: %v after %v", err, time.Since(t0))
+	}
 
 	t.Setenv("SLEEP", "10")
 	p, err = Start("Submarine")

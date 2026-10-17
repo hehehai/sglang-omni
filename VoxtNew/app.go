@@ -33,6 +33,7 @@ import (
 //	scPromptState     settings_shortcuts_family.go  a shortcut another ActNow app uses too: the prompt
 //	audioState        settings_audio.go   Settings → Audio, the recording's sounds
 //	soundsState       settings_sounds.go  the sounds' presets and previews
+//	muteState         mute_link.go    the system's output, muted while recording
 //	updateState       updates.go      the updater, an update installed while running
 //
 // Add fields to your area's struct, not here.
@@ -68,6 +69,7 @@ type app struct {
 	scPromptState
 	audioState
 	soundsState
+	muteState
 	updateState
 }
 
@@ -118,6 +120,7 @@ func (a *app) quit() {
 	a.closeSessions() // session_link.go
 	a.closeOverlay()  // overlay.go
 	a.closeTray()
+	a.closeMute() // mute_link.go: the output back before the helper goes
 	a.stopHelper()
 	a.stopLLM() // llm_link.go
 	if a.models != nil {

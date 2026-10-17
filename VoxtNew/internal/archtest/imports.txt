@@ -36,6 +36,7 @@ notify core
 omni asr
 omni lang
 omni vad
+outmute helper/proto
 overlay/ink overlay/layout
 overlay/layout session
 overlay/layout settings

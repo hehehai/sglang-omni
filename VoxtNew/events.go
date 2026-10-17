@@ -9,7 +9,7 @@ package main
 //
 //	onSession     each new snapshot, before the session's own work (its
 //	              notice, its end, the shortcuts): the setup guide, the
-//	              recording's sounds
+//	              recording's sounds and the output's mute
 //	afterSession  each new snapshot, after it: the menu bar (Start or
 //	              Stop), the overlay
 //	onSessionEnd  a session that ended, before its card or notice: Home
@@ -36,7 +36,7 @@ type events struct {
 func (a *app) connectEvents() {
 	a.onSession = append(a.onSession,
 		func(_, s session.Snapshot) { a.obSessionChanged(s) }, // onboarding.go: a try of the setup guide passes
-		a.playCue, // settings_audio.go: the start and stop sounds
+		a.recordingAudio, // mute_link.go: the start and stop sounds, the output's mute
 	)
 	a.afterSession = append(a.afterSession,
 		func(was, s session.Snapshot) {

@@ -81,6 +81,9 @@ type fakeChat struct {
 	status int
 	delay  time.Duration
 	bodies []map[string]any
+	// onRequest runs as each request comes (mute_e2e_test.go: is the
+	// output back by then?).
+	onRequest func()
 }
 
 func (f *fakeChat) set(text string, status int) {
@@ -92,6 +95,9 @@ func (f *fakeChat) set(text string, status int) {
 func (f *fakeChat) Info() llm.BackendInfo { return llm.BackendInfo{ID: fakeLLMModel.ID} }
 
 func (f *fakeChat) Chat(ctx context.Context, req llm.Request) (llm.Response, error) {
+	if f.onRequest != nil {
+		f.onRequest()
+	}
 	f.mu.Lock()
 	f.bodies = append(f.bodies, requestBody(req))
 	text, status, delay := f.text, f.status, f.delay

@@ -51,6 +51,7 @@ type settingsForm struct {
 	soundPreset  string      // a macx.Presets ID (settings_sounds.go)
 	skipSilence  bool        // !Audio.VAD.Off
 	cleanSound   bool        // !Audio.Clean.Off
+	muteOutput   bool        // Audio.MuteOn()
 	sidebar      int         // automatic, names and icons, icons only (settings_appearance.go)
 	ovStyle      overlayForm // settings_overlay.go
 
@@ -209,6 +210,7 @@ func (a *app) loadSettingsForm() {
 	f.soundPreset = macx.PresetFor(s.Audio.SoundPreset).ID
 	f.skipSilence = !s.Audio.VAD.Off
 	f.cleanSound = !s.Audio.Clean.Off
+	f.muteOutput = s.Audio.MuteOn()
 	f.sidebar = sidebarChoice(s.Appearance)
 	a.loadOverlayForm() // settings_overlay.go
 }

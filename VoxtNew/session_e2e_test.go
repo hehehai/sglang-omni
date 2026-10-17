@@ -75,6 +75,7 @@ func newSessionApp(t *testing.T, opts string, set func(*settings.Settings), svc 
 	a.measureHook = guessText
 	s := &sessionApp{app: a, t: t, queue: make(chan func(), 4096), pasteLog: pasteLog}
 	a.postQueue = func(fn func()) { s.queue <- fn }
+	a.muteJournal = outputJournal(t.TempDir()) // as main.go: the helper's claims survive its crash
 	a.connectHelper()
 	a.startHelper()
 	t.Cleanup(func() {

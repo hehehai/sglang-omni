@@ -82,12 +82,13 @@ func main() {
 		showFatal(err) // shell.go: explains, then quits
 		return
 	}
-	h := newHelperHost(resources, logDir) // helperlink.go
-	a := newApp(lib, h)                   // app.go
-	a.dataHome = home                     // settings_storage.go
-	a.openIcons(cacheDir)                 // appicons.go
-	a.connectShell(logDir)                // shell.go
-	a.connectHelper()                     // helperlink.go
+	h := newHelperHost(resources, logDir)   // helperlink.go
+	a := newApp(lib, h)                     // app.go
+	a.dataHome = home                       // settings_storage.go
+	a.openIcons(cacheDir)                   // appicons.go
+	a.muteJournal = outputJournal(cacheDir) // mute_link.go
+	a.connectShell(logDir)                  // shell.go
+	a.connectHelper()                       // helperlink.go
 	a.upd, a.bundleStale = pluginUpdates{}, h.stale
 	a.connectUpdates() // updates.go
 	a.startFamily()    // family.go: the manifest, the other ActNow apps, the first start's migration

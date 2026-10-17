@@ -2,8 +2,9 @@ package proto
 
 // Methods. The shapes follow Auralink's spikes on a Mac (its
 // research/spikes.md): the helper records, watches the keyboard, reads and
-// writes text in the app in front, and reads browser URLs; Go keeps every
-// policy and passes it in the params.
+// writes text in the app in front, reads browser URLs and mutes the
+// system's output while recording; Go keeps every policy and passes it in
+// the params.
 //
 // Requests marked "job" are long-running: job.cancel stops them, and
 // their notifications name them in "job". Other requests are control
@@ -39,6 +40,11 @@ const (
 
 	MethodBrowserURL = "browser.url" // request: the front tab's URL of a browser (Accessibility only)
 
+	MethodOutputWatch   = "output.watch"   // request: the default output and its mute; output.changed while on
+	MethodOutputMute    = "output.mute"    // request: mute a device and claim it (not when it was muted already)
+	MethodOutputRelease = "output.release" // request: give a claim back (unmuting it, unless the user did)
+	MethodOutputRecover = "output.recover" // request: undo the claims a helper that is gone left in the journal
+
 	// Notifications, helper → app.
 	MethodCaptureStarted   = "capture.started"   // a capture.start job records: which device, how long it took
 	MethodCaptureLevel     = "capture.level"     // input meter of a capture.start job, ~20 Hz
@@ -47,6 +53,8 @@ const (
 	MethodHotkeyEvent      = "hotkey.event"      // a binding fired (or Escape while active)
 	MethodHotkeyState      = "hotkey.state"      // the event tap was installed or lost (e.g. Accessibility granted)
 	MethodAppActivated     = "app.activated"     // another app came to the front
+	MethodOutputChanged    = "output.changed"    // the default output device or its mute changed (output.watch on)
+	MethodOutputReleased   = "output.released"   // the helper gave its claims back on its own (sleep)
 	MethodLog              = "log"               // a log line (stderr stays free-form text)
 )
 
@@ -128,6 +136,18 @@ func ParamsFor(method string) any {
 		return new(AppConfigureParams)
 	case MethodAppIcons:
 		return new(AppIconsParams)
+	case MethodOutputWatch:
+		return new(OutputWatchParams)
+	case MethodOutputMute:
+		return new(OutputMuteParams)
+	case MethodOutputRelease:
+		return new(OutputReleaseParams)
+	case MethodOutputRecover:
+		return new(OutputRecoverParams)
+	case MethodOutputChanged:
+		return new(OutputState)
+	case MethodOutputReleased:
+		return new(OutputReleasedParams)
 	case MethodCaptureStarted:
 		return new(CaptureStartedParams)
 	case MethodCaptureLevel:
@@ -181,6 +201,14 @@ func ResultFor(method string) any {
 		return new(AppListResult)
 	case MethodAppIcons:
 		return new(AppIconsResult)
+	case MethodOutputWatch:
+		return new(OutputState)
+	case MethodOutputMute:
+		return new(OutputMuteResult)
+	case MethodOutputRelease:
+		return new(OutputReleaseResult)
+	case MethodOutputRecover:
+		return new(OutputRecoverResult)
 	}
 	return nil
 }
@@ -196,10 +224,11 @@ var (
 		MethodAppFrontmost, MethodAppList, MethodAppConfigure, MethodAppIcons,
 		MethodTextFocus, MethodTextSelection, MethodTextPaste,
 		MethodBrowserURL,
+		MethodOutputWatch, MethodOutputMute, MethodOutputRelease, MethodOutputRecover,
 	}
 	Notifications = []string{
 		MethodCaptureStarted, MethodCaptureLevel, MethodCapturePCM, MethodCaptureRestarted,
-		MethodHotkeyEvent, MethodHotkeyState, MethodAppActivated, MethodLog,
+		MethodHotkeyEvent, MethodHotkeyState, MethodAppActivated, MethodOutputChanged, MethodOutputReleased, MethodLog,
 	}
 )
 

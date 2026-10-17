@@ -55,7 +55,7 @@ func (a *app) overlayView(c *ui.Context) {
 		default:
 			// The pointer goes through it (passThrough): nothing to drag.
 			faceStyle(ui.Column(c.Key("ov-face")), o, a.ov.mode, a.ov.h).Children(func() {
-				overlayPill(c, a.sess, a.ov.mode, look)
+				overlayPill(c, a.pillSession(), a.ov.mode, look) // mute_link.go: the output's note
 			})
 		}
 	})

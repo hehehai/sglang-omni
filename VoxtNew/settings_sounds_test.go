@@ -8,7 +8,6 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
 )
 
 // soundsRig is Settings → Audio with the previews recorded ("Pop" when
@@ -217,23 +216,22 @@ func TestPreviewPlayerOrder(t *testing.T) {
 }
 
 // TestSoundsWhileRecording: a preview during a recording leaves its
-// session alone, and the recording's cues stay its preset's.
+// session and its muted output alone, and the recording's cues stay its
+// preset's.
 func TestSoundsWhileRecording(t *testing.T) {
-	r := newSoundsRig(t)
-	var cues []macx.Sound
-	r.playSound = func(s macx.Sound) { cues = append(cues, s) }
-	rev := r.sess.Rev
-	feed := func(st session.State) {
-		rev++
-		r.sessionChanged(session.Snapshot{Rev: rev, ID: "s1", Kind: store.KindTranscribe, State: st, Try: true})
+	r := newMuteRig(t)
+	var plays []string
+	r.startSound = func(s macx.Sound) func() { plays = append(plays, string(s)); return nil }
+	r.feed("s1", session.Recording)
+	if !r.muted() {
+		t.Fatal("not muted")
 	}
-	feed(session.Recording)
 	r.trySound("glass")
-	if r.sess.State != session.Recording || !slices.Equal(r.takePlays(), []string{"Ping"}) {
-		t.Fatalf("state %s", r.sess.State)
+	if !r.muted() || r.sess.State != session.Recording || r.muting != "s1" || !slices.Equal(plays, []string{"Ping"}) {
+		t.Fatalf("muted %v, state %s, muting %q, plays %q", r.muted(), r.sess.State, r.muting, plays)
 	}
-	feed(session.Recognizing)
-	if want := []macx.Sound{macx.SoundStart, macx.SoundStop}; !slices.Equal(cues, want) {
-		t.Fatalf("cues %q, want %q", cues, want)
+	r.feed("s1", session.Recognizing)
+	if got := r.takeCues(); !slices.Equal(got, []string{"Pop:audible", "Tink:audible"}) {
+		t.Fatalf("cues %v", got)
 	}
 }

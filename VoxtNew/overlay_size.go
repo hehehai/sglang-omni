@@ -34,7 +34,7 @@ func (a *app) overlaySize(mode overlayMode) (w, h int, exact bool) {
 			scene, exact = a.ovTextWidth(sceneText(name))
 		}
 		row := layout.RowWidth(mode == ovRecording && a.prefs.Overlay.ShowTime, scene)
-		text := liveLineText(a.sess)
+		text := liveLineText(a.pillSession())
 		if text == "" {
 			return row + 2*layout.PillPadX, layout.PillH, exact
 		}
@@ -128,7 +128,7 @@ func (a *app) overlayTexts() []ovSized {
 		if name := uitext.SceneShort(a.sess); name != "" {
 			out = append(out, sceneText(name))
 		}
-		if text := liveLineText(a.sess); text != "" {
+		if text := liveLineText(a.pillSession()); text != "" {
 			out = append(out, liveTextKey(text))
 		}
 	case ovAnswer:

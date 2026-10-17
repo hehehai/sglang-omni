@@ -94,6 +94,7 @@ final class Server: @unchecked Sendable {
     let capture: CaptureManager
     let hotkeys: HotkeyTap
     let textio: TextIO
+    let output: Output
     private let lock = NSLock()
     private var ready = false
     private var debug = false
@@ -107,6 +108,7 @@ final class Server: @unchecked Sendable {
         capture = CaptureManager(out: out)
         hotkeys = HotkeyTap(out: out, front: front)
         textio = TextIO(front: front)
+        output = Output(out: out)
     }
 
     /// Reads requests on a thread of its own until stdin closes, then
@@ -132,6 +134,7 @@ final class Server: @unchecked Sendable {
             }
             log("stdin closed, exiting")
             capture.cancelAll()
+            output.undo("the app went away")
             exit(0)
         }
         thread.name = "voxtnew.stdin"
@@ -151,6 +154,7 @@ final class Server: @unchecked Sendable {
         switch method {
         case Method.shutdown:
             capture.cancelAll()
+            output.undo("helper.shutdown")
             out.result(id, Empty())
             exit(0)
         case Method.captureStart:
@@ -220,6 +224,14 @@ final class Server: @unchecked Sendable {
             return Empty()
         case Method.browserURL:
             return await Browser.url(try msg.decodeParams(BrowserURLParams.self), front: front)
+        case Method.outputWatch:
+            return output.watch(try msg.decodeParams(OutputWatchParams.self))
+        case Method.outputMute:
+            return try output.claims.mute(try msg.decodeParams(OutputMuteParams.self))
+        case Method.outputRelease:
+            return output.claims.release(try msg.decodeParams(OutputReleaseParams.self))
+        case Method.outputRecover:
+            return output.claims.recover(try msg.decodeParams(OutputRecoverParams.self))
         default:
             throw RPCError(Code.methodNotFound, "Unknown method \(method)")
         }
@@ -241,6 +253,7 @@ final class Server: @unchecked Sendable {
             debug = p.logLevel == "debug"
         }
         front.start()
+        output.start()
         let version = helperVersion()
         out.logLine("info", "voxtnew-helper \(version) ready (app \(p.app))")
         out.result(id, HelloResult(protocol: protocolVersion, version: version, pid: Int(getpid()), methods: Method.requests,

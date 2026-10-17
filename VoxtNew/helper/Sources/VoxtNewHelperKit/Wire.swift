@@ -38,6 +38,10 @@ public enum Method {
     public static let appConfigure = "app.configure"
     public static let appIcons = "app.icons"
     public static let browserURL = "browser.url"
+    public static let outputWatch = "output.watch"
+    public static let outputMute = "output.mute"
+    public static let outputRelease = "output.release"
+    public static let outputRecover = "output.recover"
     // Notifications, helper → app.
     public static let captureStarted = "capture.started"
     public static let captureLevel = "capture.level"
@@ -46,6 +50,8 @@ public enum Method {
     public static let hotkeyEvent = "hotkey.event"
     public static let hotkeyState = "hotkey.state"
     public static let appActivated = "app.activated"
+    public static let outputChanged = "output.changed"
+    public static let outputReleased = "output.released"
     public static let log = "log"
 
     /// Every request, in the order hello lists them.
@@ -53,10 +59,11 @@ public enum Method {
         hello, shutdown, jobCancel, permissionsStatus, permissionsRequest,
         captureDevices, captureStart, captureStop, hotkeyConfigure, hotkeyStatus,
         appFrontmost, appList, appConfigure, appIcons, textFocus, textSelection, textPaste,
-        browserURL,
+        browserURL, outputWatch, outputMute, outputRelease, outputRecover,
     ]
     public static let notifications = [
-        captureStarted, captureLevel, capturePCM, captureRestarted, hotkeyEvent, hotkeyState, appActivated, log,
+        captureStarted, captureLevel, capturePCM, captureRestarted, hotkeyEvent, hotkeyState, appActivated,
+        outputChanged, outputReleased, log,
     ]
 
     /// Long-running, cancellable requests (job.cancel; notifications name them in "job").

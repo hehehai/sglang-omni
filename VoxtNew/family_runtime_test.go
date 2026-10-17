@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -159,5 +160,42 @@ func TestFamilyPaste(t *testing.T) {
 	}
 	if f, ok := a.runtimeFile(t); !ok || f.Pasting {
 		t.Errorf("after the pastes: %+v", f)
+	}
+}
+
+// TestFamilyPasteAfterMute: the output's mute and the family's paste
+// rule stay apart. Muting writes nothing to the runtime file; the
+// recording's mute is given back as it stops, before the text is pasted,
+// and the paste still says "pasting" around the helper's paste only.
+func TestFamilyPasteAfterMute(t *testing.T) {
+	r := newMuteRig(t)
+	r.fs.handlers[proto.MethodTextFocus] = func(json.RawMessage) (any, error) {
+		return proto.FocusResult{PID: 812, Role: "AXTextArea", Editable: true}, nil
+	}
+	type at struct{ pasting, muted bool }
+	var during []at
+	r.fs.handlers[proto.MethodTextPaste] = func(json.RawMessage) (any, error) {
+		f, _ := r.runtimeFile(t)
+		during = append(during, at{f.Pasting, r.fs.out.Sys.Muted(testSpeakers)})
+		return proto.PasteResult{Posted: true}, nil
+	}
+	before, _ := r.runtimeFile(t)
+	r.feed("c1", session.Recording)
+	if !r.muted() {
+		t.Fatal("not muted while recording")
+	}
+	if f, _ := r.runtimeFile(t); f.Pasting || !reflect.DeepEqual(f.Loaded, before.Loaded) {
+		t.Errorf("the mute changed the runtime file: %+v", f)
+	}
+	r.sessionChanged(session.Snapshot{Rev: r.sess.Rev + 1, ID: "c1", State: session.Done, Result: "Answer", Card: true,
+		Delivery: deliver.ReasonNotEditable, Target: proto.App{PID: 812}})
+	r.settle()
+	r.insertAnswer()
+	r.settle()
+	if len(during) != 1 || !during[0].pasting || during[0].muted {
+		t.Errorf("during the paste (pasting, muted): %+v", during)
+	}
+	if f, _ := r.runtimeFile(t); f.Pasting || r.muted() {
+		t.Errorf("after the paste: %+v, muted %v", f, r.muted())
 	}
 }

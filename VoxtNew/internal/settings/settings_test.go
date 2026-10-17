@@ -317,3 +317,30 @@ func TestBetaUpdates(t *testing.T) {
 		}
 	}
 }
+
+// TestMuteOutput: recordings mute the output unless the user turned it
+// off; older documents (none, or the P1 placeholder's false that was
+// never written) read as on, and a choice either way stays.
+func TestMuteOutput(t *testing.T) {
+	s, err := Migrate([]byte(`{"version":4}`))
+	if err != nil || s.Audio.MuteOutput != nil || !s.Audio.MuteOn() || !Defaults().Audio.MuteOn() {
+		t.Fatalf("older document: %+v %v", s.Audio, err)
+	}
+	if data, _ := json.Marshal(Defaults()); strings.Contains(string(data), "muteOutput") {
+		t.Errorf("written without a choice: %s", data)
+	}
+	for _, on := range []bool{true, false} {
+		s := Defaults()
+		s.Audio.MuteOutput = &on
+		data, _ := json.Marshal(s)
+		m, err := Migrate(data)
+		if err != nil || m.Audio.MuteOutput == nil || m.Audio.MuteOn() != on {
+			t.Fatalf("choice %t lost: %s", on, data)
+		}
+		c := clone(m)
+		*c.Audio.MuteOutput = !on
+		if m.Audio.MuteOn() != on {
+			t.Fatal("clone shares the choice")
+		}
+	}
+}

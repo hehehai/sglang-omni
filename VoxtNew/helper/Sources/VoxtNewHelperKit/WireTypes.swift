@@ -1,7 +1,7 @@
 import Foundation
 
 // The params and results of each method: internal/helper/proto (methods.go,
-// apps.go, capture.go, hotkey.go, textio.go)
+// apps.go, capture.go, hotkey.go, textio.go, output.go)
 // field for field (see the conventions in Wire.swift).
 
 // MARK: helper.*, job.cancel, log
@@ -515,6 +515,93 @@ public struct AppIcon: Codable, Sendable, Equatable {
     }
 }
 
+// MARK: output.*
+
+/// An output device; uid is its identity (the id may change).
+public struct OutputDevice: Codable, Sendable, Equatable {
+    public var id: UInt32
+    public var uid: String
+    public var name: String?
+
+    public init(id: UInt32, uid: String, name: String? = nil) {
+        self.id = id
+        self.uid = uid
+        self.name = name
+    }
+}
+
+/// The default output and its mute: muted nil when it has none to read.
+public struct OutputState: Codable, Sendable, Equatable {
+    public var device: OutputDevice?
+    public var muted: Bool?
+    public var settable: Bool
+
+    public init(device: OutputDevice? = nil, muted: Bool? = nil, settable: Bool = false) {
+        self.device = device
+        self.muted = muted
+        self.settable = settable
+    }
+}
+
+public struct OutputWatchParams: Codable, Sendable {
+    public var on: Bool
+}
+
+public struct OutputMuteParams: Codable, Sendable {
+    public var device: OutputDevice
+    public var journal: String?
+
+    public init(device: OutputDevice, journal: String? = nil) {
+        self.device = device
+        self.journal = journal
+    }
+}
+
+public struct OutputMuteResult: Codable, Sendable, Equatable {
+    public var took: Bool
+    public var state: OutputState
+}
+
+public struct OutputReleaseParams: Codable, Sendable {
+    public var device: OutputDevice
+    public var unmute: Bool?
+
+    public init(device: OutputDevice, unmute: Bool? = nil) {
+        self.device = device
+        self.unmute = unmute
+    }
+}
+
+public struct OutputReleaseResult: Codable, Sendable, Equatable {
+    public var unmuted: Bool
+}
+
+public struct OutputRecoverParams: Codable, Sendable {
+    public var journal: String
+
+    public init(journal: String) { self.journal = journal }
+}
+
+public struct OutputRecoverResult: Codable, Sendable, Equatable {
+    /// nil when none (Go's omitempty).
+    public var restored: [OutputDevice]?
+}
+
+/// output.released: the helper gave its claims back itself.
+public struct OutputReleasedParams: Codable, Sendable {
+    public var devices: [OutputDevice]?
+    public var reason: String
+
+    public init(devices: [OutputDevice]?, reason: String) {
+        self.devices = devices
+        self.reason = reason
+    }
+}
+
+public enum OutputReason {
+    public static let sleep = "sleep"
+}
+
 // MARK: - Types by method (the fixture tests; the server's routing)
 
 public enum WireTypes {
@@ -536,6 +623,12 @@ public enum WireTypes {
         case Method.appList: AppListParams.self
         case Method.appConfigure: AppConfigureParams.self
         case Method.appIcons: AppIconsParams.self
+        case Method.outputWatch: OutputWatchParams.self
+        case Method.outputMute: OutputMuteParams.self
+        case Method.outputRelease: OutputReleaseParams.self
+        case Method.outputRecover: OutputRecoverParams.self
+        case Method.outputChanged: OutputState.self
+        case Method.outputReleased: OutputReleasedParams.self
         case Method.captureStarted: CaptureStartedParams.self
         case Method.captureLevel: LevelParams.self
         case Method.capturePCM: PCMParams.self
@@ -566,6 +659,10 @@ public enum WireTypes {
         case Method.browserURL: BrowserURLResult.self
         case Method.appList: AppListResult.self
         case Method.appIcons: AppIconsResult.self
+        case Method.outputWatch: OutputState.self
+        case Method.outputMute: OutputMuteResult.self
+        case Method.outputRelease: OutputReleaseResult.self
+        case Method.outputRecover: OutputRecoverResult.self
         default: nil
         }
     }

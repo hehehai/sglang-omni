@@ -87,6 +87,10 @@ github.com/sgl-project/sglang-omni/VoxtNew
 │   │                     the built-in browsers, auto keys
 │   ├── appicons/         apps' icons for the lists that name apps: which are wanted, asked for,
 │   │                     there or missing; the PNGs on disk (a week fresh); fetching a batch
+│   ├── outmute/          the system's output muted while a session records: when (after the start
+│   │                     cue, until the recording stops), a change of device, the user's unmute,
+│   │                     a new helper undoing an earlier one's mutes (output.recover); over the
+│   │                     helper's output.* (helperio.go; Auralink's)
 │   ├── appbundle/        the version of the app bundle on disk (Info.plist), to tell an update      (leaf)
 │   │                     installed while the app runs (updates.go, helper.Config.Stale)
 │   ├── overlay/
@@ -132,7 +136,7 @@ session ──▶ appctx, asr, compose, core, deliver, dict, dsp, helper/proto, 
 dsp ──▶ vad
 compose ──▶ lang              deliver ──▶ helper/proto      hotkey ──▶ helper/proto, settings
 appctx ──▶ helper/proto, hotkey, settings                    dict ──▶ store
-appicons ──▶ helper/proto
+appicons ──▶ helper/proto        outmute ──▶ helper/proto
 actnow ──▶ settings
 core, settings, helper/proto, llmrt/wire, i18n, lang, permission, macx, vad, appbundle, models, resident ──▶ (nothing internal)
 actnow, models, local, uitext ──▶ github.com/hehehai/actnowkit (archtest: actnowUsers; its conformance package only in tests)
@@ -169,7 +173,7 @@ MyGo builds the root `main` package (`mygo dev`, `mygo build`, `ui.View`); views
 ┌──────────────────────────────┐  calls (go …)  ┌──────────────────────────────────────────┐
 │ views (build pass: no I/O)   │──────────────▶ │ library: store (SQLite) · bus · settings │
 │ app view state + snapshots   │                │ helper.Supervisor ──stdio JSON lines──▶ voxtnew-helper (Swift)
-│        ▲ Window.Update       │                │    capture.* · hotkey.* · textio.* · app.* · browser.url · permissions.*
+│        ▲ Window.Update       │                │    capture.* · hotkey.* · textio.* · app.* · browser.url · permissions.* · output.*
 │                              │                │ llmrt.Runtime ──stdio JSON lines──▶ voxtnew-llm (Swift: MLX, llama.cpp)
 │                              │                │    model.load · chat (chat.delta, job.cancel) · model.status; started on use, idle stop
 └────────┼─────────────────────┘                └──────────────────────────────────────────┘
@@ -237,7 +241,8 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | `a.page(c, p)`, `a.pageShown(path)` | pages.go | the router: each page's view, and what it reads when it shows |
 | `a.updateSettings(fn)`, `a.prefs`, `settingsSections()`, `a.settingsShown(sub)`, `a.setMainLanguage(code)`, `a.syncOpenAtLogin()` | shell_settings.go (the dialog, `settingsState`), settings_general.go, settings_locale.go | every area that changes a setting; sections that read something when they open; the window's opening (shell.go) |
 | `a.railMode()` (the only place that decides: the user's choice, else a window narrower than 740), `a.setRail(on)` | shell_nav.go | the sidebar, `pageWidth`, Settings → Appearance |
-| `a.audio` (the inputs `capture.devices` listed), `a.loadDevices()`, `a.audioShown()`, `deviceInUse(list, devs)`, `a.playSound` (`macx.Play`; tests record), `recordingCue(was, s)` (start, stop or none), `cueSound(cue, preset)`, `a.playCue(was, s)`; `a.trySound(preset)` (a preview, `a.startSound`: `macx.Start`; tests record), `a.soundsRow(c)` (the presets' menu and Try) | settings_audio.go, settings_sounds.go | Settings → Audio, helperlink.go (a helper that became ready), session_link.go (`sessionChanged`) |
+| `a.audio` (the inputs `capture.devices` listed), `a.loadDevices()`, `a.audioShown()`, `deviceInUse(list, devs)`, `a.playSound` (`macx.PlayWait`, on a goroutine; tests record), `recordingCue(was, s)` (start, stop or none), `cueSound(cue, preset)`; `a.trySound(preset)` (a preview, `a.startSound`: `macx.Start`; tests record), `a.soundsRow(c)` (the presets' menu and Try) | settings_audio.go, settings_sounds.go | Settings → Audio, helperlink.go (a helper that became ready), mute_link.go (`recordingAudio` plays the cues) |
+| `a.mute` (`*outmute.Controller`), `a.muting`, `a.recordingAudio(was, s)` (the cues and the mute around a recording; `startCueWait(sound)`), `a.muteHelperChanged`, `a.muteNotified`, `a.muteSettingChanged`, `a.pillSession()` (the pill's text line with the output's note), `a.closeMute()` | mute_link.go | events.go (onSession), helperlink.go, settings_audio.go, overlay_face.go, overlay_size.go, app.go (quit) |
 | `faceStyle(e, o, mode, h)`, `overlayPill(c, s, mode, look)`, `a.overlayRestyle()` | overlay_face.go, overlay.go | the overlay, the preview of Settings → Overlay style (settings_overlay.go), `settingsChanged` |
 | `uitext.TriggerText(trigger)` (its name; the setup guide's `uitext.TriggerHowText` says how to use it), `featurePath(feature)` | internal/uitext (keys.go), settings_shortcuts.go | Settings → Shortcuts |
 | `a.trayItems()`, `a.loadTrayRecent()` (the last three results), `trayicon.Icon(recording)` (Voxt's microphone, `internal/trayicon`), `a.copyText` (tests) | tray.go | `historyChanged`, the menu bar |
@@ -273,6 +278,7 @@ While a session is live (or the answer card shows) the bindings go to the helper
 | The ActNow family | `~/Library/Application Support/ActNow/` (`$ACTNOW_FAMILY_DIR`): `family.json`, `apps/dev.hehehai.voxtnew.json` (the manifest: version, path, capabilities, shortcuts, links, `models.root`), `models/claims/dev.hehehai.voxtnew.json` (the models VoxtNew uses), `models/removed.json` (deleted for all apps), `runtime/dev.hehehai.voxtnew.json` (while it runs: loaded models, the paste flag), `settings.json` (shared settings; VoxtNew's follow flags are in its own `settings:app`, `family`) |
 | Recordings kept with history entries | `…/VoxtNew/audio/<id>.wav` (only with Settings → Privacy → Keep the recordings) |
 | Data folder location | `…/VoxtNew/location.json` when the user moved it (Settings → Storage); `move.json`, `reset.json` while a move or an erase waits for the next start |
+| The output's mutes (crash recovery) | `~/Library/Caches/VoxtNew/output-mute/<helper pid>.json`: the devices a helper muted, written before each mute, removed when it gives them back; the next helper undoes a dead one's (`output.recover`). Empty while nothing records |
 | Apps' icons (App enhancement's lists) | `~/Library/Caches/VoxtNew/icons/<bundle id>-64.png`, drawn by the helper (`app.icons`), redrawn after a week (`internal/appicons`) |
 | Logs | `~/Library/Logs/VoxtNew/voxtnew.log` (app, rotated at 5 MB), `helper.log` (the helper's stderr) and `llm.log` (voxtnew-llm's stderr) |
 | Helper | `VoxtNew.app/Contents/Resources/helper/voxtnew-helper` (or `$VOXTNEW_HELPER`) |

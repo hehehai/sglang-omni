@@ -102,6 +102,9 @@ type fakeSupervisor struct {
 	status   helper.Status
 	calls    []proto.Message
 	handlers map[string]func(json.RawMessage) (any, error)
+	// out answers output.*: pretend speakers (the default) and AirPods,
+	// with the Swift helper's rules (helpertest.OutputHelper).
+	out *helpertest.OutputHelper
 }
 
 func newFakeSupervisor(bus *core.Bus) *fakeSupervisor {
@@ -111,6 +114,28 @@ func newFakeSupervisor(bus *core.Bus) *fakeSupervisor {
 	f.handlers[proto.MethodCaptureDevices] = func(json.RawMessage) (any, error) {
 		return proto.DevicesResult{Devices: helpertest.Devices()}, nil
 	}
+	f.out = &helpertest.OutputHelper{Sys: helpertest.NewOutputSystem(), PID: 4242}
+	output := func(method string, fn func(raw json.RawMessage) (any, error)) { f.handlers[method] = fn }
+	output(proto.MethodOutputWatch, func(raw json.RawMessage) (any, error) {
+		var p proto.OutputWatchParams
+		json.Unmarshal(raw, &p)
+		return f.out.Watch(context.Background(), p.On)
+	})
+	output(proto.MethodOutputMute, func(raw json.RawMessage) (any, error) {
+		var p proto.OutputMuteParams
+		json.Unmarshal(raw, &p)
+		return f.out.Mute(context.Background(), p)
+	})
+	output(proto.MethodOutputRelease, func(raw json.RawMessage) (any, error) {
+		var p proto.OutputReleaseParams
+		json.Unmarshal(raw, &p)
+		return f.out.Release(context.Background(), p)
+	})
+	output(proto.MethodOutputRecover, func(raw json.RawMessage) (any, error) {
+		var p proto.OutputRecoverParams
+		json.Unmarshal(raw, &p)
+		return f.out.Recover(context.Background(), p)
+	})
 	f.handlers[proto.MethodPermissionsRequest] = func(raw json.RawMessage) (any, error) {
 		var p proto.PermissionsRequestParams
 		json.Unmarshal(raw, &p)
