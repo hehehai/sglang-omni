@@ -109,12 +109,17 @@ func TestModelDownloadStates(t *testing.T) {
 			fakeModelInfo(w, repo)
 			return
 		}
-		if r.Header.Get("Range") != "" && !strings.HasPrefix(r.Header.Get("Range"), "bytes=0-") {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
+		size := fakeFileSize(r.URL.Path)
+		if rg := r.Header.Get("Range"); rg != "" { // a range of a big file (hfhub's chunks)
+			var from, to int64
+			fmt.Sscanf(rg, "bytes=%d-%d", &from, &to)
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", from, to, size))
+			w.Header().Set("Content-Length", fmt.Sprint(to-from+1))
+			w.WriteHeader(http.StatusPartialContent)
+		} else {
+			w.Header().Set("Content-Length", fmt.Sprint(size))
+			w.WriteHeader(http.StatusOK)
 		}
-		w.Header().Set("Content-Length", fmt.Sprint(fakeFileSize(r.URL.Path)))
-		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(strings.Repeat("x", 100))) // less than any file: the rest never comes
 		w.(http.Flusher).Flush()
 		select {
@@ -137,7 +142,7 @@ func TestModelDownloadStates(t *testing.T) {
 	mode.Store("hold")
 	click(t, tt, "Download Fast language model")
 	deadline := time.Now().Add(5 * time.Second)
-	for !has(tt, "Downloading: ") && time.Now().Before(deadline) {
+	for (!has(tt, "Downloading: ") || a.models.Status(models.LLMFast).Done == 0) && time.Now().Before(deadline) { // some bytes came
 		drain()
 	}
 	if !has(tt, "Cancel") || !a.modelStatus[models.LLMFast].Downloading {
