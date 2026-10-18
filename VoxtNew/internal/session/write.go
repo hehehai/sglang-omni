@@ -67,7 +67,7 @@ func (r *run) write(raw, selection string) {
 	var o finishOpts
 	switch kind {
 	case store.KindTranslate:
-		o.needEditable = selection != ""
+		o.replace = selection != ""
 		if r.settings.Features.Translate.ShowCard {
 			o.card = deliver.ReasonCard
 		}
@@ -82,10 +82,12 @@ func (r *run) write(raw, selection string) {
 	}
 	r.m.update(r, func(s *Snapshot) { s.State, s.Selection, s.Card = Composing, selection, o.card != "" && !r.req.Try })
 
-	// Will it insert? If not, the answer streams into the card at once.
-	if o.card == "" && !r.req.Try {
+	// Can it replace the selection? If not, the answer streams into the
+	// card at once. Other answers go where the user is typing when they
+	// are ready (finish): the user may still switch apps meanwhile.
+	if o.card == "" && o.replace && !r.req.Try {
 		ctx, cancel := context.WithTimeout(r.ctx, cfg.DeliverTime)
-		res := deliver.Check(ctx, cfg.Text, deliver.Request{Text: "-", Target: r.req.Target, Self: cfg.Self, NeedEditable: o.needEditable})
+		res := deliver.Check(ctx, cfg.Text, deliver.Request{Text: "-", Target: r.req.Target, Self: cfg.Self, Replace: true})
 		cancel()
 		if res.Reason != deliver.ReasonNone && r.ctx.Err() == nil {
 			r.logf("info", "the answer goes to the card: %s", res.Reason)

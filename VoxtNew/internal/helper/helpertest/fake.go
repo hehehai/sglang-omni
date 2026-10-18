@@ -52,6 +52,9 @@ package helpertest
 //	selection=TEXT   textio.selection reads TEXT through Accessibility
 //	copy-selection=TEXT  textio.selection reads TEXT only with allowCopy (via copy)
 //	readonly         textio.focus: the focused element is not editable
+//	focus=none       textio.focus: nothing is focused (Finder's desktop)
+//	focus=secure     textio.focus: a password field (AXSecureTextField)
+//	switch=BUNDLE    textio.* see BUNDLE in front: the user went there after the shortcut
 //	paste-log=PATH   append each textio.paste's params to PATH (JSON lines)
 //	delay=METHOD:MS  answer METHOD MS ms late (slow calls)
 //	no-url[=BUNDLE]  browser.url reads no URL (of BUNDLE, or of every browser)

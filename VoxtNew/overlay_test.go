@@ -19,6 +19,7 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/asr"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/ink"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
@@ -115,14 +116,15 @@ func TestOverlayModes(t *testing.T) {
 
 // TestAnswerCardButtons: Copy copies and the card stays, its mark showing
 // for 2 s (Voxt's); Insert hides the card, pastes through the helper into
-// the session's app, and brings the card back with why it could not.
+// the session's app or a text field the user focused in another app, and
+// brings the card back with why it could not.
 func TestAnswerCardButtons(t *testing.T) {
 	a, fs, _ := newTestApp(t)
 	ft := new(fakeTimers).install(a)
 	var pasted []proto.PasteParams
-	front := 812
+	focus := proto.FocusResult{PID: 812, Role: "AXStaticText"}
 	fs.handlers[proto.MethodTextFocus] = func(json.RawMessage) (any, error) {
-		return proto.FocusResult{PID: front, Role: "AXStaticText"}, nil
+		return focus, nil
 	}
 	fs.handlers[proto.MethodTextPaste] = func(raw json.RawMessage) (any, error) {
 		var p proto.PasteParams
@@ -140,10 +142,10 @@ func TestAnswerCardButtons(t *testing.T) {
 	card("c1")
 	tt := cardTester(a)
 	frames(tt)
-	if !tt.HasText("Answer c1") || tt.HasText("Nothing in Slack takes text: click where it should go, then insert.") {
+	if !tt.HasText("Answer c1") || tt.HasText("No text field is focused: click where it should go, then insert, or copy it.") {
 		t.Errorf("card texts %q", firstTexts(tt))
 	}
-	if a.answer.why != "Nothing in Slack takes text: click where it should go, then insert." {
+	if a.answer.why != "No text field is focused: click where it should go, then insert, or copy it." {
 		t.Errorf("why %q", a.answer.why)
 	}
 	if err := tt.Click("Copy"); err != nil {
@@ -166,16 +168,28 @@ func TestAnswerCardButtons(t *testing.T) {
 	if a.answer.open || len(pasted) != 1 || pasted[0].Text != "Answer c2" || pasted[0].TargetPID != 812 {
 		t.Errorf("insert: %+v %+v", a.answer, pasted)
 	}
-	front = 530 // another app came to the front
+	focus = proto.FocusResult{PID: 530, Error: "no focused element"} // another app came to the front, nothing focused
 	card("c3")
 	a.insertAnswer()
-	if !a.answer.open || a.answer.inserting || a.ov.mode != ovAnswer || a.answer.msg != "Slack is not in front any more." || len(pasted) != 1 {
+	if !a.answer.open || a.answer.inserting || a.ov.mode != ovAnswer || a.answer.msg != "No text field is focused: click where the text should go, then insert." || len(pasted) != 1 {
 		t.Errorf("elsewhere: %s %+v", a.ov.mode, a.answer)
 	}
 	h := a.ov.h
 	if h != layout.CardChrome+a.mustBody(t)+layout.CardMsgGap+layout.CardMsgH {
 		t.Errorf("the line under the text: %d high", h)
 	}
+	focus = proto.FocusResult{PID: 530, Role: "AXTextField", Subrole: "AXSecureTextField", Editable: true}
+	a.insertAnswer()
+	if !a.answer.open || a.answer.msg != "A password field is focused: VoxtNew never types into one." || len(pasted) != 1 {
+		t.Errorf("a password field: %+v", a.answer)
+	}
+	textEdit := helpertest.Apps["com.apple.TextEdit"]
+	focus = proto.FocusResult{PID: 530, App: &textEdit, Role: "AXTextArea", Editable: true} // a text field there now
+	a.insertAnswer()
+	if a.answer.open || len(pasted) != 2 || pasted[1].Text != "Answer c3" || pasted[1].TargetPID != 530 {
+		t.Errorf("into the app in front: %+v %+v", a.answer, pasted)
+	}
+	card("c4")
 	fs.handlers[proto.MethodTextFocus] = func(json.RawMessage) (any, error) {
 		return nil, &proto.Error{Code: proto.CodePermissionDenied}
 	}

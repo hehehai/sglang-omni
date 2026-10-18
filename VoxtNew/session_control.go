@@ -117,8 +117,9 @@ func (a *app) toggleTranscribe() {
 	}
 }
 
-// setDelivery records in the history how a result left the card.
-func (a *app) setDelivery(id, how string) {
+// setDelivery records in the history how a result left the card, and
+// the app it was inserted into (to.PID 0: unchanged).
+func (a *app) setDelivery(id, how string, to proto.App) {
 	h := a.lib.store.History()
 	a.async(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -128,6 +129,9 @@ func (a *app) setDelivery(id, how string) {
 			return // not kept
 		}
 		e.Delivery = how
+		if to.PID != 0 && to.BundleID != "" {
+			e.AppBundle, e.AppName = to.BundleID, to.Name
+		}
 		if err := h.Put(ctx, e); err == nil {
 			a.post(a.historyChanged)
 		}

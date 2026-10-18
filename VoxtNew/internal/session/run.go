@@ -197,11 +197,11 @@ func (r *run) main() {
 
 // finishOpts say how a result is delivered: card, when set, sends it to
 // the answer card without trying to insert it (the reason it shows
-// there); needEditable inserts only into an element Accessibility calls
-// editable (a selection).
+// there); replace replaces the selection, only in the app it was made in
+// (deliver.Request.Replace).
 type finishOpts struct {
-	card         deliver.Reason
-	needEditable bool
+	card    deliver.Reason
+	replace bool
 }
 
 // finish delivers result (unless it is a try or empty), keeps the
@@ -216,14 +216,21 @@ func (r *run) finish(st State, problem *Problem, result string, o finishOpts) {
 		r.m.update(r, func(s *Snapshot) { s.Result, s.Card = result, true })
 	default:
 		r.m.update(r, func(s *Snapshot) { s.State, s.Result = Delivering, result })
-		press := r.press(o.needEditable) // app enhancement's auto key
+		press := r.press(o.replace) // app enhancement's auto key
 		ctx, cancel := context.WithTimeout(context.Background(), cfg.DeliverTime)
-		dres = deliver.Insert(ctx, cfg.Text, deliver.Request{Text: result, Target: r.req.Target, Press: press, Self: cfg.Self, Activate: cfg.Activate, NeedEditable: o.needEditable})
+		dres = deliver.Insert(ctx, cfg.Text, deliver.Request{Text: result, Target: r.req.Target, Press: press, Self: cfg.Self, Activate: cfg.Activate, Replace: o.replace})
 		cancel()
 		if dres.Err != nil {
 			r.logf("warning", "insert: %v", dres.Err)
 		}
-		r.logf("info", "inserted %v (%s) in %v", dres.Inserted, dres.Reason, dres.Elapsed.Round(time.Millisecond))
+		switch {
+		case dres.Inserted && dres.Moved(r.req.Target):
+			r.logf("info", "inserted into %s, not %s (the user switched apps; no auto key) in %v", dres.To.BundleID, r.req.Target.BundleID, dres.Elapsed.Round(time.Millisecond))
+		case dres.Inserted:
+			r.logf("info", "inserted in %v", dres.Elapsed.Round(time.Millisecond))
+		default:
+			r.logf("info", "not inserted (%s; %s in front) in %v", dres.Reason, dres.Front.BundleID, dres.Elapsed.Round(time.Millisecond))
+		}
 	}
 	if r.asrDegraded != nil && (problem == nil || problem.Degraded) {
 		problem = r.asrDegraded
@@ -234,6 +241,9 @@ func (r *run) finish(st State, problem *Problem, result string, o finishOpts) {
 		s.Result, s.Problem = result, problem
 		s.Recording = r.keepsRecording()
 		s.Inserted = dres.Inserted
+		if dres.Inserted {
+			s.InsertedInto = dres.To
+		}
 		s.Card = result != "" && !r.req.Try && !dres.Inserted
 		s.Delivery = dres.Reason
 		s.Timings.Deliver, s.Timings.Total = dres.Elapsed, total
@@ -333,6 +343,9 @@ func (r *run) keep(s Snapshot, status store.Status) {
 	switch {
 	case s.Inserted:
 		e.Delivery = "insert"
+		if to := s.InsertedInto; to.PID != 0 && to.PID != s.Target.PID {
+			e.AppBundle, e.AppName = to.BundleID, to.Name // where it went; the rule stays the start app's
+		}
 	case s.Card:
 		e.Delivery = "card"
 	}

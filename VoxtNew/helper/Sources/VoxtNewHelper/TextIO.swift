@@ -57,20 +57,33 @@ final class TextIO: @unchecked Sendable {
         return AXValueGetValue(v as! AXValue, .cfRange, &r) ? r : nil
     }
 
-    func focus() async -> FocusResult {
-        let pid = await front.current().pid
-        guard AXIsProcessTrusted() else { return FocusResult(pid: pid, error: "Accessibility is not allowed") }
-        guard let e = focusedElement(pid: pid_t(pid)) else { return FocusResult(pid: pid, error: "no focused element") }
+    /// The focused element: its app (the element's own process, which is
+    /// not always the app in front), whether it takes text, and whether it
+    /// is a password field (its subrole). Go decides where a result goes.
+    /// Without Accessibility, permission_denied, as the other textio.*.
+    func focus() async throws -> FocusResult {
+        try requireTrust()
+        let frontApp = await front.current()
+        let pid = frontApp.pid
+        guard let e = focusedElement(pid: pid_t(pid)) else { return FocusResult(pid: pid, app: pid != 0 ? frontApp : nil, error: "no focused element") }
         var p: pid_t = 0
         AXUIElementGetPid(e, &p)
         var settable = DarwinBoolean(false)
         AXUIElementIsAttributeSettable(e, kAXValueAttribute as CFString, &settable)
         let role = string(e, kAXRoleAttribute)
         let r = range(e)
-        return FocusResult(pid: Int(p), role: role, subrole: string(e, kAXSubroleAttribute),
-                           editable: settable.boolValue || Self.textRoles.contains(role ?? ""),
+        let owner = Int(p) == pid ? frontApp : NSRunningApplication(processIdentifier: p).map(FrontApps.describe)
+        return FocusResult(pid: Int(p), app: owner, role: role, subrole: string(e, kAXSubroleAttribute),
+                           editable: settable.boolValue || Self.textRoles.contains(role ?? "") || inEditableRegion(e),
                            selection: r.map { TextRange(location: $0.location, length: $0.length) },
                            valueLength: string(e, kAXValueAttribute)?.utf16.count ?? 0)
+    }
+
+    /// A web page's contenteditable region (WebKit and Chromium name its
+    /// root in AXEditableAncestor; a page's plain text has none).
+    private func inEditableRegion(_ e: AXUIElement) -> Bool {
+        var v: CFTypeRef?
+        return AXUIElementCopyAttributeValue(e, "AXEditableAncestor" as CFString, &v) == .success && v != nil
     }
 
     func selection(_ p: SelectionParams) async throws -> SelectionResult {

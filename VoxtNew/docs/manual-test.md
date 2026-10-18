@@ -230,8 +230,21 @@
 - **不对时看**：`helper.log` 的 focus 结果。
 
 **2.8 中途切换 App**
-- **做**：在 TextEdit 里开始录音，录音中切到备忘录，停止录音。然后切回 TextEdit，在卡片里点“插入”。
-- **应看到**：结果进卡片（“插入”的 tooltip 说 TextEdit 已经不在前台）；切回 TextEdit 后点“插入”，文字插进 TextEdit。
+- **做**：
+  1. 在 TextEdit 里开始录音，录音中切到备忘录，点进一条备忘录的正文，停止录音。
+  2. 在 TextEdit 里开始录音，录音中切到访达，点一下桌面（不选任何输入框），停止录音。然后点进 TextEdit 的正文，在卡片里点“插入”。
+  3. 在 Safari 打开一个有密码框的登录页（不要输入真实密码），在 TextEdit 里开始录音，录音中切到 Safari 点进密码框，停止录音。
+  4. 给 TextEdit 建一个应用增强分组，自动按键设成 Return；在 TextEdit 里开始转录，录音中切到备忘录的正文，停止。
+  5. 在 TextEdit 里选中一段文字，按翻译快捷键（“在卡片中显示结果”关闭），马上切到备忘录的正文。
+  6. 在 TextEdit 里开始录音，录音中点一下 VoxtNew 的主窗口（例如设置页），停止录音。
+- **应看到**：
+  - 第 1 步：文字插进备忘录（停止时在前台、有输入框的 App），不弹卡片，TextEdit 不会被切回前台；历史里这条的 App 是“备忘录”。
+  - 第 2 步：结果进卡片，“插入”的 tooltip 说“没有选中输入框”；点进 TextEdit 后点“插入”，文字插进 TextEdit。
+  - 第 3 步：密码框里什么都没有输入，结果进卡片，tooltip 说是密码框。
+  - 第 4 步：文字插进备忘录，但不按 Return（自动按键只在开始录音的 App 里按）；在 TextEdit 里不切换时，插入后照常按 Return。
+  - 第 5 步：译文不会替换到备忘录里，进卡片，tooltip 说 TextEdit 已经不在前台。
+  - 第 6 步：TextEdit 回到前台，文字插进 TextEdit（不会插进 VoxtNew 自己的输入框）。
+- **不对时看**：日志里 `inserted into … not …`（换了 App）或 `not inserted (…; … in front)`，以及 `helper.log` 的 focus 结果。
 
 **2.9 粘贴最近结果**
 - **做**：按 ⌃⌥V。然后退出 VoxtNew（菜单栏 → 退出），重新打开，再按一次 ⌃⌥V。

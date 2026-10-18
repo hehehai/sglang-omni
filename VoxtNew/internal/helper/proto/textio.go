@@ -5,10 +5,14 @@ package proto
 // FocusResult describes the focused element of the app in front, for
 // deciding whether a result can be inserted there.
 type FocusResult struct {
-	PID     int    `json:"pid"`
-	Role    string `json:"role,omitempty"` // "AXTextArea", "AXTextField", "AXWebArea"…
-	Subrole string `json:"subrole,omitempty"`
-	// Editable: its value can be set, or it is a text role. Selection is
+	PID int `json:"pid"`
+	// App is the app the focused element belongs to (PID's), or the app
+	// in front when nothing is focused; an older helper sends none.
+	App     *App   `json:"app,omitempty"`
+	Role    string `json:"role,omitempty"`    // "AXTextArea", "AXTextField", "AXWebArea"…
+	Subrole string `json:"subrole,omitempty"` // "AXSecureTextField": a password field
+	// Editable: its value can be set, it is a text role, or it is inside
+	// a web page's editable region (AXEditableAncestor). Selection is
 	// the selected range (UTF-16), when it has one.
 	Editable    bool       `json:"editable"`
 	Selection   *TextRange `json:"selection,omitempty"`
