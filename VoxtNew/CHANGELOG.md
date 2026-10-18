@@ -18,7 +18,7 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 ### Fixed
 
 - A long dictation no longer fails after 30 seconds of recognition and loses everything (a 4m51s dictation on a Mac short of memory). Recognition now gets 60 s plus 1 s per second of recording; a model that stops answering is still caught after 15 s. If full recognition fails anyway, the live text is used (cleaned up and inserted as usual) and the overlay says so.
-- The speech model uses much less memory on long recordings: about 5 GB at most instead of 8.5–10 GB for a 5-minute dictation (Accurate model), which left less memory for your other apps and slowed the Mac.
+- The speech model uses much less memory on long recordings: under 4 GB for a 5-minute dictation (Accurate model) instead of up to 10 GB, which pushed your other apps into swap and slowed the Mac. Recognising a recording again is faster, too.
 - When recognition fails or finds no text, the entry keeps the recording for 7 days even when Keep the recordings is off, so that you can retry it; a successful retry deletes it.
 
 ### 中文
@@ -37,7 +37,7 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 #### 修复
 
 - 长口述不会再因为识别超过 30 秒而失败、什么都没留下（内存紧张的 Mac 上一段 4 分 51 秒的口述）。识别时限改为 60 秒加录音每秒 1 秒；模型停止响应仍在 15 秒内发现。完整识别仍然失败时，使用实时识别的文字（照常整理、插入），浮窗会说明。
-- 长录音时语音识别模型占用的内存大大减少：5 分钟的口述（精准模型）最多约 5 GB，以前是 8.5–10 GB，会挤占其他应用的内存、拖慢 Mac。
+- 长录音时语音识别模型占用的内存大大减少：5 分钟的口述（精准模型）不到 4 GB，以前最多 10 GB，会把其他应用挤进 swap、拖慢 Mac。重新识别一段录音也更快了。
 - 识别失败或没有识别出文字时，即使“保存录音”关着，这条记录也保留录音 7 天，方便重试；重试成功后删除。
 
 ## [0.1.0-beta.1] - 2026-10-17

@@ -264,34 +264,53 @@ The user's 4m51s dictation failed after 30 s of recognition and lost everything 
 - **The new limit** is 60 s plus 1 s per second of recording (5m51s for 4m51s): about three times the slowest real-time factor seen. A model that stops answering is still caught by the stall watch (15 s without a byte).
 - **Quality.** The pieces are cut in Silero's pauses, so no word is cut. On `long-all` and the synthetic clip the error rate is the whole Final's; on `long-zh` one run of two was 0.8 points worse (a few characters), with the same cuts: noise between runs (the server's one worker interleaves the preview's decodes).
 - **The preview.** The server decodes one request at a time, so a piece holds the preview's next decode: under this memory pressure its longest gap went from 3–4.5 s to 6–16 s (the synthetic clip had 18 s gaps without pieces too). On a Mac with free memory a piece takes 1–3 s.
-- **Memory.** The pieces add no model and little memory: the speech server's largest footprint over the synthetic clip was 9.9 GB with one Final and 10.2 GB with pieces. That footprint is large either way. #20 found the cause in MLX's buffer cache and capped it: see the next section.
+- **Memory.** The pieces add no model and little memory: the speech server's largest footprint over the synthetic clip was 9.9 GB with one Final and 10.2 GB with pieces. That footprint is large either way. #20 found the cause in MLX's buffer cache and capped it: see [the next section](#speech-server-memory-10-1718-20).
 
-### Speech server memory (10-17, #20)
+### Speech server memory (10-17/18, #20)
 
-The footprints above (about 10 GB) came almost entirely from MLX's cache of freed buffers. The server returns that cache only between requests, when its queue is empty; within one request it keeps every freed buffer:
-- the KV cache, which grows by 256 tokens at a time;
-- the audio encoder's and the prefill's activations.
+The footprints above (about 10 GB) came almost entirely from MLX's cache of freed buffers.
+- **Within one request** the server keeps every freed buffer:
+  - the KV cache, which grows by 256 tokens at a time;
+  - the audio encoder's and the prefill's activations.
+- **Between requests** it returns the cache only when its queue is empty. A live session queues its next decode as soon as the last one ends whenever a decode took more than its 1 s interval, so during a long recording the cache is often not returned. Each decode's segment has a different length, so few buffers are reused, and the cache grew to **8.1 GB** over the 286 s clip.
 
-Measured with an instrumented runtime (MLX's active, cache and peak memory per request), with one Final over the 286 s synthetic clip on `asr.accurate` on mac-air. Swap was at 75–90%, so the times are noisy.
+All measured on mac-air with `asr.accurate`, using an instrumented runtime that logs MLX's active, cache and peak memory per request. The 286 s synthetic clip is used throughout. Swap was at 75–90%, so the times are noisy.
 
-| cache limit | weights | peak active | cache at the end | server footprint | Final |
-|---|---|---|---|---|---|
-| none (before) | 2.35 GB | 5.07 GB | **6.24 GB** | **8.5–8.6 GB** | 48–60 s |
-| **512 MB (now)** | 2.35 GB | 5.07 GB | 0.51 GB | **5.3 GB** | 58 s (78 s with swap at 90%) |
-| 0 | 2.35 GB | 5.07 GB | 0 | 5.1 GB | 77 s |
+**One Final over 286 s, in one request** (`ChunkSeconds` 1200, as before):
 
-- **The fix.** VoxtNew starts the speech model with `--cache-limit-mb 512` (`ASRTuning.CacheMB`, behavior.md 3.5a), a new server flag; without the flag the server keeps MLX's own limit, as Voxt runs it.
-  - Decoding reuses buffers of a few sizes, so 512 MB costs no speed.
-  - A limit of 0 frees every buffer and was 27% slower.
-  - The text is the same: 3.2% on all three rows. The limit changes where buffers come from, not the computation.
-- **What remains is activations.** They grow with the audio of one request:
-  - the encoder peaks at +2.7 GB over the weights for 286 s (about 9.4 MB per second of audio);
-  - the prefill of 3770 tokens at +1 GB.
+| cache limit | weights | peak active | cache at the end | server footprint | Final | error |
+|---|---|---|---|---|---|---|
+| none (before) | 2.35 GB | 5.07 GB | **6.24 GB** | **8.5–8.6 GB** | 48–60 s | 3.2% |
+| **512 MB** | 2.35 GB | 5.07 GB | 0.51 GB | 5.3 GB | 58 s (78 s with swap at 90%) | 3.2% |
+| 0 | 2.35 GB | 5.07 GB | 0 | 5.1 GB | 77 s | 3.2% |
 
-  A long dictation is recognised in pieces of 20–45 s (3.7a), so its requests stay small. Only a single Final over minutes of audio (Transcribe again, or pieces that failed) still reaches about 5 GB. Capping the Final's chunk length (`ChunkSeconds`, 1200 s) would bound that too; it needs an error-rate check first and is not done (#20, not finished).
-- **Not measured yet:** the live preview alone and the pieces path with the limit.
-  - In both, the server's queue is rarely empty during a long recording, since a decode takes about a second under memory pressure. The cache then likely grows from one decode to the next, which would explain the 10.2 GB with pieces; the limit bounds that the same way.
-  - The commands are in the #20 handoff.
+**The same with 60 s chunks and the 512 MB limit** (now; 10-18, swap 76%):
+
+| clip | error (60 s chunks) | before (one request) | server footprint | Final |
+|---|---|---|---|---|
+| long-zh, 95 s | 1.6% | 1.6% | 3.59 GB | 9.2 s |
+| long-all, 104 s | 2.9% | 2.9% | 3.57 GB | 9.4 s |
+| long-synth, 286 s | **2.2%** (edits 9/0/6) | 3.2% (10/5/7) | **3.68 GB** | 27 s |
+
+**Live sessions over 286 s, sent in real time** (10-18; both runs with 60 s chunks):
+
+| way | cache limit | error | server footprint | largest cache | live decode median / p90 | wait after Stop |
+|---|---|---|---|---|---|---|
+| live, one Final | none | 2.2% | **10.29 GB** | **8.1 GB** | 744 / 1710 ms | 24.4 s |
+| live, one Final | **512 MB** | 2.2% | **3.92 GB** | 0.5 GB | 657 / 1209 ms | 22.3 s |
+| live, pieces | none | 2.7% | **9.66 GB** | | | 2.2 s |
+| live, pieces | **512 MB** | 2.7% | **3.73 GB** | | | 2.1 s |
+
+The decode times are per request over both ways of each run.
+
+- **Fix 1: the cache limit.** VoxtNew starts the speech model with `--cache-limit-mb 512` (`ASRTuning.CacheMB`, behavior.md 3.5a), a new server flag. Without the flag the server keeps MLX's own limit, as Voxt runs it.
+  - Decoding reuses buffers of a few sizes, so 512 MB costs no speed: the live decodes were if anything faster, with less swap. A limit of 0 frees every buffer and was 27% slower.
+  - The text is the same in every pair. The limit changes where buffers come from, not the computation.
+- **Fix 2: 60 s chunks.** The activations grow with the audio of one request: the encoder peaks at +2.7 GB over the weights for 286 s (about 9.4 MB per second of audio), and the prefill of 3770 tokens at +1 GB.
+  - A Final over more than 60 s (Transcribe again, the live session's Final when pieces failed) is now cut near each minute (`ChunkSeconds` 60, behavior.md 3.6), the same way Voxt cuts at 1200 s.
+  - The error rate held or improved: no word was dropped on the 286 s clip, against 5 before. The whole Final was faster too.
+  - A dictation recognised in pieces (3.7a) was already in requests of 20–45 s.
+- **Result:** a 5-minute dictation peaks at about 3.7–3.9 GB, against 9.7–10.3 GB before: the 2.35 GB of weights, the 512 MB cache, and one request's activations.
 
 ### Spoken Translate with Hy-MT2 (`llm.translate`)
 

@@ -44,7 +44,8 @@
 // as the context bias (one per line, the most recent first, at most 500
 // terms and 8000 characters), a token budget from the audio's length
 // (28 tokens a second + 64, within 256…8192), Voxt's stop rules and audio
-// layout, and recordings over 1200 s cut at their quietest 100 ms, the
+// layout, and recordings over 60 s (Voxt: 1200 s; the encoder's memory
+// grows with a request's audio) cut at their quietest 100 ms, the
 // chunks sharing the budget and the first chunk's detected language
 // forced on the rest.
 //

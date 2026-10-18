@@ -45,10 +45,11 @@ type ASRTuning struct {
 	ExtraTokens     int
 	MinTokens       int
 	MaxTokens       int
-	// ChunkSeconds is the longest audio of one request (the server's
+	// ChunkSeconds is the audio of one request (at most the server's
 	// limit, 1200 s); longer recordings are cut near their quietest
 	// CutWindow within CutSearch of each chunk's end, and a chunk shorter
-	// than MinChunkSeconds is padded with silence.
+	// than MinChunkSeconds is padded with silence. The encoder's memory
+	// grows with a request's audio (eval.md "Speech server memory").
 	ChunkSeconds    float64
 	MinChunkSeconds float64
 	CutSearch       time.Duration
@@ -107,7 +108,7 @@ var qwenLanguages = []string{
 func qwenTuning() *ASRTuning {
 	return &ASRTuning{
 		TokensPerSecond: 28, ExtraTokens: 64, MinTokens: 256, MaxTokens: 8192,
-		ChunkSeconds: 1200, MinChunkSeconds: 1, CutSearch: 5 * time.Second, CutWindow: 100 * time.Millisecond,
+		ChunkSeconds: 60, MinChunkSeconds: 1, CutSearch: 5 * time.Second, CutWindow: 100 * time.Millisecond,
 		ContextTerms: 500, ContextChars: 8000,
 		AudioLayout: "voxt_swift",
 		FirstDecode: 100 * time.Millisecond, DecodeInterval: time.Second, MaxSegment: 30 * time.Second,

@@ -114,6 +114,18 @@ func TestSplitChunks(t *testing.T) {
 	if len(cs) != 1 || len(cs[0].pcm) != sampleRate*2 || cs[0].offset != 0 {
 		t.Fatalf("short: %d chunks, %d bytes", len(cs), len(cs[0].pcm))
 	}
+	// The curated tuning: 286 s (the eval's synthetic clip) is five or six
+	// requests of 55–65 s (cut within 5 s of each minute), so the encoder
+	// never sees minutes at once.
+	cs = q.splitChunks(tone(286*time.Second, 0.5))
+	if len(cs) < 5 || len(cs) > 6 {
+		t.Errorf("286 s: %d chunks", len(cs))
+	}
+	for _, c := range cs {
+		if len(c.pcm) > 65*sampleRate*2 {
+			t.Errorf("a chunk of %d samples", len(c.pcm)/2)
+		}
+	}
 	// Long (2 s chunks here): cut at the quiet stretch near each end, not
 	// past it (pastEnd holds only while chunk + search ≤ 1200 s).
 	q.ChunkSeconds, q.CutSearch = 2, 500*time.Millisecond
