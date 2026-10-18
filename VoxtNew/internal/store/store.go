@@ -93,6 +93,12 @@ type Entry struct {
 	// Delivery: "insert" (pasted where the cursor was), "copy" or "card"
 	// (shown in the answer card).
 	Delivery string
+	// InsertedBundle and InsertedName are the app the result was pasted
+	// into when that was not AppBundle's (the user moved to another app
+	// before it was inserted); "" otherwise. AppBundle stays the app the
+	// app enhancement group was chosen for. Kept with Delivery, without a
+	// column of their own (sqlitestore).
+	InsertedBundle, InsertedName string
 
 	ASRProvider, ASRModel string
 	LLMProvider, LLMModel string

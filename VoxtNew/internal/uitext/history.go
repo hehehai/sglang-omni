@@ -72,6 +72,10 @@ func TargetLang(e store.Entry) string {
 func DeliveryLabel(e store.Entry) string {
 	switch e.Delivery {
 	case "insert":
+		if e.InsertedName != "" {
+			// The user moved to another app before it ended.
+			return i18n.T("Inserted into %s", e.InsertedName)
+		}
 		return i18n.T("Inserted")
 	case "card":
 		return i18n.T("Shown in the answer card")

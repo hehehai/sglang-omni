@@ -342,3 +342,38 @@ func TestCheckAndRewritePaths(t *testing.T) {
 		t.Errorf("document: %s", doc)
 	}
 }
+
+// TestHistoryInsertedInto: the app a result was inserted into, when the
+// user moved on, rides in the delivery column (no migration) and comes
+// back as it went in, the entry's app staying the start app; entries
+// without it (older rows: a plain "insert") read as before.
+func TestHistoryInsertedInto(t *testing.T) {
+	s := openTest(t, t.TempDir())
+	h := s.History()
+	t0 := time.Date(2026, 10, 18, 9, 0, 0, 0, time.UTC)
+	moved := entry("m", store.KindTranscribe, t0, "hi", "Hi.")
+	moved.InsertedBundle, moved.InsertedName = "com.apple.TextEdit", "Text|Edit" // a "|" in a name
+	plain := entry("p", store.KindTranscribe, t0.Add(time.Minute), "hi", "Hi.")
+	card := entry("c", store.KindTranscribe, t0.Add(2*time.Minute), "hi", "Hi.")
+	card.Delivery = "card"
+	for _, e := range []store.Entry{moved, plain, card} {
+		if err := h.Put(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, want := range []store.Entry{moved, plain, card} {
+		got, err := h.Get(ctx, want.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Delivery != want.Delivery || got.InsertedBundle != want.InsertedBundle || got.InsertedName != want.InsertedName || got.AppBundle != "com.tinyspeck.slackmacgap" || got.AppName != "Slack" {
+			t.Errorf("%s: %q %q %q, app %q %q", want.ID, got.Delivery, got.InsertedBundle, got.InsertedName, got.AppBundle, got.AppName)
+		}
+	}
+	for id, want := range map[string]string{"p": "insert", "c": "card", "m": "insert|com.apple.TextEdit|Text|Edit"} {
+		rows, err := s.db.Query(ctx, `SELECT delivery FROM history WHERE id = ?`, id)
+		if err != nil || len(rows.Values) != 1 || asString(rows.Values[0][0]) != want {
+			t.Errorf("%s: the column %v %v", id, rows, err)
+		}
+	}
+}

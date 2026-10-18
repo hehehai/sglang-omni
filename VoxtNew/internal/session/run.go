@@ -344,7 +344,7 @@ func (r *run) keep(s Snapshot, status store.Status) {
 	case s.Inserted:
 		e.Delivery = "insert"
 		if to := s.InsertedInto; to.PID != 0 && to.PID != s.Target.PID {
-			e.AppBundle, e.AppName = to.BundleID, to.Name // where it went; the rule stays the start app's
+			e.InsertedBundle, e.InsertedName = to.BundleID, to.Name // where it went; the app and the rule stay the start app's
 		}
 	case s.Card:
 		e.Delivery = "card"

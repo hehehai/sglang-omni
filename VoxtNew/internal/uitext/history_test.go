@@ -1,6 +1,7 @@
 package uitext
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -28,6 +29,28 @@ func TestHistoryFormat(t *testing.T) {
 		if title, failed := EntryTitle(c.e); title != c.title || failed != c.failed {
 			t.Errorf("EntryTitle(%+v) = %q, %v", c.e, title, failed)
 		}
+	}
+}
+
+// TestDeliveryLabel: the history detail names the app a result went
+// into when the user moved there from the start app.
+func TestDeliveryLabel(t *testing.T) {
+	for _, c := range []struct {
+		e    store.Entry
+		want string
+	}{
+		{store.Entry{Delivery: "insert", AppName: "Slack"}, "Inserted"},
+		{store.Entry{Delivery: "insert", AppName: "Slack", InsertedBundle: "com.apple.TextEdit", InsertedName: "TextEdit"}, "Inserted into TextEdit"},
+		{store.Entry{Delivery: "card"}, "Shown in the answer card"},
+		{store.Entry{Delivery: "copy"}, "Copied"},
+		{store.Entry{}, ""},
+	} {
+		if got := DeliveryLabel(c.e); got != c.want {
+			t.Errorf("%+v: %q, want %q", c.e, got, c.want)
+		}
+	}
+	if got := EntryMeta(store.Entry{AppName: "Slack", InsertedName: "TextEdit"}); !strings.Contains(got, "Slack") || strings.Contains(got, "TextEdit") {
+		t.Errorf("the list names the start app: %q", got)
 	}
 }
 

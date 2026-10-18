@@ -261,6 +261,9 @@ func TestSessionStreamingCard(t *testing.T) {
 		es := a.history()
 		return len(es) == 1 && es[0].Delivery == "insert"
 	})
+	if e := a.history()[0]; e.AppName != "Slack" || e.InsertedBundle != "" || e.InsertedName != "" {
+		t.Errorf("inserted into the start app: %+v", e)
+	}
 	if a.ov.mode != ovHidden {
 		t.Errorf("overlay %s", a.ov.mode)
 	}

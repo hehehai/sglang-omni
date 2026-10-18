@@ -415,6 +415,7 @@
   "Inserted": "已插入",
   "Inserted as recognised: the language model did not answer in time.": "已插入识别原文：语言模型没有及时响应。",
   "Inserted as recognised: the language model failed.": "已插入识别原文：语言模型出错了。",
+  "Inserted into %s": "已插入到 %s",
   "Inserting…": "插入中…",
   "Install a speech model and a language model to start.": "安装一个语音识别模型和一个语言模型即可开始。",
   "Install updates automatically": "自动安装更新",
