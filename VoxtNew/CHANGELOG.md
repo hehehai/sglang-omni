@@ -15,6 +15,10 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 - **Retry** a history entry from its recording: a failed entry (or one with no text) shows Retry on its row instead of Failed, in its details and in its context menu; other entries with a recording have Transcribe again. The entry is updated in place (text, status, time); nothing is pasted. The overlay's notice of a failed recognition opens the entry and retries it.
 - **Long dictations are recognised while you speak**: after a minute, finished stretches are recognised in the background, cut at pauses, so Stop leaves only the last half-minute or so (on a busy Mac, 104 s of speech: 26 s → 2.4 s after Stop).
 
+### Changed
+
+- **The result goes where you are typing when it is ready.** If you switch to another app during or after the recording and click into a text field there, the text is inserted there; the app you started in is not brought back. Nothing is typed into a password field or into VoxtNew's own windows, and when no text field is focused (Finder's desktop, a web page you are reading), the result waits in the answer card with Insert and Copy, which now also inserts into the app in front. A selection is still replaced only in the app it was selected in, and app enhancement's auto key (Return…) is pressed only there. The history shows the app the text went into.
+
 ### Fixed
 
 - A long dictation no longer fails after 30 seconds of recognition and loses everything (a 4m51s dictation on a Mac short of memory). Recognition now gets 60 s plus 1 s per second of recording; a model that stops answering is still caught after 15 s. If full recognition fails anyway, the live text is used (cleaned up and inserted as usual) and the overlay says so.
@@ -33,6 +37,10 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 - **历史设置**（历史页搜索框右边的按钮）：保存录音（和 设置 → 隐私 是同一个开关）；选择录音存放的文件夹（已有录音会一起移过去，每段先复制并校验再删原文件；文件夹在没接上的外接盘上时，新录音先存到默认文件夹，等它回来）；查看录音占用的空间；把录音（全部，或当前 tab 的）导出到你选的文件夹，以日期和开头几个词命名；或者全部删除、保留文字。**自动清理**，和 Voxt 一样默认开启：超过 3 个月的记录连同录音一起删除；可以选 1 周到 1 年，或每种功能最多保留 50 到 1000 条，也可以关掉。新设置会立即删掉已有记录时，先告诉你会删几条并请你确认。
 - **重试**：用历史记录保存的录音再识别一次。失败或没有文字的记录，行上的“失败”换成“重试”，详情和右键菜单里也有；其他有录音的记录是“重新识别”。结果原地更新这条记录（文字、状态、用时），不会粘贴。浮窗里识别失败的提示，点一下打开这条记录并重试。
 - **长口述边说边识别**：说到 1 分钟以后，已经说完的部分在停顿处切开、在后台识别，停止后只剩最后半分钟左右（Mac 内存紧张时，104 秒口述停止后的等待 26 秒 → 2.4 秒）。
+
+#### 变更
+
+- **结果插入到它出来时你正在输入的地方。** 录音中或录完后切到另一个 App、点进那里的输入框，文字就插到那里，不会再切回开始录音的 App。密码框和 VoxtNew 自己的窗口里不会输入任何东西；没有选中输入框时（访达的桌面、正在看的网页），结果留在答案卡片里，可以插入或复制，卡片的“插入”现在也插进当时在前台的 App。替换选区仍然只在选中文字的那个 App 里进行，应用增强的自动按键（Return 等）也只在那里按。历史记录显示文字实际插入的 App。
 
 #### 修复
 

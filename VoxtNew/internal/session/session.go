@@ -187,6 +187,9 @@ type Snapshot struct {
 	Inserted bool
 	Card     bool
 	Delivery deliver.Reason
+	// InsertedInto is the app the result was pasted into: Target, or the
+	// app the user went to and focused a text field in.
+	InsertedInto proto.App
 	// Scene is the app enhancement group the session falls in (scene.go);
 	// nil until it is decided.
 	Scene *appctx.Match

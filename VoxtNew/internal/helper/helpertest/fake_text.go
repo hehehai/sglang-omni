@@ -102,11 +102,19 @@ func (f *fake) textio(m proto.Message) {
 		return
 	}
 	front := f.front()
+	if a, ok := f.switched(); ok {
+		front = a
+	}
 	switch m.Method {
 	case proto.MethodTextFocus:
-		res := proto.FocusResult{PID: front.PID, Role: "AXTextArea", Editable: true, ValueLength: 40}
-		if f.has("readonly") {
+		res := proto.FocusResult{PID: front.PID, App: &front, Role: "AXTextArea", Editable: true, ValueLength: 40}
+		switch {
+		case f.has("readonly"):
 			res.Role, res.Editable, res.ValueLength = "AXStaticText", false, 0
+		case f.opts["focus"] == "none":
+			res = proto.FocusResult{PID: front.PID, App: &front, Error: "no focused element"}
+		case f.opts["focus"] == "secure":
+			res.Role, res.Subrole, res.ValueLength = "AXTextField", "AXSecureTextField", 0
 		}
 		if sel := f.opts["selection"]; sel != "" {
 			res.Selection = &proto.TextRange{Location: 0, Length: len([]rune(sel))}
@@ -138,6 +146,19 @@ func (f *fake) textio(m proto.Message) {
 		}
 		f.result(m.ID, proto.PasteResult{Posted: true, Restored: !p.KeepClipboard, MS: 2})
 	}
+}
+
+// switched is the app the user went to after the shortcut (switch=):
+// textio.* see it in front, the shortcut saw front=.
+func (f *fake) switched() (proto.App, bool) {
+	id := f.opts["switch"]
+	if id == "" {
+		return proto.App{}, false
+	}
+	if a, ok := Apps[id]; ok {
+		return a, true
+	}
+	return proto.App{PID: 701, BundleID: id, Name: id}, true
 }
 
 // listed reports whether app.configure named bundleID.

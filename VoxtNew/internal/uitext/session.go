@@ -29,7 +29,9 @@ func DeliveryText(res deliver.Result, target proto.App) string {
 	case deliver.ReasonNotFront, deliver.ReasonNoTarget:
 		return i18n.T("%s is not in front any more.", name)
 	case deliver.ReasonNotEditable:
-		return i18n.T("Click where the text should go in %s, then insert.", name)
+		return i18n.T("No text field is focused: click where the text should go, then insert.")
+	case deliver.ReasonSecure:
+		return i18n.T("A password field is focused: VoxtNew never types into one.")
 	case deliver.ReasonFailed:
 		return i18n.T("Could not insert: %v", res.Err)
 	}
@@ -156,7 +158,8 @@ func TargetLanguageLabel(code string) string {
 
 // WhyInCard says why a result is in the card and not in place, for
 // Insert's tip ("" when the user asked for the card, or it went there
-// for its length).
+// for its length). name is the start app's: not being in front matters
+// only for it (a selection made there, or VoxtNew in front).
 func WhyInCard(r deliver.Reason, selection bool, name string) string {
 	if name == "" {
 		name = i18n.T("the app")
@@ -168,7 +171,9 @@ func WhyInCard(r deliver.Reason, selection bool, name string) string {
 		if selection {
 			return i18n.T("The selection in %s cannot be edited: copy the result, or click where it should go and insert.", name)
 		}
-		return i18n.T("Nothing in %s takes text: click where it should go, then insert.", name)
+		return i18n.T("No text field is focused: click where it should go, then insert, or copy it.")
+	case deliver.ReasonSecure:
+		return i18n.T("A password field is focused, and VoxtNew never types into one: copy it, or click another field and insert.")
 	case deliver.ReasonNoAccess:
 		return i18n.T("Allow Accessibility to insert results where you type.")
 	}

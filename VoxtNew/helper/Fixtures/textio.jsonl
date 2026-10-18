@@ -1,7 +1,11 @@
 {"to":"helper","msg":{"id":"c20","method":"textio.focus"}}
-{"to":"app","msg":{"id":"c20","result":{"pid":812,"role":"AXTextArea","editable":true,"selection":{"location":12,"length":5},"valueLength":40}}}
+{"to":"app","msg":{"id":"c20","result":{"pid":812,"app":{"pid":812,"bundleId":"com.tinyspeck.slackmacgap","name":"Slack"},"role":"AXTextArea","editable":true,"selection":{"location":12,"length":5},"valueLength":40}}}
 {"to":"helper","msg":{"id":"c21","method":"textio.focus"}}
-{"to":"app","msg":{"id":"c21","result":{"pid":530,"editable":false,"valueLength":0,"error":"no focused element"}}}
+{"to":"app","msg":{"id":"c21","result":{"pid":530,"app":{"pid":530,"bundleId":"com.apple.finder","name":"Finder"},"editable":false,"valueLength":0,"error":"no focused element"}}}
+{"to":"helper","msg":{"id":"c29","method":"textio.focus"}}
+{"to":"app","msg":{"id":"c29","result":{"pid":901,"app":{"pid":901,"bundleId":"com.google.Chrome","name":"Google Chrome"},"role":"AXTextField","subrole":"AXSecureTextField","editable":true,"selection":{"location":0,"length":0},"valueLength":0}}}
+{"to":"helper","msg":{"id":"c30","method":"textio.focus"}}
+{"to":"app","msg":{"id":"c30","result":{"pid":530,"role":"AXTextArea","editable":true,"valueLength":12}}}
 {"to":"helper","msg":{"id":"c22","method":"textio.selection"}}
 {"to":"app","msg":{"id":"c22","result":{"text":"Hello world","via":"ax","ms":2.4,"steps":["focus=AXTextArea"]}}}
 {"to":"helper","msg":{"id":"c23","method":"textio.selection","params":{"allowCopy":true}}}

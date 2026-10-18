@@ -11,6 +11,7 @@ import (
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
@@ -181,7 +182,7 @@ func (a *app) copyAnswer(copyText func(string)) {
 		return
 	}
 	copyText(a.answer.text)
-	a.setDelivery(a.answer.id, "copy")
+	a.setDelivery(a.answer.id, "copy", proto.App{})
 	a.answer.copySeq++
 	seq, id := a.answer.copySeq, a.answer.id
 	a.answer.copied = true
@@ -195,9 +196,11 @@ func (a *app) copyAnswer(copyText func(string)) {
 	})
 }
 
-// insertAnswer inserts the card's text into the app the session started
-// in: the user chose to, so any focused element will do. The card hides
-// while it pastes and comes back if that did not work (Voxt's).
+// insertAnswer inserts the card's text where the user is typing: the
+// app the session started in (the user chose to, so any focused element
+// there will do; when VoxtNew is in front, that app comes back first), or
+// a text field in the app in front now. The card hides while it pastes
+// and comes back if that did not work (Voxt's).
 func (a *app) insertAnswer() {
 	card := a.answer
 	if !card.open || card.inserting || card.text == "" || a.cardSessionLive() {
@@ -217,7 +220,7 @@ func (a *app) insertAnswer() {
 			}
 			a.answer.inserting = false
 			if res.Inserted {
-				a.setDelivery(card.id, "insert")
+				a.setDelivery(card.id, "insert", res.To)
 				a.closeAnswer()
 				return
 			}

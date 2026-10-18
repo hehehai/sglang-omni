@@ -326,16 +326,21 @@ public struct TextRange: Codable, Sendable {
 
 public struct FocusResult: Codable, Sendable {
     public var pid: Int
+    /// The app the focused element belongs to, or the app in front when
+    /// nothing is focused.
+    public var app: App?
     public var role: String?
+    /// "AXSecureTextField": a password field.
     public var subrole: String?
     public var editable: Bool
     public var selection: TextRange?
     public var valueLength: Int
     public var error: String?
 
-    public init(pid: Int, role: String? = nil, subrole: String? = nil, editable: Bool = false, selection: TextRange? = nil,
+    public init(pid: Int, app: App? = nil, role: String? = nil, subrole: String? = nil, editable: Bool = false, selection: TextRange? = nil,
                 valueLength: Int = 0, error: String? = nil) {
         self.pid = pid
+        self.app = app
         self.role = role
         self.subrole = subrole
         self.editable = editable

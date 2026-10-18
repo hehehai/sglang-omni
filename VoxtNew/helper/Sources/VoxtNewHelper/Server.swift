@@ -210,7 +210,7 @@ final class Server: @unchecked Sendable {
         case Method.appFrontmost:
             return await front.current()
         case Method.textFocus:
-            return await textio.focus()
+            return try await textio.focus()
         case Method.textSelection:
             return try await textio.selection(try msg.decodeParams(SelectionParams.self))
         case Method.textPaste:
