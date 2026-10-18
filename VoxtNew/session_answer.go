@@ -220,7 +220,11 @@ func (a *app) insertAnswer() {
 			}
 			a.answer.inserting = false
 			if res.Inserted {
-				a.setDelivery(card.id, "insert", res.To)
+				var into proto.App
+				if res.Moved(card.target) {
+					into = res.To // the user clicked into another app
+				}
+				a.setDelivery(card.id, "insert", into)
 				a.closeAnswer()
 				return
 			}

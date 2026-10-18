@@ -15,8 +15,9 @@ var textEdit = proto.App{PID: 531, BundleID: "com.apple.TextEdit", Name: "TextEd
 
 // TestDeliverWhereTyping: a session started in Slack (the chat group,
 // which presses Return) delivers where the user is when the result is
-// ready: Slack, another app's text field (no Return there, the history
-// names that app, the rule stays Slack's), or the card when nothing
+// ready: Slack, another app's text field (no Return there; the history
+// keeps Slack and its rule and names the app it went into apart), or
+// the card when nothing
 // there takes text, a password field has the focus, or a selection made
 // in Slack is to be replaced elsewhere.
 func TestDeliverWhereTyping(t *testing.T) {
@@ -69,13 +70,17 @@ func TestDeliverWhereTyping(t *testing.T) {
 			}
 			e := es[0]
 			if tc.into.PID == 0 {
-				if len(pasted) != 0 || end.Inserted || !end.Card || end.Delivery != tc.reason || e.AppName != "Slack" || e.Delivery != "card" {
+				if len(pasted) != 0 || end.Inserted || !end.Card || end.Delivery != tc.reason || e.AppName != "Slack" || e.Delivery != "card" || e.InsertedBundle != "" {
 					t.Errorf("card: pasted %q, end %+v, entry %s %s", pasted, end, e.AppName, e.Delivery)
 				}
 				return
 			}
-			if len(pasted) != 1 || !end.Inserted || end.Card || end.InsertedInto != tc.into || e.AppName != tc.into.Name || e.AppBundle != tc.into.BundleID {
-				t.Errorf("inserted: pasted %q, end %+v, entry %s %s", pasted, end, e.AppName, e.AppBundle)
+			if len(pasted) != 1 || !end.Inserted || end.Card || end.InsertedInto != tc.into || e.AppName != "Slack" || e.AppBundle != slack.BundleID || e.Delivery != "insert" {
+				t.Errorf("inserted: pasted %q, end %+v, entry %s %s %s", pasted, end, e.AppName, e.AppBundle, e.Delivery)
+			}
+			moved := tc.into.PID != slack.PID
+			if moved && (e.InsertedBundle != tc.into.BundleID || e.InsertedName != tc.into.Name) || !moved && (e.InsertedBundle != "" || e.InsertedName != "") {
+				t.Errorf("inserted into %q %q, want %+v", e.InsertedBundle, e.InsertedName, tc.into)
 			}
 			if (presses[0] != nil) != tc.press {
 				t.Errorf("auto key %+v, want %v", presses[0], tc.press)
