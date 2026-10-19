@@ -1,25 +1,29 @@
 #!/usr/bin/env bash
 # Prints the Developer ID Application identity of a team that signs a
 # release: its SHA-1 hash, a tab, its name, for VOXTNEW_SIGN_IDENTITY
-# (scripts/release.sh, docs/release.md §1.1). VoxtNew is signed by the team
-# RY2TQTYSKQ (Developer ID Application: Xiaofeng Cao), not by 779M533DL5,
-# which signs the other ActNow apps.
+# (scripts/release.sh, docs/release.md §1.1). VoxtNew is signed, like the
+# other ActNow apps, by the team 779M533DL5 (Developer ID Application: wei
+# guan, the account of york@actnow.dev). RY2TQTYSKQ signed it until 10-19.
 #
 # Sign with the hash: codesign refuses a name that two certificates share
 # ("ambiguous"). A keychain may hold several valid certificates of one
-# team (mac-air has two of RY2TQTYSKQ, made 16 s apart) and the identities
-# of other teams. Of the team's valid identities (security find-identity
-# -v: not expired, not revoked, with their private key) this takes the
-# newest: the latest notBefore, then the latest notAfter.
+# team (a renewed one beside the old) and the identities of other teams;
+# the same certificate in several keychains is listed once per keychain
+# (mac-air, 10-19: 779M533DL5's one certificate four times, from the login
+# and the herenow-signing keychains) and counts once here. Of the team's
+# valid identities (security find-identity -v: not expired, not revoked,
+# with their private key) this takes the newest: the latest notBefore, then
+# the latest notAfter, then the greatest SHA-1, so the choice never depends
+# on the keychain order.
 #
-#   scripts/release-identity.sh [TEAMID] [KEYCHAIN]      # TEAMID: RY2TQTYSKQ
+#   scripts/release-identity.sh [TEAMID] [KEYCHAIN]      # TEAMID: 779M533DL5
 #
 # It fails when the team has no valid Developer ID Application identity,
 # listing those it saw (names only). The candidates and their dates go to
 # stderr.
 set -euo pipefail
 
-team="${1:-RY2TQTYSKQ}"
+team="${1:-779M533DL5}"
 keychain="${2:-}"
 if [[ ! "$team" =~ ^[A-Z0-9]{10}$ ]]; then
   echo "release-identity.sh: $team is not a Team ID (10 letters and digits)" >&2

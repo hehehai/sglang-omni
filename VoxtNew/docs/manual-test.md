@@ -284,7 +284,7 @@
   ```sh
   MAC_DIR=code/VoxtNew-xyz scripts/mac.sh 'scripts/build-helper.sh && VOXTNEW_COEXIST_OK=1 scripts/mac-hotkey-coexist.sh resources/darwin-arm64/helper/voxtnew-helper'   # 或者一个编好的 VoxtNew.app
   ```
-  2026-10-17 在 mac-air 上（RY2TQTYSKQ 签名的发布式构建，Auralink 在跑）：8 项全部通过，tap 回调最长 160 µs。真的按 fn 让 Auralink 录音、两边真的粘贴没有自动做：会在用户正在用的 Mac 上录音、往前台 App 里粘贴。
+  2026-10-17 在 mac-air 上（用旧 Team RY2TQTYSKQ 签名的发布式构建，10-19 起改用 779M533DL5，Auralink 在跑）：8 项全部通过，tap 回调最长 160 µs。真的按 fn 让 Auralink 录音、两边真的粘贴没有自动做：会在用户正在用的 Mac 上录音、往前台 App 里粘贴。
 
 **2.15 长口述（约 8 分钟）**
 - **做**：在 TextEdit 里转录，连续说 4–5 分钟（可以念一段文章，句子之间正常停顿），然后停止。打开 日志，看 `omni` 的行。

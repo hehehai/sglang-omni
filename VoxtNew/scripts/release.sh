@@ -6,7 +6,7 @@
 # of them inside, and scripts/release-verify.sh checks the result.
 #
 #   scripts/release.sh                                  # ad hoc: a release-style test build
-#   VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh RY2TQTYSKQ | cut -f1)" \
+#   VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh 779M533DL5 | cut -f1)" \
 #     scripts/release.sh [--notarize PROFILE] [--publish]
 #   scripts/mac-gui.sh scripts/release.sh …              # the same over ssh (see below)
 #
@@ -27,7 +27,7 @@
 #   --keep-runtimes      leave the staged runtimes in resources/darwin-arm64
 #
 # With VOXTNEW_SIGN_IDENTITY (a Developer ID Application identity of the
-# team RY2TQTYSKQ, its SHA-1: scripts/release-identity.sh) the helper, the
+# team 779M533DL5, its SHA-1: scripts/release-identity.sh) the helper, the
 # LLM and then every Mach-O file and framework inside the app are signed
 # with it, with the hardened runtime and a secure timestamp (mygo build:
 # signNestedCode), and the build takes the update feed of

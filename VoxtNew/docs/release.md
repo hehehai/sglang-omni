@@ -1,13 +1,13 @@
 # 发布与更新
 
-VoxtNew 是 sglang-omni 仓库里的开源 app（Apache-2.0），ActNow 家族的一员。产品页、下载、更新和更新日志都在官网 actnow.dev：产品页 <https://actnow.dev/voxtnew>，下载 <https://actnow.dev/download/voxtnew>（要登录），更新源 `https://actnow.dev/updates/voxtnew`（beta 通道是 `…/voxtnew/beta`）。VoxtNew 有**自己的**更新密钥（§1.3），用 **RY2TQTYSKQ（Xiaofeng Cao）** 的 Developer ID 签名（家族其他 app 用 779M533DL5，家族规范 §17 Q1）。**不用 GitHub Release**。
+VoxtNew 是 sglang-omni 仓库里的开源 app（Apache-2.0），ActNow 家族的一员。产品页、下载、更新和更新日志都在官网 actnow.dev：产品页 <https://actnow.dev/voxtnew>，下载 <https://actnow.dev/download/voxtnew>（要登录），更新源 `https://actnow.dev/updates/voxtnew`（beta 通道是 `…/voxtnew/beta`）。VoxtNew 有**自己的**更新密钥（§1.3），和家族其他 app 一样用 **wei guan（779M533DL5）** 的 Developer ID 签名、用 york@actnow.dev 公证（用户 10-19 决定；之前用 RY2TQTYSKQ，§9）。**不用 GitHub Release**。
 
 > **还差官网这一边**：VoxtNew 的产品页已经上线，ingest token 已经发（`RELEASE_INGEST_TOKEN_VOXTNEW`）。还要 ActNow 项目在面板 /panel/releases 的 voxtnew 设置里填上公钥 `MbROqANE8pK8IQ8hdtUtR/m5SqUY2nTgzHwrQt04Zps=`（已在 `notices/from-voxtnew.md` 里请他们填）：填了以后后台才校验更新包的签名。
 
 发布版本在一台 Apple 芯片的 Mac 上用一条命令构建：[scripts/release.sh](../scripts/release.sh)。它编译辅助进程、Omni 运行时（语音识别）和 voxtnew-llm（语言模型），把三者放进 app，`go tool mygo build` 打包、签名、（可选）公证，[scripts/release-verify.sh](../scripts/release-verify.sh) 检查结果，最后用官网的发布脚本 [scripts/actnow-publish.sh](../scripts/actnow-publish.sh)（`https://actnow.dev/actnow-publish.sh` 的原样副本，见 §2.3）把文件交给官网后台，或者只做 `--dry-run`。
 
 ```
-scripts/mac-gui.sh scripts/release.sh（在 Mac 上，ssh 里经 mac-gui.sh 进图形会话；VOXTNEW_SIGN_IDENTITY = RY2TQTYSKQ 的 Developer ID）
+scripts/mac-gui.sh scripts/release.sh（在 Mac 上，ssh 里经 mac-gui.sh 进图形会话；VOXTNEW_SIGN_IDENTITY = 779M533DL5 的 Developer ID）
    │  先试签一个文件（ssh 里钥匙串锁着就立刻停下）；更新私钥和 release/mygo.release.json 的公钥配对
    │  检查版本号（mygo.json、helper 和 llm 的 Info.plist）、CHANGELOG
    ├─ build-helper.sh              → resources/darwin-arm64/helper/voxtnew-helper
@@ -61,23 +61,24 @@ scripts/mac-gui.sh scripts/release.sh（在 Mac 上，ssh 里经 mac-gui.sh 进�
 
 ### 1.1 Developer ID 证书
 
-签名用 **Developer ID Application: Xiaofeng Cao (RY2TQTYSKQ)**，**不要**选 wei guan (779M533DL5)：那是家族其他 app 的 Team（家族规范 §17 Q1）。mac-air 的登录钥匙串里两个 Team 都有，而且 RY2TQTYSKQ 有**两张**同名的有效证书（10-17 查过，`security find-identity -v -p codesigning`）：
+签名用 **Developer ID Application: wei guan (779M533DL5)**：york@actnow.dev 的个人账号，家族其他 app（Auralink 等）也用它（用户 10-19 决定，推翻了家族规范 §17 Q1 原来给 VoxtNew 定的 RY2TQTYSKQ / Xiaofeng Cao，§9）。mac-air 上 779M533DL5 只有**一张**有效证书，`security find-identity -v -p codesigning` 却列出 4 次：它同时在登录钥匙串和 `~/.cache/herenow-signing/herenow-signing.keychain-db` 里（10-19 查过）：
 
 | SHA-1 | 生效 | 到期 |
 |---|---|---|
-| `81E239B40EA05C00F78C86E941C3236A07AEAFDB` | 2026-02-28 00:51:47 GMT | 2027-02-01 22:12:15 GMT |
-| `DE35317B00E36186FFC178129F3EA17424A34DCC` | 2026-02-28 00:52:03 GMT | 2027-02-01 22:12:15 GMT |
+| `EBCFF160A0270A61E62504F924CC65A4FF309AFB` | 2026-10-16 03:01:32 GMT | 2027-02-01 22:12:15 GMT |
 
-两张都由 Developer ID Certification Authority（旧的 G1 中间证书）签发、都带私钥，前后只差 16 秒。codesign 遇到同名证书会报 “ambiguous”，所以**按 SHA-1 签**，用 [scripts/release-identity.sh](../scripts/release-identity.sh) 选：它只看 `find-identity -v` 列出的（没过期、没吊销、有私钥），同一个 Team 有几张时取**最新**的（生效时间最晚，再比到期时间），现在是 `DE35317B…`。两张都签过（10-17，§实测记录），哪张都能用；以后证书续期了，脚本自动选新的。
+它由 Developer ID Certification Authority（旧的 G1 中间证书）签发。codesign 遇到同名的不同证书会报 “ambiguous”，所以**按 SHA-1 签**，用 [scripts/release-identity.sh](../scripts/release-identity.sh) 选：它只看 `find-identity -v` 列出的（没过期、没吊销、有私钥），同一张证书出现几次只算一次；同一个 Team 有几张时取**最新**的（生效时间最晚，再比到期时间，再比 SHA-1），和钥匙串的顺序无关，现在是 `EBCFF160…`。以后证书续期了，脚本自动选新的。
 
 ```sh
-scripts/release-identity.sh RY2TQTYSKQ          # 打印 <SHA-1><Tab>Developer ID Application: Xiaofeng Cao (RY2TQTYSKQ)，候选和日期在 stderr
-export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh RY2TQTYSKQ | cut -f1)"
+scripts/release-identity.sh 779M533DL5          # 打印 <SHA-1><Tab>Developer ID Application: wei guan (779M533DL5)，几张时候选和日期在 stderr
+export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh 779M533DL5 | cut -f1)"
 ```
 
-**两张证书 2027-02-01 到期**（G1 中间证书的到期日）。带时间戳签的版本到期后照样能装、能运行、能更新；到期前要在 developer.apple.com 用 RY2TQTYSKQ 再申请一张（G2 中间证书），导入钥匙串，`release-identity.sh` 会选它。同一个 Team 换证书，TCC 授权保留（§4）。
+**这张证书 2027-02-01 到期**（G1 中间证书的到期日）。带时间戳签的版本到期后照样能装、能运行、能更新；到期前要在 developer.apple.com 用 779M533DL5 再申请一张（G2 中间证书），导入钥匙串，`release-identity.sh` 会选它。家族其他 app 用的是同一张，续期一次大家都用新的。同一个 Team 换证书，TCC 授权保留（§4）。
 
-**ssh 里怎么签**：ssh 会话里登录钥匙串是锁着的，codesign 报 `errSecInternalComponent`（`release.sh` 一开始先试签一个文件，签不了就停下，不会白编 3 分钟）。不需要密码的办法：[scripts/mac-gui.sh](../scripts/mac-gui.sh) 把命令当成一次性的 LaunchAgent 放进**登录在屏幕上的那个用户的图形会话**（`launchctl bootstrap gui/<uid>`）里跑，那里钥匙串是解锁的，codesign 不弹窗（10-17 在 mac-air 上两张证书都签成功，带 Apple 的时间戳）。输出实时传回 ssh，退出码照传，Ctrl-C 会停掉它；环境变量（签名身份、更新私钥的路径、`ACTNOW_INGEST_TOKEN` 等，脚本头部列着）经一个 0700 临时目录里的文件交给它，任务一开始就删掉。条件是 mac-air 上这个用户登录着（锁屏也可以）。
+**还没用它签过 VoxtNew**（10-19）：同一张证书在 herenow-signing 钥匙串里的那一份排在搜索列表前面，ssh 里是锁着的。如果图形会话里 codesign 因此报 “ambiguous”、弹出解锁那个钥匙串的窗口或 `errSecInternalComponent`，`release.sh` 一开始的试签就会停下；那时按下面 “用不了时” 的办法在终端里跑，或者问用户 herenow-signing 钥匙串怎么处理（不要自己改钥匙串的搜索列表，别的项目在用）。
+
+**ssh 里怎么签**：ssh 会话里登录钥匙串是锁着的，codesign 报 `errSecInternalComponent`（`release.sh` 一开始先试签一个文件，签不了就停下，不会白编 3 分钟）。不需要密码的办法：[scripts/mac-gui.sh](../scripts/mac-gui.sh) 把命令当成一次性的 LaunchAgent 放进**登录在屏幕上的那个用户的图形会话**（`launchctl bootstrap gui/<uid>`）里跑，那里钥匙串是解锁的，codesign 不弹窗（10-17 在 mac-air 上用当时 RY2TQTYSKQ 的两张证书都签成功，带 Apple 的时间戳）。输出实时传回 ssh，退出码照传，Ctrl-C 会停掉它；环境变量（签名身份、更新私钥的路径、`ACTNOW_INGEST_TOKEN` 等，脚本头部列着）经一个 0700 临时目录里的文件交给它，任务一开始就删掉。条件是 mac-air 上这个用户登录着（锁屏也可以）。
 
 ```sh
 scripts/mac.sh 'scripts/mac-gui.sh scripts/release.sh --runtimes $HOME/voxtnew-runtime'
@@ -94,14 +95,14 @@ scripts/mac.sh 'scripts/mac-gui.sh scripts/release.sh --runtimes $HOME/voxtnew-r
 
 ### 1.2 公证凭据（notarytool）
 
-公证用 Apple ID **york@actnow.dev**、Team **RY2TQTYSKQ** 和一个 **App 专用密码**（用户 10-18 最终决定；签名证书仍是 Xiaofeng Cao 的 Developer ID），存进登录钥匙串的 notarytool 配置 `voxtnew-notary`。**mac-air 上还没有**任何 notarytool 配置（10-17 查过：`voxtnew-notary`、`auralink-notary`、`notary`、`AC_PASSWORD` 都没有）。
+公证用 Apple ID **york@actnow.dev**、Team **779M533DL5** 和一个 **App 专用密码**（用户 10-19 决定，和 Auralink 一样；york@actnow.dev 就是 779M533DL5 这个个人账号本身，签名证书也是它的），存进登录钥匙串的 notarytool 配置 `voxtnew-notary`。**mac-air 上还没有**任何 notarytool 配置（10-17 查过：`voxtnew-notary`、`auralink-notary`、`notary`、`AC_PASSWORD` 都没有；10-19 登录钥匙串里仍没有 notarytool 的条目）。
 
-**前提**：york@actnow.dev 必须是 **RY2TQTYSKQ（Xiaofeng Cao）团队的成员**（developer.apple.com → Membership / Users and Access，角色 Developer 或以上）。如果它只在 779M533DL5（wei guan）团队里，第 2 步会被 notarytool 拒绝（凭据验证失败，或提示这个 Apple ID 不属于该 Team），要先由 RY2TQTYSKQ 的账号持有人把 york@actnow.dev 加进团队，接受邀请后再做。它要开启双重认证（App 专用密码需要）。也可以改用 RY2TQTYSKQ 的 App Store Connect API key（`store-credentials --key … --key-id … --issuer …`）。
+york@actnow.dev 要开启双重认证（App 专用密码需要）。也可以改用 779M533DL5 的 App Store Connect API key（`store-credentials --key … --key-id … --issuer …`）。Auralink 的配置 `auralink-notary` 是同一个 Apple ID 和 Team，但 VoxtNew 用自己的配置名（可以用同一个 App 专用密码，也可以单独生成一个）。
 
 1. 打开 [account.apple.com](https://account.apple.com)，用 york@actnow.dev 登录 → **登录与安全** → **App 专用密码** → 生成，名称写 `VoxtNew notarization`；复制显示的密码（只显示一次），存进密码管理器。
 2. 在 Mac 的终端里存成配置（不加 `--password`，notarytool 会提示输入，密码不进 shell 历史）：
    ```sh
-   xcrun notarytool store-credentials voxtnew-notary --apple-id york@actnow.dev --team-id RY2TQTYSKQ
+   xcrun notarytool store-credentials voxtnew-notary --apple-id york@actnow.dev --team-id 779M533DL5
    ```
    成功会显示 “Validating your credentials… Success”。检查（不提交任何东西）：`xcrun notarytool history --keychain-profile voxtnew-notary`（ssh 里经 `scripts/mac-gui.sh`）。
 3. 以后改了 Apple ID 的密码，App 专用密码全部失效，重新生成，再执行一次第 2 步。
@@ -133,13 +134,13 @@ VoxtNew 有**自己的**一对密钥（10-17 在 mac-air 上用 `go tool mygo ke
 先做一个不公证、不发布的签名构建，确认签名和检查都通过（用 `--runtimes ~/voxtnew-runtime` 约 2 分钟，编运行时约 10 分钟）。在 Linux 上：
 
 ```sh
-MAC_DIR=code/VoxtNew-rel scripts/mac.sh 'export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh RY2TQTYSKQ | cut -f1)" https_proxy=http://127.0.0.1:7897;
+MAC_DIR=code/VoxtNew-rel scripts/mac.sh 'export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh 779M533DL5 | cut -f1)" https_proxy=http://127.0.0.1:7897;
   scripts/mac-gui.sh scripts/release.sh --runtimes $HOME/voxtnew-runtime'
 ```
 
 （mac-air 上要 `https_proxy`：MyGo 读官网上已发布的清单来做增量，actnow-publish.sh 上传也要连官网；不设时增量那一步会超时，只打印警告。）
 
-`release-verify.sh` 这时的模式是 `signed`：每段代码（app、辅助进程、qwen3_asr_server、每个 dylib、voxtnew-llm、llama.framework、libmygo-sqlite3）都要通过 `codesign --verify --strict`，带 hardened runtime、时间戳和同一个 Team（RY2TQTYSKQ）；Omni 服务和 voxtnew-llm 要能从 app 里启动（hardened runtime 的库验证要求同一个 Team 签名的库）。Gatekeeper 这时会拒绝（“Unnotarized Developer ID”），脚本只把结论打印出来。最后 `actnow-publish.sh --dry-run` 检查更新文件、清单地址和更新说明。再加上 `--notarize voxtnew-notary` 跑一次，模式变成 `developer-id`，Gatekeeper 必须接受（`source=Notarized Developer ID`），app 和 dmg 都要 staple。
+`release-verify.sh` 这时的模式是 `signed`：每段代码（app、辅助进程、qwen3_asr_server、每个 dylib、voxtnew-llm、llama.framework、libmygo-sqlite3）都要通过 `codesign --verify --strict`，带 hardened runtime、时间戳和同一个 Team（779M533DL5）；Omni 服务和 voxtnew-llm 要能从 app 里启动（hardened runtime 的库验证要求同一个 Team 签名的库）。Gatekeeper 这时会拒绝（“Unnotarized Developer ID”），脚本只把结论打印出来。最后 `actnow-publish.sh --dry-run` 检查更新文件、清单地址和更新说明。再加上 `--notarize voxtnew-notary` 跑一次，模式变成 `developer-id`，Gatekeeper 必须接受（`source=Notarized Developer ID`），app 和 dmg 都要 staple。
 
 ## 2. 发一个版本
 
@@ -158,11 +159,11 @@ MAC_DIR=code/VoxtNew-rel scripts/mac.sh 'export VOXTNEW_SIGN_IDENTITY="$(scripts
 4. 从 Linux 同步到发布用的 checkout 并构建（§1.1 的 `mac-gui.sh`；更新私钥 `release.sh` 自己从 `~/.config/voxtnew-release/` 读，§1.3）：
    ```sh
    # 先不发布：构建、公证、检查、actnow-publish.sh --dry-run
-   MAC_DIR=code/VoxtNew-rel scripts/mac.sh 'export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh RY2TQTYSKQ | cut -f1)" https_proxy=http://127.0.0.1:7897;
+   MAC_DIR=code/VoxtNew-rel scripts/mac.sh 'export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh 779M533DL5 | cut -f1)" https_proxy=http://127.0.0.1:7897;
      scripts/mac-gui.sh scripts/release.sh --notarize voxtnew-notary'
    # 发布（会重新构建；或者见下面“只发布”）：token 经 ssh 的标准输入过去（§1.4）
    ACTNOW_INGEST_TOKEN="$(sed -n 's/^RELEASE_INGEST_TOKEN_VOXTNEW=//p' ~/.config/actnow/ingest-tokens.env)" \
-     MAC_DIR=code/VoxtNew-rel scripts/mac.sh 'export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh RY2TQTYSKQ | cut -f1)" https_proxy=http://127.0.0.1:7897;
+     MAC_DIR=code/VoxtNew-rel scripts/mac.sh 'export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh 779M533DL5 | cut -f1)" https_proxy=http://127.0.0.1:7897;
      scripts/mac-gui.sh scripts/release.sh --notarize voxtnew-notary --publish'
    ```
    在 Mac 的终端里也可以直接跑 `scripts/release.sh …`（`ACTNOW_INGEST_TOKEN` 自己 export）。构建时**不加 `-upload`**：文件都经 `actnow-publish.sh` 交给官网后台，它校验后写进 R2，最后才写公开清单。频道由版本号决定：带 `-` 的是 beta，清单和更新包的地址在 `…/updates/voxtnew/beta/` 下（MyGo 的 `updates.prereleases`：`updates.url` 保持 `…/updates/voxtnew`，beta 版本自动放进它的 `beta/`；后台会检查）。公证通常几分钟。增量来自官网两个通道上已发布的版本（§5.2）；第一个版本没有增量。
@@ -172,7 +173,7 @@ MAC_DIR=code/VoxtNew-rel scripts/mac.sh 'export VOXTNEW_SIGN_IDENTITY="$(scripts
    curl -s https://actnow.dev/updates/voxtnew/beta/update-darwin-arm64.json | jq '{version, deltas: [.deltas[]?.from]}'
    curl -s https://actnow.dev/updates/voxtnew/update-darwin-arm64.json | jq .version    # 正式版
    ```
-   从官网下载页装一遍 dmg：`spctl -a -vv /Applications/VoxtNew.app` 应显示 `accepted` 和 `source=Notarized Developer ID`。
+   从官网下载页装一遍 dmg：`spctl -a -vv /Applications/VoxtNew.app` 应显示 `accepted` 和 `source=Notarized Developer ID`。给用户装在 mac-air 上时，第一次从 RY2TQTYSKQ 签的版本换过来要先 reset 授权（§4.1）。
 
 **只发布**（构建已经做好、检查过，在同一个 checkout 里；不需要钥匙串，ssh 里直接跑）：
 ```sh
@@ -225,9 +226,9 @@ git diff scripts/actnow-publish.sh        # 看改了什么，再提交
 |---|---|
 | `ACTNOW_INGEST_TOKEN` | `RELEASE_INGEST_TOKEN_VOXTNEW` 的值（§1.4） |
 | `MYGO_UPDATER_PRIVATE_KEY` | `mygo-update.key` 的内容（§1.3） |
-| `APPLE_TEAM_ID` | `RY2TQTYSKQ` |
-| Developer ID 证书 | RY2TQTYSKQ 的 .p12 和它的密码：自托管 runner 上也可以直接用机器的钥匙串 |
-| 公证凭据 | york@actnow.dev 的 App 专用密码（york@actnow.dev 需在 RY2TQTYSKQ 团队里）（或 RY2TQTYSKQ 的 App Store Connect API key） |
+| `APPLE_TEAM_ID` | `779M533DL5` |
+| Developer ID 证书 | 779M533DL5 的 .p12 和它的密码（Auralink 的 CI 也用这个 Team 的）：自托管 runner 上也可以直接用机器的钥匙串 |
+| 公证凭据 | york@actnow.dev 的 App 专用密码（或 779M533DL5 的 App Store Connect API key） |
 
 ```yaml
       - name: Build, sign, notarize, check (no -upload)
@@ -235,7 +236,7 @@ git diff scripts/actnow-publish.sh        # 看改了什么，再提交
         env:
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
         run: |
-          export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh RY2TQTYSKQ | cut -f1)"
+          export VOXTNEW_SIGN_IDENTITY="$(scripts/release-identity.sh 779M533DL5 | cut -f1)"
           scripts/release.sh --runtimes "$HOME/voxtnew-runtime" --notarize voxtnew-notary
       - name: Publish to actnow.dev
         if: github.event_name == 'push'          # a voxtnew-v* tag
@@ -259,7 +260,7 @@ runner 以图形会话里的用户运行（LaunchAgent），钥匙串就是解�
 
 ## 4. 从 ad-hoc 换到 Developer ID：授权（TCC）
 
-macOS 按 bundle ID + 代码签名的要求记住麦克风和辅助功能授权。ad-hoc 签名的要求就是那次构建的哈希，Developer ID 的是“Apple 签发、Team ID 为 RY2TQTYSKQ、标识为 dev.hehehai.voxtnew”。所以：
+macOS 按 bundle ID + 代码签名的要求记住麦克风和辅助功能授权。ad-hoc 签名的要求就是那次构建的哈希，Developer ID 的是“Apple 签发、Team ID 为 779M533DL5、标识为 dev.hehehai.voxtnew”。所以：
 
 - **第一次从自己编的 ad-hoc 版本换到发布版**，旧授权对不上：麦克风变成“拒绝且不再弹窗”，辅助功能开关看着开着但不起作用。换之前执行一次，再打开发布版重新授权：
   ```sh
@@ -268,7 +269,21 @@ macOS 按 bundle ID + 代码签名的要求记住麦克风和辅助功能授权�
   ```
 - **之后的更新**（同一个 Team ID、同一个 bundle ID）授权保留，beta 和正式版之间也一样。`identifier` 发布后就不能再改。
 - 开发时用 Apple Development 证书签名的构建，与发布版之间切换也要 reset 一次。
+- **换 Team 也要 reset 一次**：10-19 起从 RY2TQTYSKQ 换成 779M533DL5（§1.1）。用户在 mac-air 上装着的版本（37a3063d，10-17 23:12 装的）是 RY2TQTYSKQ 签的，装上第一个 779M533DL5 签的版本后，麦克风和辅助功能的授权都对不上。还没有发布过版本（0.1.0-beta.1 没发出去），第一个公开版本就是 779M533DL5 签的，别的用户不受影响。
 - 下载好的模型（`$HUB`，默认 `~/.cache/huggingface/hub`）不受签名影响，换版本、更新都保留。
+
+### 4.1 给用户装新构建（mac-air，换 Team 那一次）
+
+1. 退出 VoxtNew（菜单栏 → 退出），确认 `pgrep -fl /Applications/VoxtNew.app/` 没有输出。
+2. 只在第一次装 779M533DL5 签的构建时：
+   ```sh
+   tccutil reset Microphone dev.hehehai.voxtnew
+   tccutil reset Accessibility dev.hehehai.voxtnew
+   ```
+3. 换掉 `/Applications/VoxtNew.app`（只留一份这个 bundle ID 的 app），打开它，按提示重新允许麦克风，在 系统设置 → 隐私与安全性 → 辅助功能 里重新打开 VoxtNew：用户要动手授权一次。
+4. 检查：`codesign -dvv /Applications/VoxtNew.app 2>&1 | grep -E 'Authority=Developer|TeamIdentifier'` 显示 wei guan (779M533DL5)；录一段、粘贴一次。
+
+之后同一个 Team 的构建和更新都保留授权，不用再做第 2 步。
 
 ## 5. 更新怎么工作
 
@@ -299,12 +314,12 @@ MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-beta-e2e.sh     # 两个通�
 - **更新私钥丢失**：已安装的 VoxtNew 再也收不到自动更新，只能换公钥发新版本，请所有用户手动安装一次。（密钥是 VoxtNew 自己的，Auralink 不受影响。）
 - **更新私钥泄漏**：立即用旧私钥签发只换了公钥的新版本，官网面板里 voxtnew 的公钥也要换。
 - **ingest token 泄漏**：请官网换掉 VoxtNew 的 token；文件仍要过后台的签名校验，推送不了恶意更新。
-- **Developer ID 证书**：RY2TQTYSKQ 现在的两张 2027-02-01 到期（§1.1），过期后带时间戳签的旧版本仍能运行；换新证书（同一 Team）后授权保留。换 Team 则授权全部失效（§4）。
+- **Developer ID 证书**：779M533DL5 现在的那张 2027-02-01 到期（§1.1），过期后带时间戳签的旧版本仍能运行；换新证书（同一 Team）后授权保留。换 Team 则授权全部失效（§4）。
 
 ## 8. 只能用真证书、真官网验证的
 
 1. 公证通过；`release-verify.sh developer-id` 全部通过。如果公证因为 `Contents/Resources` 里的可执行文件被拒，看 `notarytool log`（MyGo 支持这种布局，预期能过）。
-2. hardened runtime 下：Omni 服务和 voxtnew-llm 从 app 里启动、加载模型、出结果（10-17 用 RY2TQTYSKQ 签的构建做过 `--smoke`，见实测记录；还要按 [manual-test.md](manual-test.md) 各点一遍）。MLX 只用 Metal，不需要 JIT 一类的 entitlement；万一某个运行时被系统拒绝，`log show --predicate 'subsystem == "com.apple.securityd"' --last 5m` 里能看到原因。
+2. hardened runtime 下：Omni 服务和 voxtnew-llm 从 app 里启动、加载模型、出结果（10-17 用旧 Team RY2TQTYSKQ 签的构建做过 `--smoke`，见实测记录；779M533DL5 签的还要再做一次；还要按 [manual-test.md](manual-test.md) 各点一遍）。MLX 只用 Metal，不需要 JIT 一类的 entitlement；万一某个运行时被系统拒绝，`log show --predicate 'subsystem == "com.apple.securityd"' --last 5m` 里能看到原因。
 3. reset TCC 后授权麦克风和辅助功能，录音、粘贴、读浏览器网址都正常。
 4. 第一次真实发布：后台校验通过、两个通道的清单对、dmg 能从下载页下载、更新日志显示中英文说明。
 5. 发下一个版本后：“安装更新 → 重启”，授权和下载好的模型都还在；增量和完整包各走一次。
@@ -314,7 +329,7 @@ MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-beta-e2e.sh     # 两个通�
 - **在 Mac 上用脚本发布，不用 GitHub Actions**：发布要编 Omni 运行时（CMake、固定版本的 MLX）和 voxtnew-llm（xcodebuild、Metal 着色器），GitHub 的 macOS runner 上每次要 15 分钟以上，还要把 Developer ID、公证凭据、更新私钥和官网 token 放进 sglang-omni 这个公开仓库的 Secret。发布用的 Mac 上这些都在钥匙串和 `~/.config` 里。CI（`voxtnew-ci.yaml`）只做 Linux 上的测试。以后要在 CI 里发布，见 §2.4。
 - **`updates` 不写进仓库的 mygo.json**，只在签名的发布构建里由 [scripts/release-config.sh](../scripts/release-config.sh) 合并：任何带 `updates` 的 `go tool mygo build`（包括 mac-air 上各线程的测试构建）都会链接更新源，放在可写目录里就会每天去检查，发布后甚至会用正式版替换掉测试构建。
 - **自己的更新密钥**：家族规范要求每个 app 一对（M4 时曾和 Auralink 共用）；密钥出事只影响 VoxtNew（§7）。
-- **签名 Team 是 RY2TQTYSKQ**：用户定的（家族规范 §17 Q1）。代价：家族第三期的钥匙串访问组、App Group、共享 engine 只在 779M533DL5 的 app 之间做，VoxtNew 不加入；第一、二期不受影响。
+- **签名 Team 是 779M533DL5，和家族其他 app 一样**：用户 10-19 决定（之前按家族规范 §17 Q1 用 RY2TQTYSKQ / Xiaofeng Cao，不再用）。结果：VoxtNew 可以加入家族第三期的钥匙串访问组、App Group 和共享 engine（家族规范 §8.5、§11.3），这些都要求同一个 Team；第一、二期不受影响。代价只有一次：用户已装的 RY2TQTYSKQ 版本换过来时要重新授权（§4）。公证也简单了：york@actnow.dev 就是这个 Team 的账号，不用再加入别人的团队。
 - **ssh 里经 `mac-gui.sh` 签名**：不需要密码、不改钥匙串的设置（分区列表），只借用已经登录的图形会话。
 - **两个更新源，beta 取较新的**：官网的约定，和 Auralink 一样；打开 Beta 更新时 app 读 beta 清单，失败时退回正式版。beta 的地址不单独配置：`updates.url` 是正式版的，MyGo（补丁 0006 的 `prereleases`）按版本号把 beta 放进它的 `beta/`，所以 `release/mygo.release.json` 只有一个 url。
 - **按 SHA-1 选签名身份**：codesign 遇到两张同名证书会报 “ambiguous”，按哈希签不会。
@@ -324,9 +339,9 @@ MAC_DIR=code/VoxtNew-upd scripts/mac.sh scripts/mac-beta-e2e.sh     # 两个通�
 mac-air（M4 / 24 GB，macOS 26.7），10-16，运行时用 `~/voxtnew-runtime`（`--runtimes`）：
 
 - **ad hoc**（`scripts/release.sh --runtimes ~/voxtnew-runtime`，约 3 分钟，大半是辅助进程的 `swift build`）：`VoxtNew.app` 280 MB，dmg 45 MB；`release-verify.sh ad-hoc` 全部通过：8 段代码（app、辅助进程、qwen3_asr_server、libmlx、libjaccl、voxtnew-llm、llama.framework、MyGo 的 libmygo-sqlite3）都签好，Omni 服务和 voxtnew-llm 能从 app 里启动。
-- **签名**（`scripts/mac-sign-e2e.sh`：临时自签的代码签名身份代替 Developer ID）：8 段代码都带 hardened runtime 和 Apple 的时间戳，`codesign --verify --deep --strict` 通过；Gatekeeper 拒绝（自签，预期）。Omni 服务和 voxtnew-llm 从 app 里**启动不了**：`libmlx.dylib … not valid for use in process: mapping process and mapped file (non-platform) have different Team IDs`。这是库验证在比较 Team ID，自签证书没有 Team；Developer ID 签的进程和库是同一个 Team，能加载：10-17 用 RY2TQTYSKQ 确认了（下面）。
+- **签名**（`scripts/mac-sign-e2e.sh`：临时自签的代码签名身份代替 Developer ID）：8 段代码都带 hardened runtime 和 Apple 的时间戳，`codesign --verify --deep --strict` 通过；Gatekeeper 拒绝（自签，预期）。Omni 服务和 voxtnew-llm 从 app 里**启动不了**：`libmlx.dylib … not valid for use in process: mapping process and mapped file (non-platform) have different Team IDs`。这是库验证在比较 Team ID，自签证书没有 Team；Developer ID 签的进程和库是同一个 Team，能加载：10-17 用当时的 Team RY2TQTYSKQ 确认了（下面）。
 - **启动**（10-17，合并后的 ad hoc 发布式构建）：`VoxtNew.app/Contents/MacOS/VoxtNew --smoke <dir>`（自己的数据目录，链接快速语音模型、VAD 和快速语言模型）：辅助进程就绪，asr.fast 0.8 s 回答，llm.fast 6.8 s（冷启动，机器上同时有其他线程的模型进程）回答“OK”，退出后没有留下 `qwen3_asr_server`、`voxtnew-llm`、`voxtnew-helper`。`open -g` 正常启动：窗口“VoxtNew”出现、辅助进程就绪；`quit` 后同样一个进程都不剩。
 - **Developer ID**（10-16）：在 ssh 里签不了（`errSecInternalComponent`，钥匙串锁着）；10-17 起经 `scripts/mac-gui.sh` 在图形会话里签（§1.1）。
 - **公证**：mac-air 上没有 notarytool 的配置（§1.2，10-17 再查过），没有提交过。
-- **RY2TQTYSKQ 签名**（10-17，`scripts/mac-gui.sh scripts/release.sh --runtimes ~/voxtnew-runtime`，身份 `DE35317B…`，更新私钥从 `~/.config/voxtnew-release/` 读）：约 2 分钟；app 280 MB，dmg 45 MB，更新包 87 MB；`release-verify.sh signed` 全部通过：8 段代码都带 hardened runtime、Apple 的时间戳、`TeamIdentifier=RY2TQTYSKQ`，**Omni 服务和 voxtnew-llm 从 app 里启动了**（库验证按 Team 比对，同一 Team 能加载，M4 自签身份时的 “different Team IDs” 没有了）。`codesign -dvv` 显示 `Authority=Developer ID Application: Xiaofeng Cao (RY2TQTYSKQ)`、`TeamIdentifier=RY2TQTYSKQ`、`flags=0x10000(runtime)`。Gatekeeper 拒绝（Unnotarized Developer ID，预期）。`--smoke`（真实的快速语音模型、VAD、快速语言模型）：辅助进程就绪，asr.fast 0.72 s、llm.fast 1.9 s 回答 “OK”，退出后没有留下进程。清单 `url` 是 `https://actnow.dev/updates/voxtnew/beta/voxtnew-0.1.0-beta.1-darwin-arm64.tar.gz`；`actnow-publish.sh --dry-run` 通过（beta，3 个文件，notes 和 notesZh 分开），没有发送。增量那一步没有代理时超时（只是警告：还没有已发布的版本）。同一次在 ssh 里直接跑：一开始的试签报 `errSecInternalComponent`，立刻停下。
+- **RY2TQTYSKQ 签名**（10-17，用的是旧 Team，10-19 起改用 779M533DL5，还没用它签过；`scripts/mac-gui.sh scripts/release.sh --runtimes ~/voxtnew-runtime`，身份 `DE35317B…`，更新私钥从 `~/.config/voxtnew-release/` 读）：约 2 分钟；app 280 MB，dmg 45 MB，更新包 87 MB；`release-verify.sh signed` 全部通过：8 段代码都带 hardened runtime、Apple 的时间戳、`TeamIdentifier=RY2TQTYSKQ`，**Omni 服务和 voxtnew-llm 从 app 里启动了**（库验证按 Team 比对，同一 Team 能加载，M4 自签身份时的 “different Team IDs” 没有了）。`codesign -dvv` 显示 `Authority=Developer ID Application: Xiaofeng Cao (RY2TQTYSKQ)`、`TeamIdentifier=RY2TQTYSKQ`、`flags=0x10000(runtime)`。Gatekeeper 拒绝（Unnotarized Developer ID，预期）。`--smoke`（真实的快速语音模型、VAD、快速语言模型）：辅助进程就绪，asr.fast 0.72 s、llm.fast 1.9 s 回答 “OK”，退出后没有留下进程。清单 `url` 是 `https://actnow.dev/updates/voxtnew/beta/voxtnew-0.1.0-beta.1-darwin-arm64.tar.gz`；`actnow-publish.sh --dry-run` 通过（beta，3 个文件，notes 和 notesZh 分开），没有发送。增量那一步没有代理时超时（只是警告：还没有已发布的版本）。同一次在 ssh 里直接跑：一开始的试签报 `errSecInternalComponent`，立刻停下。
 - **与 Auralink 同时运行**（10-17，`scripts/mac-hotkey-coexist.sh`，Auralink 在跑、用 fn）：见 [manual-test.md](manual-test.md) §2.14。

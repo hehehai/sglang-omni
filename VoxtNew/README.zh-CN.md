@@ -58,7 +58,7 @@ go tool mygo build                   # 生成 build/darwin-arm64/VoxtNew.app 和
 
 `go tool mygo build` 和 `mygo dev` 之前必须先编好辅助进程和 `voxtnew-llm`：`mygo.json` 给这两者指定了 entitlement，缺了就会失败。没有 Omni 运行时 app 也能运行，但不能识别语音（也可以把 `VOXTNEW_OMNI_RUNTIME` 指向 `scripts/build-omni.sh --out DIR` 编出的运行时；`VOXTNEW_LLM` 对应 `scripts/build-llm.sh --out DIR`）。
 
-**发布版本**在 Mac 上用一条命令构建：`scripts/release.sh` 编译这三样，打包、签名 app 并检查结果（`--runtimes DIR` 直接用编好的运行时；有 RY2TQTYSKQ 团队的 Developer ID 时，`--notarize` 和 `--publish` 公证并发布到 actnow.dev；ssh 里经 `scripts/mac-gui.sh` 运行）。见 [docs/release.md](docs/release.md)。
+**发布版本**在 Mac 上用一条命令构建：`scripts/release.sh` 编译这三样，打包、签名 app 并检查结果（`--runtimes DIR` 直接用编好的运行时；有 779M533DL5 团队（和家族其他 app 一样）的 Developer ID 时，`--notarize` 和 `--publish` 公证并发布到 actnow.dev；ssh 里经 `scripts/mac-gui.sh` 运行）。见 [docs/release.md](docs/release.md)。
 
 在 Linux 上，`scripts/mac.sh <命令>` 会把项目同步到 Mac（`MAC_HOST` 默认 `mac-air`，`MAC_DIR` 默认 `code/VoxtNew`）并在那里执行，例如 `scripts/mac.sh 'scripts/build-helper.sh && scripts/build-llm.sh && go tool mygo build'`。
 
