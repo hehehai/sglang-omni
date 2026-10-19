@@ -18,7 +18,6 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 ### Changed
 
 - **The result goes where you are typing when it is ready.** If you switch to another app during or after the recording and click into a text field there, the text is inserted there; the app you started in is not brought back. Nothing is typed into a password field or into VoxtNew's own windows, and when no text field is focused (Finder's desktop, a web page you are reading), the result waits in the answer card with Insert and Copy, which now also inserts into the app in front. A selection is still replaced only in the app it was selected in, and app enhancement's auto key (Return…) is pressed only there. The history shows the app the text went into.
-- **VoxtNew is now signed by the same developer as the other ActNow apps.** If you installed a VoxtNew build signed before this change, macOS asks once more for the microphone, and VoxtNew must be switched on again in System Settings → Privacy & Security → Accessibility. Updates after that keep both.
 
 ### Fixed
 
@@ -42,7 +41,6 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 #### 变更
 
 - **结果插入到它出来时你正在输入的地方。** 录音中或录完后切到另一个 App、点进那里的输入框，文字就插到那里，不会再切回开始录音的 App。密码框和 VoxtNew 自己的窗口里不会输入任何东西；没有选中输入框时（访达的桌面、正在看的网页），结果留在答案卡片里，可以插入或复制，卡片的“插入”现在也插进当时在前台的 App。替换选区仍然只在选中文字的那个 App 里进行，应用增强的自动按键（Return 等）也只在那里按。历史记录仍记在开始录音的 App 下，详情里另外写明文字插入到了哪个 App（“已插入到 X”）。
-- **VoxtNew 现在和其他 ActNow app 由同一个开发者签名。** 如果你装的是这次改动之前签名的 VoxtNew，macOS 会再问一次麦克风权限，还要在 系统设置 → 隐私与安全性 → 辅助功能 里重新打开 VoxtNew。之后的更新两项授权都会保留。
 
 #### 修复
 
