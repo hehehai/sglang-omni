@@ -58,7 +58,7 @@ go tool mygo build                   # build/darwin-arm64/VoxtNew.app and its di
 
 The helper and `voxtnew-llm` must be built before `go tool mygo build` or `mygo dev`: `mygo.json` gives both their entitlements and fails without them. Without the Omni runtime the app runs but cannot recognise speech (or point `VOXTNEW_OMNI_RUNTIME` at one built with `scripts/build-omni.sh --out DIR`; likewise `VOXTNEW_LLM` for `scripts/build-llm.sh --out DIR`).
 
-**The release build** is one command, on the Mac: `scripts/release.sh` builds the three, packages and signs the app, and checks the result (`--runtimes DIR` takes prebuilt runtimes; with the Developer ID of the team RY2TQTYSKQ, `--notarize` and `--publish` notarise it and publish it on actnow.dev; over ssh it runs through `scripts/mac-gui.sh`). See [docs/release.md](docs/release.md).
+**The release build** is one command, on the Mac: `scripts/release.sh` builds the three, packages and signs the app, and checks the result (`--runtimes DIR` takes prebuilt runtimes; with the Developer ID of the team 779M533DL5 (as the other ActNow apps), `--notarize` and `--publish` notarise it and publish it on actnow.dev; over ssh it runs through `scripts/mac-gui.sh`). See [docs/release.md](docs/release.md).
 
 From Linux, `scripts/mac.sh <command>` mirrors the project to a Mac (`MAC_HOST`, default `mac-air`; `MAC_DIR`, default `code/VoxtNew`) and runs the command there: `scripts/mac.sh 'scripts/build-helper.sh && scripts/build-llm.sh && go tool mygo build'`.
 

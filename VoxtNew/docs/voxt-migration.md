@@ -6,7 +6,7 @@ VoxtNew is a **new app**: Voxt rebuilt from scratch on Go + MyGo with local mode
 
 ## What this means for Voxt's users
 
-- **No automatic update.** VoxtNew has its own bundle id (`dev.hehehai.voxtnew`), its own signing team (RY2TQTYSKQ) and its own update feed (`https://actnow.dev/updates/voxtnew`). Voxt's updater never offers it.
+- **No automatic update.** VoxtNew has its own bundle id (`dev.hehehai.voxtnew`), a different signing team (779M533DL5, that of the ActNow apps) and its own update feed (`https://actnow.dev/updates/voxtnew`). Voxt's updater never offers it.
 - **Voxt keeps working.** Nothing in VoxtNew changes or removes Voxt. Users can keep Voxt, switch, or run both: VoxtNew's default shortcuts are on Right Option, so they don't clash with Voxt's.
 - **They hear about it through Voxt's announcements.** Voxt fetches notices from `https://voxt.actnow.dev/api/app/notifications` (`VoxtNotificationStore`) and shows them in Settings → Notifications. The service and its admin panel are in the `voxt-service` repo (`notifications` table: title, content, cover image, version, published at, draft / published).
 - **Downloads** are at https://actnow.dev/voxtnew (login required), not on Voxt's site.

@@ -7,9 +7,10 @@
 # keychain (errSecInternalComponent: the ssh session's security session
 # has the keychain locked). In the GUI session of the user logged in at
 # the screen, the keychain is unlocked and codesign signs without a
-# prompt (mac-air, 10-17: both RY2TQTYSKQ identities). Nothing asks for a
-# password; nothing appears on the screen. It needs the same user logged
-# in at the Mac's screen (a locked screen is fine).
+# prompt (mac-air, 10-17: both identities of the team RY2TQTYSKQ, which
+# signed VoxtNew until 10-19). Nothing asks for a password; nothing
+# appears on the screen. It needs the same user logged in at the Mac's
+# screen (a locked screen is fine).
 #
 #   scripts/mac.sh 'scripts/mac-gui.sh scripts/release.sh --runtimes $HOME/voxtnew-runtime'
 #
