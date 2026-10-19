@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -278,5 +280,24 @@ func TestRecordingMutePreset(t *testing.T) {
 	}
 	if got := r.takeCues(); !slices.Equal(got, []string{"Hero:audible", "Hero:audible"}) {
 		t.Fatalf("cues %v", got)
+	}
+}
+
+// The output journal lives in Application Support, not Caches (family
+// audit A9); one an earlier VoxtNew left in the cache directory moves.
+func TestOutputJournalPlace(t *testing.T) {
+	home, cache := t.TempDir(), t.TempDir()
+	old := filepath.Join(cache, "output-mute")
+	os.MkdirAll(old, 0o755)
+	os.WriteFile(filepath.Join(old, "claim.json"), []byte("{}"), 0o644)
+	dir := outputJournal(home, cache)
+	if dir != filepath.Join(home, "output-mute") {
+		t.Fatalf("journal %s", dir)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "claim.json")); err != nil {
+		t.Errorf("not moved: %v", err)
+	}
+	if outputJournal("", cache) != "" {
+		t.Error("tests keep none")
 	}
 }

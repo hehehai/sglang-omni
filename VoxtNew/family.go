@@ -69,6 +69,17 @@ func (a *app) startFamily() {
 	prefs := a.prefs
 	a.async(func() {
 		ctx := context.Background()
+		if !fam.ReadOnly() {
+			// The library moved (spec v1.0.9): bring the models over from
+			// the Hugging Face caches first, once.
+			n, bytes, err := m.Import(ctx, fam.ReadBackup())
+			if err != nil {
+				log.Printf("family: importing models from the Hugging Face cache: %v", err)
+			}
+			if n > 0 {
+				log.Printf("family: brought %d models (%d bytes) from the Hugging Face cache into %s", n, bytes, fam.Hub())
+			}
+		}
 		if !prefs.Family.Migrated && !fam.ReadOnly() {
 			if err := m.Migrate(ctx); err != nil { // the models on disk: claims, origin migrated
 				log.Printf("family: claims: %v", err)
@@ -88,6 +99,7 @@ func (a *app) startFamily() {
 		if err := fam.WriteManifest(fam.Manifest(prefs)); err != nil {
 			log.Printf("family: manifest: %v", err)
 		}
+		fam.ApplyBackup() // Time Machine (spec §7.12)
 		found := fam.Discover()
 		m.SetNetwork(a.networkFor(prefs))
 		m.Refresh() // the names of the apps sharing a model
@@ -107,6 +119,7 @@ func (a *app) familyTopic(topic string) {
 		if a.fam.ReadShared() {
 			a.post(a.familyShared)
 		}
+		a.fam.ApplyBackup() // models.backup may have changed
 	case family.TopicModels:
 		a.models.Refresh() // its OnChange redraws
 	case family.TopicMemory:
@@ -124,6 +137,13 @@ func (a *app) familyActivated() {
 	fam, m := a.fam, a.models
 	a.async(func() {
 		defer a.famReading.Store(false)
+		if fam.ClaimsLost() {
+			// The claims went with the family folder (a cleaner): claim
+			// the models again (spec §7.6, v1.0.9).
+			if err := m.Migrate(context.Background()); err != nil {
+				log.Printf("family: claims: %v", err)
+			}
+		}
 		found := fam.Discover()
 		shared := fam.ReadShared()
 		m.Refresh()

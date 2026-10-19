@@ -22,6 +22,7 @@ import (
 	"log"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/hehehai/actnowkit/family"
 	fammodels "github.com/hehehai/actnowkit/models"
@@ -67,6 +68,8 @@ type Family struct {
 	hub      string // Config.Hub
 	store    *fammodels.Store
 	runtime  *Runtime
+
+	backup atomic.Bool // models.backup, as last read (library.go)
 
 	mu       sync.Mutex
 	found    []registry.Found

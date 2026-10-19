@@ -56,7 +56,7 @@ type Output interface {
 type Config struct {
 	Output Output
 	// Journal is the directory the helper keeps its claims in
-	// (~/Library/Caches/VoxtNew/output-mute; "" keeps none).
+	// (~/Library/Application Support/VoxtNew/output-mute; "" keeps none).
 	Journal string
 	// Log writes a line (no device names: they may name a person).
 	Log func(level, msg string)

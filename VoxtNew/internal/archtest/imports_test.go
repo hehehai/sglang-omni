@@ -47,10 +47,11 @@ var mygoOther = map[string]string{
 // actnowKit is the ActNow family's shared module (actnowkit, the family
 // spec's reference implementation); actnowUsers are the internal packages
 // that use it: VoxtNew's part in the family, its model library, the words
-// of its errors. Its conformance package is for tests only.
+// of its errors, the logs (actnowkit/redact). Its conformance package is
+// for tests only.
 const actnowKit = "github.com/hehehai/actnowkit"
 
-var actnowUsers = []string{"actnow", "models", "models/**", "local", "uitext"}
+var actnowUsers = []string{"actnow", "models", "models/**", "local", "uitext", "logs"}
 
 // forbidden are imports that break the layering, and why.
 var forbidden = []struct {

@@ -89,10 +89,8 @@ func Installed(hub string, m Model) string {
 	return SnapshotDir(hub, m, rev)
 }
 
-// Hub is $HUB from the environment alone ($HF_HUB_CACHE, $HF_HOME/hub,
-// ~/.cache/huggingface/hub), for tools and tests; the app resolves it
-// with the family's settings first (internal/actnow).
-func Hub() string {
-	h, _ := fammodels.EnvHub()
-	return h
-}
+// Hub is the family's default model library
+// (~/Library/Application Support/ActNow/models/hub, spec v1.0.9), for
+// tools and tests; the app resolves it with the family's settings first
+// (internal/actnow).
+func Hub() string { return fammodels.DefaultHub() }

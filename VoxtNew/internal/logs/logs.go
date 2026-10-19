@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hehehai/actnowkit/redact"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 )
 
@@ -89,7 +90,9 @@ func (r *Ring) Append(e core.LogEntry) {
 	if e.Level == "" {
 		e.Level = core.SeverityInfo
 	}
-	e.Message = strings.TrimRight(e.Message, "\r\n")
+	// Keys, tokens and proxy passwords never reach the panel, the files
+	// or a diagnostic bundle (family spec §13, audit S5/S10).
+	e.Message = redact.Text(strings.TrimRight(e.Message, "\r\n"))
 	r.mu.Lock()
 	r.seq++
 	e.Seq = r.seq

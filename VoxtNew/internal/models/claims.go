@@ -72,6 +72,33 @@ func (m *Manager) Migrate(ctx context.Context) error {
 	return m.claim(ctx, fammodels.OriginMigrated, ids)
 }
 
+// Import brings the catalogue's models (at the pinned and accepted
+// commits) over from the Hugging Face caches into the library, once
+// (family spec v1.0.9: the library moved to
+// ~/Library/Application Support/ActNow/models/hub): hard links, nothing
+// downloaded, the caches untouched. VoxtNew's previous claims are made
+// again there; the others are left to Migrate and the reuse card. It
+// returns how many models it brought and their bytes.
+func (m *Manager) Import(ctx context.Context, backup bool) (n int, bytes int64, err error) {
+	var want []fammodels.Claim
+	for _, mod := range m.catalog {
+		for _, rev := range append([]string{mod.Revision}, mod.Accept...) {
+			if fammodels.IsCommit(rev) {
+				want = append(want, mod.Claim(rev, fammodels.OriginImported))
+			}
+		}
+	}
+	res, err := m.store.Import(ctx, fammodels.LegacyHubs(m.store.Hub), backup, want...)
+	for _, r := range res {
+		if r.Action == fammodels.ImportImported {
+			n++
+			bytes += r.Linked + r.Copied
+		}
+	}
+	m.Refresh()
+	return n, bytes, err
+}
+
 func (m *Manager) claim(ctx context.Context, origin string, ids []string) error {
 	var claims []fammodels.Claim
 	for _, id := range ids {

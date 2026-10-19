@@ -42,6 +42,24 @@ func (a *app) modelFolderRows(c *ui.Context, r *storageReport, open func(key, di
 	settingRowNote(c, "st-models", uitext.ShortPath(hub), note, func() {
 		open("st-open-models", hub)
 	})
+	if fam := a.fam; fam != nil && !fam.ReadOnly() {
+		// Time Machine (family spec §7.12): the family's models.backup,
+		// off by default.
+		on := fam.Backup()
+		hint := i18n.T("Models can be downloaded again, so Time Machine leaves them out.")
+		if others {
+			hint = i18n.T("Models can be downloaded again, so Time Machine leaves them out. Applies to all ActNow apps.")
+		}
+		settingRow(c, "st-models-backup", i18n.T("Back up models with Time Machine"), hint, func() {
+			if ui.Switch(c.Key("st-models-backup-switch"), &on).Changed() {
+				a.async(func() {
+					if err := fam.SetBackup(context.Background(), on); err != nil {
+						log.Printf("family: Time Machine: %v", err)
+					}
+				})
+			}
+		})
+	}
 	if r == nil {
 		return
 	}

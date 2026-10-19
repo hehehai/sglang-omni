@@ -44,7 +44,13 @@ func TestStorageModels(t *testing.T) {
 	appRelaunch = func() { relaunched = true }
 	defer func() { appRelaunch = old }()
 	tt.SetSize(windowWidth, 1400)
-	click(t, tt, "Erase…")
+	// Erase… is below the settings dialog's fold since the Time Machine
+	// row (spec §7.12): its button's action.
+	if !has(tt, "Erase…") {
+		t.Fatal("no Erase…")
+	}
+	a.askErase()
+	frames(tt)
 	if !has(tt, "These models are also used by other ActNow apps and will be kept: Fast speech recognition (712.8 MB)") {
 		t.Fatalf("no kept models: %q", tt.Texts())
 	}

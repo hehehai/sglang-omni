@@ -10,6 +10,8 @@ package main
 // live text's line (Voxt's status line), while the recording goes on.
 
 import (
+	"log"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -30,7 +32,7 @@ const muteSource = "audio"
 type muteState struct {
 	mute *outmute.Controller
 	// muteJournal is where the helper keeps its claims (main.go: the
-	// cache directory's output-mute; "" in tests: none).
+	// Application Support folder's output-mute; "" in tests: none).
 	muteJournal string
 	// muting is the session whose output is muted, or will be once its
 	// start cue ended ("" for none).
@@ -66,12 +68,27 @@ func startCueWait(s macx.Sound) time.Duration {
 	return startCueMax
 }
 
-// outputJournal is the helper's journal of claims in the cache directory.
-func outputJournal(cacheDir string) string {
-	if cacheDir == "" {
+// outputJournal is the helper's journal of claims: in VoxtNew's
+// Application Support folder (home), not in Caches, which cache cleaners
+// empty — after a crash with the output muted, the journal is what puts
+// the speakers back (family audit A9). A journal left in the cache
+// directory by an earlier VoxtNew is moved over first.
+func outputJournal(home, cacheDir string) string {
+	if home == "" {
 		return ""
 	}
-	return filepath.Join(cacheDir, "output-mute")
+	dir := filepath.Join(home, "output-mute")
+	if cacheDir != "" {
+		old := filepath.Join(cacheDir, "output-mute")
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			if _, err := os.Stat(old); err == nil {
+				if err := os.Rename(old, dir); err != nil {
+					log.Printf("audio: moving the output journal to %s: %v", dir, err)
+				}
+			}
+		}
+	}
+	return dir
 }
 
 // openMute makes the controller; connectHelper calls it once the
