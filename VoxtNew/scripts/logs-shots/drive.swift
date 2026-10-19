@@ -13,6 +13,7 @@ struct Geometry: Decodable {
     let window: Int
     let content: [Double]
     let lines: [[Double]]
+    let list: [Double]
 }
 
 let dir = CommandLine.arguments[1]
@@ -83,6 +84,52 @@ func shot(_ name: String, screen: Bool = false) {
     try! p.run()
     p.waitUntilExit()
     print("shot \(file)")
+}
+
+func scroll(_ p: CGPoint, _ dy: Int32) {
+    mouse(.mouseMoved, p)
+    pause(0.1)
+    for _ in 0..<10 {
+        let e = CGEvent(scrollWheelEvent2Source: src, units: .pixel, wheelCount: 1, wheel1: dy / 10, wheel2: 0, wheel3: 0)!
+        e.post(tap: .cghidEventTap)
+        pause(0.02)
+    }
+    pause(0.6)
+}
+
+// appendLines has the check append 5 lines, and waits for it.
+func appendLines() {
+    FileManager.default.createFile(atPath: dir + "/append", contents: nil)
+    for _ in 0..<50 where FileManager.default.fileExists(atPath: dir + "/append") { pause(0.1) }
+    pause(0.6)
+}
+
+if CommandLine.arguments.count > 2 && CommandLine.arguments[2] == "order" {
+    // The order: the newest first; scrolled down, new lines keep the view
+    // and the pill says how many; the pill goes back to the top.
+    click(line(0))
+    key(53)
+    pause(2.0) // the toast goes
+    mouse(.mouseMoved, CGPoint(x: g.content[0] + g.content[2] - 30, y: g.content[1] + 60))
+    pause(0.3)
+    shot("newest-first")
+    appendLines()
+    shot("at-top-follows")
+    scroll(line(10), -400) // down to older lines
+    shot("scrolled-down")
+    appendLines()
+    shot("new-lines-pill")
+    appendLines()
+    shot("new-lines-pill-10")
+    // The pill: centred, 8 pt under the list's top.
+    click(CGPoint(x: g.content[0] + g.list[0] + g.list[2] / 2, y: g.content[1] + g.list[1] + 18))
+    pause(0.6)
+    mouse(.mouseMoved, CGPoint(x: g.content[0] + g.content[2] - 30, y: g.content[1] + 60))
+    pause(0.3)
+    shot("pill-back-to-top")
+    last = CGEvent(source: nil)!.location
+    mouse(.mouseMoved, home)
+    exit(0)
 }
 
 // The window to the front: a click on its first line's time copies it.

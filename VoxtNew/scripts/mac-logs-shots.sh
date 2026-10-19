@@ -11,6 +11,9 @@
 # stops as soon as the pointer moves under it. The pointer and the app in
 # front come back. VOXTNEW_SHOTS_DRY=1 only opens the window in the
 # background and captures it as it opens (no pointer, any time).
+# VOXTNEW_SHOTS_ORDER=1 captures the order instead (the newest first; new
+# lines while at the top, and while scrolled down, with the pill), into
+# build/logs-shots/order-<lang>.
 #
 #   MAC_DIR=code/VoxtNew-logsel scripts/mac.sh scripts/mac-logs-shots.sh
 #   MAC_DIR=code/VoxtNew-logsel scripts/mac.sh --pull build/logs-shots
@@ -60,7 +63,7 @@ PLIST
 front() { lsappinfo info -only bundleid "$(lsappinfo front)" 2>/dev/null | sed 's/.*="\(.*\)"/\1/'; }
 before="$(front)"
 for lang in en zh-Hans; do
-  shots="$out/$lang"
+  shots="$out/${VOXTNEW_SHOTS_ORDER:+order-}$lang"
   mkdir -p "$shots"
   echo "== $lang (in front: $before)"
   open ${dry:+-g} -n -W --stdout "$out/check-$lang.log" --stderr "$out/check-$lang.log" "$app" --args --logs-check "$shots" --lang "$lang" &
@@ -74,7 +77,7 @@ for lang in en zh-Hans; do
     screencapture -x -o -l"$wid" "$shots/0-opened.png"
     cat "$shots/geometry.json"; echo
   else
-    "$out/drive" "$shots" || status=$?
+    "$out/drive" "$shots" ${VOXTNEW_SHOTS_ORDER:+order} || status=$?
   fi
   touch "$shots/finished"
   wait "$opener" || true

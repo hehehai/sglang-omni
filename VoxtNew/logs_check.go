@@ -9,8 +9,10 @@ package main
 // VoxtNew), with 40 sample lines. Once the page is laid out it writes
 // <dir>/geometry.json (the window's number, its content on screen, each
 // line's middle in it), for the script's driver, which works the real
-// pointer and keys and captures the window; it quits when <dir>/finished
-// appears, or after two minutes. Release builds do not have it.
+// pointer and keys and captures the window. When <dir>/append appears it
+// appends 5 lines (as a log does while the user reads: the order's
+// shots) and removes the file; it quits when <dir>/finished appears, or
+// after two minutes. Release builds do not have it.
 
 import (
 	"encoding/json"
@@ -32,6 +34,7 @@ type logsGeometry struct {
 	Window  int          `json:"window"`  // the window number, for screencapture -l
 	Content [4]float64   `json:"content"` // x, y, width, height on screen (points, top-left)
 	Lines   [][2]float64 `json:"lines"`   // each line's middle, in the content
+	List    [4]float64   `json:"list"`    // the lines' list, in the content
 }
 
 func runLogsCheck(dir string) {
@@ -85,11 +88,18 @@ func runLogsCheck(dir string) {
 	})
 	time.AfterFunc(2*time.Minute, func() { mygo.RunOnMain(mygo.App.Quit) })
 	go func() {
+		n := 200
 		for {
 			time.Sleep(200 * time.Millisecond)
 			if _, err := os.Stat(filepath.Join(dir, "finished")); err == nil {
 				mygo.RunOnMain(mygo.App.Quit)
 				return
+			}
+			if os.Remove(filepath.Join(dir, "append")) == nil {
+				for range 5 {
+					n++
+					a.logs.Append(core.LogEntry{Level: core.SeverityInfo, Source: "app", Message: fmt.Sprintf("session t-%d: inserted %d characters into Notes", n, 20+n)})
+				}
 			}
 		}
 	}()
@@ -114,6 +124,7 @@ func waitLogsGeometry(a *app, dir string) {
 			cb := a.win.ContentBounds()
 			g.Window = macx.WindowNumber(a.win.NativeHandle())
 			g.Content = [4]float64{float64(cb.X), float64(cb.Y), float64(cb.Width), float64(cb.Height)}
+			g.List = [4]float64{float64(s.origin.X), float64(s.origin.Y), float64(s.origin.W), float64(s.origin.H)}
 			x := float64(s.origin.X + s.origin.W/2)
 			for _, sp := range s.spans {
 				g.Lines = append(g.Lines, [2]float64{x, float64(s.origin.Y + (sp.top+sp.bottom)/2)})
