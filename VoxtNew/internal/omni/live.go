@@ -39,7 +39,8 @@ type live struct {
 
 	// language and bias are the Final's: the model's language hint ("":
 	// it detects) and the context bias.
-	language, bias string
+	language string
+	bias     bias
 
 	mu        sync.Mutex
 	audio     []byte  // everything sent, for the Final

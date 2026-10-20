@@ -139,7 +139,11 @@ func final(o Opts, w http.ResponseWriter, r *http.Request) {
 	if language == "" {
 		language = "Chinese"
 	}
-	done, _ := json.Marshal(map[string]any{"type": "transcript.text.done", "text": strings.ReplaceAll(o.Text, "{n}", strconv.Itoa(n)),
+	text := strings.ReplaceAll(o.Text, "{n}", strconv.Itoa(n))
+	if o.Echo && fields["prompt"] != "" {
+		text += strings.Join(strings.Split(fields["prompt"], "\n"), "，") + "。"
+	}
+	done, _ := json.Marshal(map[string]any{"type": "transcript.text.done", "text": text,
 		"generation_metadata": map[string]any{"generated_token_count": 10, "language": language, "finish_reason": "stop"}})
 	fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", done)
 	flush()

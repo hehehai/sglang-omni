@@ -66,6 +66,9 @@ type Opts struct {
 	Delay time.Duration
 	// Load is how long the model "loads" before ready.
 	Load time.Duration
+	// Echo: a Final with a prompt ends with the prompt's lines, as
+	// Qwen3-ASR echoes its context on silence ("text。A，B。").
+	Echo bool
 	// Older is a server from before --cache-limit-mb: it refuses the flag
 	// as an unknown argument (a newer one only refuses a value below -1).
 	Older bool
@@ -81,6 +84,7 @@ func Env(o Opts) []string {
 	v.Set("load", o.Load.String())
 	v.Set("failfrom", strconv.Itoa(o.FailFrom))
 	v.Set("older", strconv.FormatBool(o.Older))
+	v.Set("echo", strconv.FormatBool(o.Echo))
 	return []string{EnvFake + "=" + v.Encode()}
 }
 
@@ -94,6 +98,7 @@ func opts() Opts {
 	o.Load, _ = time.ParseDuration(v.Get("load"))
 	o.FailFrom, _ = strconv.Atoi(v.Get("failfrom"))
 	o.Older, _ = strconv.ParseBool(v.Get("older"))
+	o.Echo, _ = strconv.ParseBool(v.Get("echo"))
 	if o.Text == "" {
 		o.Text = "fake transcript"
 	}

@@ -74,6 +74,10 @@ type Set struct {
 	// Dictionary is the user's dictionary in the runs: every term of the
 	// set (the recognition's context bias, the clean-up's glossary).
 	Dictionary []string `json:"dictionary"`
+	// MoreTerms are the dict2 clips' terms: in the dictionary evals'
+	// dictionaries (eval_dict_test.go), not in Dictionary, which the other
+	// evals send.
+	MoreTerms []string `json:"moreTerms"`
 	// Aliases are what the user noted the speech model writes for a term.
 	Aliases map[string][]string `json:"aliases"`
 	Clips   []Clip              `json:"clips"`

@@ -100,11 +100,11 @@ func TestSet(t *testing.T) {
 		sets[c.Set]++
 		total += c.Duration()
 		bytes += len(c.PCM)
-		if c.Duration() < 2*time.Second || c.Duration() > 15*time.Second {
+		if c.Duration() < 1500*time.Millisecond || c.Duration() > 15*time.Second {
 			t.Errorf("%s: %v of audio", c.ID, c.Duration())
 		}
 		for _, term := range c.Terms {
-			if !slices.Contains(s.Dictionary, term) || !strings.Contains(c.Text, term) {
+			if !slices.Contains(s.Dictionary, term) && !slices.Contains(s.MoreTerms, term) || !strings.Contains(c.Text, term) {
 				t.Errorf("%s: term %s not in the dictionary or the text", c.ID, term)
 			}
 		}
@@ -115,7 +115,7 @@ func TestSet(t *testing.T) {
 	if sets["zh-filler"] < 5 || sets["en"] < 5 || sets["mix"] < 4 || sets["dict"] < 5 {
 		t.Errorf("sets %v", sets)
 	}
-	if bytes > 5<<20 {
+	if bytes > 6<<20 {
 		t.Errorf("%d MB of audio: keep the set small", bytes>>20)
 	}
 	for _, l := range s.Long {

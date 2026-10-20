@@ -148,7 +148,7 @@ func filePCM(req asr.FileRequest) ([]byte, error) {
 // the model's ("" detects), and the context bias: the chunks share one
 // token budget, and the first chunk's detected language is forced on the
 // rest. It returns the text and the language.
-func (a *ASR) final(ctx context.Context, l *lease, pcm []byte, language, bias string) (string, string, error) {
+func (a *ASR) final(ctx context.Context, l *lease, pcm []byte, language string, b bias) (string, string, error) {
 	t := a.spec.ASR
 	budget := t.tokenBudget(asr.Duration(pcm, sampleRate))
 	var text strings.Builder
@@ -156,10 +156,12 @@ func (a *ASR) final(ctx context.Context, l *lease, pcm []byte, language, bias st
 		if budget <= 0 {
 			break
 		}
-		r, err := transcribe(ctx, l, finalRequest{pcm: c.pcm, language: language, context: bias, maxTokens: budget, layout: t.AudioLayout}, a.rt.cfg.StallTimeout)
+		req := finalRequest{pcm: c.pcm, language: language, context: b.context, maxTokens: budget, layout: t.AudioLayout}
+		r, err := transcribe(ctx, l, req, a.rt.cfg.StallTimeout)
 		if err != nil {
 			return "", "", err
 		}
+		r.text = a.trimEcho(ctx, l, req, r.text, r.length, b.terms)
 		budget -= r.tokens
 		if language == "" {
 			language = r.language

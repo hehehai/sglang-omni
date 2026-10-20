@@ -4,7 +4,7 @@ VoxtNew ships a few curated models with parameters we tune, so their quality is 
 
 ## The eval set
 
-`testdata/eval/`: 20 short clips (130 s, 4 MB of 16 kHz mono WAV) and two long ones joined from them.
+`testdata/eval/`: 29 short clips (169 s, 5.3 MB of 16 kHz mono WAV) and two long ones joined from them.
 
 | set | clips | what | example |
 |---|---|---|---|
@@ -13,10 +13,11 @@ VoxtNew ships a few curated models with parameters we tune, so their quality is 
 | `en` | 5 | English, two with fillers and corrections | Let's ship the release on Friday, no wait, on Thursday morning. |
 | `mix` | 4 | Chinese with English words | 我们的服务用 Kubernetes 部署，CPU 占用太高了，需要 scale out。 |
 | `dict` | 5 | the dictionary's terms (made-up product names, jargon) | VoxtNew 的新版本用 MLX 在本地跑语音模型。 |
+| `dict2` | 9 | the user's own terms (Voxt, Omni, SGLang), people's names (陈喆, 韩煜, 周芷若, 欧阳明远), a term at the end of the sentence, the terms said as a list, and a sentence ending in a filler (#24) | 我们用 Omni。 |
 | `long` | 2 | 95 s (13 Chinese and mixed clips) and 104 s (14 clips, starting in English), 0.8 s of silence between clips | |
 
 - **Each clip** has its words (`text`), the expected clean-up (`clean`) and checks: phrases the clean-up keeps (`must`) or drops (`mustNot`: fillers, what a self-correction replaced), the same for an English translation of the Chinese clips (`mustEn`, `mustNotEn`), its dictionary terms (`terms`), and for the dictionary clips the transcript a speech model wrote without the dictionary (`heard`).
-- **The dictionary** of every run is the set's nine terms (VoxtNew, MLX, AudioSmith, Pixcall, ActNow, Silero, SGLang, Qwen3, Auralink), with one alias ("Or Link" for Auralink).
+- **The dictionary** of every run but #24's is the set's nine terms (VoxtNew, MLX, AudioSmith, Pixcall, ActNow, Silero, SGLang, Qwen3, Auralink), with one alias ("Or Link" for Auralink).
 - **The voices** are Qwen3-TTS (0.6B CustomVoice, Apache-2.0: Vivian, Serena and Uncle_Fu for Chinese, Ryan and Aiden for English), run by AudioSmith's engine through `internal/tools/evalsynth`. That tool writes files and never plays them. macOS `say` was the first idea, but its voices' terms do not clearly allow redistributing their output. The clips are therefore studio-clean synthetic speech: no noise, no accents, no real hesitation. Real dictation will score worse.
 - **Each clip was checked** against both speech models. Takes that the TTS truncated or garbled were made again with another seed (`zh-filler-2`, `zh-filler-5`, `dict-5`). Two quirks remain:
   - the TTS reads 部署 in `dict-4` so that both models hear 注入;
@@ -61,7 +62,8 @@ The tests are:
 - `TestEvalLLM` and `TestEvalGlossary`: `eval_llm_test.go` and `eval_glossary_test.go`;
 - `TestEvalLong` (the long clips: Transcribe whole and in pieces, the prompt cache's hits, long spoken Translate; the full eval only): `eval_long_test.go`;
 - `TestEvalRewrite` (Rewrite on 8 cases, F1): `eval_rewrite_test.go`;
-- `TestEvalAppEnhancement` and `TestEvalDictionary`: `eval_e2e_test.go`.
+- `TestEvalAppEnhancement` and `TestEvalDictionary`: `eval_e2e_test.go`;
+- `TestEvalDictASR` and `TestEvalDictLLM` (the dictionary's echo and worth, #24; `VOXTNEW_EVAL_ASR` picks the speech models): `eval_dictasr_test.go`, `eval_dictllm_test.go`, with the dictionaries in `eval_dict_test.go`.
 
 The language-model tests also write the process's memory after each model's chats (`llm.md`: load time, footprint and its peak, MLX's peak).
 
@@ -425,6 +427,67 @@ Long dictation with the new wording (`TestEvalLong`, the four models): in pieces
 
 
 **Decision: both are usable for clean-up, Translate and Rewrite** as alternatives of `llm.balanced` and `llm.fast`, with compose's new wording; their `Features` stay unrestricted. Without the wording, `llm.qwen3` would not be usable for Transcribe by anyone who dictates English with Chinese as the main language.
+
+## The dictionary: echoed, and what it is worth (#24)
+
+On 10-19 a user's dictation ended in "…这个Bot的这个文本处理还是很拉的，嗯。Voxt，Omni，SGLang。". Those are the three terms of their dictionary, which nobody said. The dictation was 77 s long. It was recognised in two pieces while recording; at Stop, the rest (5.6 s, probably "嗯" and silence) went to the speech model with the dictionary as its context, `Voxt\nOmni\nSGLang`, the most recently changed term first. The echo is that context, in the same order.
+
+`TestEvalDictASR` (`eval_dictasr_test.go`) measures the echo and the dictionary's worth, on mac-air (10-20, swap 83–92% used, 45–60% of the memory free; another project's models were running), with four dictionaries (`eval_dict_test.go`):
+
+- **small**: the user's 3 terms;
+- **eval**: the set's 9;
+- **medium**: 30 (the eval's, the dict2 clips' names and products, other product names);
+- **large**: 130 (medium plus tools, people's names and Chinese jargon).
+
+The clips are the 29 short clips, as recorded (0.3 s of silence after the speech) and with 3 s of room noise more (-55 dBFS, a dictation stopped late), and two recordings without speech (1.5 s of silence or of noise, also with the 3 s more). "Raw" is the context as the model writes it, before the fix. "Guarded" is what VoxtNew now delivers. A term put in is one that neither the clip's words nor its transcript without a dictionary have.
+
+### Where the echo comes from
+
+Before the fix, the scratch runs and the table below (raw) show:
+
+- **Audio without speech echoes the context, every time.** That held on both models, in 2 of 2 recordings with every dictionary and pad: 64 of 64 runs per model in the first matrix (silence or noise, 1.5 s, plus 0, 0.5, 1, 2, 3 or 5 s of silence, or 1 or 3 s of noise). The echo is the whole context, or a run of it in order (the large dictionary's from 灰度发布 on), or a single term ("VoxtNew。", "Voxt。"). Its separators vary: the newlines, commas, 、 or spaces. Without a context the same audio gives "嗯。", nothing, or a hallucination ("在《西游记》中，孙悟空是齐天大圣。").
+- **Speech followed by silence does not echo.** We tried 31 clips × 8 pads (0–5 s of silence, 1 or 3 s of noise) × 4 dictionaries on both models. No term came after the speech.
+- **The format does not matter.** On `asr.fast` we tried four layouts: one term per line (Voxt's and ours), commas, a Chinese sentence ("可能出现的专有名词：Voxt、Omni、SGLang。") and an English one. All four echo on audio without speech, and the sentence layouts echo their sentence too. This is likely why Voxt dropped its sentence templates for the bare list. Upstream Qwen3-ASR puts the context as the system message, free-form, and filters nothing.
+
+So the user's rest was most likely a stretch with no speech but a filler. VoxtNew's fix is a guard on each request's text (`omni/echo.go`, behavior.md 3.6a). It applies when the text ends in a sentence of context terms: after a sentence's end, or as the whole text, with only list marks between the terms. In that case it recognises the same audio again without the context, and drops the terms unless that transcript has them.
+
+### The speech models (raw / guarded)
+
+| model | dictionary | error (as recorded; +3 s noise) | terms written, with (without) the dictionary | speech: answers with a term put in | no speech: answers with terms, raw → guarded | median Final |
+|---|---|---|---|---|---|---|
+| `asr.accurate` | none | 7.7%; 9.0% | 8 of 26; 6 of 26 | | | 748 ms; 852 ms |
+| | small (3) | 4.4%; 3.7% | 10 of 11 (1); 11 of 11 (1) | 0; 0 of 29 | 2 → 0; 2 → 0 | 732–766 ms |
+| | eval (9) | 3.9%; 4.8% | 10 of 13 (4); 8 of 13 (3) | 0; 1 | 2 → 0; 2 → 0 | 777–914 ms |
+| | medium (30) | 3.1%; 5.0% | 21 of 26 (8); 21 of 26 (6) | 2; 2 | 2 → 0; 2 → 0 | 937–1045 ms |
+| | large (130) | 3.1%; 3.5% | 21 of 26 (8); 20 of 26 (6) | 2; 3 | 2 → 0; 2 → 0 | 1388–1537 ms |
+| `asr.fast` | none | 9.4%; 9.0% | 8 of 26; 8 of 26 | | | 272 ms; 317 ms |
+| | small (3) | 7.9%; 9.6% | 6 of 11 (1); 6 of 11 (1) | 0; 1 | 2 → 0; 2 → 0 | 256–337 ms |
+| | eval (9) | 8.6%; 9.9% | 4 of 13 (3); 4 of 13 (3) | 0; 0 | 2 → 0; 2 → 0 | 277–347 ms |
+| | medium (30) | 7.5%; 7.0% | 18 of 26 (8); 16 of 26 (8) | 1; 2 | 2 → 0; 2 → 0 | 318–400 ms |
+| | large (130) | 10.3%; 13.4% | 16 of 26 (8); 17 of 26 (8) | 1; 1 | 2 → 0; 2 → 0 | 493–549 ms |
+
+- **The guard removes every echo and changes nothing else.** On audio without speech the echo went from 32 of 32 runs to 0 of 32 across both models. On speech the raw and guarded transcripts were the same in every row (error, terms, put-in), and the times did not move: when a text does not end in terms, no second request is made. When it does, the same audio is recognised once more without the context: on a short stretch without speech that is one more short request (about 0.3 s on `asr.accurate`).
+- **The dictionary helps, on `asr.accurate` most.** It wrote 10 of the user's 11 terms against 1 without, and 21 of 26 with the medium or large dictionary against 8. Its error rate on all 29 clips fell from 7.7% to 3.1–4.4%. On `asr.fast` it went from 8 of 26 to 16–18 of 26 with the larger dictionaries, but only 6 of 11 with the small one. Its error rate improves a little with up to 30 terms and gets worse with 130 (10.3–13.4% against 9.0–9.4%).
+- **A term can pull in a near one.** "VoxtNew" becomes "Voxt New" (or "Voxt 新版本" on `asr.fast`) when the dictionary has Voxt: that is the 1–3 answers with a term put in. The same happens inside the long live session (`long-zh` in pieces, with the small dictionary). The alias "Voxt New" on the term VoxtNew turns it back (dict.Replace). On one take, `asr.accurate` with 9 terms and 3 s of noise wrote the spoken list of dict2-6 ("我说三个词：Voxt，Omni，SGLang") as "我说三个词，VoxtNew。"; the guard leaves it (it is after a comma, within speech).
+- **A long context costs time.** With 130 terms, `asr.accurate`'s Final takes about twice as long (1.4–1.5 s against 0.75–0.85 s for 6.5 s clips); with 30 terms it takes 0.1–0.2 s more. `asr.fast` goes from 0.3 s to 0.5 s.
+- **Long live session.** `long-zh` with 3 s of noise, recognised in pieces, with the small dictionary: no echo either way (`asr.accurate` 5.6%, `asr.fast` 6.3%).
+
+### The language models and the glossary (`TestEvalDictLLM`)
+
+Every short clip's words, as said, go through Transcribe's clean-up (29 answers per model and dictionary) and the Chinese ones through spoken Translate into English (21). The glossary is each of the three dictionaries; past 30 terms, only the terms the text mentions are sent (behavior.md 5.16). The models are VoxtNew's three and the two borrowed ones (`llm.qwen3`, `llm.gemma4`). The translation model `llm.translate` takes no glossary.
+
+| model | answers with a term put in (transcribe, translate; 3 dictionaries) | terms kept (transcribe; translate) | median first token: small, medium (30), large (130) |
+|---|---|---|---|
+| `llm.balanced` | 0 of 150 | 26 of 26; 16 of 20 | 238, 242, **1798 ms** |
+| `llm.fast` | 0 of 150 | 26 of 26; 16 of 20 | 110, 110, **556 ms** |
+| `llm.qwen3` | 0 of 150 | 26 of 26; 16 of 20 | 222, 249, **1712 ms** |
+| `llm.gemma4` | 0 of 150 | 26 of 26; 16 of 20 | 222, 221, **994 ms** |
+| `llm.translate` | (no glossary) | –; 16 of 20 | |
+
+- **No model puts a term in.** The glossary never made a model add a term that was not said: 0 of 600 answers, with every dictionary size and both tasks.
+- **Every Latin term is kept.** In translations the 4 missing are the Chinese names, transliterated (陈喆 → Chen Zhe, 周芷若 → Zhou Zhiruo), which is right for English.
+- **No model removes the echo.** Given the user's transcript with the echo at its end, all four general models keep it ("…很拉的。Voxt、Omni、SGLang。"). The fix has to be in recognition.
+- **A dictionary over 30 terms costs the prompt cache.** Its glossary holds only the terms the text mentions, so the system prompt changes from one dictation to the next, and the cached prefix stops before the glossary. The first token comes 0.5–1.6 s later than with 30 terms (`llm.balanced` 0.24 → 1.8 s). Up to 30 terms the glossary is the same each time and costs nothing measurable.
 
 ## App enhancement and the dictionary, whole sessions on the real models
 

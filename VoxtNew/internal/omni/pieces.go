@@ -32,7 +32,7 @@ func samplesOf(d time.Duration) int { return int(d.Seconds() * sampleRate) }
 // recognisePieces is the loop of s's pieces: on new audio, a piece
 // when one is due, until Finish (or a piece failed: the rest waits for
 // Finish).
-func (s *live) recognisePieces(language, bias string) {
+func (s *live) recognisePieces(language string, b bias) {
 	pc := s.pc
 	defer close(pc.exited)
 	t := s.a.spec.ASR
@@ -61,8 +61,12 @@ func (s *live) recognisePieces(language, bias string) {
 		}
 		piece := audio[start : start+cut*2]
 		begin := time.Now()
-		r, err := transcribe(s.ctx, s.l, finalRequest{pcm: padPiece(piece, t), language: language, context: bias,
-			maxTokens: t.tokenBudget(asr.Duration(piece, sampleRate)), layout: t.AudioLayout}, s.a.rt.cfg.StallTimeout)
+		req := finalRequest{pcm: padPiece(piece, t), language: language, context: b.context,
+			maxTokens: t.tokenBudget(asr.Duration(piece, sampleRate)), layout: t.AudioLayout}
+		r, err := transcribe(s.ctx, s.l, req, s.a.rt.cfg.StallTimeout)
+		if err == nil {
+			r.text = s.a.trimEcho(s.ctx, s.l, req, r.text, r.length, b.terms)
+		}
 		took := time.Since(begin)
 		if err != nil {
 			if s.ctx.Err() == nil {
