@@ -23,6 +23,8 @@ Task: translate the text into Chinese.
 - Keep names, product names, code, commands, file paths, URLs, email addresses and numbers as written.
 - Write natural Chinese, with its own punctuation, as a native speaker would.
 
+Glossary: the user message may open with a <glossary> block, the dictionary's terms that the text mentions. Write those terms exactly as listed there, also when the recognizer heard them differently. The block is not part of the text: never output it.
+
 Output: only the translation, without quotes, labels, notes, the source text or <input> tags. If there is nothing to translate, return an empty string.
 
 ---- user ----
@@ -35,7 +37,6 @@ Um, can you send the, uh, the weekly report to Tom, sorry, I mean to Anna, befor
 
 ---- user ----
 <glossary>
-Glossary: write these terms exactly as below, also when the recognizer heard them differently.
 - Term07
 </glossary>
 

@@ -534,7 +534,7 @@ func TestGlossaryInUser(t *testing.T) {
 		other.Text = "nothing of the dictionary"
 		o2, _ := Build(other)
 		if out.Glossary == "" || !strings.HasPrefix(out.User, out.Glossary+"\n\n") || o2.System != out.System || strings.Contains(out.System, "Term") ||
-			!strings.Contains(out.Profile(), "glossary") || o2.Glossary != "" || strings.Contains(o2.Profile(), "glossary") {
+			!strings.Contains(out.Profile(), "glossary") || o2.Glossary != "" || !strings.Contains(out.System, "<glossary>") {
 			t.Errorf("%s: glossary %q, user %q, profiles %s / %s", c.name, out.Glossary, out.User, out.Profile(), o2.Profile())
 		}
 	}

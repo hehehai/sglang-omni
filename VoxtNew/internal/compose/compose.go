@@ -9,10 +9,10 @@
 //	       + [Structure]     lists and paragraphs (Transcribe only), or Form: keep it as said
 //	       + Task            the feature's rules, then the user's addition to them
 //	       + [Scene]         app enhancement: the app and the group's rules (M5)
-//	       + [Glossary]      the dictionary's terms (a dictionary of up to GlossaryAllUpTo)
+//	       + [Glossary]      the dictionary's terms (a dictionary of up to GlossaryAllUpTo), or the rule for a <glossary> block
 //	       + Output contract only the final text
 //	[user, assistant]        the clean-up's example (speech: Example)
-//	user   = [<glossary>…</glossary>]  a larger dictionary's terms the text mentions
+//	user   = [<glossary>…</glossary>]  a larger dictionary's terms that the text mentions
 //	         <input>…</input>
 //
 // The input text is only ever in the user message, never in the system
@@ -150,15 +150,14 @@ type Output struct {
 	// History are the messages between System and User: a follow-up's
 	// earlier turns, or the clean-up's example turn (Example).
 	History []Message
-	// Glossary is the glossary block that opens User when the glossary
-	// depends on the text (more than GlossaryAllUpTo terms); "" when it is
-	// in System or there is none.
+	// Glossary is the <glossary> block of a dictionary of more than
+	// GlossaryAllUpTo terms (the terms the text mentions), which opens
+	// User; "" for none (a smaller dictionary's is in System).
 	Glossary string
 	// Language is the template set used (English, Chinese).
 	Language string
-	// Layers names the layers, in order (the glossary's also when it is
-	// in User); Profile joins them for logs and history
-	// ("transcribe:cleanup+structure").
+	// Layers names the layers in the system prompt, in order; Profile
+	// joins them for logs and history ("transcribe:cleanup+structure").
 	Layers []string
 }
 
@@ -313,13 +312,17 @@ func Build(in Input) (Output, error) {
 		add("scene", render("scene", map[string]string{"SCENE_PROMPT": Render(strings.TrimSpace(s.Prompt), vars, nil)}))
 	}
 	out := Output{Language: set}
-	if g := Glossary(in.Glossary, in.Instruction+"\n"+in.Text, set); g != "" {
-		block := render("glossary", map[string]string{"GLOSSARY": g})
-		if len(distinctTerms(in.Glossary)) <= GlossaryAllUpTo {
-			add("glossary", block)
-		} else {
-			out.Glossary = wrap("glossary", block)
-			layers = append(layers, "glossary")
+	g := Glossary(in.Glossary, in.Instruction+"\n"+in.Text, set)
+	if len(distinctTerms(in.Glossary)) <= GlossaryAllUpTo {
+		if g != "" {
+			add("glossary", render("glossary", map[string]string{"GLOSSARY": g}))
+		}
+	} else {
+		// The rule is the same for every dictation; the terms, which the
+		// text picks, open the user message.
+		add("glossary", render("glossary-user", nil))
+		if g != "" {
+			out.Glossary = wrap("glossary", g)
 		}
 	}
 	switch {
