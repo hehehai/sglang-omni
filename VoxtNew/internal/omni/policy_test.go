@@ -67,13 +67,13 @@ func TestLanguageHint(t *testing.T) {
 
 func TestContextBias(t *testing.T) {
 	q := qwenTuning()
-	if got := q.contextBias([]string{" VoxtNew ", "voxtnew", "", "Aura  Link", "MLX"}, ""); got != "VoxtNew\nAura Link\nMLX" {
+	if got := q.contextBias([]string{" VoxtNew ", "voxtnew", "", "Aura  Link", "MLX"}, "").context; got != "VoxtNew\nAura Link\nMLX" {
 		t.Errorf("bias %q", got)
 	}
-	if got := q.contextBias([]string{"MLX"}, "  A meeting about audio. "); got != "A meeting about audio.\nMLX" {
+	if got := q.contextBias([]string{"MLX"}, "  A meeting about audio. ").context; got != "A meeting about audio.\nMLX" {
 		t.Errorf("bias with a prompt %q", got)
 	}
-	if got := q.contextBias(nil, ""); got != "" {
+	if got := q.contextBias(nil, "").context; got != "" {
 		t.Errorf("no bias %q", got)
 	}
 	// At most ContextTerms terms…
@@ -81,15 +81,15 @@ func TestContextBias(t *testing.T) {
 	for i := range many {
 		many[i] = "t" + itoa(i)
 	}
-	if n := len(strings.Split(q.contextBias(many, ""), "\n")); n != 500 {
+	if n := len(strings.Split(q.contextBias(many, "").context, "\n")); n != 500 {
 		t.Errorf("%d terms", n)
 	}
 	// …and ContextChars characters (runes, as Swift counts), a first long one kept.
 	q.ContextChars = 10
-	if got := q.contextBias([]string{"一二三四五", "六七八九", "十"}, ""); got != "一二三四五\n六七八九" {
+	if got := q.contextBias([]string{"一二三四五", "六七八九", "十"}, "").context; got != "一二三四五\n六七八九" {
 		t.Errorf("bounded %q", got)
 	}
-	if got := q.contextBias([]string{"abcdefghijklmnop", "x"}, ""); got != "abcdefghijklmnop" {
+	if got := q.contextBias([]string{"abcdefghijklmnop", "x"}, "").context; got != "abcdefghijklmnop" {
 		t.Errorf("long first %q", got)
 	}
 }

@@ -220,9 +220,14 @@ func watchFootprint(rt *omni.Runtime, id string, peak *int64) func() {
 // streamLong sends c in real time (100 ms chunks) to a live session and
 // records the partials' cadence and the wait from Finish to the text.
 func streamLong(ctx context.Context, a *omni.ASR, c eval.Clip, hints []string, r *longASRRun) error {
+	return streamLongReq(ctx, a, c, asr.StreamRequest{SampleRate: asr.SampleRate, Lang: "zh", Hints: hints}, r)
+}
+
+// streamLongReq is streamLong with the session's request.
+func streamLongReq(ctx context.Context, a *omni.ASR, c eval.Clip, req asr.StreamRequest, r *longASRRun) error {
 	ctx, cancel := context.WithTimeout(ctx, c.Duration()+5*time.Minute)
 	defer cancel()
-	st, err := a.Open(ctx, asr.StreamRequest{SampleRate: asr.SampleRate, Lang: "zh", Hints: hints})
+	st, err := a.Open(ctx, req)
 	if err != nil {
 		return err
 	}

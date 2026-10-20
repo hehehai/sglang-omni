@@ -82,7 +82,7 @@ func TestEvalASR(t *testing.T) {
 				}
 				r.text[h.name], r.score[h.name], r.latency[h.name] = res.Text, eval.Compare(c.Text, res.Text), res.Latency
 			}
-			if len(c.Terms) > 0 {
+			if c.Set == "dict" {
 				res, err := a.Transcribe(ctx, asr.FileRequest{Audio: c.PCM, Format: "pcm", Lang: "zh"})
 				if err != nil {
 					t.Fatal(err)
@@ -207,7 +207,7 @@ func asrReport(id string, cold time.Duration, results []asrResult, live []liveRe
 	terms, biased, plain := 0, 0, 0
 	dt := table{head: []string{"clip", "terms", "with the dictionary", "without"}}
 	for _, r := range results {
-		if len(r.clip.Terms) == 0 || r.clip.Set == "long" {
+		if r.clip.Set != "dict" { // dict2's terms are not in the set's dictionary (TestEvalDictASR)
 			continue
 		}
 		with, without := eval.TermsFound(r.clip.Terms, r.text["main zh"]), eval.TermsFound(r.clip.Terms, r.noBias)

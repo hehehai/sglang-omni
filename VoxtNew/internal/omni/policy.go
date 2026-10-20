@@ -36,12 +36,18 @@ func (s Spec) languageHint(code string) string {
 	return c
 }
 
+// bias is a Final request's context and the dictionary's terms in it.
+type bias struct {
+	context string
+	terms   []string
+}
+
 // contextBias is the Final's context: prompt (free text), then the
 // dictionary's terms one per line in the order given (the most recently
 // changed first), at most t.ContextTerms terms and t.ContextChars
 // characters (Voxt's asrPromptTermsText; a first term over the limit is
 // kept alone).
-func (t *ASRTuning) contextBias(hints []string, prompt string) string {
+func (t *ASRTuning) contextBias(hints []string, prompt string) bias {
 	var terms []string
 	seen := map[string]bool{}
 	chars := 0
@@ -72,7 +78,7 @@ func (t *ASRTuning) contextBias(hints []string, prompt string) string {
 	if len(terms) > 0 {
 		parts = append(parts, strings.Join(terms, "\n"))
 	}
-	return strings.Join(parts, "\n")
+	return bias{context: strings.Join(parts, "\n"), terms: terms}
 }
 
 // chunk is a piece of a recording for one Final request.
