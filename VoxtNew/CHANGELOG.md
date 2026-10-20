@@ -19,6 +19,8 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 
 - **Models are kept in ~/Library/Application Support/ActNow/models**, shared with the other ActNow apps, instead of the Hugging Face cache (~/.cache/huggingface), which cleaning tools treat as a cache. Models already there are brought over at the first start without downloading them again (hard links: the cache stays as it is). Time Machine leaves models out; Settings → Storage → "Back up models with Time Machine" turns it on for all ActNow apps.
 - The note of which output device VoxtNew muted is kept in Application Support instead of ~/Library/Caches, so that a cache cleaner run after a crash cannot leave your speakers muted.
+- With a dictionary of more than 30 terms, clean-up, translation and rewriting answer sooner: the first words come 1.4–1.9 s sooner on the balanced language model and 0.7 s on the fast one. The terms that a dictation mentions now go with the dictation instead of changing the model's instructions each time.
+- The fast speech model gets the 30 most recently changed terms of your dictionary. A longer list made it slower and less accurate; the accurate model still gets up to 500.
 - **The result goes where you are typing when it is ready.** If you switch to another app during or after the recording and click into a text field there, the text is inserted there; the app you started in is not brought back. Nothing is typed into a password field or into VoxtNew's own windows, and when no text field is focused (Finder's desktop, a web page you are reading), the result waits in the answer card with Insert and Copy, which now also inserts into the app in front. A selection is still replaced only in the app it was selected in, and app enhancement's auto key (Return…) is pressed only there. The history shows the app the text went into.
 
 ### Fixed
@@ -45,6 +47,8 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 
 - **模型放在 ~/Library/Application Support/ActNow/models**，与其他 ActNow app 共用，不再放在会被清理工具当成缓存的 Hugging Face 缓存（~/.cache/huggingface）里。那里已有的模型在首次启动时直接拿过来（硬链接，原缓存不动），不用重新下载。Time Machine 默认不备份模型，可在 设置 → 存储 →“用 Time Machine 备份模型”中为所有 ActNow app 打开。
 - VoxtNew 静音了哪个输出设备的记录改放在 Application Support，不再放在 ~/Library/Caches，崩溃后即使清理了缓存，扬声器也不会一直静音。
+- 词典超过 30 条时，整理、翻译和转写更快开始输出：均衡语言模型快 1.4–1.9 秒，快速模型约快 0.7 秒。口述里提到的词条现在随口述一起发给模型，不再每次改动模型的指令。
+- 快速语音识别模型只使用词典里最近修改的 30 条。更长的列表会让它更慢、更不准；精准模型仍可使用最多 500 条。
 - **结果插入到它出来时你正在输入的地方。** 录音中或录完后切到另一个 App、点进那里的输入框，文字就插到那里，不会再切回开始录音的 App。密码框和 VoxtNew 自己的窗口里不会输入任何东西；没有选中输入框时（访达的桌面、正在看的网页），结果留在答案卡片里，可以插入或复制，卡片的“插入”现在也插进当时在前台的 App。替换选区仍然只在选中文字的那个 App 里进行，应用增强的自动按键（Return 等）也只在那里按。历史记录仍记在开始录音的 App 下，详情里另外写明文字插入到了哪个 App（“已插入到 X”）。
 
 #### 修复

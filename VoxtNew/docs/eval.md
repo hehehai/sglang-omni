@@ -470,6 +470,7 @@ So the user's rest was most likely a stretch with no speech but a filler. VoxtNe
 - **The dictionary helps, on `asr.accurate` most.** It wrote 10 of the user's 11 terms against 1 without, and 21 of 26 with the medium or large dictionary against 8. Its error rate on all 29 clips fell from 7.7% to 3.1–4.4%. On `asr.fast` it went from 8 of 26 to 16–18 of 26 with the larger dictionaries, but only 6 of 11 with the small one. Its error rate improves a little with up to 30 terms and gets worse with 130 (10.3–13.4% against 9.0–9.4%).
 - **A term can pull in a near one.** "VoxtNew" becomes "Voxt New" (or "Voxt 新版本" on `asr.fast`) when the dictionary has Voxt: that is the 1–3 answers with a term put in. The same happens inside the long live session (`long-zh` in pieces, with the small dictionary). The alias "Voxt New" on the term VoxtNew turns it back (dict.Replace). On one take, `asr.accurate` with 9 terms and 3 s of noise wrote the spoken list of dict2-6 ("我说三个词：Voxt，Omni，SGLang") as "我说三个词，VoxtNew。"; the guard leaves it (it is after a comma, within speech).
 - **A long context costs time.** With 130 terms, `asr.accurate`'s Final takes about twice as long (1.4–1.5 s against 0.75–0.85 s for 6.5 s clips); with 30 terms it takes 0.1–0.2 s more. `asr.fast` goes from 0.3 s to 0.5 s.
+- **`asr.fast` takes the 30 most recently changed terms** (follow-up, `ASRTuning.ContextTerms`; `asr.accurate` keeps Voxt's 500). With the large dictionary its guarded rows are now the medium dictionary's: error 10.3% → 7.5% as recorded and 13.4% → 7.0% with the noise, terms written 16–17 → 16–18 of 26, median Final 721 → 353 ms and 845 → 546 ms (the raw rows send the whole list as a free prompt, as before). The same run's other rows are unchanged.
 - **Long live session.** `long-zh` with 3 s of noise, recognised in pieces, with the small dictionary: no echo either way (`asr.accurate` 5.6%, `asr.fast` 6.3%).
 
 ### The language models and the glossary (`TestEvalDictLLM`)
@@ -488,6 +489,28 @@ Every short clip's words, as said, go through Transcribe's clean-up (29 answers 
 - **Every Latin term is kept.** In translations the 4 missing are the Chinese names, transliterated (陈喆 → Chen Zhe, 周芷若 → Zhou Zhiruo), which is right for English.
 - **No model removes the echo.** Given the user's transcript with the echo at its end, all four general models keep it ("…很拉的。Voxt、Omni、SGLang。"). The fix has to be in recognition.
 - **A dictionary over 30 terms costs the prompt cache.** Its glossary holds only the terms the text mentions, so the system prompt changes from one dictation to the next, and the cached prefix stops before the glossary. The first token comes 0.5–1.6 s later than with 30 terms (`llm.balanced` 0.24 → 1.8 s). Up to 30 terms the glossary is the same each time and costs nothing measurable.
+  The follow-up below fixes this.
+
+### A large dictionary's glossary in the user message (#24 follow-up)
+
+A dictionary of more than 30 terms now keeps its rule in the system prompt, the same for every dictation ("the user message may open with a `<glossary>` block…; never output it"). Its terms that the text mentions go in a `<glossary>` block that opens the last user message, after the system prompt and the example, which the prompt cache keeps (behavior.md 5.16). A dictionary of up to 30 terms is unchanged: the whole glossary stays in the system prompt.
+
+The runs were on mac-air with `TestEvalDictLLM` and `TestEvalGlossary`, before (5bdbd174) and after. The user's VoxtNew had its models loaded throughout, so times are upper bounds.
+
+| | before | after |
+|---|---|---|
+| `llm.balanced`, first token, 130 terms (transcribe; translate) | 2383; 1852 ms | **494; 501 ms** |
+| `llm.balanced`, first token, 30 terms | 374; 419 ms | 306; 409 ms |
+| `llm.balanced`, glossary on misheard terms, 130 terms: terms written (as heard / aliases replaced), first token | 5 / 6 of 10, 1671–1875 ms | **6 / 6 of 10, 422–501 ms** |
+| `llm.fast`, first token, 130 terms (transcribe; translate) | 819; 929 ms | **168; 174 ms** |
+| `llm.fast`, first token, 30 terms | 170; 184 ms | 118; 131 ms |
+| `llm.fast`, glossary on misheard terms, 130 terms | 3 / 4 of 10, 587–685 ms | 3 / 4 of 10, 170–181 ms |
+| terms put in (both models, 3 dictionaries, 300 answers) | 0 | 0 |
+
+- **The glossary is still obeyed.** Terms written with 130 terms are as before or one better. With 9 terms nothing changed (8 / 9 and 6 / 7 of 10). Translations keep 16 of 20 terms (the 4 transliterated names).
+- **The glossary's rule belongs in the system prompt.** In a first layout the rule was inside the user message's block too. `llm.fast` then wrote the whole block as its answer once (dict-5, 130 terms). With the rule in the system prompt ("never output it") that did not happen in 300 answers.
+- With 130 terms a dictation's first token still comes about 0.1–0.25 s after 30 terms' (`llm.balanced` 0.49 against 0.31 s): the block and the input are new on every dictation.
+
 
 ## App enhancement and the dictionary, whole sessions on the real models
 
