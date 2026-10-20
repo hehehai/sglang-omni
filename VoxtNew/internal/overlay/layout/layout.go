@@ -271,6 +271,38 @@ func LoaderDot(t float64) (scale, alpha float64) {
 	return 0.6, 0.15
 }
 
+// MicRing is the starting microphone's ring at t seconds: a ping that
+// grows from the icon (MicRingMin) to MicRingMax over 1.2 s, fading out;
+// still (without motion), at 22 and 0.35.
+func MicRing(t float64, motion bool) (d, alpha float64) {
+	if !motion {
+		return 22, 0.35
+	}
+	p := math.Mod(t, 1.2) / 1.2
+	if p < 0 {
+		p++
+	}
+	ease := 1 - (1-p)*(1-p) // ease out
+	return MicRingMin + (MicRingMax-MicRingMin)*ease, 0.6 * (1 - p)
+}
+
+// MicPulse is the starting microphone icon's opacity and scale at t
+// seconds (Voxt's initializing icon: 1.25 s each way, ease in and out);
+// still, 0.7 and 1.
+func MicPulse(t float64, motion bool) (alpha, scale float64) {
+	if !motion {
+		return 0.7, 1
+	}
+	u := 0.5 - 0.5*math.Cos(2*math.Pi*t/2.5)
+	return 0.55 + 0.43*u, 0.94 + 0.1*u
+}
+
+// The ring's diameters: the icon's size to just inside the row.
+const (
+	MicRingMin = IconSize
+	MicRingMax = RowH - 4
+)
+
 // FaceAlpha is how opaque the face's fill is (Overlay.Opacity).
 func FaceAlpha(o settings.Overlay) float32 {
 	return float32(min(max(o.Opacity, 0.5), 1))

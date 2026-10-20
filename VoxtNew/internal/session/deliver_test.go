@@ -1,6 +1,7 @@
 package session
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -87,6 +88,62 @@ func TestDeliverWhereTyping(t *testing.T) {
 			}
 			if tc.kind == store.KindTranscribe && e.RuleID != "g-chat" {
 				t.Errorf("rule %q: the start app's group composed it", e.RuleID)
+			}
+		})
+	}
+}
+
+// TestDeliverUnconfirmed: a paste the focused element did not show (the
+// helper's check) is no insert: the card shows the result with why, the
+// history says card, the log says what the element read; with secure
+// input on in another app, the reason says so. A check that cannot tell
+// is an insert, as before.
+func TestDeliverUnconfirmed(t *testing.T) {
+	terminal := &proto.App{PID: 1702, BundleID: "com.apple.Terminal", Name: "Terminal"}
+	for _, tc := range []struct {
+		name     string
+		check    string
+		secure   *proto.App
+		inserted bool
+		reason   deliver.Reason
+	}{
+		{name: "inserted", check: proto.CheckInserted, inserted: true},
+		{name: "unknown", check: proto.CheckUnknown, inserted: true},
+		{name: "unchanged", check: proto.CheckUnchanged, reason: deliver.ReasonUnconfirmed},
+		{name: "unchanged, secure input", check: proto.CheckUnchanged, secure: terminal, reason: deliver.ReasonSecureInput},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t, &fakeFile{text: "hello"}, nil, nil)
+			h.text.focus = proto.FocusResult{PID: slack.PID, App: &slack, Role: "AXTextArea", Editable: true}
+			h.text.check, h.text.secure = tc.check, tc.secure
+			id, err := h.m.Start(StartRequest{Kind: store.KindTranscribe, Target: slack})
+			if err != nil {
+				t.Fatal(err)
+			}
+			h.speak(id, 3)
+			end := h.rec.wait(t)
+			es := h.hist.all()
+			if end.State != Done || len(es) != 1 {
+				t.Fatalf("end %+v, entries %+v", end, es)
+			}
+			h.text.mu.Lock()
+			verify := h.text.verify
+			h.text.mu.Unlock()
+			if len(verify) != 1 || verify[0] != deliver.DefaultVerifyMS {
+				t.Errorf("verify %v: every insert is checked", verify)
+			}
+			want := "insert"
+			if !tc.inserted {
+				want = "card"
+			}
+			if end.Inserted != tc.inserted || end.Card == tc.inserted || end.Delivery != tc.reason || es[0].Delivery != want {
+				t.Errorf("end inserted %v card %v delivery %q, entry %q", end.Inserted, end.Card, end.Delivery, es[0].Delivery)
+			}
+			h.mu.Lock()
+			logs := strings.Join(h.logs, "\n")
+			h.mu.Unlock()
+			if !strings.Contains(logs, "delivery: focus AXTextArea in Slack") {
+				t.Errorf("no delivery line in the log:\n%s", logs)
 			}
 		})
 	}

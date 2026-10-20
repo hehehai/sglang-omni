@@ -56,6 +56,8 @@ package helpertest
 //	focus=none       textio.focus: nothing is focused (Finder's desktop)
 //	focus=secure     textio.focus: a password field (AXSecureTextField)
 //	switch=BUNDLE    textio.* see BUNDLE in front: the user went there after the shortcut
+//	paste-check=C    textio.paste with verifyMs: its check is C (unchanged, unknown; default inserted)
+//	secure-input=APP textio.paste: APP has secure event input on
 //	paste-log=PATH   append each textio.paste's params to PATH (JSON lines)
 //	delay=METHOD:MS  answer METHOD MS ms late (slow calls)
 //	no-url[=BUNDLE]  browser.url reads no URL (of BUNDLE, or of every browser)

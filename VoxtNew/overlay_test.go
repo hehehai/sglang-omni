@@ -312,6 +312,14 @@ func overlayShots(t *testing.T, a *app, out, suffix string, dark bool) {
 		after func(id string) // once the state is in (the answer card's own states)
 	}{
 		{"overlay-starting", session.Snapshot{State: session.Recording, StartedAt: now}, nil, nil},
+		// The microphone gives no audio yet, then the speech model starts
+		// (10-20: the first session after launch).
+		{"overlay-waiting-mic", session.Snapshot{State: session.Recording, StartedAt: now, Waiting: session.WaitMic}, nil, nil},
+		{"overlay-waiting-model", session.Snapshot{State: session.Recording, StartedAt: now, HeardAt: now.Add(-2 * time.Second), Levels: wave(),
+			Waiting: session.WaitModel}, nil, nil},
+		{"overlay-waiting-model-recognizing", session.Snapshot{State: session.Recognizing, Waiting: session.WaitModel}, nil, nil},
+		{"overlay-card-unconfirmed", session.Snapshot{State: session.Done, Card: true, Delivery: deliver.ReasonUnconfirmed, Target: proto.App{PID: 77, Name: "Arc"},
+			Result: "详情中的左右滑动不够流畅，会卡住。"}, nil, nil},
 		{"overlay-recording", session.Snapshot{State: session.Recording, StartedAt: now, HeardAt: now.Add(-12 * time.Second), Levels: wave()}, nil, nil},
 		{"overlay-recording-time", session.Snapshot{State: session.Recording, StartedAt: now, HeardAt: now.Add(-12 * time.Second), Levels: wave()},
 			func() { a.prefs.Overlay.ShowTime = true }, nil},

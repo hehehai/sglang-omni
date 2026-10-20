@@ -52,6 +52,9 @@ type run struct {
 	// asrDegraded: the Final failed and the session goes on with the
 	// text the stream had (listen); its notice wins over a clean-up's.
 	asrDegraded *Problem
+	// opening: the speech model is still starting (wait.go); waitDue:
+	// Config.WaitNote has passed since the start.
+	opening, waitDue atomic.Bool
 	// dsp and gainDB are what the sound processing did (noteDSP), for a
 	// retry's entry.
 	dsp    string
@@ -218,12 +221,16 @@ func (r *run) finish(st State, problem *Problem, result string, o finishOpts) {
 		r.m.update(r, func(s *Snapshot) { s.State, s.Result = Delivering, result })
 		press := r.press(o.replace) // app enhancement's auto key
 		ctx, cancel := context.WithTimeout(context.Background(), cfg.DeliverTime)
-		dres = deliver.Insert(ctx, cfg.Text, deliver.Request{Text: result, Target: r.req.Target, Press: press, Self: cfg.Self, Activate: cfg.Activate, Replace: o.replace})
+		dres = deliver.Insert(ctx, cfg.Text, deliver.Request{Text: result, Target: r.req.Target, Press: press, Self: cfg.Self, Activate: cfg.Activate,
+			Replace: o.replace, VerifyMS: deliver.DefaultVerifyMS})
 		cancel()
 		if dres.Err != nil {
 			r.logf("warning", "insert: %v", dres.Err)
 		}
+		r.logf("info", "delivery: %s", dres.Diag())
 		switch {
+		case dres.Reason == deliver.ReasonUnconfirmed || dres.Reason == deliver.ReasonSecureInput:
+			r.logf("warning", "pasted into %s, but the text did not show there (%s): the card shows it, the clipboard holds it", dres.To.BundleID, dres.Reason)
 		case dres.Inserted && dres.Moved(r.req.Target):
 			r.logf("info", "inserted into %s, not %s (the user switched apps; no auto key) in %v", dres.To.BundleID, r.req.Target.BundleID, dres.Elapsed.Round(time.Millisecond))
 		case dres.Inserted:

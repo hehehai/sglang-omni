@@ -97,6 +97,7 @@ func (r *run) listen() (string, bool) {
 	open := func() chan openResult {
 		st, ok := r.streamer()
 		if !ok {
+			r.setOpening(false)
 			return nil
 		}
 		ch := make(chan openResult, 1)
@@ -117,6 +118,13 @@ func (r *run) listen() (string, bool) {
 		captured   capResult
 		recordDone bool
 	)
+	// Until the speech model's stream is open, the session waits for it
+	// (Snapshot.Waiting, after Config.WaitNote).
+	r.opening.Store(true)
+	waitNote := r.waitTimer(r.m.Current().StartedAt)
+	if waitNote == nil {
+		r.noteWait()
+	}
 	if r.resolved {
 		if p := r.lacks(); p != nil {
 			r.fail(p)
@@ -148,8 +156,13 @@ func (r *run) listen() (string, bool) {
 				r.fail(r.asrProblem(o.err))
 				return "", false
 			}
+			r.setOpening(false)
 			stream = o.st
 			finals = r.feed(stream)
+		case <-waitNote:
+			waitNote = nil
+			r.waitDue.Store(true)
+			r.noteWait()
 		case e := <-finals:
 			finals = nil
 			if e.err != nil {
@@ -194,7 +207,12 @@ func (r *run) listen() (string, bool) {
 		}
 		s.Timings.Audio = audioLen
 	})
-	r.logf("info", "recorded %v (%s, %d frames, %d restarts)", audioLen.Round(time.Millisecond), captured.res.Reason, captured.res.Frames, captured.res.Restarts)
+	first := time.Duration(captured.res.FirstFrameMS * float64(time.Millisecond))
+	r.logf("info", "recorded %v (%s, %d frames, %d restarts, first audio after %v from %s)", audioLen.Round(time.Millisecond), captured.res.Reason,
+		captured.res.Frames, captured.res.Restarts, first.Round(time.Millisecond), r.m.Current().Device)
+	if first > slowMic {
+		r.logf("warning", "the microphone gave its first audio %v after the start: what was said before is not in the recording", first.Round(time.Millisecond))
+	}
 	if audioLen < cfg.MinRecording {
 		if stream != nil {
 			stream.Close()
@@ -224,16 +242,22 @@ func (r *run) listen() (string, bool) {
 	var err error
 	salvaged := ""
 	if _, ok := r.streamer(); ok {
-		if openDone != nil {
+		for openDone != nil {
 			select {
 			case o := <-openDone:
+				openDone = nil
 				if o.err != nil {
 					r.recognitionFailed = true
 					r.endFailed(r.asrProblem(o.err), nil)
 					return "", false
 				}
+				r.setOpening(false)
 				stream = o.st
 				finals = r.feed(stream)
+			case <-waitNote:
+				waitNote = nil
+				r.waitDue.Store(true)
+				r.noteWait()
 			case <-actx.Done():
 				r.recognitionFailed = true
 				r.endFailed(r.timeoutProblem(actx), nil)

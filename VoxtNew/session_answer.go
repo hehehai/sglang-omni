@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/compose"
+	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/deliver"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
@@ -29,8 +30,12 @@ func (a *app) openAnswer(s session.Snapshot) {
 	if s.State == session.Failed {
 		card.problem = s.Problem
 	}
-	if s.Delivery == deliver.ReasonNoAccess {
+	switch s.Delivery {
+	case deliver.ReasonNoAccess:
 		card.msg = i18n.T("Allow Accessibility to insert results where you type.")
+	case deliver.ReasonUnconfirmed, deliver.ReasonSecureInput:
+		// Pasted, but it did not show: say so where the user looks.
+		card.msg = uitext.DeliveryText(deliver.Result{Reason: s.Delivery}, s.Target)
 	}
 	if s.Kind == store.KindRewrite {
 		// A follow-up continues the card's conversation.
@@ -213,8 +218,9 @@ func (a *app) insertAnswer() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		res := deliver.Insert(ctx, text, deliver.Request{Text: card.text, Target: card.target, AnyEditable: true, Self: os.Getpid(),
-			Activate: func(pid int) bool { ok, _ := activateTarget(pid); return ok }})
+			Activate: func(pid int) bool { ok, _ := activateTarget(pid); return ok }, VerifyMS: deliver.DefaultVerifyMS})
 		a.post(func() {
+			a.logs.Append(core.LogEntry{Time: time.Now(), Level: core.SeverityInfo, Source: sessionSource, Message: "card insert: " + res.Diag()})
 			if !a.answer.open || a.answer.id != card.id {
 				return
 			}

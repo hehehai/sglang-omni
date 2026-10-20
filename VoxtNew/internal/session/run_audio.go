@@ -46,7 +46,10 @@ func (r *run) onAudio(ev AudioEvent) {
 		r.pcm.append(ev.PCM.Data)
 	case ev.Started != nil:
 		st, at := ev.Started, r.now()
-		r.m.update(r, func(s *Snapshot) { s.HeardAt, s.Device, s.FellBack = at, st.DeviceName, st.FellBack })
+		r.m.update(r, func(s *Snapshot) {
+			s.HeardAt, s.Device, s.FellBack = at, st.DeviceName, st.FellBack
+			s.Waiting = r.waitOf(s)
+		})
 		if st.FellBack {
 			r.logf("warning", "recording from %s: %s", st.DeviceName, st.FallbackReason)
 		}

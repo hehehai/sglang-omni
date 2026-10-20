@@ -152,8 +152,35 @@ func (f *fake) textio(m proto.Message) {
 				fh.Close()
 			}
 		}
-		f.result(m.ID, proto.PasteResult{Posted: true, Restored: !p.KeepClipboard, MS: 2})
+		f.result(m.ID, f.pasteResult(p))
 	}
+}
+
+// pasteResult is a posted paste and, with VerifyMS, its check:
+// paste-check= (inserted by default, unchanged, unknown); secure-input=
+// names the app with secure input on.
+func (f *fake) pasteResult(p proto.PasteParams) proto.PasteResult {
+	res := proto.PasteResult{Posted: true, Restored: !p.KeepClipboard, MS: 2}
+	if name := f.opts["secure-input"]; name != "" {
+		res.SecureInput = &proto.App{PID: 1702, Name: name}
+	}
+	if p.VerifyMS <= 0 {
+		return res
+	}
+	before := &proto.FieldState{Length: 40, Selection: &proto.TextRange{Location: 40}}
+	switch check := f.opts["paste-check"]; check {
+	case proto.CheckUnchanged:
+		res.Check, res.CheckMS = check, float64(p.VerifyMS)
+		res.Field = &proto.PasteField{Role: "AXTextArea", Before: before, After: before}
+		res.Restored, res.Kept, res.PressSkipped = false, !p.KeepClipboard, len(p.Press) > 0
+	case proto.CheckUnknown:
+		res.Check, res.Field = check, &proto.PasteField{Role: "AXWebArea"}
+	default:
+		n := 40 + len([]rune(p.Text))
+		res.Check, res.CheckMS = proto.CheckInserted, 1
+		res.Field = &proto.PasteField{Role: "AXTextArea", Before: before, After: &proto.FieldState{Length: n, Selection: &proto.TextRange{Location: n}}}
+	}
+	return res
 }
 
 // switched is the app the user went to after the shortcut (switch=):

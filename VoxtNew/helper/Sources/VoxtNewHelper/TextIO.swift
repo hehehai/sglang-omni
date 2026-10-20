@@ -161,11 +161,22 @@ final class TextIO: @unchecked Sendable {
     func paste(_ p: PasteParams) async throws -> PasteResult {
         let t0 = monotonicMs()
         try requireTrust()
+        var frontPid = 0
         if let target = p.targetPid, target != 0 {
             let now = await front.current()
             if now.pid != target {
                 return PasteResult(posted: false, restored: false, clipboardTaken: false, ms: round1(monotonicMs() - t0), front: now)
             }
+            frontPid = now.pid
+        }
+        let verifyMs = Double(max(0, p.verifyMs ?? 0))
+        // The element the text should go into, as it reads before ⌘V.
+        var watched: AXUIElement?
+        var before = FieldReading(length: nil, selection: nil)
+        if verifyMs > 0 {
+            if frontPid == 0 { frontPid = await front.current().pid }
+            watched = focusedElement(pid: pid_t(frontPid))
+            if let e = watched { before = reading(e) }
         }
         let restore = !(p.keepClipboard ?? false)
         let (snap, ours) = await onMain { () -> ([[NSPasteboard.PasteboardType: Data]], Int) in
@@ -180,15 +191,62 @@ final class TextIO: @unchecked Sendable {
             pb.writeObjects([item])
             return (snap, pb.changeCount)
         }
+        let secure = secureInputOwner()
         postKey(UInt16(kVK_ANSI_V), flags: .maskCommand)
-        if let keys = p.press, !keys.isEmpty {
-            try? await Task.sleep(nanoseconds: UInt64(max(0, p.pressDelayMs ?? 120)) * 1_000_000)
-            for k in keys { postKey(UInt16(clamping: k.key), flags: flags(k.modifiers ?? [])) }
+        let posted = monotonicMs()
+
+        // The check: did the element change?
+        var check: String?
+        var checkMs: Double?
+        var field: PasteField?
+        if verifyMs > 0 {
+            var last: FieldReading?
+            var saw = false
+            var moved = false
+            if let e = watched, before.readable {
+                let deadline = posted + verifyMs
+                while true {
+                    try? await Task.sleep(nanoseconds: 25_000_000)
+                    let r = reading(e)
+                    last = r
+                    if PasteChecker.compare(before, r) == .changed {
+                        saw = true
+                        break
+                    }
+                    if monotonicMs() >= deadline { break }
+                }
+                if !saw, let now = focusedElement(pid: pid_t(frontPid)) { moved = !CFEqual(now, e) }
+            }
+            check = PasteChecker.outcome(sawChange: saw, before: before, last: last, focusMoved: moved)
+            if check != PasteCheck.unknown { checkMs = round1(monotonicMs() - posted) }
+            field = PasteField(role: watched.flatMap { string($0, kAXRoleAttribute) }, before: before.state, after: last?.state)
         }
+        let unchanged = check == PasteCheck.unchanged
+
+        // The keys after it, not into a field the text did not reach.
+        var pressSkipped = false
+        if let keys = p.press, !keys.isEmpty {
+            if unchanged {
+                pressSkipped = true
+            } else {
+                let wait = Double(max(0, p.pressDelayMs ?? 120)) - (monotonicMs() - posted)
+                if wait > 0 { try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000)) }
+                for k in keys { postKey(UInt16(clamping: k.key), flags: flags(k.modifiers ?? [])) }
+            }
+        }
+
+        // The old clipboard back: soon once the text showed (the app read
+        // the clipboard), after restoreDelayMs when nobody can tell, never
+        // when the text did not show (the user can paste it).
         var restored = false
         var taken = false
-        if restore {
-            try? await Task.sleep(nanoseconds: UInt64(max(0, p.restoreDelayMs ?? 500)) * 1_000_000)
+        var kept = false
+        if restore && unchanged {
+            kept = await onMain { NSPasteboard.general.changeCount == ours }
+        } else if restore {
+            let delay = check == PasteCheck.inserted ? 150 : Double(max(0, p.restoreDelayMs ?? 500))
+            let wait = check == PasteCheck.inserted ? delay - (monotonicMs() - posted) : delay
+            if wait > 0 { try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000)) }
             (restored, taken) = await onMain { () -> (Bool, Bool) in
                 let pb = NSPasteboard.general
                 guard pb.changeCount == ours else { return (false, true) }
@@ -196,7 +254,42 @@ final class TextIO: @unchecked Sendable {
                 return (true, false)
             }
         }
-        return PasteResult(posted: true, restored: restored, clipboardTaken: taken, ms: round1(monotonicMs() - t0))
+        return PasteResult(posted: true, restored: restored, clipboardTaken: taken, ms: round1(monotonicMs() - t0),
+                           check: check, checkMs: checkMs, field: field, secureInput: secure,
+                           pressSkipped: pressSkipped ? true : nil, kept: kept ? true : nil)
+    }
+
+    /// What a paste's check reads of e: the value's length and digest
+    /// (only the length past 200 000 characters), the selection.
+    private func reading(_ e: AXUIElement) -> FieldReading {
+        var count: Int?
+        var v: CFTypeRef?
+        if AXUIElementCopyAttributeValue(e, kAXNumberOfCharactersAttribute as CFString, &v) == .success, let n = v as? Int {
+            count = n
+        }
+        var length: Int?
+        var digest: Int?
+        if (count ?? 0) <= 200_000, let value = string(e, kAXValueAttribute) {
+            length = value.utf16.count
+            digest = PasteChecker.digest(value)
+        } else {
+            length = count
+        }
+        return FieldReading(length: length, digest: digest, selection: range(e).map { TextRange(location: $0.location, length: $0.length) })
+    }
+
+    /// The app that has secure event input on (a password field focused,
+    /// Terminal's Secure Keyboard Entry), nil when it is off. The owner's
+    /// pid is the login session's kCGSSessionSecureInputPID (what
+    /// `ioreg -l | grep SecureInput` shows); 0 when it is not there.
+    private func secureInputOwner() -> App? {
+        var pid = 0
+        if let d = CGSessionCopyCurrentDictionary() as? [String: Any], let n = d["kCGSSessionSecureInputPID"] as? Int {
+            pid = n
+        }
+        guard IsSecureEventInputEnabled() || pid != 0 else { return nil }
+        if pid > 0, let a = NSRunningApplication(processIdentifier: pid_t(pid)) { return FrontApps.describe(a) }
+        return App(pid: pid, bundleId: nil, name: nil)
     }
 
     private func flags(_ modifiers: [String]) -> CGEventFlags {

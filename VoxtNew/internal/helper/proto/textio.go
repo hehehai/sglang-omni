@@ -58,7 +58,8 @@ const (
 // snapshotted (every item and type), Text written (marked transient for
 // clipboard managers), ⌘V posted, then the keys in Press, and after
 // RestoreDelayMS the snapshot written back unless someone wrote to the
-// clipboard meanwhile.
+// clipboard meanwhile. With VerifyMS the helper checks that the text
+// went in (PasteResult.Check) before it presses keys or restores.
 type PasteParams struct {
 	Text string `json:"text"`
 	// KeepClipboard leaves Text on the clipboard instead of restoring.
@@ -72,6 +73,13 @@ type PasteParams struct {
 	// ⌘Return…), PressDelayMS (default 120) after it.
 	Press        []KeyPress `json:"press,omitempty"`
 	PressDelayMS int        `json:"pressDelayMs,omitempty"`
+	// VerifyMS, when set, has the helper read the focused element (its
+	// value, its length and its selection) before ⌘V and again every
+	// 25 ms after it, for up to VerifyMS, until it changed. Inserted:
+	// Press follows and the clipboard is restored as soon as the change
+	// showed. Unchanged: Press is skipped and the clipboard keeps Text
+	// (Kept). Unknown (the element tells nothing): as without VerifyMS.
+	VerifyMS int `json:"verifyMs,omitempty"`
 }
 
 // KeyPress is a key (kVK_*) with modifier families (Mod*, not fn).
@@ -89,7 +97,48 @@ type PasteResult struct {
 	ClipboardTaken bool    `json:"clipboardTaken"`
 	MS             float64 `json:"ms"`
 	Front          *App    `json:"front,omitempty"` // when not posted: the app in front
+	// Check is the verification's outcome (PasteParams.VerifyMS; "" when
+	// not asked): Check*. CheckMS is when the change showed, after ⌘V
+	// (inserted), or how long the helper watched (unchanged).
+	Check   string  `json:"check,omitempty"`
+	CheckMS float64 `json:"checkMs,omitempty"`
+	// Field is the focused element the check watched, for the log.
+	Field *PasteField `json:"field,omitempty"`
+	// SecureInput is the app that had secure event input on when ⌘V was
+	// posted (a password field, a terminal's Secure Keyboard Entry: the
+	// system may keep posted keys from other apps); PID 0 when the owner
+	// is unknown. Absent: it was off.
+	SecureInput *App `json:"secureInput,omitempty"`
+	// PressSkipped: Press was not posted (the check found no change).
+	// Kept: the clipboard was left holding Text (the check found no
+	// change: the user can paste it).
+	PressSkipped bool `json:"pressSkipped,omitempty"`
+	Kept         bool `json:"kept,omitempty"`
 }
+
+// PasteField is the focused element a paste's check watched: its role
+// and its state before ⌘V and at the end of the check (absent: not
+// readable).
+type PasteField struct {
+	Role   string      `json:"role,omitempty"`
+	Before *FieldState `json:"before,omitempty"`
+	After  *FieldState `json:"after,omitempty"`
+}
+
+// FieldState is what the check compares: the value's length (UTF-16)
+// and the selection; the value itself is compared too, by the helper
+// only (a selection replaced by text of the same length).
+type FieldState struct {
+	Length    int        `json:"length"`
+	Selection *TextRange `json:"selection,omitempty"`
+}
+
+// The outcomes of a paste's check.
+const (
+	CheckInserted  = "inserted"  // the focused element changed after ⌘V
+	CheckUnchanged = "unchanged" // it did not change within VerifyMS
+	CheckUnknown   = "unknown"   // it has no value or selection to read, or another element took the focus
+)
 
 // ---- browser.url ----
 
