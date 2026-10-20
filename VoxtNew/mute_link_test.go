@@ -10,11 +10,11 @@ import (
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/helpertest"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/hehehai/actnowkit/sounds"
 )
 
 const testSpeakers = "BuiltInSpeakerDevice"
@@ -36,13 +36,13 @@ func newMuteRig(t *testing.T) *muteRig {
 	r := &muteRig{app: a, fs: fs}
 	r.ft = new(fakeTimers).install(a)
 	a.postQueue = func(fn func()) { r.mu.Lock(); r.queue = append(r.queue, fn); r.mu.Unlock() }
-	a.playSound = func(s macx.Sound) {
+	a.playSound = func(s sounds.Target) {
 		state := "audible"
 		if fs.out.Sys.Muted(testSpeakers) {
 			state = "muted"
 		}
 		r.mu.Lock()
-		r.cues = append(r.cues, string(s)+":"+state)
+		r.cues = append(r.cues, s.Name+":"+state)
 		r.mu.Unlock()
 	}
 	return r
@@ -96,7 +96,7 @@ func TestRecordingMutesOutput(t *testing.T) {
 	if r.muted() {
 		t.Fatal("still muted after the recording")
 	}
-	if got := r.takeCues(); !slices.Equal(got, []string{"Pop:audible", "Tink:audible"}) {
+	if got := r.takeCues(); !slices.Equal(got, []string{"tally:audible", "wrap:audible"}) {
 		t.Fatalf("cues %v: the start cue before the mute, the stop cue after it", got)
 	}
 	for _, end := range []session.State{session.Cancelled, session.Failed} {
@@ -168,15 +168,15 @@ func TestRecordingMuteWithoutSounds(t *testing.T) {
 		t.Fatal("muted, or a cue")
 	}
 	// A start cue that does not end mutes once its audible part played
-	// (startCueWait: Pop's 0.2 s, not its file's 1.6 s); one that ends
+	// (startCueWait: Tally's 0.35 s, not its file's 0.45 s); one that ends
 	// after the recording stopped mutes nothing (its engage is late).
 	r.updateSettings(func(s *settings.Settings) { s.Audio.Sounds = true })
 	block := make(chan struct{})
 	defer close(block)
-	r.playSound = func(macx.Sound) { <-block }
+	r.playSound = func(sounds.Target) { <-block }
 	t0 := time.Now()
 	r.sessionChanged(session.Snapshot{Rev: r.sess.Rev + 1, ID: "s2", Kind: store.KindTranscribe, State: session.Recording, Target: slackApp})
-	if d := time.Since(t0); d < startCueWait(macx.SoundStart) || d >= startCueMax {
+	if d := time.Since(t0); d < r.startCueWait(r.cueTarget(startCue)) || d >= startCueMax {
 		t.Fatalf("the engage did not wait for the cue's audible part: %v", d)
 	}
 	r.sessionChanged(session.Snapshot{Rev: r.sess.Rev + 1, ID: "s2", Kind: store.KindTranscribe, State: session.Cancelled, Target: slackApp})
@@ -247,29 +247,33 @@ func TestRecordingMuteHelper(t *testing.T) {
 	}
 }
 
-// TestStartCueWait: the mute waits for each preset's start sound to be
-// heard (its audible part and the margin), never longer than the longest
-// (Submarine, 1.02 s), and startCueMax for a sound of unknown length.
+// TestStartCueWait: the mute waits for the start cue to be heard (its
+// audible part and the margin), never longer than startCueMax, which a
+// sound of unknown length waits.
 func TestStartCueWait(t *testing.T) {
-	for _, p := range macx.Presets() {
-		d := startCueWait(p.Start)
-		if d <= p.Start.Audible() || d > 1100*time.Millisecond {
-			t.Errorf("%s: %v", p.ID, d)
+	a, _, _ := newTestApp(t)
+	for _, tc := range []struct {
+		t    sounds.Target
+		want time.Duration
+	}{
+		{sounds.Target{Kind: sounds.KindCatalog, Name: "tally"}, 500 * time.Millisecond},
+		{sounds.Target{Kind: sounds.KindCatalog, Name: "chime"}, startCueMax}, // 1.44 s: capped
+		{sounds.Target{Kind: sounds.KindSystem, Name: "Pop"}, 365 * time.Millisecond},
+		{sounds.Target{Kind: sounds.KindSystem, Name: "Submarine"}, startCueMax}, // 0.87 s + the margin: capped
+		{sounds.Target{Kind: sounds.KindSystem, Name: "Blow"}, startCueMax},      // unknown length
+	} {
+		if d := a.startCueWait(tc.t); d != tc.want {
+			t.Errorf("%s: %v, want %v", tc.t.Name, d, tc.want)
 		}
-	}
-	if d := startCueWait("Pop"); d != 365*time.Millisecond {
-		t.Errorf("Pop: %v", d)
-	}
-	if d := startCueWait("Blow"); d != startCueMax {
-		t.Errorf("unknown: %v", d)
 	}
 }
 
 // TestRecordingMutePreset: a preset whose start and stop are one sound
-// (Hero) plays it before the mute and after it, as Soft's pair.
+// (Hero, as Voxt's presets) plays it before the mute and after it, as the
+// default pair.
 func TestRecordingMutePreset(t *testing.T) {
 	r := newMuteRig(t)
-	r.updateSettings(func(s *settings.Settings) { s.Audio.SoundPreset = "hero" })
+	r.updateSettings(func(s *settings.Settings) { s.Audio.StartSound, s.Audio.StopSound = "system:Hero", "system:Hero" })
 	r.feed("s1", session.Recording)
 	if !r.muted() {
 		t.Fatal("not muted")

@@ -189,6 +189,20 @@ else
   echo "ad hoc: mygo.json as it is (no update feed, no notarization)"
 fi
 
+echo "== sounds"
+# The family's cue sounds (React Bits Sound Lab's audio, from the private
+# library; never in this repository): scripts/mac.sh syncs a copy made on
+# the Linux side, else this fetches one; without access the build plays
+# macOS's system sounds.
+if [[ ! -f resources/sounds/catalog.json ]]; then
+  scripts/sync-sounds.sh --optional || true
+fi
+if [[ -f resources/sounds/catalog.json ]]; then
+  echo "resources/sounds: $(ls resources/sounds/sounds | wc -l | tr -d ' ') sounds"
+else
+  echo "warning: no resources/sounds: this build's cues are macOS's system sounds (run scripts/sync-sounds.sh where hehehai/actnow-sounds is readable)" >&2
+fi
+
 echo "== mygo build"
 args=(-platform darwin/arm64)
 [[ -n "$IDENTITY" ]] && args+=(-sign "$IDENTITY")

@@ -10,6 +10,8 @@ github.com/hehehai/actnowkit v0.3.0 h1:Vae7f5gScEQI5EjdmHEJcXB4guo5UDTk/r6mkOkTO
 github.com/hehehai/actnowkit v0.3.0/go.mod h1:VU90aTjbEHcQpKW8JInh5xTF/Ug8OqcAkOKO0VRpUKk=
 github.com/hehehai/actnowkit v0.8.0 h1:pVTl0F7rtR9Bdmj9RMvSxgtB5hmBd5YhSUw6HuSFMZ8=
 github.com/hehehai/actnowkit v0.8.0/go.mod h1:VU90aTjbEHcQpKW8JInh5xTF/Ug8OqcAkOKO0VRpUKk=
+github.com/hehehai/actnowkit v0.9.0 h1:Fp21sLwEKkgMY+zBwH7K967zEUswXCAn+G29ANSAqkw=
+github.com/hehehai/actnowkit v0.9.0/go.mod h1:VU90aTjbEHcQpKW8JInh5xTF/Ug8OqcAkOKO0VRpUKk=
 golang.org/x/image v0.46.0 h1:b1+oYj0Jbp6K5MDT4i4/eZpYlk3V8SJhhDKh6LBHAyQ=
 golang.org/x/image v0.46.0/go.mod h1:3B3W05VGVQyuXucLINLjXKrqISASfi4Xj+iCVkLMwew=
 golang.org/x/text v0.43.0 h1:1QivrlhwAsnMOcqgOdl9my7s9OyZl8O5/UGUTJVXoWc=

@@ -117,26 +117,38 @@ func TestMemory(t *testing.T) {
 	}
 }
 
-// TestSoundPreset: older documents have none (Soft, without a
-// migration); a chosen one is kept, and an empty one stays out of the
-// document.
+// TestSoundPreset: older documents have none (the family's default
+// cues); a Voxt preset becomes its system sounds, Soft the defaults, and
+// the preset is not written again.
 func TestSoundPreset(t *testing.T) {
-	s, err := Migrate([]byte(`{"version":4,"audio":{"sounds":true}}`))
-	if err != nil || !s.Audio.Sounds || s.Audio.SoundPreset != "" {
+	s, err := Migrate([]byte(`{"version":3,"audio":{"sounds":true}}`))
+	if err != nil || !s.Audio.Sounds || s.Audio.StartSound != "" || s.Audio.StopSound != "" || s.Audio.SoundVolumeOrDefault() != 70 {
 		t.Fatalf("old document: %+v %v", s.Audio, err)
 	}
-	if Defaults().Audio.SoundPreset != "" {
-		t.Errorf("default %q", Defaults().Audio.SoundPreset)
+	for preset, want := range map[string][2]string{
+		"soft": {"", ""}, "nope": {"", ""}, "hero": {"system:Hero", "system:Hero"}, "glass": {"system:Ping", "system:Ping"},
+	} {
+		s, err := Migrate([]byte(`{"version":5,"audio":{"sounds":true,"soundPreset":"` + preset + `"}}`))
+		if err != nil || s.Audio.StartSound != want[0] || s.Audio.StopSound != want[1] || s.Audio.SoundPreset != "" {
+			t.Errorf("%s: %+v %v", preset, s.Audio, err)
+		}
+	}
+	// A choice already made wins over a stale preset.
+	s, _ = Migrate([]byte(`{"audio":{"soundPreset":"hero","startSound":"tally"}}`))
+	if s.Audio.StartSound != "tally" || s.Audio.StopSound != "" {
+		t.Errorf("chosen: %+v", s.Audio)
 	}
 	data, _ := json.Marshal(Defaults())
-	if strings.Contains(string(data), "soundPreset") {
-		t.Errorf("empty preset written: %s", data)
+	for _, key := range []string{"soundPreset", "startSound", "soundVolume"} {
+		if strings.Contains(string(data), key) {
+			t.Errorf("empty %s written: %s", key, data)
+		}
 	}
-	s.Audio.SoundPreset = "hero"
+	s.Audio.StartSound, s.Audio.StopSound, s.Audio.SoundVolume = "system:Pop", "none", 40
 	data, _ = json.Marshal(s)
 	back, err := Migrate(data)
-	if err != nil || back.Audio.SoundPreset != "hero" {
-		t.Errorf("round trip: %q %v", back.Audio.SoundPreset, err)
+	if err != nil || back.Audio.StartSound != "system:Pop" || back.Audio.StopSound != "none" || back.Audio.SoundVolumeOrDefault() != 40 {
+		t.Errorf("round trip: %+v %v", back.Audio, err)
 	}
 }
 

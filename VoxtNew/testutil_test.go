@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"github.com/hehehai/actnowkit/sounds"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +28,6 @@ import (
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/llmrt/llmrttest"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/models"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/omni/omnitest"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/overlay/layout"
@@ -223,8 +223,9 @@ func newTestAppIn(t *testing.T, dir string) (*app, *fakeSupervisor, *ui.Tester) 
 	fs := newFakeSupervisor(lib.bus)
 	a := newApp(lib, &helperHost{sup: fs})
 	a.permSys = &permission.Fake{Mic: permission.Granted, Grant: true}
-	a.playSound = func(macx.Sound) {} // tests that listen replace it
-	a.measureHook = guessText         // the overlay's texts, without its view
+	useTestSounds(t, a)                  // sounds_fixture_test.go
+	a.playSound = func(sounds.Target) {} // tests that listen replace it
+	a.measureHook = guessText            // the overlay's texts, without its view
 	a.connectHelper()
 	a.upd = newFakeUpdates() // updates_test.go
 	a.connectUpdates()

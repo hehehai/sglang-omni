@@ -157,16 +157,28 @@ The language models' runtime (VoxtNew.app/Contents/Resources/llm)
   (Qwen, Apache License 2.0) in the MLX conversions of mlx-community, and
   Hy-MT2 (Tencent, Apache License 2.0).
 
+React Bits Sound Lab (the recording's cues, in official builds only)
+  VoxtNew's official builds (from actnow.dev) carry sounds from React Bits
+  Sound Lab (https://reactbits.dev/tools/sound-lab), Copyright (c) 2026
+  David Haz, licensed under MIT + Commons Clause License Condition v1.0
+  (LICENSES/React-Bits.md): they may be used as part of an application but
+  not sold or redistributed on their own. They are NOT part of this
+  repository and NOT licensed under the Apache License 2.0: the official
+  build fetches them from the ActNow family's private sound library
+  (scripts/sync-sounds.sh) into Contents/Resources/sounds. A build from
+  this source without them plays macOS's system sounds.
+
 Go modules compiled into VoxtNew
   Their licence files are copied unchanged into LICENSES/go/.
   - github.com/coder/websocket v1.8.15, Copyright (c) 2025 Coder, ISC
   - github.com/ebitengine/purego v0.11.1, Copyright the Ebitengine
     authors, Apache License 2.0 (LICENSES/Apache-2.0.txt)
-  - github.com/hehehai/actnowkit v0.8.0, Copyright 2026 ActNow
+  - github.com/hehehai/actnowkit v0.9.0, Copyright 2026 ActNow
     (https://actnow.dev), Apache License 2.0 (LICENSES/Apache-2.0.txt):
     the ActNow family's shared code (the family directory, model
     library, claims and locks, settings, shortcuts, runtime files, the
-    logs' line selection) and its Hugging Face downloader. Its NOTICE reads: "Package hfhub derives from
+    logs' line selection, the cue sounds' catalogue and player, without
+    audio) and its Hugging Face downloader. Its NOTICE reads: "Package hfhub derives from
     Dicta's internal/hub, which was ported from AudioSmith's internal/hub
     at version 0.3.0 (commit f171c86), when AudioSmith was released under
     the Apache License 2.0 (as it was up to and including version

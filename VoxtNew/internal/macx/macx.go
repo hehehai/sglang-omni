@@ -4,9 +4,9 @@
 // VoxtNew (plan B of the M0 spike S3; the recording pill avoids it with
 // mygo.WindowOptions.NonActivating). macOS 14 activates cooperatively:
 // only the active app can hand activation over, so this runs in the app,
-// not in the helper. It also plays the recording's cues (system sounds,
-// through afplay) and reads the system's proxies for the model
-// downloads. Off macOS it does nothing.
+// not in the helper. It also reads the system's proxies for the model
+// downloads. (The recording's cues are actnowkit's sounds package's,
+// settings_sounds.go.) Off macOS it does nothing.
 //
 // Imports: nothing internal.
 package macx

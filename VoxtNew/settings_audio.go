@@ -19,10 +19,10 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/hehehai/actnowkit/sounds"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/icons"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 )
@@ -36,14 +36,14 @@ type audioState struct {
 		loading bool
 		err     string // why the last read failed ("" for none)
 	}
-	// playSound plays a cue and returns when it ended (macx.PlayWait,
-	// on a goroutine); tests record the cues instead.
-	playSound func(macx.Sound)
+	// playSound plays a cue and returns when it ended (playCueWait, on a
+	// goroutine); tests record the cues instead.
+	playSound func(sounds.Target)
 }
 
 func (a *app) openAudio() {
-	a.playSound = func(s macx.Sound) { macx.PlayWait(s) }
-	a.startSound = startPreview // settings_sounds.go
+	a.openSounds() // settings_sounds.go: the family's sounds, the player
+	a.playSound = a.playCueWait
 }
 
 // audioShown reads the inputs when the section shows; helperChanged
@@ -322,14 +322,4 @@ func recordingCue(was, s session.Snapshot) cue {
 		return stopCue
 	}
 	return noCue
-}
-
-// cueSound is the sound of a cue in the preset of Settings → Audio (an ID
-// of macx.Presets; Soft when empty or unknown).
-func cueSound(c cue, preset string) macx.Sound {
-	p := macx.PresetFor(preset)
-	if c == stopCue {
-		return p.Stop
-	}
-	return p.Start
 }

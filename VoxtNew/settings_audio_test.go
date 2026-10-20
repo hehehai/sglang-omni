@@ -8,10 +8,10 @@ import (
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/settings"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/store"
+	"github.com/hehehai/actnowkit/sounds"
 )
 
 func TestAudioSettingsDevices(t *testing.T) {
@@ -102,15 +102,20 @@ func TestRecordingCues(t *testing.T) {
 			t.Errorf("%s: %v", tc.name, got)
 		}
 	}
+	// The cues' sounds: the family's defaults, a chosen one, a system
+	// sound, none; a family sound this build lacks plays Voxt's.
+	a, _, _ := newTestApp(t)
 	for _, tc := range []struct {
-		preset      string
-		start, stop macx.Sound
+		start, stop string
+		want        [2]string
 	}{
-		{"", "Pop", "Tink"}, {"soft", "Pop", "Tink"}, {"nope", "Pop", "Tink"},
-		{"glass", "Ping", "Ping"}, {"submarine", "Submarine", "Submarine"}, {"sosumi", "Sosumi", "Sosumi"},
+		{"", "", [2]string{"tally", "wrap"}},
+		{"pebble", "system:Tink", [2]string{"pebble", "Tink"}},
+		{"none", "ghost", [2]string{"", "Tink"}},
 	} {
-		if s, e := cueSound(startCue, tc.preset), cueSound(stopCue, tc.preset); s != tc.start || e != tc.stop {
-			t.Errorf("%q: %s, %s", tc.preset, s, e)
+		a.updateSettings(func(s *settings.Settings) { s.Audio.StartSound, s.Audio.StopSound = tc.start, tc.stop })
+		if s, e := a.cueTarget(startCue), a.cueTarget(stopCue); s.Name != tc.want[0] || e.Name != tc.want[1] || e.Volume != 0.7 {
+			t.Errorf("%q %q: %+v %+v", tc.start, tc.stop, s, e)
 		}
 	}
 }
@@ -118,10 +123,10 @@ func TestRecordingCues(t *testing.T) {
 func TestSessionSounds(t *testing.T) {
 	a, _, _ := newTestApp(t)
 	var mu sync.Mutex
-	var cues []macx.Sound
+	var cues []string
 	// The stop cue plays once the output is back (mute_link.go), from
 	// the mute's goroutine: a.mute.Wait() before reading.
-	a.playSound = func(s macx.Sound) { mu.Lock(); cues = append(cues, s); mu.Unlock() }
+	a.playSound = func(s sounds.Target) { mu.Lock(); cues = append(cues, s.Name); mu.Unlock() }
 	rev := a.sess.Rev
 	feed := func(id string, st session.State) {
 		rev++
@@ -136,24 +141,19 @@ func TestSessionSounds(t *testing.T) {
 	a.mute.Wait()
 	mu.Lock()
 	defer mu.Unlock()
-	if want := []macx.Sound{macx.SoundStart, macx.SoundStop, macx.SoundStart}; !slices.Equal(cues, want) {
+	if want := []string{"tally", "wrap", "tally"}; !slices.Equal(cues, want) {
 		t.Fatalf("cues %q, want %q", cues, want)
 	}
-	// Another preset: its sounds, Hero's the same for both.
-	for _, tc := range []struct {
-		preset string
-		want   []macx.Sound
-	}{{"frog", []macx.Sound{"Frog", "Frog"}}, {"hero", []macx.Sound{"Hero", "Hero"}}} {
-		a.updateSettings(func(s *settings.Settings) { s.Audio.SoundPreset = tc.preset })
-		cues = nil
-		mu.Unlock()
-		feed("s-"+tc.preset, session.Recording)
-		feed("s-"+tc.preset, session.Done)
-		a.mute.Wait()
-		mu.Lock()
-		if !slices.Equal(cues, tc.want) {
-			t.Fatalf("%s: cues %q", tc.preset, cues)
-		}
+	// Other sounds: a system sound to start, a family sound to stop.
+	a.updateSettings(func(s *settings.Settings) { s.Audio.StartSound, s.Audio.StopSound = "system:Frog", "chime" })
+	cues = nil
+	mu.Unlock()
+	feed("s4", session.Recording)
+	feed("s4", session.Done)
+	a.mute.Wait()
+	mu.Lock()
+	if want := []string{"Frog", "chime"}; !slices.Equal(cues, want) {
+		t.Fatalf("frog: cues %q", cues)
 	}
 	// Off in Settings → Audio: silence.
 	a.navigate("/settings/audio")

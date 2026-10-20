@@ -16,11 +16,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hehehai/actnowkit/sounds"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/core"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/i18n"
-	"github.com/sgl-project/sglang-omni/VoxtNew/internal/macx"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/outmute"
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/session"
 )
@@ -56,14 +56,14 @@ const (
 	muteNoteTime = 3 * time.Second
 )
 
-// startCueWait is how long the mute waits for the start cue s, unless
-// afplay ends first: its audible part and cueMargin (macx.Sound.Audible,
-// Voxt's rule: the files' trailing silence, Pop's 1.4 s, does not delay
-// the mute), or startCueMax for a sound of unknown length. The longest,
-// Submarine, waits 1.02 s.
-func startCueWait(s macx.Sound) time.Duration {
-	if d := s.Audible(); d > 0 {
-		return d + cueMargin
+// startCueWait is how long the mute waits for the start cue t, unless it
+// ends first: its audible part and cueMargin (Voxt's rule: a file's
+// trailing silence, Pop's 1.4 s, does not delay the mute), at most
+// startCueMax; startCueMax for a sound of unknown length. The family's
+// Tally waits 0.5 s, the longest system sound, Submarine, 1.02 s.
+func (a *app) startCueWait(t sounds.Target) time.Duration {
+	if d := t.Length(a.soundCat); d > 0 {
+		return min(d+cueMargin, startCueMax)
 	}
 	return startCueMax
 }
@@ -139,8 +139,8 @@ func (a *app) muteNotified(m proto.Message) {
 // once the start cue played.
 func (a *app) recordingAudio(was, s session.Snapshot) {
 	cue := recordingCue(was, s)
-	sound := cueSound(cue, a.prefs.Audio.SoundPreset)
-	sounds := cue != noCue && a.prefs.Audio.Sounds && a.playSound != nil
+	sound := a.cueTarget(cue)
+	sounds := cue != noCue && sound.Kind != sounds.KindNone && a.playSound != nil
 	play := a.playSound
 	if id := a.muting; id != "" && (s.ID != id || s.State != session.Recording) {
 		a.muting = ""
@@ -165,7 +165,7 @@ func (a *app) recordingAudio(was, s session.Snapshot) {
 		}
 		if sounds && cue == startCue {
 			sounds = false
-			wait := startCueWait(sound)
+			wait := a.startCueWait(sound)
 			a.async(func() {
 				done := make(chan struct{})
 				go func() { play(sound); close(done) }()
