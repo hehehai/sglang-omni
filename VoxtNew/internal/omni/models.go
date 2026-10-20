@@ -55,7 +55,8 @@ type ASRTuning struct {
 	CutSearch       time.Duration
 	CutWindow       time.Duration
 	// ContextTerms and ContextChars bound the dictionary's terms in the
-	// context bias (Voxt's 500 and 8000).
+	// context bias (Voxt's 500 and 8000; the fast model 30: more made it
+	// slower and less accurate, eval.md #24).
 	ContextTerms int
 	ContextChars int
 	// AudioLayout is the prompt's audio layout ("voxt_swift": one more mel
@@ -118,6 +119,14 @@ func qwenTuning() *ASRTuning {
 	}
 }
 
+// fastTuning is qwenTuning with the dictionary's 30 most recently changed
+// terms at most.
+func fastTuning() *ASRTuning {
+	t := qwenTuning()
+	t.ContextTerms = 30
+	return t
+}
+
 // specs are the curated models, the recommended speech model first.
 var specs = []Spec{
 	{
@@ -126,7 +135,7 @@ var specs = []Spec{
 	},
 	{
 		ID: ASRFast, Repo: "mlx-community/Qwen3-ASR-0.6B-4bit", Revision: "313d850181767edf09f00a9c289becca70e58cd0",
-		Kind: kindQwen3ASR, Languages: qwenLanguages, ASR: qwenTuning(),
+		Kind: kindQwen3ASR, Languages: qwenLanguages, ASR: fastTuning(),
 	},
 	{
 		ID: VADSilero, Repo: "mlx-community/silero-vad-v6", Revision: "2ebf4a5e10726a2e78ddd4d70eedfb6f1c33eb06",
