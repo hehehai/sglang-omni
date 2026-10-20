@@ -126,11 +126,15 @@ type PasteField struct {
 }
 
 // FieldState is what the check compares: the value's length (UTF-16)
-// and the selection; the value itself is compared too, by the helper
-// only (a selection replaced by text of the same length).
+// and the selection; the value itself and the text marker are compared
+// too, by the helper only (a selection replaced by text of the same
+// length; a web area's caret).
 type FieldState struct {
 	Length    int        `json:"length"`
 	Selection *TextRange `json:"selection,omitempty"`
+	// Marker: the selected text marker range was read (WebKit's and
+	// Chromium's caret; a web area has only that), compared by digest.
+	Marker bool `json:"marker,omitempty"`
 }
 
 // The outcomes of a paste's check.

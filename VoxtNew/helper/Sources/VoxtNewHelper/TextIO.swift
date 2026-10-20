@@ -176,7 +176,11 @@ final class TextIO: @unchecked Sendable {
         if verifyMs > 0 {
             if frontPid == 0 { frontPid = await front.current().pid }
             watched = focusedElement(pid: pid_t(frontPid))
-            if let e = watched { before = reading(e) }
+            if let e = watched {
+                // A hung app must not hold the check up: 0.25 s a read.
+                AXUIElementSetMessagingTimeout(e, 0.25)
+                before = reading(e)
+            }
         }
         let restore = !(p.keepClipboard ?? false)
         let (snap, ours) = await onMain { () -> ([[NSPasteboard.PasteboardType: Data]], Int) in
@@ -260,7 +264,8 @@ final class TextIO: @unchecked Sendable {
     }
 
     /// What a paste's check reads of e: the value's length and digest
-    /// (only the length past 200 000 characters), the selection.
+    /// (only the length past 200 000 characters), the selection, the
+    /// selected text marker range's digest.
     private func reading(_ e: AXUIElement) -> FieldReading {
         var count: Int?
         var v: CFTypeRef?
@@ -275,7 +280,22 @@ final class TextIO: @unchecked Sendable {
         } else {
             length = count
         }
-        return FieldReading(length: length, digest: digest, selection: range(e).map { TextRange(location: $0.location, length: $0.length) })
+        var marker: Int?
+        var m: CFTypeRef?
+        if AXUIElementCopyAttributeValue(e, "AXSelectedTextMarkerRange" as CFString, &m) == .success, let m,
+           CFGetTypeID(m) == AXTextMarkerRangeGetTypeID() {
+            // Opaque markers: their bytes say where (the node and offset).
+            let r = m as! AXTextMarkerRange
+            var bytes = Data()
+            for t in [AXTextMarkerRangeCopyStartMarker(r), AXTextMarkerRangeCopyEndMarker(r)] {
+                bytes.append(AXTextMarkerGetBytePtr(t), count: AXTextMarkerGetLength(t))
+            }
+            var h = Hasher()
+            h.combine(bytes)
+            marker = h.finalize()
+        }
+        return FieldReading(length: length, digest: digest, selection: range(e).map { TextRange(location: $0.location, length: $0.length) },
+                            marker: marker)
     }
 
     /// The app that has secure event input on (a password field focused,

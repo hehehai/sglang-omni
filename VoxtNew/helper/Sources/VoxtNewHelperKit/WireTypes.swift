@@ -448,10 +448,13 @@ public struct PasteField: Codable, Sendable {
 public struct FieldState: Codable, Sendable, Equatable {
     public var length: Int
     public var selection: TextRange?
+    /// The selected text marker range was read (web pages).
+    public var marker: Bool?
 
-    public init(length: Int, selection: TextRange?) {
+    public init(length: Int, selection: TextRange?, marker: Bool? = nil) {
         self.length = length
         self.selection = selection
+        self.marker = marker
     }
 }
 

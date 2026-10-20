@@ -89,10 +89,14 @@ func stateText(s *proto.FieldState) string {
 	if s == nil {
 		return "unreadable"
 	}
-	if s.Selection == nil {
-		return fmt.Sprintf("value %d", s.Length)
+	out := fmt.Sprintf("value %d", s.Length)
+	if s.Selection != nil {
+		out += ", selection " + rangeText(s.Selection)
 	}
-	return fmt.Sprintf("value %d, selection %s", s.Length, rangeText(s.Selection))
+	if s.Marker {
+		out += ", marker"
+	}
+	return out
 }
 
 func rangeText(r *proto.TextRange) string { return fmt.Sprintf("%d+%d", r.Location, r.Length) }

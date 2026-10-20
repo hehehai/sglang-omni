@@ -22,6 +22,13 @@ final class PasteCheckTests: XCTestCase {
         XCTAssertEqual(PasteChecker.compare(caret, FieldReading(length: nil, selection: TextRange(location: 9, length: 0))), .changed)
         XCTAssertEqual(PasteChecker.compare(caret, caret), .same)
 
+        // A web area: only the caret's text marker.
+        let page = FieldReading(length: nil, selection: nil, marker: 11)
+        XCTAssertTrue(page.readable)
+        XCTAssertEqual(PasteChecker.compare(page, FieldReading(length: nil, selection: nil, marker: 12)), .changed)
+        XCTAssertEqual(PasteChecker.compare(page, page), .same, "a page that ignored ⌘V")
+        XCTAssertEqual(page.state, FieldState(length: 0, selection: nil, marker: true))
+
         // Nothing to compare.
         let blank = FieldReading(length: nil, selection: nil)
         XCTAssertEqual(PasteChecker.compare(blank, blank), .unreadable)
