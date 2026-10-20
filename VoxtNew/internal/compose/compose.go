@@ -9,14 +9,18 @@
 //	       + [Structure]     lists and paragraphs (Transcribe only), or Form: keep it as said
 //	       + Task            the feature's rules, then the user's addition to them
 //	       + [Scene]         app enhancement: the app and the group's rules (M5)
-//	       + [Glossary]      the dictionary's terms
+//	       + [Glossary]      the dictionary's terms (a dictionary of up to GlossaryAllUpTo), or the rule for a <glossary> block
 //	       + Output contract only the final text
 //	[user, assistant]        the clean-up's example (speech: Example)
-//	user   = <input>…</input>
+//	user   = [<glossary>…</glossary>]  a larger dictionary's terms that the text mentions
+//	         <input>…</input>
 //
 // The input text is only ever in the user message, never in the system
 // prompt (no {{RAW_TRANSCRIPTION}}): the system prompt stays the same for
-// the same settings, and dictated text cannot pose as rules.
+// the same settings, and dictated text cannot pose as rules. For the same
+// reason a glossary that depends on the text goes in the user message:
+// the system prompt and the example, which the model's prompt cache
+// keeps, stay the same from one dictation to the next.
 //
 // The rules are embedded templates in two sets, English and Simplified
 // Chinese, chosen by the user's main language. Variables, in the
@@ -146,6 +150,10 @@ type Output struct {
 	// History are the messages between System and User: a follow-up's
 	// earlier turns, or the clean-up's example turn (Example).
 	History []Message
+	// Glossary is the <glossary> block of a dictionary of more than
+	// GlossaryAllUpTo terms (the terms the text mentions), which opens
+	// User; "" for none (a smaller dictionary's is in System).
+	Glossary string
 	// Language is the template set used (English, Chinese).
 	Language string
 	// Layers names the layers in the system prompt, in order; Profile
@@ -303,10 +311,20 @@ func Build(in Input) (Output, error) {
 	if s := in.Scene; s != nil && strings.TrimSpace(s.AppName) != "" {
 		add("scene", render("scene", map[string]string{"SCENE_PROMPT": Render(strings.TrimSpace(s.Prompt), vars, nil)}))
 	}
-	if g := Glossary(in.Glossary, in.Instruction+"\n"+in.Text, set); g != "" {
-		add("glossary", render("glossary", map[string]string{"GLOSSARY": g}))
-	}
 	out := Output{Language: set}
+	g := Glossary(in.Glossary, in.Instruction+"\n"+in.Text, set)
+	if len(distinctTerms(in.Glossary)) <= GlossaryAllUpTo {
+		if g != "" {
+			add("glossary", render("glossary", map[string]string{"GLOSSARY": g}))
+		}
+	} else {
+		// The rule is the same for every dictation; the terms, which the
+		// text picks, open the user message.
+		add("glossary", render("glossary-user", nil))
+		if g != "" {
+			out.Glossary = wrap("glossary", g)
+		}
+	}
 	switch {
 	case in.Task == Rewrite && in.Answer:
 		add("answer", render("output-answer", nil))
@@ -322,14 +340,22 @@ func Build(in Input) (Output, error) {
 				Message{Role: "user", Content: RewriteMessage(t.Instruction, t.Selection)},
 				Message{Role: "assistant", Content: t.Answer.reply(in.Answer)})
 		}
-		out.User = RewriteMessage(in.Instruction, in.Text)
+		out.User = out.withGlossary(RewriteMessage(in.Instruction, in.Text))
 	} else {
-		out.User = UserMessage(in.Text)
+		out.User = out.withGlossary(UserMessage(in.Text))
 		if input, answer, ok := Example(in); ok {
 			out.History = []Message{{Role: "user", Content: UserMessage(input)}, {Role: "assistant", Content: answer}}
 		}
 	}
 	return out, nil
+}
+
+// withGlossary is a user message msg after the glossary block, if any.
+func (o Output) withGlossary(msg string) string {
+	if o.Glossary == "" {
+		return msg
+	}
+	return o.Glossary + "\n\n" + msg
 }
 
 // RewriteMessage is Rewrite's user message: the instruction, then the
@@ -448,15 +474,9 @@ func Glossary(terms []Term, text, set string) string {
 		}
 		return false
 	}
-	var all, mentioned []Term
-	seen := map[string]bool{}
-	for _, t := range terms {
-		t.Term = strings.TrimSpace(t.Term)
-		if t.Term == "" || seen[strings.ToLower(t.Term)] {
-			continue
-		}
-		seen[strings.ToLower(t.Term)] = true
-		all = append(all, t)
+	all := distinctTerms(terms)
+	var mentioned []Term
+	for _, t := range all {
 		if found(t) {
 			mentioned = append(mentioned, t)
 		}
@@ -493,6 +513,22 @@ func Glossary(terms []Term, text, set string) string {
 		size += len(line) + 1
 	}
 	return strings.Join(lines, "\n")
+}
+
+// distinctTerms are terms trimmed, each once (ignoring case), without
+// empty ones.
+func distinctTerms(terms []Term) []Term {
+	var out []Term
+	seen := map[string]bool{}
+	for _, t := range terms {
+		t.Term = strings.TrimSpace(t.Term)
+		if t.Term == "" || seen[strings.ToLower(t.Term)] {
+			continue
+		}
+		seen[strings.ToLower(t.Term)] = true
+		out = append(out, t)
+	}
+	return out
 }
 
 // Clean tidies a model's answer to input: without the <input> tags a

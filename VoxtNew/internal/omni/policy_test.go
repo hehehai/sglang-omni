@@ -84,6 +84,11 @@ func TestContextBias(t *testing.T) {
 	if n := len(strings.Split(q.contextBias(many, "").context, "\n")); n != 500 {
 		t.Errorf("%d terms", n)
 	}
+	// The fast model takes the 30 first (the most recently changed).
+	fast, _ := Lookup(ASRFast)
+	if b := fast.ASR.contextBias(many, ""); len(b.terms) != 30 || b.terms[29] != "t29" {
+		t.Errorf("fast: %d terms", len(b.terms))
+	}
 	// …and ContextChars characters (runes, as Swift counts), a first long one kept.
 	q.ContextChars = 10
 	if got := q.contextBias([]string{"一二三四五", "六七八九", "十"}, "").context; got != "一二三四五\n六七八九" {

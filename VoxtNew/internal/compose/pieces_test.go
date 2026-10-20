@@ -131,8 +131,10 @@ func TestBuildParts(t *testing.T) {
 		t.Fatalf("%d parts", len(parts))
 	}
 	for i, p := range parts {
-		// The glossary is the whole text's: Auralink is in the last piece only.
-		if p.System != whole.System || len(p.History) != 2 || p.User != UserMessage(p.Text) || !strings.Contains(p.System, "- Auralink") {
+		// The glossary of a large dictionary is the whole text's, in each
+		// user message: Auralink is in the last piece only.
+		if p.System != whole.System || len(p.History) != 2 || p.User != whole.Glossary+"\n\n"+UserMessage(p.Text) ||
+			!strings.Contains(p.User, "- Auralink") || strings.Contains(p.System, "Auralink") {
 			t.Errorf("part %d: %+v", i, p)
 		}
 	}
