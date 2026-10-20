@@ -506,3 +506,40 @@ func TestClean(t *testing.T) {
 		}
 	}
 }
+
+// TestGlossaryInUser: past GlossaryAllUpTo terms the glossary (the terms
+// the text mentions) opens the user message, so that the system prompt
+// and the example stay the same whatever is said; up to it, the whole
+// glossary is in the system prompt.
+func TestGlossaryInUser(t *testing.T) {
+	var large []Term
+	for i := range GlossaryAllUpTo + 1 {
+		large = append(large, Term{Term: fmt.Sprintf("Term%02d", i)})
+	}
+	large = append(large, Term{Term: "VoxtNew", Aliases: []string{"Vox Tunew"}})
+	for _, c := range []struct {
+		name string
+		in   Input
+	}{
+		{"transcribe-zh-Hans-cleanup-glossary-large", Input{Task: Transcribe, Cleanup: true, MainLanguage: "zh", Glossary: large, Text: "嗯，Vox Tunew 的新版本，呃，下周发。"}},
+		{"translate-en-glossary-large", Input{Task: Translate, Cleanup: true, MainLanguage: "en", TargetLanguage: "zh", Glossary: large, Text: "um, Term07 ships on Friday"}},
+		{"rewrite-en-selection-glossary-large", Input{Task: Rewrite, MainLanguage: "en", Glossary: large, Instruction: "make it shorter", Text: "VoxtNew and Term03 will ship together next week, we think."}},
+	} {
+		out, err := Build(c.in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		golden(t, c.name+".txt", goldenText(out))
+		other := c.in
+		other.Text = "nothing of the dictionary"
+		o2, _ := Build(other)
+		if out.Glossary == "" || !strings.HasPrefix(out.User, out.Glossary+"\n\n") || o2.System != out.System || strings.Contains(out.System, "Term") ||
+			!strings.Contains(out.Profile(), "glossary") || o2.Glossary != "" || strings.Contains(o2.Profile(), "glossary") {
+			t.Errorf("%s: glossary %q, user %q, profiles %s / %s", c.name, out.Glossary, out.User, out.Profile(), o2.Profile())
+		}
+	}
+	small := Input{Task: Transcribe, MainLanguage: "en", Glossary: large[:GlossaryAllUpTo], Text: "Term01"}
+	if out, _ := Build(small); out.Glossary != "" || !strings.Contains(out.System, "- Term29") || out.User != UserMessage("Term01") {
+		t.Errorf("a small glossary: %+v", out)
+	}
+}
