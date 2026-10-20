@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/sgl-project/sglang-omni/VoxtNew/internal/helper/proto"
@@ -139,5 +140,58 @@ func TestCheck(t *testing.T) {
 	io = &fakeIO{focus: []proto.FocusResult{{PID: 812, Role: "AXButton"}}}
 	if res := Check(context.Background(), io, Request{Text: "x", Target: slack}); res.Reason != ReasonNotEditable {
 		t.Errorf("check a button %+v", res)
+	}
+}
+
+// TestInsertChecked: the paste's check decides. Inserted and unknown
+// (an element that tells nothing, an older helper) are inserts as
+// before; unchanged is not: the card, the reason, the secure input's
+// owner when it was on. The check's time goes to the helper.
+func TestInsertChecked(t *testing.T) {
+	area := proto.FocusResult{PID: 812, Role: "AXTextArea", Editable: true, ValueLength: 12, Selection: &proto.TextRange{Location: 12}}
+	terminal := &proto.App{PID: 1702, BundleID: "com.apple.Terminal", Name: "Terminal"}
+	field := &proto.PasteField{Role: "AXTextArea", Before: &proto.FieldState{Length: 12}, After: &proto.FieldState{Length: 12}}
+	for _, tc := range []struct {
+		name     string
+		paste    proto.PasteResult
+		inserted bool
+		reason   Reason
+		diag     string
+	}{
+		{name: "inserted", paste: proto.PasteResult{Posted: true, Restored: true, Check: proto.CheckInserted, CheckMS: 96,
+			Field: &proto.PasteField{Role: "AXTextArea", Before: &proto.FieldState{Length: 12}, After: &proto.FieldState{Length: 20}}},
+			inserted: true, diag: "check inserted after 96 ms (AXTextArea: value 12 → value 20), clipboard restored"},
+		{name: "unknown", paste: proto.PasteResult{Posted: true, Restored: true, Check: proto.CheckUnknown, Field: &proto.PasteField{Role: "AXWebArea"}},
+			inserted: true, diag: "check unknown (AXWebArea: unreadable → unreadable)"},
+		{name: "an older helper", paste: proto.PasteResult{Posted: true, Restored: true}, inserted: true, diag: "not checked"},
+		{name: "unchanged", paste: proto.PasteResult{Posted: true, Check: proto.CheckUnchanged, CheckMS: 1000, Field: field, Kept: true, PressSkipped: true},
+			reason: ReasonUnconfirmed, diag: "check unchanged after 1000 ms (AXTextArea: value 12 → value 12), the clipboard keeps the text, auto key skipped"},
+		{name: "unchanged, secure input on", paste: proto.PasteResult{Posted: true, Check: proto.CheckUnchanged, CheckMS: 1000, Field: field, Kept: true, SecureInput: terminal},
+			reason: ReasonSecureInput, diag: "secure input on (Terminal, pid 1702)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			io := &fakeIO{focus: []proto.FocusResult{area}, paste: tc.paste}
+			res := Insert(context.Background(), io, Request{Text: "hi", Target: slack, VerifyMS: DefaultVerifyMS, Press: []proto.KeyPress{{Key: 36}}})
+			if res.Inserted != tc.inserted || res.Reason != tc.reason {
+				t.Errorf("inserted %v, reason %q; want %v, %q", res.Inserted, res.Reason, tc.inserted, tc.reason)
+			}
+			if len(io.pasted) != 1 || io.pasted[0].VerifyMS != DefaultVerifyMS {
+				t.Fatalf("pasted %+v: the check's time goes to the helper", io.pasted)
+			}
+			if !tc.inserted && res.Front.PID != slack.PID {
+				t.Errorf("front %+v: the app it was meant for", res.Front)
+			}
+			d := res.Diag()
+			if !strings.Contains(d, tc.diag) || !strings.HasPrefix(d, "focus AXTextArea in Slack (pid 812, editable, value 12, selection 12+0); ⌘V posted") {
+				t.Errorf("diag %q, want it to hold %q", d, tc.diag)
+			}
+		})
+	}
+}
+
+func TestDiagNotPasted(t *testing.T) {
+	res := Insert(context.Background(), &fakeIO{focus: []proto.FocusResult{{PID: 530, App: &textEdit, Error: "no focused element"}}}, Request{Text: "hi", Target: slack})
+	if d := res.Diag(); d != "focus no role in TextEdit (pid 530, value 0, no focused element); not pasted (notEditable)" {
+		t.Errorf("diag %q", d)
 	}
 }

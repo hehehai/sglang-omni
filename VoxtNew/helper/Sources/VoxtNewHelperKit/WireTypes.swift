@@ -315,7 +315,7 @@ public struct App: Codable, Sendable, Equatable {
 
 // MARK: textio.*
 
-public struct TextRange: Codable, Sendable {
+public struct TextRange: Codable, Sendable, Equatable {
     public var location: Int
     public var length: Int
     public init(location: Int, length: Int) {
@@ -390,6 +390,15 @@ public struct PasteParams: Codable, Sendable {
     public var targetPid: Int?
     public var press: [KeyPress]?
     public var pressDelayMs: Int?
+    /// Check that the text went in, for up to this long (PasteCheck).
+    public var verifyMs: Int?
+}
+
+/// The outcomes of a paste's check (PasteParams.verifyMs).
+public enum PasteCheck {
+    public static let inserted = "inserted"
+    public static let unchanged = "unchanged"
+    public static let unknown = "unknown"
 }
 
 public struct PasteResult: Codable, Sendable {
@@ -398,13 +407,54 @@ public struct PasteResult: Codable, Sendable {
     public var clipboardTaken: Bool
     public var ms: Double
     public var front: App?
+    public var check: String?
+    public var checkMs: Double?
+    public var field: PasteField?
+    public var secureInput: App?
+    public var pressSkipped: Bool?
+    public var kept: Bool?
 
-    public init(posted: Bool, restored: Bool, clipboardTaken: Bool, ms: Double, front: App? = nil) {
+    public init(posted: Bool, restored: Bool, clipboardTaken: Bool, ms: Double, front: App? = nil,
+                check: String? = nil, checkMs: Double? = nil, field: PasteField? = nil, secureInput: App? = nil,
+                pressSkipped: Bool? = nil, kept: Bool? = nil) {
         self.posted = posted
         self.restored = restored
         self.clipboardTaken = clipboardTaken
         self.ms = ms
         self.front = front
+        self.check = check
+        self.checkMs = checkMs
+        self.field = field
+        self.secureInput = secureInput
+        self.pressSkipped = pressSkipped
+        self.kept = kept
+    }
+}
+
+/// The focused element a paste's check watched: its role, its state
+/// before ⌘V and at the end of the check (nil: not readable).
+public struct PasteField: Codable, Sendable {
+    public var role: String?
+    public var before: FieldState?
+    public var after: FieldState?
+
+    public init(role: String?, before: FieldState?, after: FieldState?) {
+        self.role = role
+        self.before = before
+        self.after = after
+    }
+}
+
+public struct FieldState: Codable, Sendable, Equatable {
+    public var length: Int
+    public var selection: TextRange?
+    /// The selected text marker range was read (web pages).
+    public var marker: Bool?
+
+    public init(length: Int, selection: TextRange?, marker: Bool? = nil) {
+        self.length = length
+        self.selection = selection
+        self.marker = marker
     }
 }
 

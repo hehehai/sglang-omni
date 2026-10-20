@@ -246,6 +246,21 @@
   - 第 6 步：TextEdit 回到前台，文字插进 TextEdit（不会插进 VoxtNew 自己的输入框）。
 - **不对时看**：日志里 `inserted into … not …`（换了 App）或 `not inserted (…; … in front)`，以及 `helper.log` 的 focus 结果。
 
+**2.8a 粘贴后检查：没进去的文字不会静默丢掉**（10-20，#25）
+- **准备**：在 Safari（或你平时不用的浏览器窗口）打开一个本地页面，有一个 `<textarea>`、一个 `contenteditable` 的 div，再有一个拦截粘贴的输入框（`<textarea onpaste="event.preventDefault()">`）。先复制一段别的文字。
+- **做**：
+  1. 点进 textarea，转录一句话。
+  2. 点进 contenteditable，转录一句话。
+  3. 点进拦截粘贴的输入框，转录一句话。
+  4. 打开终端，菜单“终端 → 安全键盘输入”打勾，回到页面的 textarea 转录一句话；做完把“安全键盘输入”关掉。
+  5. 在 Arc（用户平时出问题的地方）的网页输入框里各转录几次，中途切换窗口、标签页，结束时点回输入框。
+- **应看到**：
+  - 第 1、2 步：文字插入，浮窗淡出；按 ⌘V 粘出的仍是准备时复制的文字（剪贴板已恢复）。日志 `delivery: focus AXTextArea in Safari (…); ⌘V posted, check inserted after N ms (AXTextArea: value a → value b…), clipboard restored`，N 一般在 200 ms 以内。
+  - 第 3 步：输入框里没有文字，结果进答案卡片，正文下面一行小字“文字没有出现在输入位置：已放到剪贴板，按 ⌘V 粘贴。”；在别处按 ⌘V 粘出的是这次的结果；历史详情的交付方式是“卡片”；日志里 `check unchanged after 1000 ms`，以及一行 warning `pasted into …, but the text did not show there (unconfirmed)`。
+  - 第 4 步：如果文字照常插入，记下来（说明安全输入不拦截 ⌘V）；如果没插入，卡片小字说另一个 App 开着安全输入，日志有 `secure input on (Terminal, pid …)`。
+  - 第 5 步：要么插入（`check inserted`），要么进卡片并说明；不会再出现“历史里有、输入框里没有、什么提示都没有”。如果出现，把那几次的 `delivery:` 日志行发回来（focus 的角色、value、check 结果都在里面）。
+- **不对时看**：`voxtnew.log` 的 `delivery:` 行；卡片多出来但文字其实进去了时，看 check 是不是 `unchanged`、before/after 的 value 是否相同（这个 App 的辅助功能值没有及时更新）。
+
 **2.9 粘贴最近结果**
 - **做**：按 ⌃⌥V。然后退出 VoxtNew（菜单栏 → 退出），重新打开，再按一次 ⌃⌥V。
 - **应看到**：两次都粘出最近一次转录的结果。重启后的结果是从历史里读的，不需要模型。
@@ -549,6 +564,17 @@
   - 第 3 步：11 分钟后进程都还在；`~/Library/Application Support/ActNow/runtime/dev.hehehai.voxtnew.json` 里它们的 `idleSince` 是转录结束的时间。改回“自动”后，从改的那一刻算起约 5 分钟 `voxtnew-llm` 退出、约 10 分钟语音服务退出，不需要重启。
   - 第 4 步：VoxtNew 的空闲模型被卸载（日志 `family: unloading … (idle) for another app`），设置不变；下一次转录照常（冷启动一次）。
 - **不对时看**：日志面板；runtime 文件。
+
+**7.5b 模型还没加载、麦克风启动慢时的浮窗**（10-20，#25）
+- **做**：
+  1. 退出 VoxtNew 再打开（模型都没载入），立刻按右 ⌥ 说一句话，看浮窗，说完停止。
+  2. 在 本地模型 → 高级 把“保持模型载入”设成 5 分钟，等 5 分钟以上（模型被卸载），再转录一次。
+- **应看到**：
+  - 麦克风没出声音的那一小段（一般看不到，超过 0.4 秒才显示）：图标位置是带圆环的麦克风（一闪一闪、圆环向外扩散），波形灰色，下面一行“正在启动麦克风…”。这时说的话录不下来。
+  - 麦克风有声音、模型还在加载：同样的麦克风动画，但波形跟着声音动，下面一行“正在加载语音识别模型…”；模型好了以后这一行换成实时文字，最后插入的文字包括加载期间说的话。
+  - 停止时模型还没好：处理中的胶囊下面也写“正在加载语音识别模型…”。
+  - 模型已经载入时（第二次转录）什么都不显示。
+- **不对时看**：日志 `recorded … (…, first audio after …)`；超过 1 秒有一行 warning `the microphone gave its first audio … after the start`；`omni: asr.accurate ready … after …`。
 
 **7.6 退出时不留进程**
 - **做**：

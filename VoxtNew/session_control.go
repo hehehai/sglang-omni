@@ -151,7 +151,7 @@ func (a *app) pasteLast(target proto.App) {
 	a.async(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		res := deliver.Insert(ctx, io, deliver.Request{Text: text, Target: target})
+		res := deliver.Insert(ctx, io, deliver.Request{Text: text, Target: target, VerifyMS: deliver.DefaultVerifyMS})
 		a.post(func() {
 			if !res.Inserted {
 				a.showNotice(sessionNotice{text: uitext.DeliveryText(res, target)})

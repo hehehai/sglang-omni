@@ -103,7 +103,7 @@ type pillLook struct {
 // compact card); with live text the row and the text's line under it,
 // both centred, in the wider padding of Voxt's card with text.
 func overlayPill(c *ui.Context, s session.Snapshot, mode overlayMode, look pillLook) {
-	text := liveLineText(s)
+	text, hint := pillLine(s)
 	// The face's border takes layout.Border of its padding (MyGo's border box).
 	col := ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Padding(layout.PillPadY-layout.Border, layout.PillPadX-layout.Border)
 	if text != "" {
@@ -111,9 +111,13 @@ func overlayPill(c *ui.Context, s session.Snapshot, mode overlayMode, look pillL
 	}
 	col.Children(func() {
 		ui.Row(c).Height(layout.RowH).Shrink(0).Gap(layout.Gap).AlignItems(ui.Center).Children(func() {
-			ui.Box(c).Size(layout.IconSlot, layout.RowH).Shrink(0).Center().Children(func() {
-				ui.Icon(c, overlayKindIcon(s.Kind).Bold).Size(layout.IconSize, layout.IconSize).TextColor(ovIcon).Shrink(0).Label(uitext.KindTitle(s.Kind))
-			})
+			if mode == ovRecording && s.Waiting != session.WaitNone {
+				startingIcon(c, s, look)
+			} else {
+				ui.Box(c).Size(layout.IconSlot, layout.RowH).Shrink(0).Center().Children(func() {
+					ui.Icon(c, overlayKindIcon(s.Kind).Bold).Size(layout.IconSize, layout.IconSize).TextColor(ovIcon).Shrink(0).Label(uitext.KindTitle(s.Kind))
+				})
+			}
 			if mode == ovRecording {
 				waveform(c, s.Levels, !s.HeardAt.IsZero(), look)
 				if look.time {
@@ -129,9 +133,43 @@ func overlayPill(c *ui.Context, s session.Snapshot, mode overlayMode, look pillL
 					Label(i18n.T("App enhancement: %s", uitext.SceneLabel(s)))
 			}
 		})
-		if text != "" {
+		switch {
+		case hint:
+			// What it waits for, centred and dim, until the live text comes.
+			ui.Row(c.Key("ov-wait")).Width(float32(max(look.w, layout.PillW) - 2*layout.LivePadX)).Height(layout.LineH).Shrink(0).
+				AlignItems(ui.Center).Justify(ui.Center).Clip().Children(func() {
+				ui.Text(c, text).FontSize(layout.LiveSize).FontWeight(layout.LiveWeight).TextColor(ovText2).SingleLine().Shrink(0)
+			})
+		case text != "":
 			liveLine(c.Key("ov-live-"+s.ID), text, float32(max(look.w, layout.PillW)-2*layout.LivePadX), look.motion)
 		}
+	})
+}
+
+// pillLine is the line under the pill's row: the live text, else (hint)
+// what the session waits for (uitext.WaitText); "" for none.
+func pillLine(s session.Snapshot) (text string, hint bool) {
+	if text := liveLineText(s); text != "" {
+		return text, false
+	}
+	if w := uitext.WaitText(s); w != "" {
+		return w, true
+	}
+	return "", false
+}
+
+// startingIcon is the feature's icon while the microphone or the speech
+// model starts (Voxt's initializing icon): it breathes, and a ring pings
+// out of it (layout.MicRing, layout.MicPulse); still without motion.
+func startingIcon(c *ui.Context, s session.Snapshot, look pillLook) {
+	d, ringA := layout.MicRing(look.phase, look.motion)
+	iconA, scale := layout.MicPulse(look.phase, look.motion)
+	ui.Box(c.Key("ov-starting")).Size(layout.IconSlot, layout.RowH).Shrink(0).Center().Label(uitext.WaitText(s)).Children(func() {
+		ring := float32(d)
+		ui.Box(c).Absolute().Left((layout.IconSlot-ring)/2).Top((layout.RowH-ring)/2).Size(ring, ring).Radius(ring/2).
+			Border(1.2, ui.RGBA(255, 255, 255, float32(ringA)))
+		ui.Icon(c, overlayKindIcon(s.Kind).Bold).Size(layout.IconSize, layout.IconSize).TextColor(ui.RGBA(255, 255, 255, float32(iconA))).
+			Scale(float32(scale), float32(scale)).Shrink(0)
 	})
 }
 

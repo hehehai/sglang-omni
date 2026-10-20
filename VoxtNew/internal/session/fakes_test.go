@@ -1,6 +1,7 @@
 package session
 
 import (
+	"cmp"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -51,6 +52,8 @@ type fakeAudio struct {
 	speaks func(n int) bool
 	// voice is the frame of speech (nil: frame).
 	voice []byte
+	// startWait: the microphone gives its first audio this late.
+	startWait time.Duration
 
 	mu      sync.Mutex
 	stops   map[string]chan struct{}
@@ -79,6 +82,15 @@ func (f *fakeAudio) Record(ctx context.Context, id string, p proto.CaptureParams
 		f.running--
 		f.mu.Unlock()
 	}()
+	if f.startWait > 0 {
+		select {
+		case <-time.After(f.startWait):
+		case <-ctx.Done():
+			return proto.CaptureResult{}, &proto.Error{Code: proto.CodeCancelled, Message: "cancelled"}
+		case <-stop:
+			return proto.CaptureResult{Reason: proto.CaptureStopped}, nil
+		}
+	}
 	fn(AudioEvent{Started: &proto.CaptureStartedParams{Job: id, DeviceName: "MacBook Air Microphone", SampleRate: 16000}})
 	n := 0
 	t := time.NewTicker(f.tick)
@@ -362,10 +374,15 @@ func (f *fakeLLM) requests() []llm.Request {
 type fakeText struct {
 	focus proto.FocusResult
 	err   error
+	// check is the paste's check when one is asked ("": inserted);
+	// secure the app with secure input on.
+	check  string
+	secure *proto.App
 
 	mu      sync.Mutex
 	pasted  []string
 	presses [][]proto.KeyPress
+	verify  []int
 }
 
 func (f *fakeText) Focus(context.Context) (proto.FocusResult, error) { return f.focus, f.err }
@@ -375,7 +392,15 @@ func (f *fakeText) Paste(_ context.Context, p proto.PasteParams) (proto.PasteRes
 	defer f.mu.Unlock()
 	f.pasted = append(f.pasted, p.Text)
 	f.presses = append(f.presses, p.Press)
-	return proto.PasteResult{Posted: true, Restored: true}, nil
+	f.verify = append(f.verify, p.VerifyMS)
+	res := proto.PasteResult{Posted: true, Restored: true, SecureInput: f.secure}
+	if p.VerifyMS > 0 {
+		res.Check = cmp.Or(f.check, proto.CheckInserted)
+		if res.Check == proto.CheckUnchanged {
+			res.Restored, res.Kept, res.PressSkipped = false, true, len(p.Press) > 0
+		}
+	}
+	return res, nil
 }
 
 func (f *fakeText) pastes() []string {

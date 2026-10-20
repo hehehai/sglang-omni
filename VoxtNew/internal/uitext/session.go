@@ -34,6 +34,13 @@ func DeliveryText(res deliver.Result, target proto.App) string {
 		return i18n.T("A password field is focused: VoxtNew never types into one.")
 	case deliver.ReasonFailed:
 		return i18n.T("Could not insert: %v", res.Err)
+	case deliver.ReasonUnconfirmed:
+		return i18n.T("The text did not show up where you type: it is on the clipboard, press ⌘V.")
+	case deliver.ReasonSecureInput:
+		if s := res.Paste.SecureInput; s != nil && s.Name != "" {
+			return i18n.T("Secure input is on in %s, which can block the keys VoxtNew sends: the text is on the clipboard, press ⌘V.", s.Name)
+		}
+		return i18n.T("Secure input is on, which can block the keys VoxtNew sends: the text is on the clipboard, press ⌘V.")
 	}
 	return ""
 }
@@ -86,6 +93,18 @@ func WorkingText(s session.Snapshot) string {
 		return i18n.T("Inserting…")
 	}
 	return i18n.T("Recognizing…")
+}
+
+// WaitText says what a session waits for (session.Snapshot.Waiting), as
+// the pill's line says it until the live text comes; "" for nothing.
+func WaitText(s session.Snapshot) string {
+	switch {
+	case s.Waiting == session.WaitMic && s.State == session.Recording:
+		return i18n.T("Starting the microphone…")
+	case s.Waiting == session.WaitModel && (s.State == session.Recording || s.State == session.Recognizing):
+		return i18n.T("Loading the speech model…")
+	}
+	return ""
 }
 
 func KindTitle(k store.Kind) string {
@@ -176,6 +195,10 @@ func WhyInCard(r deliver.Reason, selection bool, name string) string {
 		return i18n.T("A password field is focused, and VoxtNew never types into one: copy it, or click another field and insert.")
 	case deliver.ReasonNoAccess:
 		return i18n.T("Allow Accessibility to insert results where you type.")
+	case deliver.ReasonUnconfirmed:
+		return i18n.T("The text did not show up where you type. It is on the clipboard: press ⌘V, or insert it again.")
+	case deliver.ReasonSecureInput:
+		return i18n.T("Secure input is on in another app, which can block the keys VoxtNew sends. The text is on the clipboard: press ⌘V, or insert it again.")
 	}
 	return ""
 }

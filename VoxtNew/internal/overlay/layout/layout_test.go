@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"math"
 	"slices"
 	"testing"
 
@@ -51,5 +52,23 @@ func TestOverlayPlace(t *testing.T) {
 	_, y = Place(wa, settings.Overlay{Position: "top", Margin: 40}, 272, 84)
 	if y != 25+40-Pad {
 		t.Errorf("top %d", y)
+	}
+}
+
+func TestMicLoader(t *testing.T) {
+	if d, a := MicRing(0, true); d != MicRingMin || a != 0.6 {
+		t.Errorf("ring at 0: %v %v", d, a)
+	}
+	if d, a := MicRing(1.199, true); d < MicRingMax-0.1 || a > 0.01 {
+		t.Errorf("ring at the end: %v %v", d, a)
+	}
+	if d, a := MicRing(5, false); d != 22 || a != 0.35 {
+		t.Errorf("still ring %v %v", d, a)
+	}
+	if a, s := MicPulse(0, true); a != 0.55 || s != 0.94 {
+		t.Errorf("pulse at 0: %v %v", a, s)
+	}
+	if a, s := MicPulse(1.25, true); math.Abs(a-0.98) > 1e-9 || math.Abs(s-1.04) > 1e-9 {
+		t.Errorf("pulse at its top: %v %v", a, s)
 	}
 }

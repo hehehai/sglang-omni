@@ -15,9 +15,18 @@
 // app is activated again first (macx.Activate): nothing is ever typed
 // into VoxtNew, nor into a password field.
 //
+// The paste is checked (Request.VerifyMS): the helper reads the focused
+// element before ⌘V and after it. When it reads the same up to the end of
+// the check, the text did not go in: nothing is reported inserted, the
+// clipboard keeps the text, the auto key is not pressed and the caller
+// shows the card (ReasonUnconfirmed; ReasonSecureInput when another app
+// had secure event input on, which may keep posted keys away). An element
+// that tells nothing (no value nor selection, a web area) is trusted as
+// before.
+//
 // Policy is here, the mechanics in the helper: the restore delay, the
-// keys after the paste and whether the clipboard keeps the text are
-// params of textio.paste.
+// keys after the paste, whether the clipboard keeps the text and how
+// long the check waits are params of textio.paste.
 //
 // Imports: helper/proto.
 package deliver
@@ -65,7 +74,19 @@ const (
 	// these, not Insert.
 	ReasonCard Reason = "card"
 	ReasonLong Reason = "long" // 0.1.0's (the history may hold it)
+	// ReasonUnconfirmed: ⌘V was posted, but the focused element did not
+	// change (the paste's check): the text is on the clipboard.
+	ReasonUnconfirmed Reason = "unconfirmed"
+	// ReasonSecureInput: as ReasonUnconfirmed, while another app had
+	// secure event input on (Result.Paste.SecureInput).
+	ReasonSecureInput Reason = "secureInput"
 )
+
+// DefaultVerifyMS is how long a paste's check waits for the focused
+// element to change: a web page's text area shows it within 50–200 ms;
+// a busy page may read the clipboard late, and the clipboard keeps the
+// text for it anyway when the check gives up.
+const DefaultVerifyMS = 1000
 
 // Request is one insert.
 type Request struct {
@@ -94,6 +115,9 @@ type Request struct {
 	// (text selected on a web page must not be "replaced" by a paste
 	// that goes nowhere).
 	Replace bool
+	// VerifyMS checks the paste for up to that long (DefaultVerifyMS;
+	// 0: no check).
+	VerifyMS int
 }
 
 // Result is what happened.
@@ -174,7 +198,7 @@ func insert(ctx context.Context, io TextIO, r Request) Result {
 	}
 	p, err := io.Paste(ctx, proto.PasteParams{
 		Text: r.Text, KeepClipboard: r.KeepClipboard, RestoreDelayMS: r.RestoreDelayMS,
-		TargetPID: res.To.PID, Press: press, PressDelayMS: r.PressDelayMS,
+		TargetPID: res.To.PID, Press: press, PressDelayMS: r.PressDelayMS, VerifyMS: r.VerifyMS,
 	})
 	if err != nil {
 		return failed(res, err)
@@ -185,6 +209,14 @@ func insert(ctx context.Context, io TextIO, r Request) Result {
 		if p.Front != nil {
 			res.Front = *p.Front
 		}
+		return res
+	}
+	if p.Check == proto.CheckUnchanged {
+		res.Reason = ReasonUnconfirmed
+		if p.SecureInput != nil {
+			res.Reason = ReasonSecureInput
+		}
+		res.Front = res.To
 		return res
 	}
 	res.Inserted = true

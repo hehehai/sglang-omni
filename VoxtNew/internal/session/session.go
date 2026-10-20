@@ -161,6 +161,10 @@ type Snapshot struct {
 	StartedAt, HeardAt, StoppedAt time.Time
 	// Levels are the last Bars input levels, 0–1, oldest first.
 	Levels []float64
+	// Waiting is what the session still waits for, once it waited
+	// longer than Config.WaitNote (wait.go): the microphone's first audio,
+	// or the speech model, still starting. The pill says so.
+	Waiting Wait
 	// Device is the input that records, FellBack whether it was not the
 	// first choice.
 	Device   string
@@ -340,6 +344,9 @@ type Config struct {
 	WriteTimeout  time.Duration // DefaultWriteTimeout
 	ReadTimeout   time.Duration // reading the selection; DefaultReadTimeout
 	DeliverTime   time.Duration // DefaultDeliverTimeout
+	// WaitNote is how long a recording waits for the microphone or the
+	// speech model before Snapshot.Waiting says so (DefaultWaitNote).
+	WaitNote time.Duration
 	// StopGrace is how long Stop waits for the recording to end before
 	// discarding the capture job (a capture.stop that raced its start);
 	// DefaultStopGrace.
@@ -361,6 +368,7 @@ const (
 	DefaultReadTimeout    = 1500 * time.Millisecond
 	DefaultDeliverTimeout = 5 * time.Second
 	DefaultStopGrace      = 3 * time.Second
+	DefaultWaitNote       = 400 * time.Millisecond
 )
 
 // StartRequest starts a session.

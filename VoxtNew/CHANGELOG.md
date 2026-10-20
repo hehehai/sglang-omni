@@ -14,6 +14,7 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 - **History settings** (the button beside History's search field): keep the recordings (the same switch as Settings → Privacy), choose the folder they are kept in (the recordings already kept move there, each one copied and checked before the original is deleted; if the folder is on a drive that is not connected, new recordings go to the default folder until it is back), see how much room they take, export them (all, or those of the tab shown) into a folder you choose, named by their date and first words, or delete them all and keep the texts. **Automatic clean-up**, on as in Voxt: entries older than 3 months are deleted with their recordings; you can choose 1 week to 1 year, keep at most 50 to 1000 entries of each feature, or turn it off. A new setting that would delete entries now asks first, with their number.
 - **Retry** a history entry from its recording: a failed entry (or one with no text) shows Retry on its row instead of Failed, in its details and in its context menu; other entries with a recording have Transcribe again. The entry is updated in place (text, status, time); nothing is pasted. The overlay's notice of a failed recognition opens the entry and retries it.
 - **Long dictations are recognised while you speak**: after a minute, finished stretches are recognised in the background, cut at pauses, so Stop leaves only the last half-minute or so (on a busy Mac, 104 s of speech: 26 s → 2.4 s after Stop).
+- **The overlay says what a recording is waiting for.** When the microphone is slow to start (the first dictation after VoxtNew starts on a Mac short of memory), the microphone icon pulses inside a ring and the overlay says "Starting the microphone…": what you say before the bars light up is not recorded. While the speech model is still loading (the first dictation, or after it was unloaded), the bars keep showing your voice and the overlay says "Loading the speech model…": the recording works, and the live text comes once the model is ready.
 
 ### Changed
 
@@ -25,6 +26,7 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- A result that was pasted but did not show up (in a web page in Arc) is no longer lost without a word. VoxtNew now checks that the focused text field changed after the paste. When it did not, the result waits in the answer card and stays on the clipboard (press ⌘V), the auto key is not pressed, and the card says so; when another app had secure input on (a password field, a terminal's Secure Keyboard Entry), the card says that. Where the field cannot tell (some web editors), the text is pasted as before. Your clipboard now comes back as soon as the text shows, instead of half a second later.
 - A long dictation no longer fails after 30 seconds of recognition and loses everything (a 4m51s dictation on a Mac short of memory). Recognition now gets 60 s plus 1 s per second of recording; a model that stops answering is still caught after 15 s. If full recognition fails anyway, the live text is used (cleaned up and inserted as usual) and the overlay says so.
 - The speech model uses much less memory on long recordings: under 4 GB for a 5-minute dictation (Accurate model) instead of up to 10 GB, which pushed your other apps into swap and slowed the Mac. Recognising a recording again is faster, too.
 - When recognition fails or finds no text, the entry keeps the recording for 7 days even when Keep the recordings is off, so that you can retry it; a successful retry deletes it.
@@ -42,6 +44,7 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 - **历史设置**（历史页搜索框右边的按钮）：保存录音（和 设置 → 隐私 是同一个开关）；选择录音存放的文件夹（已有录音会一起移过去，每段先复制并校验再删原文件；文件夹在没接上的外接盘上时，新录音先存到默认文件夹，等它回来）；查看录音占用的空间；把录音（全部，或当前 tab 的）导出到你选的文件夹，以日期和开头几个词命名；或者全部删除、保留文字。**自动清理**，和 Voxt 一样默认开启：超过 3 个月的记录连同录音一起删除；可以选 1 周到 1 年，或每种功能最多保留 50 到 1000 条，也可以关掉。新设置会立即删掉已有记录时，先告诉你会删几条并请你确认。
 - **重试**：用历史记录保存的录音再识别一次。失败或没有文字的记录，行上的“失败”换成“重试”，详情和右键菜单里也有；其他有录音的记录是“重新识别”。结果原地更新这条记录（文字、状态、用时），不会粘贴。浮窗里识别失败的提示，点一下打开这条记录并重试。
 - **长口述边说边识别**：说到 1 分钟以后，已经说完的部分在停顿处切开、在后台识别，停止后只剩最后半分钟左右（Mac 内存紧张时，104 秒口述停止后的等待 26 秒 → 2.4 秒）。
+- **浮窗说明录音在等什么。** 麦克风启动慢时（Mac 内存紧张时 VoxtNew 启动后的第一次口述），麦克风图标在一个圆环里闪动，浮窗显示“正在启动麦克风…”：波形亮起之前说的话不会被录下。语音识别模型还在加载时（第一次口述，或者模型被卸载之后），波形照常跟着你的声音，浮窗显示“正在加载语音识别模型…”：录音不受影响，模型就绪后实时文字随即出现。
 
 #### 变更
 
@@ -53,6 +56,7 @@ All notable changes to VoxtNew. The format follows [Keep a Changelog](https://ke
 
 #### 修复
 
+- 粘贴了却没有出现的结果（Arc 里的网页）不会再悄无声息地丢掉。VoxtNew 现在会确认粘贴后焦点所在的输入框确实变了。没有变时，结果留在答案卡片里，并且留在剪贴板上（按 ⌘V 即可粘贴），不按自动按键，卡片里写明原因；另一个 app 开启了安全输入（密码框、终端的“安全键盘输入”）时，卡片会说明这一点。输入框无法告知内容的地方（部分网页编辑器）照常粘贴。原来的剪贴板在文字出现后立即恢复，不再固定等半秒。
 - 长口述不会再因为识别超过 30 秒而失败、什么都没留下（内存紧张的 Mac 上一段 4 分 51 秒的口述）。识别时限改为 60 秒加录音每秒 1 秒；模型停止响应仍在 15 秒内发现。完整识别仍然失败时，使用实时识别的文字（照常整理、插入），浮窗会说明。
 - 长录音时语音识别模型占用的内存大大减少：5 分钟的口述（精准模型）不到 4 GB，以前最多 10 GB，会把其他应用挤进 swap、拖慢 Mac。重新识别一段录音也更快了。
 - 识别失败或没有识别出文字时，即使“保存录音”关着，这条记录也保留录音 7 天，方便重试；重试成功后删除。

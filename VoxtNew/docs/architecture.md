@@ -208,7 +208,8 @@ hotkey.event (helper) ─▶ helperNotified ─▶ hotkeyFired ─▶ hotkey.Rou
    compose.BuildParts (+ the Scene layer, the glossary): one request, or one per piece where the language changes or over 300 characters
       ─▶ a chat per part (progress deadlines: first token 15 s, 5 s between tokens, a cap growing with the piece; behavior.md 5.5), streaming into the draft ─▶ compose.Clean, compose.JoinParts
          (a part fails: its text as recognised, a warning)
-   deliver.Insert: textio.focus (the app in front now) ─▶ textio.paste {targetPid: that app, press: the group's auto key only in the start app}   (or the answer card)
+   deliver.Insert: textio.focus (the app in front now) ─▶ textio.paste {targetPid: that app, press: the group's auto key only in the start app, verifyMs: 1000}   (or the answer card)
+         (the field did not change after ⌘V: not inserted, the text stays on the clipboard, the answer card; behavior.md 5.8a)
 Translate: textio.selection {allowCopy: session.AllowCopy(app)} first ─ text ─▶ compose (no recording)
            ─ none ─▶ record and recognise as above ─▶ compose
 Rewrite:   textio.selection while recording; the instruction (+ the selection) ─▶ compose
