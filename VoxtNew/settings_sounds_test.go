@@ -80,17 +80,28 @@ func TestSoundsRow(t *testing.T) {
 	}
 }
 
-// TestSoundsChoose: the picker's panel offers the suggested sounds (None
-// first), every group and macOS's sounds; choosing one keeps it and plays
-// it at once, ▶ plays one without choosing it, Try plays the choice.
+// TestSoundsChoose: the picker's panel shows the suggested sounds (None
+// first) on one line each, with their type; its type menu has All,
+// Suggested, every group and macOS's sounds; choosing one keeps it and
+// plays it at once, ▶ plays one without choosing it, Try plays the choice.
 func TestSoundsChoose(t *testing.T) {
 	r := newSoundsRig(t)
 	click(t, r.tt, "Start sound")
-	for _, s := range []string{"Suggested", "All", "Media", "Tap", "macOS", "None", "Tally", "Pebble", "Volume"} {
+	for _, s := range []string{"Search sounds", "Type", "Suggested", "Volume", "None", "Tally", "Pebble", "Media", "Tap"} {
 		if !has(r.tt, s) {
 			t.Errorf("the panel has no %q", s)
 		}
 	}
+	for _, s := range []string{"0.3 s", "0.2 s", "All"} { // no durations, tags or chips
+		if has(r.tt, s) {
+			t.Errorf("the panel shows %q", s)
+		}
+	}
+	click(t, r.tt, "Type")
+	if got := r.tt.Menu(); !slices.Equal(got, []string{"All", "Suggested", "-", "Tap", "Media", "Notify", "-", "macOS"}) {
+		t.Errorf("type menu %q", got)
+	}
+	r.tt.CloseMenu()
 	if has(r.tt, "Chime") {
 		t.Error("Chime is suggested for the start of a recording")
 	}
@@ -106,12 +117,12 @@ func TestSoundsChoose(t *testing.T) {
 		t.Fatalf("plays %q", p)
 	}
 	// A group, then a system sound found by searching.
-	click(t, r.tt, "Notify")
+	chooseIn(t, r.tt, "Type", "Notify")
 	if !has(r.tt, "Chime") || has(r.tt, "Play Pebble") {
 		tx := r.tt.Texts()
 		t.Errorf("Notify: %q", tx[max(0, len(tx)-40):])
 	}
-	click(t, r.tt, "macOS")
+	chooseIn(t, r.tt, "Type", "macOS")
 	click(t, r.tt, "Search sounds")
 	r.tt.Type("sub")
 	frames(r.tt)
@@ -142,8 +153,9 @@ func TestSoundsChoose(t *testing.T) {
 	}
 }
 
-// TestSoundsVolume: the panel's slider sets the cues' volume, which the
-// previews and the cues use.
+// TestSoundsVolume: the panel's volume button lists the steps, loudest
+// first (the current one checked: the nearest to a volume set before);
+// choosing one sets the cues' volume, Mute silences them.
 func TestSoundsVolume(t *testing.T) {
 	r := newSoundsRig(t)
 	r.updateSettings(func(s *settings.Settings) { s.Audio.SoundVolume = 40 })
@@ -151,9 +163,52 @@ func TestSoundsVolume(t *testing.T) {
 		t.Fatalf("volume %v", v)
 	}
 	click(t, r.tt, "Stop sound")
-	if !has(r.tt, "40%") {
-		t.Errorf("the panel does not show 40%%: %q", firstTexts(r.tt))
+	click(t, r.tt, "Volume")
+	if got := r.tt.Menu(); !slices.Equal(got, []string{"100%", "75%", "50%", "25%", "Mute"}) {
+		t.Errorf("volume menu %q", got)
 	}
+	if err := r.tt.ChooseMenuItem("25%"); err != nil {
+		t.Fatal(err)
+	}
+	frames(r.tt)
+	if v := r.cueTarget(startCue).Volume; v != 0.25 {
+		t.Errorf("25%%: %v", v)
+	}
+	chooseIn(t, r.tt, "Volume", "Mute")
+	if a := r.settings.Get().Audio; a.SoundVolume != -1 || a.SoundVolumeOrDefault() != 0 || r.cueTarget(startCue).Volume != 0 {
+		t.Errorf("mute: %+v", a)
+	}
+	if !has(r.tt, "Search sounds") {
+		t.Error("the menus closed the panel")
+	}
+}
+
+// TestSoundsPlaying: ▶ is in the accent while its sound plays, and a click
+// on it then stops it.
+func TestSoundsPlaying(t *testing.T) {
+	r := newSoundsRig(t)
+	click(t, r.tt, "Start sound")
+	click(t, r.tt, "Play Pebble")
+	if ch, left := r.previewPlaying(); ch != "pebble" || left <= 0 || !has(r.tt, "Stop Pebble") {
+		t.Fatalf("playing %q %v", ch, left)
+	}
+	click(t, r.tt, "Stop Pebble")
+	if ch, _ := r.previewPlaying(); ch != "" || !has(r.tt, "Play Pebble") {
+		t.Errorf("stopped %q", ch)
+	}
+	if p := r.takePlays(); !slices.Equal(p, []string{"pebble", "-pebble"}) {
+		t.Errorf("plays %q", p)
+	}
+}
+
+// chooseIn opens the menu of the button labelled button and chooses item.
+func chooseIn(t *testing.T, tt *ui.Tester, button, item string) {
+	t.Helper()
+	click(t, tt, button)
+	if err := tt.ChooseMenuItem(item); err != nil {
+		t.Fatalf("%s → %s: %v (menu %q)", button, item, err, tt.Menu())
+	}
+	frames(tt)
 }
 
 // TestSoundsTryAccent: Try shows the accent while the sound is heard (at

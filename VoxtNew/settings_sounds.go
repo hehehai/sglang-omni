@@ -40,6 +40,10 @@ type soundsState struct {
 	sounds struct {
 		previewing string // the cue whose Try shows the accent ("" none)
 		seq        int    // numbers the previews: a preview's timer ends only its own
+		// playing is the choice a preview plays until playingEnd (the
+		// picker's ▶ in the accent).
+		playing    string
+		playingEnd time.Time
 	}
 	soundCat *sounds.Catalog // the family's sounds this build has (nil: none)
 	// sysSounds are the Mac's system sounds (/System/Library/Sounds),
@@ -202,11 +206,41 @@ func (a *app) previewSound(ev sounds.Event, choice, key string) {
 	a.sounds.previewing = key
 	start, player := a.startSound, &a.sndPlayer
 	a.async(func() { player.play(seq, t, start) })
+	if t.Kind != sounds.KindNone {
+		d := t.Length(a.soundCat)
+		if d <= 0 {
+			d = sounds.UnknownLength
+		}
+		a.sounds.playing, a.sounds.playingEnd = choice, time.Now().Add(d)
+	}
 	a.later(max(t.Length(a.soundCat)+cueMargin, previewMin), func() {
 		if a.sounds.seq == seq {
 			a.sounds.previewing = ""
 		}
 	})
+}
+
+// stopPreview stops the preview that plays.
+func (a *app) stopPreview() {
+	a.sounds.seq++
+	seq := a.sounds.seq
+	a.sounds.previewing, a.sounds.playing = "", ""
+	start, player := a.startSound, &a.sndPlayer
+	a.async(func() { player.play(seq, sounds.Target{}, start) })
+}
+
+// previewPlaying is the choice a preview plays and how long it has left
+// (the picker's ▶).
+func (a *app) previewPlaying() (string, time.Duration) {
+	if a.sounds.playing == "" {
+		return "", 0
+	}
+	left := time.Until(a.sounds.playingEnd)
+	if left <= 0 {
+		a.sounds.playing = ""
+		return "", 0
+	}
+	return a.sounds.playing, left
 }
 
 // trySound plays the cue's sound now (Try).
@@ -246,7 +280,9 @@ func (a *app) soundsRow(c *ui.Context) {
 					Label:     a.soundLabel,
 					Choose:    func(ch string) { a.chooseSound(ev, ch) },
 					Preview:   func(ch string) { a.previewSound(ev, ch, "") },
-					SetVolume: func(v int) { a.updateSettings(func(s *settings.Settings) { s.Audio.SoundVolume = max(1, v) }) },
+					Stop:      a.stopPreview,
+					Playing:   a.previewPlaying,
+					SetVolume: func(v int) { a.updateSettings(func(s *settings.Settings) { s.Audio.SetSoundVolume(v) }) },
 				})
 				if a.tryButton(c.Key("try-"+ev.ID), ev.ID).Clicked() {
 					a.trySound(cu)
@@ -274,7 +310,7 @@ func (a *app) tryButton(c *ui.Context, key string) ui.Element {
 		case b.Hovered():
 			col = k.Text
 		}
-		ui.Icon(c, icons.MusicNote.Linear).Size(px(t, 16), px(t, 16)).TextColor(col)
+		ui.Icon(c, icons.TurntableMusicNoteLineDuotone.Linear).Size(px(t, 16), px(t, 16)).TextColor(col)
 	})
 	return b
 }

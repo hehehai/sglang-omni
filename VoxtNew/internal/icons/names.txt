@@ -54,7 +54,6 @@ minus                   # numberInput
 add
 
 # Settings → Audio (settings_sounds.go).
-music-note               # try a sound
 
 # Local models (models_page.go).
 soundwave                # speech models
@@ -81,3 +80,9 @@ alt-arrow-left           # Back
 
 # History (history_settings.go).
 tuning-2                # History settings
+
+# The sound picker (settings_soundpicker.go): ▶ on a sound, the volume.
+turntable-music-note-line-duotone   # play a sound (a duotone variant: both Linear and Bold)
+volume-cross             # volume: muted
+volume-small             # volume: low
+volume-loud              # volume: high
