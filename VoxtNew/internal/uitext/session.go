@@ -95,8 +95,9 @@ func WorkingText(s session.Snapshot) string {
 	return i18n.T("Recognizing…")
 }
 
-// WaitText says what a session waits for (session.Snapshot.Waiting), as
-// the pill's line says it until the live text comes; "" for nothing.
+// WaitText says what a session waits for (session.Snapshot.Waiting): the
+// starting icon's accessibility label, and the pill's line for WaitMic
+// until the live text comes; "" for nothing.
 func WaitText(s session.Snapshot) string {
 	switch {
 	case s.Waiting == session.WaitMic && s.State == session.Recording:

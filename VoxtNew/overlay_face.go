@@ -147,13 +147,18 @@ func overlayPill(c *ui.Context, s session.Snapshot, mode overlayMode, look pillL
 }
 
 // pillLine is the line under the pill's row: the live text, else (hint)
-// what the session waits for (uitext.WaitText); "" for none.
+// "Starting the microphone…" while the microphone gives no audio (what
+// is said then is lost); "" for none. A speech model that is still
+// loading shows only the starting icon (the user, 10-21): the recording
+// works meanwhile, so no line is needed.
 func pillLine(s session.Snapshot) (text string, hint bool) {
 	if text := liveLineText(s); text != "" {
 		return text, false
 	}
-	if w := uitext.WaitText(s); w != "" {
-		return w, true
+	if s.Waiting == session.WaitMic {
+		if w := uitext.WaitText(s); w != "" {
+			return w, true
+		}
 	}
 	return "", false
 }
