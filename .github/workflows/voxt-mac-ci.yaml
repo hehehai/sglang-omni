@@ -10,11 +10,9 @@ name: Voxt Mac CI
 # fetched once and reused while their SHA-256 match (provision.py), and the
 # runtime's CMake build directory is reused across runs.
 #
-# This workflow is intentionally disabled until the repository's Apple Silicon
-# runner, persistent CI storage, and required repository configuration are
-# ready. Enable the test workflow with VOXT_ENABLE_MAC_CI=true. The package
-# job additionally requires VOXT_ENABLE_CI_PACKAGE=true. Local development
-# should use Voxt/tools/package_local_app.sh instead.
+# The package job runs only when the repository variable
+# VOXT_ENABLE_CI_PACKAGE is true. Local development should use
+# Voxt/tools/package_local_app.sh instead.
 
 on:
   pull_request:
@@ -43,7 +41,6 @@ env:
 jobs:
   preflight:
     name: voxt-mac-ci-gate
-    if: ${{ vars.VOXT_ENABLE_MAC_CI == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -95,7 +92,6 @@ jobs:
 
   native-runtime:
     name: native runtime (golden + API)
-    if: ${{ vars.VOXT_ENABLE_MAC_CI == 'true' }}
     needs: [preflight]
     if: needs.preflight.outputs.run_mac == 'true'
     runs-on: [self-hosted, macOS, ARM64]
@@ -204,7 +200,6 @@ jobs:
 
   voxt-unit:
     name: Voxt Omni unit tests
-    if: ${{ vars.VOXT_ENABLE_MAC_CI == 'true' }}
     needs: [preflight]
     if: needs.preflight.outputs.run_mac == 'true'
     runs-on: [self-hosted, macOS, ARM64]
@@ -304,7 +299,7 @@ jobs:
 
   package:
     name: Voxt native runtime package
-    if: ${{ vars.VOXT_ENABLE_MAC_CI == 'true' && vars.VOXT_ENABLE_CI_PACKAGE == 'true' }}
+    if: ${{ vars.VOXT_ENABLE_CI_PACKAGE == 'true' }}
     needs: [native-runtime, voxt-unit]
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 60
