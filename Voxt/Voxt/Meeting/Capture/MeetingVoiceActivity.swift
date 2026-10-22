@@ -278,6 +278,7 @@ actor MeetingVoiceActivityDetector {
 }
 
 actor ASRSileroStreamingVoiceActivityDetector {
+    private let omniRuntime: OmniSharedModelRuntime
     private let sampleRate = 16_000
     private var lastProbabilities: [String: Float] = [:]
     /// On the native runtime: one server stream per streamID, which holds the
@@ -287,12 +288,17 @@ actor ASRSileroStreamingVoiceActivityDetector {
     private var generation = 0
     private var commandTail: Task<Void, Never>?
 
+    init(omniRuntime: OmniSharedModelRuntime = OmniSileroVADRuntime.shared) {
+        self.omniRuntime = omniRuntime
+    }
+
     deinit {
         let streams = Array(omniStreams.values)
+        let runtime = omniRuntime
         let hasEndpoint = omniEndpoint != nil
         Task {
             for stream in streams { await stream.close() }
-            if hasEndpoint { await OmniSileroVADRuntime.shared.release() }
+            if hasEndpoint { await runtime.release() }
         }
     }
 
@@ -313,7 +319,7 @@ actor ASRSileroStreamingVoiceActivityDetector {
             await self.closeStreams()
             if unload, self.omniEndpoint != nil {
                 self.omniEndpoint = nil
-                await OmniSileroVADRuntime.shared.release()
+                await self.omniRuntime.release()
             }
         }
         commandTail = retirement
@@ -397,7 +403,7 @@ actor ASRSileroStreamingVoiceActivityDetector {
         guard omniEndpoint == endpoint, !(error is CancellationError), !(error is OmniVoiceActivityError) else { return }
         omniEndpoint = nil
         await closeStreams()
-        await OmniSileroVADRuntime.shared.release()
+        await omniRuntime.release()
     }
 
     private func omniEndpointIfAvailable(generation: Int) async throws -> OmniServerEndpoint {
@@ -405,9 +411,9 @@ actor ASRSileroStreamingVoiceActivityDetector {
         let directory = try await SileroVADModelProvisioner.shared.ensureModelDirectory()
         try Task.checkCancellation()
         guard generation == self.generation else { throw CancellationError() }
-        let endpoint = try await OmniSileroVADRuntime.shared.acquire(modelDirectory: directory)
+        let endpoint = try await omniRuntime.acquire(modelDirectory: directory)
         guard generation == self.generation, !Task.isCancelled else {
-            await OmniSileroVADRuntime.shared.release()
+            await omniRuntime.release()
             throw CancellationError()
         }
         omniEndpoint = endpoint

@@ -947,10 +947,11 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         }
     }
 
-    private func startNativeLiveSession(revision: Int) {
+    @discardableResult
+    func startNativeLiveSession(revision: Int) -> Task<Void, Never> {
         liveSessionSetupTasks.cancelAll()
         let expectedMode = activeLiveMode
-        liveSessionSetupTasks.start { [weak self] in
+        return liveSessionSetupTasks.start { [weak self] in
             guard let self else { return }
             let startedAt = Date()
             let manager = self.modelManager
@@ -1057,7 +1058,7 @@ class MLXTranscriber: ObservableObject, TranscriberProtocol {
         )
     }
 
-    private func releaseNativeLiveSession(cancelSession: Bool) {
+    func releaseNativeLiveSession(cancelSession: Bool) {
         nativeLiveRuntime.release(cancelSession: cancelSession)
     }
 
